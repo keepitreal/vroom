@@ -2,12 +2,15 @@
 
 import type { SkPicture } from '@shopify/react-native-skia';
 
+export interface ChartHandle {
+  setCandles(buffer: ArrayBuffer): void;
+  setSize(width: number, height: number, pxRatio: number): void;
+  render(): SkPicture | null;
+}
+
 export interface VroomChartJSI {
-  /**
-   * Phase 0 sanity check: returns a fresh SkPicture containing one
-   * red 100×100 rect, drawn by C++ Skia code via SkPictureRecorder.
-   */
-  helloPicture(): SkPicture;
+  /** Creates a fresh chart instance. Destroyed when the JS reference is GC'd. */
+  create(): ChartHandle;
 }
 
 declare global {

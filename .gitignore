@@ -23,6 +23,10 @@ third_party/skia/**
 !third_party/skia/.gitkeep
 !third_party/skia/README.md
 
+# Symlinks created by the RN package's podspec at pod install time
+packages/react-native/cpp/_core_src
+packages/react-native/cpp/_core_include
+
 # iOS
 ios/Pods/
 ios/build/

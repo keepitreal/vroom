@@ -31,7 +31,7 @@ typedef struct VroomChart VroomChart;
 
 // ---- Data types -----------------------------------------------------------
 
-typedef struct {
+typedef struct VroomCandle {
     int64_t time_ms;   // epoch milliseconds, ascending, non-overlapping
     double  open;
     double  high;

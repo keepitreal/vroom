@@ -23,18 +23,32 @@ Pod::Spec.new do |s|
 
   s.requires_arc = true
 
+  # CocoaPods source_files globs (a) refuse paths outside the spec's source
+  # root and (b) don't follow symlinks. We mirror the core sources into a
+  # sibling directory inside this pod every time the spec is evaluated, so
+  # edits to packages/core/ propagate on the next `pod install`.
+  # (Using `prepare_command` doesn't work because CocoaPods caches it per
+  # pod version and doesn't re-run for local pods on subsequent installs.)
+  require "fileutils"
+  spec_dir = __dir__
+  ["src", "include"].each do |sub|
+    src = File.join(spec_dir, "..", "core", sub)
+    dst = File.join(spec_dir, "cpp", "_core_#{sub}")
+    FileUtils.rm_rf(dst)
+    FileUtils.cp_r(src, dst)
+  end
+
   s.source_files = [
     "ios/**/*.{h,m,mm}",
     "cpp/**/*.{h,cpp}",
-    "../core/src/**/*.cpp",
-    "../core/src/**/*.h",
-    "../core/include/**/*.h",
+    "cpp/_core_src/**/*.{h,cpp}",
+    "cpp/_core_include/**/*.h",
   ]
 
   s.pod_target_xcconfig = {
     "HEADER_SEARCH_PATHS" => [
-      '"$(PODS_TARGET_SRCROOT)/../core/include"',
-      '"$(PODS_TARGET_SRCROOT)/../core/src"',
+      '"$(PODS_TARGET_SRCROOT)/cpp/_core_include"',
+      '"$(PODS_TARGET_SRCROOT)/cpp/_core_src"',
       '"$(PODS_TARGET_SRCROOT)/cpp"',
       "\"#{skia_cpp_dir}\"",
       "\"#{skia_skia_dir}\"",
