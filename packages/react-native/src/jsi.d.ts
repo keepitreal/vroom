@@ -7,6 +7,8 @@ export interface ChartHandle {
   setSize(width: number, height: number, pxRatio: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
+  /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
+  pan(dx: number, dy: number): SkPicture | null;
   render(): SkPicture | null;
 }
 

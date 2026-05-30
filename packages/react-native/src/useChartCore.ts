@@ -37,14 +37,21 @@ function packCandles(candles: Candle[]): ArrayBuffer {
   return buf;
 }
 
-// Owns a ChartHandle for the lifetime of the consuming component. Pushes the
-// latest candles + size + visible range into the core whenever they change,
-// then renders and returns the resulting SkPicture.
+export type ChartCoreState = {
+  handle: ChartHandle | null;
+  /** Picture freshly rendered after the latest data/size/range push. */
+  picture: SkPicture | null;
+};
+
+// Owns a ChartHandle and produces an "initial" picture whenever data, size,
+// or the externally-controlled visible range changes. Gesture-driven updates
+// happen outside this hook by calling handle.pan(...) directly and assigning
+// the result into a SharedValue.
 export function useChartCore(
   candles: Candle[],
   size: { width: number; height: number; pxRatio?: number },
   visibleRange?: VisibleRange,
-): SkPicture | null {
+): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
 
@@ -53,6 +60,11 @@ export function useChartCore(
     handleRef.current = globalThis.VroomChartJSI!.create();
   }
 
+  // When no visibleRange is provided, leave the range entirely to the C++
+  // side (which defaults to a sensible recent window on first setCandles).
+  // Only push setVisibleRange when the caller is actively controlling it,
+  // so it doesn't clobber the default or fight gesture-driven pans.
+  const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
 
@@ -63,9 +75,11 @@ export function useChartCore(
     if (candles.length > 0) {
       h.setCandles(packCandles(candles));
     }
-    h.setVisibleRange(startMs, endMs);
+    if (explicit) {
+      h.setVisibleRange(startMs, endMs);
+    }
     setPicture(h.render());
-  }, [candles, size.width, size.height, size.pxRatio, startMs, endMs]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs]);
 
-  return picture;
+  return { handle: handleRef.current, picture };
 }

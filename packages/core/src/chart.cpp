@@ -181,6 +181,21 @@ void vroom_chart_destroy(VroomChart* chart) { delete chart; }
 void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* data, size_t count) {
     if (!chart) return;
     chart->candles.assign(data, data + count);
+
+    // Default the visible window to the most recent ~60 candles when the
+    // consumer hasn't set one. A full-data-range default is wrong for the
+    // gesture model: panning would shift a window the same width as the
+    // data, and candles would fly off the edge / rescale unpleasantly.
+    if (chart->visible_start_ms == 0 && chart->visible_end_ms == 0 &&
+        !chart->candles.empty()) {
+        constexpr size_t kDefaultVisible = 60;
+        const size_t start_idx = chart->candles.size() > kDefaultVisible
+            ? chart->candles.size() - kDefaultVisible
+            : 0;
+        chart->visible_start_ms = chart->candles[start_idx].time_ms;
+        chart->visible_end_ms = chart->candles.back().time_ms;
+    }
+
     chart->mark_dirty();
 }
 
@@ -216,8 +231,36 @@ void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t 
     chart->mark_dirty();
 }
 
-void vroom_chart_pan(VroomChart* chart, float, float) { if (chart) chart->mark_dirty(); }
-void vroom_chart_zoom(VroomChart* chart, float, float, float) { if (chart) chart->mark_dirty(); }
+void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/) {
+    if (!chart || dx_px == 0.f || chart->candles.empty()) return;
+
+    // The visible range is set when candles are loaded, so we can assume it
+    // exists here. (If a consumer destroys candles without re-setting them,
+    // we'd no-op below thanks to the empty/zero-window guard.)
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    const float usable_px =
+        chart->width_px - chart->floats[VROOM_FLOAT_RIGHT_PADDING_PX];
+    if (window_ms <= 0 || usable_px <= 0.f) return;
+
+    // Finger right (dx > 0) → content moves right → see earlier data → window shifts back.
+    const int64_t delta_ms = static_cast<int64_t>(
+        (-dx_px / usable_px) * static_cast<float>(window_ms));
+    if (delta_ms == 0) return;
+
+    chart->visible_start_ms += delta_ms;
+    chart->visible_end_ms += delta_ms;
+
+    if (chart->cb.on_viewport_changed) {
+        chart->cb.on_viewport_changed(
+            chart->user_ctx, chart->visible_start_ms, chart->visible_end_ms);
+    }
+    chart->mark_dirty();
+}
+
+void vroom_chart_zoom(VroomChart* chart, float, float, float) {
+    // Phase 3 implements pan only; pinch lands as a follow-up.
+    if (chart) chart->mark_dirty();
+}
 
 void vroom_chart_set_crosshair(VroomChart* chart, float x, float y) {
     if (!chart) return;

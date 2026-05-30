@@ -27,12 +27,24 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(4);
+  out.reserve(5);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
+}
+
+// Shared helper: wraps a fresh picture for return to JS, with memory pressure
+// reported to Hermes so GC keeps up under gesture-rate churn.
+static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
+                                       const sk_sp<SkPicture>& pic) {
+  if (!pic) return facebook::jsi::Value::null();
+  auto host =
+      std::make_shared<RNSkia::JsiSkPicture>(/*context=*/nullptr, pic);
+  return JSI_CREATE_HOST_OBJECT_WITH_MEMORY_PRESSURE(rt, host,
+                                                     /*context=*/nullptr);
 }
 
 jsi::Value ChartHostObject::get(jsi::Runtime& rt,
@@ -103,6 +115,26 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
         });
   }
 
+  if (name == "pan") {
+    // pan(dx, dy) -> JsiSkPicture
+    // Mutates the visible range and renders in one JSI call so gesture
+    // handlers don't pay round-trip overhead twice per frame.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "pan"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          const float dx = static_cast<float>(args[0].asNumber());
+          const float dy = static_cast<float>(args[1].asNumber());
+          vroom_chart_pan(chart_, dx, dy);
+          return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
   if (name == "render") {
     return jsi::Function::createFromHostFunction(
         rt,
@@ -112,13 +144,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
-          sk_sp<SkPicture> pic = render_chart_picture(chart_);
-          if (!pic) return jsi::Value::null();
-
-          auto host = std::make_shared<RNSkia::JsiSkPicture>(
-              /*context=*/nullptr, pic);
-          return JSI_CREATE_HOST_OBJECT_WITH_MEMORY_PRESSURE(
-              rt2, host, /*context=*/nullptr);
+          return wrapPicture(rt2, render_chart_picture(chart_));
         });
   }
 
