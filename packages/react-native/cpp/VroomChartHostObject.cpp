@@ -27,9 +27,10 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(3);
+  out.reserve(4);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -78,6 +79,26 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float h = static_cast<float>(args[1].asNumber());
           const float r = static_cast<float>(args[2].asNumber());
           vroom_chart_set_size(chart_, w, h, r);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setVisibleRange") {
+    // Pass 0,0 to clear (show all).
+    // Timestamps are Number on the JS side — fine for ms-since-epoch since
+    // those fit in 53 bits well past year 285,000.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setVisibleRange"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          const int64_t s = static_cast<int64_t>(args[0].asNumber());
+          const int64_t e = static_cast<int64_t>(args[1].asNumber());
+          vroom_chart_set_visible_range(chart_, s, e);
           return jsi::Value::undefined();
         });
   }

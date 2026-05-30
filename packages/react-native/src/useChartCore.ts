@@ -3,7 +3,7 @@ import type { SkPicture } from '@shopify/react-native-skia';
 
 import NativeVroomChart from './NativeVroomChart';
 import type { ChartHandle } from './jsi.d';
-import type { Candle } from './types';
+import type { Candle, VisibleRange } from './types';
 
 // Wire format must match `VroomCandle` in packages/core/include/vroom/vroom_chart.h:
 //   int64_t time_ms;  double open, high, low, close, volume;
@@ -38,12 +38,12 @@ function packCandles(candles: Candle[]): ArrayBuffer {
 }
 
 // Owns a ChartHandle for the lifetime of the consuming component. Pushes the
-// latest candles + size into the core whenever they change, then renders and
-// returns the resulting SkPicture. The picture is recomputed inside an effect
-// (not during render) so it always reflects the most recent data load.
+// latest candles + size + visible range into the core whenever they change,
+// then renders and returns the resulting SkPicture.
 export function useChartCore(
   candles: Candle[],
   size: { width: number; height: number; pxRatio?: number },
+  visibleRange?: VisibleRange,
 ): SkPicture | null {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
@@ -53,6 +53,9 @@ export function useChartCore(
     handleRef.current = globalThis.VroomChartJSI!.create();
   }
 
+  const startMs = visibleRange?.startMs ?? 0;
+  const endMs = visibleRange?.endMs ?? 0;
+
   useEffect(() => {
     const h = handleRef.current;
     if (!h) return;
@@ -60,8 +63,9 @@ export function useChartCore(
     if (candles.length > 0) {
       h.setCandles(packCandles(candles));
     }
+    h.setVisibleRange(startMs, endMs);
     setPicture(h.render());
-  }, [candles, size.width, size.height, size.pxRatio]);
+  }, [candles, size.width, size.height, size.pxRatio, startMs, endMs]);
 
   return picture;
 }

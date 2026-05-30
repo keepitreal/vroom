@@ -24,6 +24,20 @@ struct PriceBounds {
     double max;
 };
 
+// Half-open [start, end) range of candle indices.
+struct IndexRange {
+    size_t start;
+    size_t end;
+};
+
+// Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
+// When both are 0, returns the full range (Phase 1 default-everything behavior).
+// Candles must be sorted ascending by time_ms (invariant of the public API).
+IndexRange visible_indices(const ::VroomCandle* candles,
+                           size_t count,
+                           int64_t start_ms,
+                           int64_t end_ms);
+
 // Width of one candle body in pixels, given count and layout.
 // Stride (body + gap) is derived from candle_width_ratio; the gap is the
 // remainder of the slot.

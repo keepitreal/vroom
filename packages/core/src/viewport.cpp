@@ -19,6 +19,27 @@ float candle_center_x(const Layout& layout, size_t count, size_t i) {
     return stride * (static_cast<float>(i) + 0.5f);
 }
 
+IndexRange visible_indices(const ::VroomCandle* candles,
+                           size_t count,
+                           int64_t start_ms,
+                           int64_t end_ms) {
+    if (count == 0) return {0, 0};
+    if (start_ms == 0 && end_ms == 0) return {0, count};
+
+    // first index with time_ms >= start_ms
+    auto* first = std::lower_bound(
+        candles, candles + count, start_ms,
+        [](const ::VroomCandle& c, int64_t t) { return c.time_ms < t; });
+    // first index with time_ms > end_ms
+    auto* last = std::upper_bound(
+        candles, candles + count, end_ms,
+        [](int64_t t, const ::VroomCandle& c) { return t < c.time_ms; });
+    return {
+        static_cast<size_t>(first - candles),
+        static_cast<size_t>(last - candles),
+    };
+}
+
 PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {
     PriceBounds b{
         std::numeric_limits<double>::infinity(),

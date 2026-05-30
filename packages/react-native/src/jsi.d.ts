@@ -5,6 +5,8 @@ import type { SkPicture } from '@shopify/react-native-skia';
 export interface ChartHandle {
   setCandles(buffer: ArrayBuffer): void;
   setSize(width: number, height: number, pxRatio: number): void;
+  /** Pass 0, 0 to show all candles. */
+  setVisibleRange(startMs: number, endMs: number): void;
   render(): SkPicture | null;
 }
 

@@ -13,9 +13,9 @@ import type { VroomChartProps } from './types';
 import './jsi.d';
 
 export function VroomChart(props: VroomChartProps) {
-  const { candles, width = 360, height = 240 } = props;
+  const { candles, width = 360, height = 240, visibleRange } = props;
 
-  const picture = useChartCore(candles, { width, height });
+  const picture = useChartCore(candles, { width, height }, visibleRange);
 
   return (
     <View style={{ width, height }}>

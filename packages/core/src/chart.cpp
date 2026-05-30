@@ -62,6 +62,10 @@ struct VroomChart {
     float height_px = 0.f;
     float px_ratio = 1.f;
 
+    // 0/0 = show everything (Phase 1 behavior). Set via set_visible_range.
+    int64_t visible_start_ms = 0;
+    int64_t visible_end_ms = 0;
+
     bool   crosshair_active = false;
     float  crosshair_x_px = 0.f;
     float  crosshair_y_px = 0.f;
@@ -102,8 +106,15 @@ struct VroomChart {
 
         if (candles.empty()) return;
 
-        const auto bounds = vroom::price_bounds(candles.data(), candles.size());
-        const float body_w = vroom::candle_body_width(lay, candles.size());
+        const auto range = vroom::visible_indices(
+            candles.data(), candles.size(),
+            visible_start_ms, visible_end_ms);
+        const size_t n = range.end - range.start;
+        if (n == 0) return;
+        const ::VroomCandle* visible = candles.data() + range.start;
+
+        const auto bounds = vroom::price_bounds(visible, n);
+        const float body_w = vroom::candle_body_width(lay, n);
 
         SkPaint bull_paint;
         bull_paint.setAntiAlias(true);
@@ -124,11 +135,11 @@ struct VroomChart {
 
         const float half_body = body_w * 0.5f;
 
-        for (size_t i = 0; i < candles.size(); ++i) {
-            const auto& c = candles[i];
+        for (size_t i = 0; i < n; ++i) {
+            const auto& c = visible[i];
             const bool bull = c.close >= c.open;
 
-            const float cx = vroom::candle_center_x(lay, candles.size(), i);
+            const float cx = vroom::candle_center_x(lay, n, i);
             const float y_high = vroom::price_to_y(lay, bounds, c.high);
             const float y_low = vroom::price_to_y(lay, bounds, c.low);
             const float y_open = vroom::price_to_y(lay, bounds, c.open);
@@ -194,9 +205,15 @@ void vroom_chart_set_size(VroomChart* chart, float w, float h, float ratio) {
     chart->mark_dirty();
 }
 
-void vroom_chart_set_visible_range(VroomChart* chart, int64_t /*start_ms*/, int64_t /*end_ms*/) {
-    // Phase 1: viewport is always the full data range; ignore.
-    if (chart) chart->mark_dirty();
+void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t end_ms) {
+    if (!chart) return;
+    if (chart->visible_start_ms == start_ms && chart->visible_end_ms == end_ms) return;
+    chart->visible_start_ms = start_ms;
+    chart->visible_end_ms = end_ms;
+    if (chart->cb.on_viewport_changed) {
+        chart->cb.on_viewport_changed(chart->user_ctx, start_ms, end_ms);
+    }
+    chart->mark_dirty();
 }
 
 void vroom_chart_pan(VroomChart* chart, float, float) { if (chart) chart->mark_dirty(); }

@@ -25,10 +25,17 @@ export type VroomTheme = {
   tooltipText?: string;
 };
 
+export type VisibleRange = {
+  startMs: number;
+  endMs: number;
+};
+
 export type VroomChartProps = {
   candles: Candle[];
   width?: number;
   height?: number;
+  /** Time window to render. Omit (or both 0) to show every candle. */
+  visibleRange?: VisibleRange;
   theme?: VroomTheme;
   onCrosshair?: (e: CrosshairEvent) => void;
   onViewportChange?: (startMs: number, endMs: number) => void;
