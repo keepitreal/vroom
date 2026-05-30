@@ -1,0 +1,54 @@
+# Node
+node_modules/
+.pnpm-store/
+*.log
+.npm/
+
+# Build artifacts
+build/
+dist/
+out/
+*.o
+*.a
+*.so
+*.dylib
+*.dSYM/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Third-party prebuilts (fetched via script, never committed)
+third_party/skia/**
+!third_party/skia/.gitkeep
+!third_party/skia/README.md
+
+# iOS
+ios/Pods/
+ios/build/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+DerivedData/
+
+# Android
+.gradle/
+android/build/
+android/.cxx/
+local.properties
+*.keystore
+!debug.keystore
+
+# Expo / RN
+.expo/
+.expo-shared/
+web-build/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Env
+.env
+.env.local

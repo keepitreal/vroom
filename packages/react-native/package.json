@@ -1,0 +1,43 @@
+{
+  "name": "react-native-vroom-chart",
+  "version": "0.0.1",
+  "description": "Mobile-first Skia candlestick chart for React Native",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "react-native": "src/index.ts",
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "cpp",
+    "ios",
+    "android",
+    "react-native-vroom-chart.podspec",
+    "!**/__tests__",
+    "!**/.*"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "codegenConfig": {
+    "name": "VroomChartSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "com.vroom.chart"
+    }
+  },
+  "peerDependencies": {
+    "@shopify/react-native-skia": ">=2.0.0",
+    "react": "*",
+    "react-native": "*",
+    "react-native-gesture-handler": ">=2.16.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "typescript": "~5.9.2",
+    "@shopify/react-native-skia": "2.2.12",
+    "react-native-gesture-handler": "~2.28.0"
+  }
+}

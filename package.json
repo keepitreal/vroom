@@ -1,0 +1,11 @@
+{
+  "name": "vroom",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Mobile-first Skia candlestick chart library — monorepo root",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "example": "pnpm --filter ./examples/react-native start"
+  },
+  "devDependencies": {}
+}
