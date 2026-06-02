@@ -10,7 +10,7 @@
 // Gestures run on the JS thread for now (`runOnJS(true)`) — installing the
 // JSI bindings on the worklet runtime is a later perf optimization.
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View } from 'react-native';
 import { Canvas, Picture, type SkPicture } from '@shopify/react-native-skia';
 import {
@@ -36,22 +36,156 @@ export function VroomChart(props: VroomChartProps) {
     pictureSV.value = picture;
   }, [picture, pictureSV]);
 
+  // Momentum scroll. After Pan ends with non-trivial velocity, we run a RAF
+  // loop that calls handle.pan(dx, 0) each frame with an exponentially
+  // decaying velocity. A new pan (or unmount) cancels the loop.
+  const decayRaf = useRef<number | null>(null);
+  const cancelDecay = useCallback(() => {
+    if (decayRaf.current != null) {
+      cancelAnimationFrame(decayRaf.current);
+      decayRaf.current = null;
+    }
+  }, []);
+  useEffect(() => cancelDecay, [cancelDecay]);
+
+  // Axis-label fade animation loop. When a gesture changes which labels are
+  // active, the C++ side starts ramping their opacities. We keep calling
+  // render() on every frame until handle.isAnimating() returns false. The
+  // loop is started by gesture callbacks (and the momentum tick) after they
+  // update the picture, and self-stops when fades settle.
+  const animRaf = useRef<number | null>(null);
+  const animTick = useCallback(() => {
+    animRaf.current = null;
+    if (!handle) return;
+    const next = handle.render();
+    if (next) pictureSV.value = next;
+    if (handle.isAnimating()) {
+      animRaf.current = requestAnimationFrame(animTick);
+    }
+  }, [handle, pictureSV]);
+  const maybeStartAnim = useCallback(() => {
+    if (animRaf.current != null) return;
+    if (!handle?.isAnimating()) return;
+    animRaf.current = requestAnimationFrame(animTick);
+  }, [handle, animTick]);
+  useEffect(() => {
+    return () => {
+      if (animRaf.current != null) {
+        cancelAnimationFrame(animRaf.current);
+        animRaf.current = null;
+      }
+    };
+  }, []);
+
+  // Pan can route to three different C++ mutators depending on where it
+  // started: the candle area (chart scroll), the y-axis strip (price scale),
+  // or the x-axis strip (time scale). We classify on onStart and lock in.
+  const panMode = useRef<'chart' | 'price-axis' | 'time-axis'>('chart');
+
   const pan = Gesture.Pan()
     .runOnJS(true)
+    .maxPointers(1)  // don't fight Pinch's two-finger gesture
+    .onStart((e) => {
+      cancelDecay();
+      if (!handle) {
+        panMode.current = 'chart';
+        return;
+      }
+      const { yAxisWidth, xAxisHeight } = handle.getAxisMetrics();
+      if (e.x > width - yAxisWidth) {
+        panMode.current = 'price-axis';
+      } else if (e.y > height - xAxisHeight) {
+        panMode.current = 'time-axis';
+      } else {
+        panMode.current = 'chart';
+      }
+    })
     .onChange((e) => {
       if (!handle) return;
-      const next = handle.pan(e.changeX, e.changeY);
+      let next: ReturnType<typeof handle.pan> = null;
+      if (panMode.current === 'price-axis') {
+        next = handle.scalePriceAxis(e.changeY);
+      } else if (panMode.current === 'time-axis') {
+        next = handle.scaleTimeAxis(e.changeX);
+      } else {
+        next = handle.pan(e.changeX, e.changeY);
+      }
       if (next) pictureSV.value = next;
+      maybeStartAnim();
     })
-    .onEnd(() => {
-      // Inform the host so it can mirror the C++ visible range if needed.
-      // (The actual range is held in C++ and read on next gesture.)
+    .onEnd((e) => {
+      if (!handle) return;
       onViewportChange?.(0, 0);
+
+      // Axis drags don't get momentum — they're a precise size adjustment.
+      if (panMode.current !== 'chart') return;
+
+      let velocity = e.velocityX;  // px/s
+      const MIN_LAUNCH = 80;       // ignore tiny flicks
+      const MIN_STOP = 8;          // px/s — stop threshold
+      const HALF_LIFE_S = 0.35;    // velocity halves every 0.35s
+      if (Math.abs(velocity) < MIN_LAUNCH) return;
+
+      let lastTime = performance.now();
+      const tick = () => {
+        const now = performance.now();
+        const dt = (now - lastTime) / 1000;
+        lastTime = now;
+
+        // Frame-time-independent exponential decay.
+        velocity *= Math.pow(0.5, dt / HALF_LIFE_S);
+        const dx = velocity * dt;
+        const next = handle.pan(dx, 0);
+        if (next) pictureSV.value = next;
+        maybeStartAnim();
+
+        if (Math.abs(velocity) > MIN_STOP) {
+          decayRaf.current = requestAnimationFrame(tick);
+        } else {
+          decayRaf.current = null;
+        }
+      };
+      decayRaf.current = requestAnimationFrame(tick);
     });
+
+  // RNGH Pinch's onChange gives cumulative `scale` since gesture start; we
+  // turn it into a per-frame multiplicative ratio by dividing by the
+  // previous frame's scale.
+  const prevScale = useRef(1);
+  const pinch = Gesture.Pinch()
+    .runOnJS(true)
+    .onStart(() => {
+      prevScale.current = 1;
+    })
+    .onChange((e) => {
+      if (!handle) return;
+      const ratio = e.scale / prevScale.current;
+      prevScale.current = e.scale;
+      const next = handle.zoom(ratio, e.focalX, e.focalY);
+      if (next) pictureSV.value = next;
+      maybeStartAnim();
+    });
+
+  // Two-finger drag: translate the chart in both axes (no scaling).
+  // Composes with Pinch simultaneously — a pure 2-finger drag (fingers
+  // parallel) translates only; a pure pinch (fingers spreading) scales only;
+  // a mixed gesture does both proportionally.
+  const twoPan = Gesture.Pan()
+    .runOnJS(true)
+    .minPointers(2)
+    .maxPointers(2)
+    .onChange((e) => {
+      if (!handle) return;
+      const next = handle.translate(e.changeX, e.changeY);
+      if (next) pictureSV.value = next;
+      maybeStartAnim();
+    });
+
+  const gesture = Gesture.Simultaneous(pan, twoPan, pinch);
 
   return (
     <GestureHandlerRootView style={{ width, height }}>
-      <GestureDetector gesture={pan}>
+      <GestureDetector gesture={gesture}>
         <View style={{ width, height }}>
           <Canvas style={{ flex: 1 }}>
             {picture ? (

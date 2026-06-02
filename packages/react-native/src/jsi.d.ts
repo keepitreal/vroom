@@ -9,6 +9,31 @@ export interface ChartHandle {
   setVisibleRange(startMs: number, endMs: number): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
   pan(dx: number, dy: number): SkPicture | null;
+  /**
+   * Two-finger translation: shifts the time window AND the price bounds
+   * without rescaling. dy > 0 (drag down) moves content down.
+   */
+  translate(dx: number, dy: number): SkPicture | null;
+  /**
+   * Resizes the visible range by the multiplicative `scale` around focus
+   * point (`fx`, `fy`) in pixels. `scale > 1` zooms in.
+   */
+  zoom(scale: number, fx: number, fy: number): SkPicture | null;
+  /**
+   * Drag-on-y-axis price scaling. `dy > 0` widens the price range
+   * (candles shrink). Pivots around the price-range center.
+   */
+  scalePriceAxis(dy: number): SkPicture | null;
+  /**
+   * Drag-on-x-axis time scaling. `dx > 0` widens the time window
+   * (candles thin). Pivots around the right edge so the most recent
+   * visible candle stays in place.
+   */
+  scaleTimeAxis(dx: number): SkPicture | null;
+  /** Current axis dimensions in pixels for hit testing in JS gestures. */
+  getAxisMetrics(): { yAxisWidth: number; xAxisHeight: number };
+  /** True while any axis-label fade is still in progress. Drives a RAF loop. */
+  isAnimating(): boolean;
   render(): SkPicture | null;
 }
 

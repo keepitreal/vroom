@@ -58,8 +58,10 @@ typedef enum {
 typedef enum {
     VROOM_FLOAT_CANDLE_WIDTH_RATIO = 0,  // 0..1 of slot width
     VROOM_FLOAT_WICK_WIDTH_PX,
-    VROOM_FLOAT_RIGHT_PADDING_PX,
+    VROOM_FLOAT_RIGHT_PADDING_PX,        // small gutter between candles and y-axis
     VROOM_FLOAT_AXIS_FONT_SIZE_PX,
+    VROOM_FLOAT_Y_AXIS_WIDTH_RATIO,      // fallback y-axis width when no typeface
+    VROOM_FLOAT_X_AXIS_HEIGHT_PX,        // bottom strip reserved for time labels
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
@@ -91,6 +93,28 @@ void vroom_chart_set_size(VroomChart* chart, float width_px, float height_px, fl
 void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t end_ms);
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
 void vroom_chart_zoom(VroomChart* chart, float scale, float focus_x_px, float focus_y_px);
+
+// Two-finger translation. Shifts the time window like pan (dx) and shifts
+// the price bounds vertically (dy) without changing their range — so the
+// chart slides without rescaling. dy > 0 (drag down) moves content down
+// (price labels move down to higher numbers).
+void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px);
+
+// Axis-drag controls — used by JS gesture handlers that detect a drag
+// started on the y-axis or x-axis strip. Scaling pivots around the natural
+// anchor (price center for y, right edge for x).
+//
+// Sign conventions:
+//   scale_price_axis: dy > 0 (drag down) widens the price range → candles shrink
+//   scale_time_axis:  dx > 0 (drag right) widens the time range → candles thin
+void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px);
+void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px);
+
+// Reads the current y-axis width and x-axis height in pixels so callers can
+// hit-test gestures against the right strip on the JS side.
+void vroom_chart_get_axis_metrics(VroomChart* chart,
+                                   float* out_y_axis_width_px,
+                                   float* out_x_axis_height_px);
 
 // ---- Crosshair ------------------------------------------------------------
 

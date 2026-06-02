@@ -27,11 +27,17 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(5);
+  out.reserve(11);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "scalePriceAxis"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "scaleTimeAxis"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "getAxisMetrics"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "isAnimating"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -132,6 +138,109 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_pan(chart_, dx, dy);
           return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "translate") {
+    // translate(dx, dy) -> JsiSkPicture — shifts time + price bounds
+    // without rescaling. Wired to the two-finger pan gesture in JS.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "translate"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          const float dx = static_cast<float>(args[0].asNumber());
+          const float dy = static_cast<float>(args[1].asNumber());
+          vroom_chart_translate(chart_, dx, dy);
+          return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "zoom") {
+    // zoom(scale, fx, fy) -> JsiSkPicture
+    // scale is the multiplicative factor since the last call (> 1 = zoom in).
+    // fx/fy are the focus point in pixels; the time at fx stays put.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "zoom"),
+        3,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 3) return jsi::Value::null();
+          const float s = static_cast<float>(args[0].asNumber());
+          const float fx = static_cast<float>(args[1].asNumber());
+          const float fy = static_cast<float>(args[2].asNumber());
+          vroom_chart_zoom(chart_, s, fx, fy);
+          return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "scalePriceAxis") {
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "scalePriceAxis"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::null();
+          const float dy = static_cast<float>(args[0].asNumber());
+          vroom_chart_scale_price_axis(chart_, dy);
+          return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "scaleTimeAxis") {
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "scaleTimeAxis"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::null();
+          const float dx = static_cast<float>(args[0].asNumber());
+          vroom_chart_scale_time_axis(chart_, dx);
+          return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "getAxisMetrics") {
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "getAxisMetrics"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          float yw = 0.f, xh = 0.f;
+          vroom_chart_get_axis_metrics(chart_, &yw, &xh);
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "yAxisWidth", static_cast<double>(yw));
+          obj.setProperty(rt2, "xAxisHeight", static_cast<double>(xh));
+          return obj;
+        });
+  }
+
+  if (name == "isAnimating") {
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "isAnimating"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          return jsi::Value(is_animating(chart_));
         });
   }
 

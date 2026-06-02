@@ -11,11 +11,13 @@
 namespace vroom {
 
 struct Layout {
-    float width_px;
-    float height_px;
-    float right_padding_px;     // gutter on the right edge so newest candle isn't flush
+    float width_px;             // total chart width
+    float height_px;            // total chart height
+    float y_axis_width_px;      // reserved on the right for price labels
+    float x_axis_height_px;     // reserved at the bottom for time labels
+    float right_padding_px;     // small gutter between candles and y-axis
     float candle_width_ratio;   // 0..1 of slot stride taken by the body
-    float top_padding_frac;     // fraction of height; keeps prices off the edges
+    float top_padding_frac;     // fraction of candle area; keeps prices off edges
     float bottom_padding_frac;
 };
 

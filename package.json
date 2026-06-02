@@ -5,7 +5,8 @@
   "description": "Mobile-first Skia candlestick chart library — monorepo root",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "example": "pnpm --filter ./examples/react-native start"
+    "start": "pnpm --filter test-bench start",
+    "rebuild:ios": "pnpm --filter test-bench rebuild:ios"
   },
   "devDependencies": {}
 }

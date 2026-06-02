@@ -15,10 +15,36 @@
 #include <memory>
 
 #include "VroomChartHostObject.h"
+#include "VroomSkiaContext.h"
+
+#include "chart_internal.h"
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdocumentation"
+#include "include/core/SkFontMgr.h"
+#include "include/core/SkFontStyle.h"
+#include "include/core/SkTypeface.h"
+#pragma clang diagnostic pop
 
 namespace vroom {
 
 namespace jsi = facebook::jsi;
+
+// Loads the system typeface once via RN-Skia's platform context and hands
+// it to the chart core. Retries on each create() until it succeeds (in case
+// SkiaApi isn't installed yet when our first chart instance is created).
+static void ensureAxisTypeface(jsi::Runtime& runtime) {
+  static bool done = false;
+  if (done) return;
+  auto ctx = vroom::getRNSkContext(runtime);
+  if (!ctx) return;
+  auto mgr = ctx->createFontMgr();
+  if (!mgr) return;
+  auto tf = mgr->matchFamilyStyle(nullptr, SkFontStyle());  // system default
+  if (!tf) return;
+  vroom::set_axis_typeface(tf);
+  done = true;
+}
 
 void installJsi(jsi::Runtime& runtime) {
   auto create = jsi::Function::createFromHostFunction(
@@ -29,6 +55,7 @@ void installJsi(jsi::Runtime& runtime) {
          const jsi::Value& /*thisVal*/,
          const jsi::Value* /*args*/,
          size_t /*count*/) -> jsi::Value {
+        ensureAxisTypeface(rt);
         auto host = std::make_shared<ChartHostObject>();
         return jsi::Object::createFromHostObject(rt, host);
       });
