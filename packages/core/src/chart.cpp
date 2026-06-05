@@ -46,7 +46,7 @@ namespace vroom {
 
 // Minimum spacing between adjacent x-axis labels in pixels. Smaller → more
 // labels visible, finer interval; larger → sparser labels.
-static constexpr float kXLabelMinSpacing = 80.f;
+static constexpr float kXLabelMinSpacing = 50.f;
 // Target spacing for y-axis labels — used to derive a target count.
 static constexpr float kYLabelTargetSpacing = 55.f;
 
@@ -301,8 +301,10 @@ struct VroomChart {
         update_x_label_fades(lay);
 
         // 4. Gridlines — drawn before candles so candle bodies overlay them.
+        // Vertical (time) gridlines are intentionally disabled for now —
+        // re-enable by adding `draw_x_gridlines(canvas, candle_area_w,
+        // candle_area_h);` here if/when candle↔label alignment is resolved.
         draw_y_gridlines(canvas, lay, bounds, candle_right, candle_area_h);
-        draw_x_gridlines(canvas, candle_area_w, candle_area_h);
 
         // 5. Candles (wicks + bodies)
         SkPaint bull_paint;
