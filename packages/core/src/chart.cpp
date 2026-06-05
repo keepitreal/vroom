@@ -267,12 +267,14 @@ struct VroomChart {
     void draw_chart(SkCanvas* canvas) {
         const auto lay = layout();
 
+        // 1. Background
         SkPaint bg;
         bg.setColor(colors[VROOM_COLOR_BACKGROUND]);
         canvas->drawRect(SkRect::MakeWH(width_px, height_px), bg);
 
         if (candles.empty()) return;
 
+        // 2. Visible-range + bounds + layout geometry
         const auto range = vroom::visible_indices(
             candles.data(), candles.size(),
             visible_start_ms, visible_end_ms);
@@ -280,9 +282,6 @@ struct VroomChart {
         if (n == 0) return;
         const ::VroomCandle* visible = candles.data() + range.start;
 
-        // Use stored (state) price bounds — panning doesn't change them.
-        // Fall back to visible-window bounds in the edge case where state
-        // isn't initialized yet (shouldn't happen after setCandles).
         const auto bounds = price_bounds_initialized
             ? price_bounds
             : vroom::price_bounds(visible, n);
@@ -290,6 +289,22 @@ struct VroomChart {
         const float body_w = vroom::candle_body_width(
             lay, window_ms, candle_duration_ms);
 
+        const float candle_area_h = height_px - lay.x_axis_height_px;
+        const float candle_right =
+            width_px - lay.y_axis_width_px - lay.right_padding_px;
+        const float candle_area_w = candle_right;
+
+        // 3. Update label fade state ONCE per frame — both gridlines and
+        // labels share these opacities so their animations stay in lockstep.
+        // Consumes last_dt_seconds.
+        update_y_label_fades(lay, bounds);
+        update_x_label_fades(lay);
+
+        // 4. Gridlines — drawn before candles so candle bodies overlay them.
+        draw_y_gridlines(canvas, lay, bounds, candle_right, candle_area_h);
+        draw_x_gridlines(canvas, candle_area_w, candle_area_h);
+
+        // 5. Candles (wicks + bodies)
         SkPaint bull_paint;
         bull_paint.setAntiAlias(true);
         bull_paint.setColor(colors[VROOM_COLOR_BULL]);
@@ -321,33 +336,24 @@ struct VroomChart {
             const float y_open = vroom::price_to_y(lay, bounds, c.open);
             const float y_close = vroom::price_to_y(lay, bounds, c.close);
 
-            // Wick: thin vertical line from low to high.
-            canvas->drawLine(cx, y_high, cx, y_low, bull ? wick_bull : wick_bear);
+            canvas->drawLine(cx, y_high, cx, y_low,
+                             bull ? wick_bull : wick_bear);
 
-            // Body: rect from open to close.
             const float y_top = std::min(y_open, y_close);
             const float y_bot = std::max(y_open, y_close);
-            const float h = std::max(1.f, y_bot - y_top);  // never collapse to 0
+            const float h = std::max(1.f, y_bot - y_top);
             canvas->drawRect(
                 SkRect::MakeXYWH(cx - half_body, y_top, body_w, h),
                 bull ? bull_paint : bear_paint);
         }
 
-        // X-axis area — painted AFTER candles to mask any that overflowed
-        // past the candle area. With price bounds now decoupled from the
-        // visible window (per the pan-doesn't-rescale model), candles whose
-        // low extends below price_bounds.min would otherwise render into
-        // the x-axis strip and overlap time labels.
-        const float candle_area_h = height_px - lay.x_axis_height_px;
-        const float candle_right = width_px - lay.y_axis_width_px - lay.right_padding_px;
+        // 6. Axis backgrounds (mask any candle overflow) + separator lines
         SkPaint axis_bg;
         axis_bg.setColor(colors[VROOM_COLOR_BACKGROUND]);
         canvas->drawRect(
-            SkRect::MakeXYWH(0, candle_area_h, candle_right, lay.x_axis_height_px),
+            SkRect::MakeXYWH(0, candle_area_h, candle_right,
+                             lay.x_axis_height_px),
             axis_bg);
-
-        // Y-axis area — same mask role for candles that overflowed the right
-        // edge. Separator sits at the left border of this block.
         const float axis_block_w = width_px - candle_right;
         canvas->drawRect(
             SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
@@ -357,13 +363,16 @@ struct VroomChart {
         border.setColor(colors[VROOM_COLOR_GRID]);
         border.setStrokeWidth(1.f);
         border.setAntiAlias(true);
-        // Y-axis separator: left border of the y-axis block.
         canvas->drawLine(candle_right, 0, candle_right, candle_area_h, border);
-        // X-axis separator: from left edge to the y-axis separator, meeting at the corner.
         canvas->drawLine(0, candle_area_h, candle_right, candle_area_h, border);
 
-        draw_axis_labels(canvas, lay, bounds);
-        draw_x_axis_labels(canvas, lay);
+        // 7. Labels (read from y_fades / x_fades, no state mutation here)
+        draw_y_labels(canvas, lay, bounds);
+        draw_x_labels(canvas, lay);
+
+        // 8. GC fades that have fully faded out and aren't coming back.
+        gc_y_label_fades();
+        gc_x_label_fades();
     }
 
     // Match-tolerance for fade-keys: a label price like 65.000000001 should
@@ -374,15 +383,15 @@ struct VroomChart {
         return std::abs(a - b) < tol;
     }
 
-    // Y-axis price labels at "nice" interval boundaries (multiples of
-    // 1/2/5 × 10ⁿ). The interval is chosen each frame to keep label spacing
-    // near kYLabelTargetSpacing — so as you scale the price range, the
-    // interval swaps when needed and individual labels translate naturally
-    // through the time→y mapping. Labels right-align inside the axis block.
-    void draw_axis_labels(SkCanvas* canvas,
-                          const vroom::Layout& lay,
-                          const vroom::PriceBounds& bounds) {
-        if (!vroom::g_axis_typeface) return;
+    // ----- Y-axis fade update / draw / GC --------------------------------
+    //
+    // Split out so gridlines and labels share the SAME `y_fades` opacities,
+    // and so dt is consumed exactly once per frame (in update_y_label_fades).
+
+    // Steps 1-3 from the old draw_axis_labels: set fade targets, walk the
+    // active label set, advance opacities by dt.
+    void update_y_label_fades(const vroom::Layout& lay,
+                              const vroom::PriceBounds& bounds) {
         const double range = bounds.max - bounds.min;
         if (range <= 0.0) return;
 
@@ -390,27 +399,8 @@ struct VroomChart {
         const double interval = vroom::pick_price_interval(range, candle_area_h);
         if (interval <= 0.0) return;
 
-        SkFont font(vroom::g_axis_typeface,
-                    floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
-        font.setSubpixel(true);
-        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
-
-        SkFontMetrics metrics;
-        font.getMetrics(&metrics);
-        const float cap_h = metrics.fCapHeight > 0 ? metrics.fCapHeight
-                                                   : -metrics.fAscent * 0.7f;
-
-        SkPaint text_paint;
-        text_paint.setColor(colors[VROOM_COLOR_AXIS_TEXT]);
-        text_paint.setAntiAlias(true);
-
-        constexpr float kRightInset = 6.f;
-
-        // Step 1: tentatively fade out every existing fade. Step 2 below
-        // promotes any that are still active to target=1.
         for (auto& f : y_fades) f.target = 0.f;
 
-        // Step 2: walk the active labels (multiples of interval >= min).
         const double first = std::ceil(bounds.min / interval) * interval;
         constexpr int kMaxLabels = 64;
         int promoted = 0;
@@ -430,17 +420,66 @@ struct VroomChart {
             }
         }
 
-        // Step 3: advance opacities toward targets by dt.
         const float step = kFadeRate * last_dt_seconds;
         for (auto& f : y_fades) {
-            if (f.opacity < f.target) {
+            if (last_dt_seconds == 0.f) {
+                // First render (or resume after a long idle that capped dt
+                // to 0): snap to target so labels/gridlines are visible
+                // immediately rather than waiting on a fade tick — the JS
+                // anim loop only kicks in after a gesture.
+                f.opacity = f.target;
+            } else if (f.opacity < f.target) {
                 f.opacity = std::min(f.target, f.opacity + step);
             } else if (f.opacity > f.target) {
                 f.opacity = std::max(f.target, f.opacity - step);
             }
         }
+    }
 
-        // Step 4: render every label with opacity > 0.
+    // Horizontal gridlines aligned with each y-label row, sharing label
+    // opacity so they fade in/out together when the price interval swaps.
+    void draw_y_gridlines(SkCanvas* canvas,
+                          const vroom::Layout& lay,
+                          const vroom::PriceBounds& bounds,
+                          float candle_right,
+                          float candle_area_h) const {
+        SkPaint grid;
+        grid.setColor(colors[VROOM_COLOR_GRID]);
+        grid.setStrokeWidth(1.f);
+        grid.setAntiAlias(true);
+        for (const auto& f : y_fades) {
+            if (f.opacity <= 1e-3f) continue;
+            const float y = vroom::price_to_y(lay, bounds, f.price);
+            if (y < 0.f || y > candle_area_h) continue;
+            grid.setAlphaf(f.opacity);
+            canvas->drawLine(0.f, y, candle_right, y, grid);
+        }
+    }
+
+    // Step 4 from the old function — read-only render pass over y_fades.
+    void draw_y_labels(SkCanvas* canvas,
+                       const vroom::Layout& lay,
+                       const vroom::PriceBounds& bounds) const {
+        if (!vroom::g_axis_typeface) return;
+
+        const float candle_area_h = height_px - lay.x_axis_height_px;
+
+        SkFont font(vroom::g_axis_typeface,
+                    floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+        font.setSubpixel(true);
+        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+
+        SkFontMetrics metrics;
+        font.getMetrics(&metrics);
+        const float cap_h = metrics.fCapHeight > 0 ? metrics.fCapHeight
+                                                   : -metrics.fAscent * 0.7f;
+
+        SkPaint text_paint;
+        text_paint.setColor(colors[VROOM_COLOR_AXIS_TEXT]);
+        text_paint.setAntiAlias(true);
+
+        constexpr float kRightInset = 6.f;
+
         for (const auto& f : y_fades) {
             if (f.opacity <= 1e-3f) continue;
             const float y = vroom::price_to_y(lay, bounds, f.price);
@@ -459,8 +498,10 @@ struct VroomChart {
             text_paint.setAlphaf(f.opacity);
             canvas->drawString(buf, text_x, baseline_y, font, text_paint);
         }
+    }
 
-        // Step 5: GC entries that have fully faded out.
+    // Step 5 — erase entries that have settled at fully-faded-out.
+    void gc_y_label_fades() {
         y_fades.erase(
             std::remove_if(y_fades.begin(), y_fades.end(),
                            [](const YLabelFade& f) {
@@ -469,16 +510,12 @@ struct VroomChart {
             y_fades.end());
     }
 
-    // X-axis time labels at canonical interval boundaries. Interval is
-    // selected each frame from a hierarchy (1m → 5m → 15m → 30m → 1h → 2h
-    // → … → 1w) so spacing stays >= kXLabelMinSpacing. Labels translate
-    // through the time→x mapping; the interval swaps at thresholds without
-    // overlapping labels. Format auto-switches to date for ≥1d intervals.
-    void draw_x_axis_labels(SkCanvas* canvas, const vroom::Layout& lay) {
-        if (!vroom::g_axis_typeface || candles.empty()) return;
+    // ----- X-axis fade update / draw / GC --------------------------------
+
+    void update_x_label_fades(const vroom::Layout& lay) {
+        if (candles.empty()) return;
         if (visible_end_ms <= visible_start_ms) return;
 
-        const float candle_area_h = height_px - lay.x_axis_height_px;
         const float candle_area_w =
             lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
         if (candle_area_w <= 0.f) return;
@@ -488,24 +525,8 @@ struct VroomChart {
             vroom::pick_time_interval(window_ms, candle_area_w);
         if (interval <= 0) return;
 
-        SkFont font(vroom::g_axis_typeface,
-                    floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
-        font.setSubpixel(true);
-        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
-
-        SkFontMetrics metrics;
-        font.getMetrics(&metrics);
-        const float cap_h = metrics.fCapHeight > 0 ? metrics.fCapHeight
-                                                   : -metrics.fAscent * 0.7f;
-
-        SkPaint text_paint;
-        text_paint.setColor(colors[VROOM_COLOR_AXIS_TEXT]);
-        text_paint.setAntiAlias(true);
-
-        // Step 1: fade everything; step 2 promotes still-active labels.
         for (auto& f : x_fades) f.target = 0.f;
 
-        // Step 2: walk active label timestamps.
         int64_t t = (visible_start_ms / interval) * interval;
         if (t < visible_start_ms) t += interval;
         constexpr int kMaxLabels = 64;
@@ -525,24 +546,79 @@ struct VroomChart {
             }
         }
 
-        // Step 3: advance opacities.
         const float step = kFadeRate * last_dt_seconds;
         for (auto& f : x_fades) {
-            if (f.opacity < f.target) {
+            if (last_dt_seconds == 0.f) {
+                f.opacity = f.target;  // snap on first render — see y twin
+            } else if (f.opacity < f.target) {
                 f.opacity = std::min(f.target, f.opacity + step);
             } else if (f.opacity > f.target) {
                 f.opacity = std::max(f.target, f.opacity - step);
             }
         }
+    }
 
-        // Step 4: render each label with opacity > 0.
+    // Vertical gridlines aligned with each x-label column.
+    void draw_x_gridlines(SkCanvas* canvas,
+                          float candle_area_w,
+                          float candle_area_h) const {
+        if (visible_end_ms <= visible_start_ms) return;
+        const int64_t window_ms = visible_end_ms - visible_start_ms;
+        if (window_ms <= 0 || candle_area_w <= 0.f) return;
+
+        SkPaint grid;
+        grid.setColor(colors[VROOM_COLOR_GRID]);
+        grid.setStrokeWidth(1.f);
+        grid.setAntiAlias(true);
+        for (const auto& f : x_fades) {
+            if (f.opacity <= 1e-3f) continue;
+            const float frac =
+                static_cast<float>(f.time_ms - visible_start_ms) /
+                static_cast<float>(window_ms);
+            const float x = frac * candle_area_w;
+            if (x < 0.f || x > candle_area_w) continue;
+            grid.setAlphaf(f.opacity);
+            canvas->drawLine(x, 0.f, x, candle_area_h, grid);
+        }
+    }
+
+    void draw_x_labels(SkCanvas* canvas, const vroom::Layout& lay) const {
+        if (!vroom::g_axis_typeface || candles.empty()) return;
+        if (visible_end_ms <= visible_start_ms) return;
+
+        const float candle_area_h = height_px - lay.x_axis_height_px;
+        const float candle_area_w =
+            lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
+        if (candle_area_w <= 0.f) return;
+
+        const int64_t window_ms = visible_end_ms - visible_start_ms;
+        // Recompute interval here just to decide HH:MM vs MM/DD formatting.
+        // Cheap and keeps the function self-contained.
+        const int64_t interval =
+            vroom::pick_time_interval(window_ms, candle_area_w);
+
+        SkFont font(vroom::g_axis_typeface,
+                    floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+        font.setSubpixel(true);
+        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+
+        SkFontMetrics metrics;
+        font.getMetrics(&metrics);
+        const float cap_h = metrics.fCapHeight > 0 ? metrics.fCapHeight
+                                                   : -metrics.fAscent * 0.7f;
+
+        SkPaint text_paint;
+        text_paint.setColor(colors[VROOM_COLOR_AXIS_TEXT]);
+        text_paint.setAntiAlias(true);
+
         const float baseline_y =
             candle_area_h + (lay.x_axis_height_px + cap_h) * 0.5f;
         const bool use_date = interval >= 24LL * 60 * 60 * 1000;
         for (const auto& f : x_fades) {
             if (f.opacity <= 1e-3f) continue;
-            const float frac = static_cast<float>(f.time_ms - visible_start_ms) /
-                               static_cast<float>(window_ms);
+            const float frac =
+                static_cast<float>(f.time_ms - visible_start_ms) /
+                static_cast<float>(window_ms);
             const float x_center = frac * candle_area_w;
 
             char buf[16];
@@ -567,8 +643,9 @@ struct VroomChart {
             text_paint.setAlphaf(f.opacity);
             canvas->drawString(buf, text_x, baseline_y, font, text_paint);
         }
+    }
 
-        // Step 5: GC settled-zero entries.
+    void gc_x_label_fades() {
         x_fades.erase(
             std::remove_if(x_fades.begin(), x_fades.end(),
                            [](const XLabelFade& f) {
@@ -818,6 +895,13 @@ void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px) {
 // 300 means a 300px drag roughly doubles or halves the range.
 static constexpr double kAxisDragSensitivity = 300.0;
 
+// Min/max candle body width in pixels. The x-axis-drag clamp computes the
+// time window that would produce each of these widths given the current
+// candle area, and bounds new_window_ms to keep candles visually reasonable.
+// Starting values — dial in based on feel.
+static constexpr double kMinCandleBodyPx = 1.5;
+static constexpr double kMaxCandleBodyPx = 32.0;
+
 void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px) {
     if (!chart || dy_px == 0.f) return;
     if (!chart->price_bounds_initialized) return;
@@ -850,7 +934,23 @@ void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
 
     int64_t new_window_ms = static_cast<int64_t>(
         static_cast<double>(window_ms) * scale);
-    if (new_window_ms < 1000) new_window_ms = 1000;  // ≥1s window
+
+    // Clamp window so candle body width stays in [kMinCandleBodyPx,
+    // kMaxCandleBodyPx]. body_w = usable × (dur / window) × ratio →
+    // window for a given body_w = usable × dur × ratio / body_w.
+    const auto lay = chart->layout();
+    const double usable =
+        lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
+    const double ratio = chart->floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO];
+    const double dur = static_cast<double>(chart->candle_duration_ms);
+    if (usable > 0.0 && ratio > 0.0 && dur > 0.0) {
+        const int64_t min_window = static_cast<int64_t>(
+            (usable * dur * ratio) / kMaxCandleBodyPx);
+        const int64_t max_window = static_cast<int64_t>(
+            (usable * dur * ratio) / kMinCandleBodyPx);
+        if (new_window_ms < min_window) new_window_ms = min_window;
+        if (new_window_ms > max_window) new_window_ms = max_window;
+    }
 
     // Pivot around the right edge — most-recent visible candle stays put.
     int64_t new_start = chart->visible_end_ms - new_window_ms;
