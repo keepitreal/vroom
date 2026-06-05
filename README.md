@@ -1,6 +1,6 @@
 # vroom 🏎️💨
 
-Lightning fast, advanced candlestick charting library for native iOS/Android and React Native
+Lightning fast, advanced candlestick charting library for native iOS/Android and React Native. Core charting library built with Skia and C++ for optimum rendering performance across all mobile platforms.
 
 ## React Native
 
@@ -19,10 +19,17 @@ npm install @shopify/react-native-skia react-native-gesture-handler react-native
 ### Usage
 
 ```tsx
-import { VroomChart, type Candle } from 'react-native-vroom-chart';
+import { VroomChart, type Candle } from "react-native-vroom-chart";
 
 const candles: Candle[] = [
-  { timeMs: 1700000000000, open: 100, high: 105, low: 98, close: 103, volume: 1200 },
+  {
+    timeMs: 1700000000000,
+    open: 100,
+    high: 105,
+    low: 98,
+    close: 103,
+    volume: 1200,
+  },
   // ...
 ];
 
@@ -35,15 +42,15 @@ Pan to scroll, pinch to zoom, and drag the price/time axes to rescale them.
 
 ### Props
 
-| Prop | Type | Description |
-| --- | --- | --- |
-| `candles` | `Candle[]` | Required. OHLCV data (`timeMs`, `open`, `high`, `low`, `close`, `volume`). |
-| `width` | `number` | Chart width in px. Default `360`. |
-| `height` | `number` | Chart height in px. Default `240`. |
-| `visibleRange` | `{ startMs, endMs }` | Time window to render. Omit to fit all candles. |
-| `theme` | `VroomTheme` | Color overrides (`background`, `bull`, `bear`, `wick`, `grid`, `axisText`, `crosshair`, `tooltipBg`, `tooltipText`). |
-| `onCrosshair` | `(e: CrosshairEvent) => void` | Fires as the crosshair moves (`active`, `timeMs`, `price`). |
-| `onViewportChange` | `(startMs, endMs) => void` | Fires when the visible time range changes via gesture. |
+| Prop               | Type                          | Description                                                                                                          |
+| ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `candles`          | `Candle[]`                    | Required. OHLCV data (`timeMs`, `open`, `high`, `low`, `close`, `volume`).                                           |
+| `width`            | `number`                      | Chart width in px. Default `360`.                                                                                    |
+| `height`           | `number`                      | Chart height in px. Default `240`.                                                                                   |
+| `visibleRange`     | `{ startMs, endMs }`          | Time window to render. Omit to fit all candles.                                                                      |
+| `theme`            | `VroomTheme`                  | Color overrides (`background`, `bull`, `bear`, `wick`, `grid`, `axisText`, `crosshair`, `tooltipBg`, `tooltipText`). |
+| `onCrosshair`      | `(e: CrosshairEvent) => void` | Fires as the crosshair moves (`active`, `timeMs`, `price`).                                                          |
+| `onViewportChange` | `(startMs, endMs) => void`    | Fires when the visible time range changes via gesture.                                                               |
 
 ### iOS & Android (coming soon)
 
@@ -59,6 +66,7 @@ platforms are consumed through the React Native package above.
 - `scripts/` — build helpers.
 
 Future:
+
 - `packages/ios/` — standalone SwiftPM/CocoaPod with idiomatic Swift API.
 - `packages/android/` — standalone AAR with idiomatic Kotlin API.
 
