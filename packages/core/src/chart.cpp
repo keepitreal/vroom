@@ -147,6 +147,12 @@ struct VroomChart {
     int64_t visible_start_ms = 0;
     int64_t visible_end_ms = 0;
 
+    // Inferred from the gap between consecutive candles when data is loaded.
+    // Used so each candle occupies a stable pixel slot regardless of how
+    // many fall in the visible window (or whether the window extends past
+    // the end of the data into "future" empty space).
+    int64_t candle_duration_ms = 60'000;
+
     bool   crosshair_active = false;
     float  crosshair_x_px = 0.f;
     float  crosshair_y_px = 0.f;
@@ -280,7 +286,9 @@ struct VroomChart {
         const auto bounds = price_bounds_initialized
             ? price_bounds
             : vroom::price_bounds(visible, n);
-        const float body_w = vroom::candle_body_width(lay, n);
+        const int64_t window_ms = visible_end_ms - visible_start_ms;
+        const float body_w = vroom::candle_body_width(
+            lay, window_ms, candle_duration_ms);
 
         SkPaint bull_paint;
         bull_paint.setAntiAlias(true);
@@ -305,7 +313,9 @@ struct VroomChart {
             const auto& c = visible[i];
             const bool bull = c.close >= c.open;
 
-            const float cx = vroom::candle_center_x(lay, n, i);
+            const float cx = vroom::candle_center_x(
+                lay, c.time_ms, candle_duration_ms,
+                visible_start_ms, window_ms);
             const float y_high = vroom::price_to_y(lay, bounds, c.high);
             const float y_low = vroom::price_to_y(lay, bounds, c.low);
             const float y_open = vroom::price_to_y(lay, bounds, c.open);
@@ -619,6 +629,12 @@ void vroom_chart_destroy(VroomChart* chart) { delete chart; }
 void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* data, size_t count) {
     if (!chart) return;
     chart->candles.assign(data, data + count);
+    // Infer the candle period from the first interval. Robust enough for
+    // uniform-duration series (the only kind we model today).
+    if (chart->candles.size() >= 2) {
+        const int64_t d = chart->candles[1].time_ms - chart->candles[0].time_ms;
+        if (d > 0) chart->candle_duration_ms = d;
+    }
     chart->recompute_axis_width();
 
     // Default the visible window to the most recent ~60 candles when the
@@ -700,14 +716,14 @@ void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/) {
     int64_t new_start = chart->visible_start_ms + delta_ms;
     int64_t new_end = chart->visible_end_ms + delta_ms;
 
-    // Clamp the window inside the data range — preserving its width — so the
-    // user can't scroll past the latest/earliest candle. Without this, the
-    // visible-index window shrinks as candles fall off the edge and the
-    // remaining ones get rescaled to fill the width, which looks like zoom.
+    // Right edge can overshoot the last candle by up to half a window so the
+    // user can scroll into empty "future" space (e.g., to view right-anchored
+    // indicators). Left edge still hard-clamps at the first candle.
     const int64_t first_time = chart->candles.front().time_ms;
     const int64_t last_time = chart->candles.back().time_ms;
-    if (new_end > last_time) {
-        new_end = last_time;
+    const int64_t max_future = window_ms / 2;
+    if (new_end > last_time + max_future) {
+        new_end = last_time + max_future;
         new_start = new_end - window_ms;
     }
     if (new_start < first_time) {
@@ -749,8 +765,9 @@ void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px) {
                 int64_t new_end = chart->visible_end_ms + delta_ms;
                 const int64_t first_time = chart->candles.front().time_ms;
                 const int64_t last_time = chart->candles.back().time_ms;
-                if (new_end > last_time) {
-                    new_end = last_time;
+                const int64_t max_future = window_ms / 2;
+                if (new_end > last_time + max_future) {
+                    new_end = last_time + max_future;
                     new_start = new_end - window_ms;
                 }
                 if (new_start < first_time) {

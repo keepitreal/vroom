@@ -5,20 +5,33 @@
 
 namespace vroom {
 
-float candle_body_width(const Layout& layout, size_t count) {
-    if (count == 0) return 0.f;
+float candle_body_width(const Layout& layout,
+                        int64_t window_ms,
+                        int64_t candle_duration_ms) {
+    if (window_ms <= 0 || candle_duration_ms <= 0) return 0.f;
     const float usable =
         layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
-    const float stride = usable / static_cast<float>(count);
-    return stride * layout.candle_width_ratio;
+    const double slot = static_cast<double>(usable) *
+        (static_cast<double>(candle_duration_ms) /
+         static_cast<double>(window_ms));
+    return static_cast<float>(slot * layout.candle_width_ratio);
 }
 
-float candle_center_x(const Layout& layout, size_t count, size_t i) {
-    if (count == 0) return 0.f;
+float candle_center_x(const Layout& layout,
+                      int64_t time_ms,
+                      int64_t candle_duration_ms,
+                      int64_t visible_start_ms,
+                      int64_t window_ms) {
+    if (window_ms <= 0) return 0.f;
     const float usable =
         layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
-    const float stride = usable / static_cast<float>(count);
-    return stride * (static_cast<float>(i) + 0.5f);
+    const double center_time =
+        static_cast<double>(time_ms) +
+        static_cast<double>(candle_duration_ms) * 0.5;
+    const double frac =
+        (center_time - static_cast<double>(visible_start_ms)) /
+        static_cast<double>(window_ms);
+    return static_cast<float>(static_cast<double>(usable) * frac);
 }
 
 IndexRange visible_indices(const ::VroomCandle* candles,

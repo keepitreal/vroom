@@ -40,13 +40,19 @@ IndexRange visible_indices(const ::VroomCandle* candles,
                            int64_t start_ms,
                            int64_t end_ms);
 
-// Width of one candle body in pixels, given count and layout.
-// Stride (body + gap) is derived from candle_width_ratio; the gap is the
-// remainder of the slot.
-float candle_body_width(const Layout& layout, size_t count);
+// Width of one candle body in pixels, computed from the time slot a single
+// candle occupies (candle_duration_ms / window_ms × candle area).
+float candle_body_width(const Layout& layout,
+                        int64_t window_ms,
+                        int64_t candle_duration_ms);
 
-// Center-x of candle `i` in pixels.
-float candle_center_x(const Layout& layout, size_t count, size_t i);
+// Center-x of a candle whose period starts at time_ms and lasts
+// candle_duration_ms, given the current visible time window.
+float candle_center_x(const Layout& layout,
+                      int64_t time_ms,
+                      int64_t candle_duration_ms,
+                      int64_t visible_start_ms,
+                      int64_t window_ms);
 
 // Min/max of (low..high) across the given range.
 PriceBounds price_bounds(const ::VroomCandle* candles, size_t count);

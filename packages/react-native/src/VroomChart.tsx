@@ -108,7 +108,10 @@ export function VroomChart(props: VroomChartProps) {
       } else if (panMode.current === 'time-axis') {
         next = handle.scaleTimeAxis(e.changeX);
       } else {
-        next = handle.pan(e.changeX, e.changeY);
+        // Chart area: 1-finger drag translates both axes. Horizontal
+        // component scrolls time, vertical component slides price bounds
+        // (axes follow). Diagonal works naturally.
+        next = handle.translate(e.changeX, e.changeY);
       }
       if (next) pictureSV.value = next;
       maybeStartAnim();
@@ -166,22 +169,7 @@ export function VroomChart(props: VroomChartProps) {
       maybeStartAnim();
     });
 
-  // Two-finger drag: translate the chart in both axes (no scaling).
-  // Composes with Pinch simultaneously — a pure 2-finger drag (fingers
-  // parallel) translates only; a pure pinch (fingers spreading) scales only;
-  // a mixed gesture does both proportionally.
-  const twoPan = Gesture.Pan()
-    .runOnJS(true)
-    .minPointers(2)
-    .maxPointers(2)
-    .onChange((e) => {
-      if (!handle) return;
-      const next = handle.translate(e.changeX, e.changeY);
-      if (next) pictureSV.value = next;
-      maybeStartAnim();
-    });
-
-  const gesture = Gesture.Simultaneous(pan, twoPan, pinch);
+  const gesture = Gesture.Simultaneous(pan, pinch);
 
   return (
     <GestureHandlerRootView style={{ width, height }}>
