@@ -1,6 +1,54 @@
-# vroom
+# vroom 🏎️💨
 
-Mobile-first Skia candlestick chart library. A single C++ core shipped to iOS, Android, and React Native.
+Lightning fast, advanced candlestick charting library for native iOS/Android and React Native
+
+## React Native
+
+### Install
+
+```sh
+npm install react-native-vroom-chart
+```
+
+Peer dependencies (install if you don't already have them):
+
+```sh
+npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+```
+
+### Usage
+
+```tsx
+import { VroomChart, type Candle } from 'react-native-vroom-chart';
+
+const candles: Candle[] = [
+  { timeMs: 1700000000000, open: 100, high: 105, low: 98, close: 103, volume: 1200 },
+  // ...
+];
+
+export function Chart() {
+  return <VroomChart candles={candles} width={360} height={360} />;
+}
+```
+
+Pan to scroll, pinch to zoom, and drag the price/time axes to rescale them.
+
+### Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `candles` | `Candle[]` | Required. OHLCV data (`timeMs`, `open`, `high`, `low`, `close`, `volume`). |
+| `width` | `number` | Chart width in px. Default `360`. |
+| `height` | `number` | Chart height in px. Default `240`. |
+| `visibleRange` | `{ startMs, endMs }` | Time window to render. Omit to fit all candles. |
+| `theme` | `VroomTheme` | Color overrides (`background`, `bull`, `bear`, `wick`, `grid`, `axisText`, `crosshair`, `tooltipBg`, `tooltipText`). |
+| `onCrosshair` | `(e: CrosshairEvent) => void` | Fires as the crosshair moves (`active`, `timeMs`, `price`). |
+| `onViewportChange` | `(startMs, endMs) => void` | Fires when the visible time range changes via gesture. |
+
+### iOS & Android (coming soon)
+
+Standalone Swift and Kotlin packages with idiomatic native APIs are planned. For now, all
+platforms are consumed through the React Native package above.
 
 ## Layout
 
