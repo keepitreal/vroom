@@ -34,6 +34,48 @@ float candle_center_x(const Layout& layout,
     return static_cast<float>(static_cast<double>(usable) * frac);
 }
 
+float snap_x_to_candle(const Layout& layout,
+                       const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t candle_duration_ms,
+                       int64_t visible_start_ms,
+                       int64_t window_ms,
+                       float x_px) {
+    if (count == 0 || window_ms <= 0) return x_px;
+
+    const float usable =
+        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    if (usable <= 0.f) return x_px;
+
+    // Pixel x -> the period start time of the candle that would sit there.
+    const double target_center =
+        static_cast<double>(visible_start_ms) +
+        (static_cast<double>(x_px) / static_cast<double>(usable)) *
+            static_cast<double>(window_ms);
+    const int64_t key =
+        static_cast<int64_t>(target_center) - candle_duration_ms / 2;
+
+    // First candle with time_ms >= key, then pick whichever of it / its
+    // predecessor is closer in time.
+    auto* it = std::lower_bound(
+        candles, candles + count, key,
+        [](const ::VroomCandle& c, int64_t t) { return c.time_ms < t; });
+    size_t idx;
+    if (it == candles) {
+        idx = 0;
+    } else if (it == candles + count) {
+        idx = count - 1;
+    } else {
+        const int64_t hi = it->time_ms;
+        const int64_t lo = (it - 1)->time_ms;
+        idx = (hi - key < key - lo) ? static_cast<size_t>(it - candles)
+                                    : static_cast<size_t>(it - 1 - candles);
+    }
+
+    return candle_center_x(layout, candles[idx].time_ms, candle_duration_ms,
+                           visible_start_ms, window_ms);
+}
+
 IndexRange visible_indices(const ::VroomCandle* candles,
                            size_t count,
                            int64_t start_ms,

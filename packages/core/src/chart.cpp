@@ -111,9 +111,15 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     canvas->drawLine(0, candle_area_h, candle_right, candle_area_h, border);
 
     // 6.5. Crosshair — on top of candles/separators, within the candle area.
-    //      Only when activated by a touch (long-press); hidden otherwise.
-    if (crosshair_active)
-        vroom::crosshair::draw(canvas, *this, candle_right, candle_area_h);
+    //      Only when activated by a touch (long-press); hidden otherwise. The
+    //      vertical line + ring snap to the nearest candle's center.
+    if (crosshair_active) {
+        const float snap_x = vroom::snap_x_to_candle(
+            lay, visible, n, candle_duration_ms, visible_start_ms, window_ms,
+            crosshair_x_px);
+        vroom::crosshair::draw(canvas, *this, candle_right, candle_area_h,
+                               snap_x);
+    }
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)
     vroom::labels::draw_y_labels(canvas, *this, lay, bounds);

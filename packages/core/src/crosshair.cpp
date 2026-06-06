@@ -34,13 +34,14 @@ SkColor lighten(SkColor c, float factor) {
 void draw(SkCanvas* canvas,
           const VroomChart& chart,
           float candle_right,
-          float candle_area_h) {
+          float candle_area_h,
+          float snap_x) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
 
-    // The intersection follows the touch point (already lifted above the thumb
-    // on the JS side). Clamp into the candle area so the dot never lands in the
-    // axis strips.
-    const float cx = std::clamp(chart.crosshair_x_px, 0.f, candle_right);
+    // Vertical line + ring snap to the nearest candle's center x; the horizontal
+    // line and the ring's y follow the (lifted) touch y. Clamp into the candle
+    // area so nothing bleeds into the axis strips.
+    const float cx = std::clamp(snap_x, 0.f, candle_right);
     const float cy = std::clamp(chart.crosshair_y_px, 0.f, candle_area_h);
 
     const SkColor color = chart.theme.colors[VROOM_COLOR_CROSSHAIR];

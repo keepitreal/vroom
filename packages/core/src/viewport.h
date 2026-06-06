@@ -54,6 +54,18 @@ float candle_center_x(const Layout& layout,
                       int64_t visible_start_ms,
                       int64_t window_ms);
 
+// On-screen x of the candle whose center is nearest pixel x_px, searching
+// [candles, candles+count). Clamps to the first/last candle. Returns x_px
+// unchanged when there are no candles or the window is degenerate. Used to snap
+// the crosshair to candles.
+float snap_x_to_candle(const Layout& layout,
+                       const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t candle_duration_ms,
+                       int64_t visible_start_ms,
+                       int64_t window_ms,
+                       float x_px);
+
 // Min/max of (low..high) across the given range.
 PriceBounds price_bounds(const ::VroomCandle* candles, size_t count);
 
