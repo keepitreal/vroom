@@ -37,6 +37,12 @@ export type VroomChartProps = {
   /** Time window to render. Omit (or both 0) to show every candle. */
   visibleRange?: VisibleRange;
   theme?: VroomTheme;
+  /**
+   * Pixels the crosshair dot / horizontal line sit *above* the touch point so
+   * they aren't hidden under the thumb. The vertical line stays centered on the
+   * touch x. Default 40.
+   */
+  crosshairOffset?: number;
   onCrosshair?: (e: CrosshairEvent) => void;
   onViewportChange?: (startMs: number, endMs: number) => void;
 };

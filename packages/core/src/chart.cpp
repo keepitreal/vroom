@@ -20,7 +20,9 @@
 
 #include "candles.h"
 #include "chart_internal.h"
+#include "crosshair.h"
 #include "labels.h"
+#include "price_indicator.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -106,12 +108,21 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     border.setColor(theme.colors[VROOM_COLOR_GRID]);
     border.setStrokeWidth(1.f);
     border.setAntiAlias(true);
-    canvas->drawLine(candle_right, 0, candle_right, candle_area_h, border);
     canvas->drawLine(0, candle_area_h, candle_right, candle_area_h, border);
+
+    // 6.5. Crosshair — on top of candles/separators, within the candle area.
+    //      Only when activated by a touch (long-press); hidden otherwise.
+    if (crosshair_active)
+        vroom::crosshair::draw(canvas, *this, candle_right, candle_area_h);
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)
     vroom::labels::draw_y_labels(canvas, *this, lay, bounds);
     vroom::labels::draw_x_labels(canvas, *this, lay);
+
+    // 7.5. Current-price line + box — above labels so the box covers any label
+    //      it overlaps; tracks the latest close as the price scale moves.
+    vroom::price_indicator::draw(canvas, *this, lay, bounds,
+                                 candle_right, candle_area_h);
 
     // 8. GC fades that have fully faded out and aren't coming back.
     vroom::labels::gc_y_fades(*this);

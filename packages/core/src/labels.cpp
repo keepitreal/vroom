@@ -127,7 +127,9 @@ void draw_y_labels(SkCanvas* canvas,
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
     text_paint.setAntiAlias(true);
 
-    constexpr float kRightInset = 6.f;
+    // Horizontal center of the y-axis container ([width - y_axis_width, width]).
+    // Labels (and the price box) center on this so their text shares a column.
+    const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
 
     for (const auto& f : chart.y_fades) {
         if (f.opacity <= 1e-3f) continue;
@@ -139,7 +141,7 @@ void draw_y_labels(SkCanvas* canvas,
         const float text_w = font.measureText(
             buf, len, SkTextEncoding::kUTF8);
 
-        const float text_x = lay.width_px - kRightInset - text_w;
+        const float text_x = axis_center_x - text_w * 0.5f;
         const float baseline_y = y + cap_h * 0.5f;
         if (baseline_y - cap_h < 0.f) continue;
         if (baseline_y > candle_area_h) continue;

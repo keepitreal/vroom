@@ -27,7 +27,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(11);
+  out.reserve(13);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
@@ -38,6 +38,8 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "scaleTimeAxis"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getAxisMetrics"));
   out.push_back(jsi::PropNameID::forAscii(rt, "isAnimating"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshair"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "clearCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -241,6 +243,40 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
           return jsi::Value(is_animating(chart_));
+        });
+  }
+
+  if (name == "setCrosshair") {
+    // setCrosshair(x, y) -> JsiSkPicture. Activates the crosshair at (x, y) in
+    // pixels (y already lifted above the touch on the JS side) and renders.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setCrosshair"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          const float x = static_cast<float>(args[0].asNumber());
+          const float y = static_cast<float>(args[1].asNumber());
+          vroom_chart_set_crosshair(chart_, x, y);
+          return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "clearCrosshair") {
+    // clearCrosshair() -> JsiSkPicture. Hides the crosshair and renders.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "clearCrosshair"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_clear_crosshair(chart_);
+          return wrapPicture(rt2, render_chart_picture(chart_));
         });
   }
 

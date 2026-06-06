@@ -32,6 +32,14 @@ export interface ChartHandle {
   scaleTimeAxis(dx: number): SkPicture | null;
   /** Current axis dimensions in pixels for hit testing in JS gestures. */
   getAxisMetrics(): { yAxisWidth: number; xAxisHeight: number };
+  /**
+   * Shows the crosshair at (`x`, `y`) in pixels and returns a fresh picture.
+   * `y` should already be lifted above the touch point so the dot/horizontal
+   * line aren't hidden under the thumb.
+   */
+  setCrosshair(x: number, y: number): SkPicture | null;
+  /** Hides the crosshair and returns a fresh picture. */
+  clearCrosshair(): SkPicture | null;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

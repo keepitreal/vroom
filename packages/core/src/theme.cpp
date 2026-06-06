@@ -10,9 +10,9 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     0xff26a69a,  // BULL
     0xffef5350,  // BEAR
     0xffaaaaaa,  // WICK
-    0xff21262d,  // GRID
+    0xff1a1e24,  // GRID — ~20% darker than the crosshair so it recedes
     0xffc9d1d9,  // AXIS_TEXT
-    0xffc9d1d9,  // CROSSHAIR
+    0xff303741,  // CROSSHAIR — grid tone lightened ~44%; reads above GRID
     0xff161b22,  // TOOLTIP_BG
     0xffc9d1d9,  // TOOLTIP_TEXT
 };
