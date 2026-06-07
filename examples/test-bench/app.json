@@ -3,7 +3,7 @@
     "name": "test-bench",
     "slug": "test-bench",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
