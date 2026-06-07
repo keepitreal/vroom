@@ -18,12 +18,13 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
 };
 
 constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
-    0.55f,  // CANDLE_WIDTH_RATIO — body fills 55% of slot, 45% gap
+    0.68f,  // CANDLE_WIDTH_RATIO — body fills 68% of slot, 32% gap
     1.0f,   // WICK_WIDTH_PX
     6.f,    // RIGHT_PADDING_PX — small gutter between candles and y-axis
     11.f,   // AXIS_FONT_SIZE_PX
     0.18f,  // Y_AXIS_WIDTH_RATIO — fallback before font is loaded
     22.f,   // X_AXIS_HEIGHT_PX — bottom strip for time labels
+    0.5f,   // VOLUME_OPACITY — candle color at 50% transparency
 };
 
 }  // namespace

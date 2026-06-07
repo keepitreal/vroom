@@ -15,10 +15,12 @@ export interface ChartHandle {
    */
   translate(dx: number, dy: number): SkPicture | null;
   /**
-   * Resizes the visible range by the multiplicative `scale` around focus
-   * point (`fx`, `fy`) in pixels. `scale > 1` zooms in.
+   * Directional zoom by per-axis multiplicative factors around focus point
+   * (`fx`, `fy`) in pixels. `scaleX` resizes the time window (>1 = wider
+   * candles); `scaleY` resizes the price range (>1 = taller candles). Pass 1
+   * for an axis to leave it untouched.
    */
-  zoom(scale: number, fx: number, fy: number): SkPicture | null;
+  zoom(scaleX: number, scaleY: number, fx: number, fy: number): SkPicture | null;
   /**
    * Drag-on-y-axis price scaling. `dy > 0` widens the price range
    * (candles shrink). Pivots around the price-range center.

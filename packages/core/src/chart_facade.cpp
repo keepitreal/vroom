@@ -56,11 +56,11 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     }
     vroom::labels::recompute_axis_width(*chart);
 
-    // Default the visible window to the most recent ~60 candles when the
-    // consumer hasn't set one.
+    // Default the visible window to the most recent ~80 candles when the
+    // consumer hasn't set one — a narrower x-window so candles read wider.
     if (chart->visible_start_ms == 0 && chart->visible_end_ms == 0 &&
         !chart->candles.empty()) {
-        constexpr size_t kDefaultVisible = 60;
+        constexpr size_t kDefaultVisible = 80;
         const size_t start_idx = chart->candles.size() > kDefaultVisible
             ? chart->candles.size() - kDefaultVisible
             : 0;
@@ -75,8 +75,17 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
             chart->candles.data(), chart->candles.size(),
             chart->visible_start_ms, chart->visible_end_ms);
         if (idx.end > idx.start) {
-            chart->price_bounds = vroom::price_bounds(
+            auto b = vroom::price_bounds(
                 chart->candles.data() + idx.start, idx.end - idx.start);
+            // Widen the default y-window beyond the data's min/max so candles
+            // fill less vertical space (shorter candles, more headroom). 1.0 =
+            // snug; larger = wider. Only the default — zoom/axis-drag override.
+            constexpr double kDefaultYZoom = 1.5;
+            const double mid = (b.min + b.max) * 0.5;
+            const double half = (b.max - b.min) * 0.5 * kDefaultYZoom;
+            b.min = mid - half;
+            b.max = mid + half;
+            chart->price_bounds = b;
             chart->price_bounds_initialized = true;
         }
     }
@@ -307,29 +316,90 @@ extern "C" void vroom_chart_get_axis_metrics(VroomChart* chart,
     if (out_x_axis_height_px) *out_x_axis_height_px = lay.x_axis_height_px;
 }
 
-extern "C" void vroom_chart_zoom(VroomChart* chart, float scale, float /*fx*/, float fy) {
-    if (!chart || scale <= 0.f || scale == 1.f) return;
-    if (!chart->price_bounds_initialized) return;
+extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y,
+                                 float fx, float fy) {
+    if (!chart) return;
+    bool price_changed = false;
+    bool window_changed = false;
 
-    const float candle_area_h =
-        chart->height_px - chart->theme.floats[VROOM_FLOAT_X_AXIS_HEIGHT_PX];
-    if (candle_area_h <= 0.f) return;
+    // --- Y (price) zoom around fy ------------------------------------------
+    // scale_y > 1 (vertical pinch out) narrows the price range → taller candles.
+    if (scale_y > 0.f && scale_y != 1.f && chart->price_bounds_initialized) {
+        const float candle_area_h =
+            chart->height_px - chart->theme.floats[VROOM_FLOAT_X_AXIS_HEIGHT_PX];
+        const double range = chart->price_bounds.max - chart->price_bounds.min;
+        if (candle_area_h > 0.f && range > 0.0) {
+            const float frac = std::clamp(fy / candle_area_h, 0.f, 1.f);
+            const double focal_price = chart->price_bounds.max - frac * range;
+            const double new_range = range / static_cast<double>(scale_y);
+            chart->price_bounds.max = focal_price + frac * new_range;
+            chart->price_bounds.min = chart->price_bounds.max - new_range;
+            price_changed = true;
+        }
+    }
 
-    const double range = chart->price_bounds.max - chart->price_bounds.min;
-    if (range <= 0.0) return;
+    // --- X (time) zoom around fx -------------------------------------------
+    // scale_x > 1 (horizontal pinch out) narrows the time window → wider candles.
+    if (scale_x > 0.f && scale_x != 1.f && !chart->candles.empty()) {
+        const int64_t window_ms =
+            chart->visible_end_ms - chart->visible_start_ms;
+        const auto lay = chart->layout();
+        const double usable =
+            lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
+        if (window_ms > 0 && usable > 0.0) {
+            const double fracX =
+                std::clamp(static_cast<double>(fx) / usable, 0.0, 1.0);
+            const int64_t focal_time = chart->visible_start_ms +
+                static_cast<int64_t>(fracX * static_cast<double>(window_ms));
 
-    // Focal y → price under the current price scale. We keep this price
-    // anchored at `fy` while resizing the price range around it. scale > 1
-    // (pinch out vertically) narrows the range → candles taller.
-    const float frac = std::clamp(fy / candle_area_h, 0.f, 1.f);
-    const double focal_price = chart->price_bounds.max - frac * range;
+            int64_t new_window = static_cast<int64_t>(
+                static_cast<double>(window_ms) / static_cast<double>(scale_x));
 
-    const double new_range = range / static_cast<double>(scale);
-    chart->price_bounds.max = focal_price + frac * new_range;
-    chart->price_bounds.min = chart->price_bounds.max - new_range;
-    vroom::labels::recompute_axis_width(*chart);
+            // Keep candle body width within [min, max] (same bounds as the
+            // x-axis drag): window = usable × dur × ratio / body_w.
+            const double ratio =
+                chart->theme.floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO];
+            const double dur = static_cast<double>(chart->candle_duration_ms);
+            if (ratio > 0.0 && dur > 0.0) {
+                const int64_t min_window = static_cast<int64_t>(
+                    (usable * dur * ratio) / kMaxCandleBodyPx);
+                const int64_t max_window = static_cast<int64_t>(
+                    (usable * dur * ratio) / kMinCandleBodyPx);
+                if (new_window < min_window) new_window = min_window;
+                if (new_window > max_window) new_window = max_window;
+            }
 
-    chart->mark_dirty();
+            if (new_window > 0) {
+                int64_t new_start = focal_time -
+                    static_cast<int64_t>(fracX * static_cast<double>(new_window));
+                int64_t new_end = new_start + new_window;
+                const int64_t first_time = chart->candles.front().time_ms;
+                const int64_t last_time = chart->candles.back().time_ms;
+                const int64_t max_future = new_window / 2;
+                if (new_end > last_time + max_future) {
+                    new_end = last_time + max_future;
+                    new_start = new_end - new_window;
+                }
+                if (new_start < first_time) {
+                    new_start = first_time;
+                    new_end = new_start + new_window;
+                }
+                if (new_start != chart->visible_start_ms ||
+                    new_end != chart->visible_end_ms) {
+                    chart->visible_start_ms = new_start;
+                    chart->visible_end_ms = new_end;
+                    window_changed = true;
+                }
+            }
+        }
+    }
+
+    if (price_changed) vroom::labels::recompute_axis_width(*chart);
+    if (window_changed && chart->cb.on_viewport_changed) {
+        chart->cb.on_viewport_changed(
+            chart->user_ctx, chart->visible_start_ms, chart->visible_end_ms);
+    }
+    if (price_changed || window_changed) chart->mark_dirty();
 }
 
 // ---- Crosshair (state only; rendering not yet implemented) ----------------

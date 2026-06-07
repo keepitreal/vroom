@@ -23,6 +23,7 @@
 #include "crosshair.h"
 #include "labels.h"
 #include "price_indicator.h"
+#include "volume.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -87,6 +88,10 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //    candle_right, candle_area_h);` here.
     vroom::labels::draw_y_gridlines(canvas, *this, lay, bounds,
                                     candle_right, candle_area_h);
+
+    // 4.5. Volume bars — drawn under the candles so candles z-index above.
+    vroom::volume::draw(canvas, visible, n, lay, theme,
+                        window_ms, visible_start_ms, candle_duration_ms);
 
     // 5. Candles (wicks + bodies)
     vroom::candles::draw(canvas, visible, n, lay, theme, bounds,

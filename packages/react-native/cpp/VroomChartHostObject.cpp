@@ -163,22 +163,23 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "zoom") {
-    // zoom(scale, fx, fy) -> JsiSkPicture
-    // scale is the multiplicative factor since the last call (> 1 = zoom in).
-    // fx/fy are the focus point in pixels; the time at fx stays put.
+    // zoom(scaleX, scaleY, fx, fy) -> JsiSkPicture
+    // Per-axis multiplicative factors since the last call (> 1 = zoom in).
+    // scaleX scales the time window around fx; scaleY scales price around fy.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "zoom"),
-        3,
+        4,
         [this](jsi::Runtime& rt2,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* args,
                size_t count) -> jsi::Value {
-          if (count < 3) return jsi::Value::null();
-          const float s = static_cast<float>(args[0].asNumber());
-          const float fx = static_cast<float>(args[1].asNumber());
-          const float fy = static_cast<float>(args[2].asNumber());
-          vroom_chart_zoom(chart_, s, fx, fy);
+          if (count < 4) return jsi::Value::null();
+          const float sx = static_cast<float>(args[0].asNumber());
+          const float sy = static_cast<float>(args[1].asNumber());
+          const float fx = static_cast<float>(args[2].asNumber());
+          const float fy = static_cast<float>(args[3].asNumber());
+          vroom_chart_zoom(chart_, sx, sy, fx, fy);
           return wrapPicture(rt2, render_chart_picture(chart_));
         });
   }

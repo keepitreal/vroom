@@ -1,3 +1,5 @@
+import type { StyleProp, ViewStyle } from 'react-native';
+
 export type Candle = {
   timeMs: number;
   open: number;
@@ -32,8 +34,15 @@ export type VisibleRange = {
 
 export type VroomChartProps = {
   candles: Candle[];
+  /**
+   * Explicit size overrides in logical px. When omitted, the chart fills its
+   * parent (measured via onLayout). Use `style` (flex / aspectRatio / absolute
+   * fill) for layout-driven sizing instead of hard-coding these.
+   */
   width?: number;
   height?: number;
+  /** Style for the chart's root view. Defaults to filling the parent. */
+  style?: StyleProp<ViewStyle>;
   /** Time window to render. Omit (or both 0) to show every candle. */
   visibleRange?: VisibleRange;
   theme?: VroomTheme;

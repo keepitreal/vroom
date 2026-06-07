@@ -19,6 +19,7 @@ npm install @shopify/react-native-skia react-native-gesture-handler react-native
 ### Usage
 
 ```tsx
+import { View } from "react-native";
 import { VroomChart, type Candle } from "react-native-vroom-chart";
 
 const candles: Candle[] = [
@@ -34,7 +35,13 @@ const candles: Candle[] = [
 ];
 
 export function Chart() {
-  return <VroomChart candles={candles} width={360} height={360} />;
+  // Fills its parent by default — size it with `style` (flex / aspectRatio /
+  // absolute fill). Pass explicit `width`/`height` only to override.
+  return (
+    <View style={{ flex: 1 }}>
+      <VroomChart candles={candles} style={{ flex: 1 }} />
+    </View>
+  );
 }
 ```
 
@@ -45,8 +52,9 @@ Pan to scroll, pinch to zoom, and drag the price/time axes to rescale them.
 | Prop               | Type                          | Description                                                                                                          |
 | ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | `candles`          | `Candle[]`                    | Required. OHLCV data (`timeMs`, `open`, `high`, `low`, `close`, `volume`).                                           |
-| `width`            | `number`                      | Chart width in px. Default `360`.                                                                                    |
-| `height`           | `number`                      | Chart height in px. Default `240`.                                                                                   |
+| `style`            | `StyleProp<ViewStyle>`        | Root view style. Defaults to filling the parent.                                                                     |
+| `width`            | `number`                      | Explicit width override in px. Default: measured from the parent.                                                    |
+| `height`           | `number`                      | Explicit height override in px. Default: measured from the parent.                                                   |
 | `visibleRange`     | `{ startMs, endMs }`          | Time window to render. Omit to fit all candles.                                                                      |
 | `theme`            | `VroomTheme`                  | Color overrides (`background`, `bull`, `bear`, `wick`, `grid`, `axisText`, `crosshair`, `tooltipBg`, `tooltipText`). |
 | `onCrosshair`      | `(e: CrosshairEvent) => void` | Fires as the crosshair moves (`active`, `timeMs`, `price`).                                                          |

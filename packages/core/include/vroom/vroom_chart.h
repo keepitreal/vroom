@@ -62,6 +62,7 @@ typedef enum {
     VROOM_FLOAT_AXIS_FONT_SIZE_PX,
     VROOM_FLOAT_Y_AXIS_WIDTH_RATIO,      // fallback y-axis width when no typeface
     VROOM_FLOAT_X_AXIS_HEIGHT_PX,        // bottom strip reserved for time labels
+    VROOM_FLOAT_VOLUME_OPACITY,          // volume bar opacity (1=opaque)
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
@@ -92,7 +93,11 @@ void vroom_chart_set_size(VroomChart* chart, float width_px, float height_px, fl
 
 void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t end_ms);
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
-void vroom_chart_zoom(VroomChart* chart, float scale, float focus_x_px, float focus_y_px);
+// Directional zoom. scale_x scales the time window around focus_x_px (>1 =
+// narrower window, wider candles); scale_y scales the price range around
+// focus_y_px (>1 = taller candles). Pass 1.0 for an axis to leave it untouched.
+void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y,
+                      float focus_x_px, float focus_y_px);
 
 // Two-finger translation. Shifts the time window like pan (dx) and shifts
 // the price bounds vertically (dy) without changing their range — so the
