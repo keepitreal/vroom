@@ -32,3 +32,20 @@ if(MSVC)
 else()
     target_compile_options(vroom_core PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+# Unit tests (doctest). Off by default so the iOS/podspec build path is
+# untouched; enable with -DVROOM_BUILD_TESTS=ON. Compiles only the pure,
+# Skia-free translation units directly (not the vroom_core stub lib).
+option(VROOM_BUILD_TESTS "Build vroom_core unit tests" OFF)
+if(VROOM_BUILD_TESTS)
+    enable_testing()
+    add_executable(vroom_tests
+        tests/doctest_main.cpp
+        tests/test_viewport.cpp
+        tests/test_ticks.cpp
+        src/viewport.cpp
+        src/ticks.cpp
+    )
+    target_include_directories(vroom_tests PRIVATE include src tests)
+    add_test(NAME vroom_tests COMMAND vroom_tests)
+endif()

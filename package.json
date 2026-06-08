@@ -6,7 +6,9 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "start": "pnpm --filter test-bench start",
-    "rebuild:ios": "pnpm --filter test-bench rebuild:ios"
+    "rebuild:ios": "pnpm --filter test-bench rebuild:ios",
+    "test": "pnpm --filter react-native-vroom-chart test",
+    "test:core": "cmake -S packages/core -B packages/core/build -DVROOM_BUILD_TESTS=ON && cmake --build packages/core/build --target vroom_tests && ctest --test-dir packages/core/build --output-on-failure"
   },
   "devDependencies": {}
 }
