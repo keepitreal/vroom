@@ -34,18 +34,16 @@ float candle_center_x(const Layout& layout,
     return static_cast<float>(static_cast<double>(usable) * frac);
 }
 
-float snap_x_to_candle(const Layout& layout,
-                       const ::VroomCandle* candles,
-                       size_t count,
-                       int64_t candle_duration_ms,
-                       int64_t visible_start_ms,
-                       int64_t window_ms,
-                       float x_px) {
-    if (count == 0 || window_ms <= 0) return x_px;
-
+size_t snap_index_to_candle(const Layout& layout,
+                            const ::VroomCandle* candles,
+                            size_t count,
+                            int64_t candle_duration_ms,
+                            int64_t visible_start_ms,
+                            int64_t window_ms,
+                            float x_px) {
     const float usable =
         layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
-    if (usable <= 0.f) return x_px;
+    if (usable <= 0.f) return 0;
 
     // Pixel x -> the period start time of the candle that would sit there.
     const double target_center =
@@ -60,18 +58,30 @@ float snap_x_to_candle(const Layout& layout,
     auto* it = std::lower_bound(
         candles, candles + count, key,
         [](const ::VroomCandle& c, int64_t t) { return c.time_ms < t; });
-    size_t idx;
-    if (it == candles) {
-        idx = 0;
-    } else if (it == candles + count) {
-        idx = count - 1;
-    } else {
-        const int64_t hi = it->time_ms;
-        const int64_t lo = (it - 1)->time_ms;
-        idx = (hi - key < key - lo) ? static_cast<size_t>(it - candles)
-                                    : static_cast<size_t>(it - 1 - candles);
-    }
+    if (it == candles) return 0;
+    if (it == candles + count) return count - 1;
+    const int64_t hi = it->time_ms;
+    const int64_t lo = (it - 1)->time_ms;
+    return (hi - key < key - lo) ? static_cast<size_t>(it - candles)
+                                 : static_cast<size_t>(it - 1 - candles);
+}
 
+float snap_x_to_candle(const Layout& layout,
+                       const ::VroomCandle* candles,
+                       size_t count,
+                       int64_t candle_duration_ms,
+                       int64_t visible_start_ms,
+                       int64_t window_ms,
+                       float x_px) {
+    if (count == 0 || window_ms <= 0) return x_px;
+
+    const float usable =
+        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    if (usable <= 0.f) return x_px;
+
+    const size_t idx = snap_index_to_candle(
+        layout, candles, count, candle_duration_ms, visible_start_ms,
+        window_ms, x_px);
     return candle_center_x(layout, candles[idx].time_ms, candle_duration_ms,
                            visible_start_ms, window_ms);
 }

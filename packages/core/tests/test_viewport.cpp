@@ -116,6 +116,32 @@ TEST_CASE("snap_x_to_candle") {
     }
 }
 
+TEST_CASE("snap_index_to_candle") {
+    Layout l = make_layout();
+    // 10 candles at t = 0,100,...,900; duration 100; window 1000; usable 1000.
+    VroomCandle candles[10];
+    for (int i = 0; i < 10; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+
+    SUBCASE("left of first clamps to index 0") {
+        CHECK(vroom::snap_index_to_candle(l, candles, 10, 100, 0, 1000, -50.f) ==
+              0u);
+    }
+
+    SUBCASE("right of last clamps to the final index") {
+        CHECK(vroom::snap_index_to_candle(l, candles, 10, 100, 0, 1000,
+                                          2000.f) == 9u);
+    }
+
+    SUBCASE("returns the nearer of two candle indices") {
+        // x=140 -> key 90, nearer to candle t=100 (index 1).
+        CHECK(vroom::snap_index_to_candle(l, candles, 10, 100, 0, 1000, 140.f) ==
+              1u);
+        // x=90 -> key 40, nearer to candle t=0 (index 0).
+        CHECK(vroom::snap_index_to_candle(l, candles, 10, 100, 0, 1000, 90.f) ==
+              0u);
+    }
+}
+
 TEST_CASE("visible_indices") {
     VroomCandle candles[5];
     for (int i = 0; i < 5; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);

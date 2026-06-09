@@ -4,5 +4,6 @@ export type {
   Candle,
   CrosshairEvent,
   VroomTheme,
+  VroomColor,
   VisibleRange,
 } from './types';

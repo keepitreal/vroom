@@ -52,6 +52,7 @@ typedef enum {
     VROOM_COLOR_CROSSHAIR,
     VROOM_COLOR_TOOLTIP_BG,
     VROOM_COLOR_TOOLTIP_TEXT,
+    VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
     VROOM_COLOR_COUNT_
 } VroomColorKey;
 
@@ -125,6 +126,12 @@ void vroom_chart_get_axis_metrics(VroomChart* chart,
 
 void vroom_chart_set_crosshair(VroomChart* chart, float x_px, float y_px);
 void vroom_chart_clear_crosshair(VroomChart* chart);
+
+// Fills *out with the OHLCV of the candle the crosshair currently snaps to and
+// returns true. Returns false (leaving *out untouched) when the crosshair is
+// inactive or there are no visible candles. Stateless — recomputes the snap
+// from the current crosshair x and visible window, matching what's rendered.
+bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
 
 // ---- Rendering ------------------------------------------------------------
 

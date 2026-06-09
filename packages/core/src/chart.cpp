@@ -97,7 +97,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
                          window_ms, visible_start_ms, candle_duration_ms);
 
-    // 6. Axis backgrounds (mask any candle overflow) + separator lines
+    // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
+    //    line is intentionally omitted for now.
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
@@ -108,12 +109,6 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     canvas->drawRect(
         SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
         axis_bg);
-
-    SkPaint border;
-    border.setColor(theme.colors[VROOM_COLOR_GRID]);
-    border.setStrokeWidth(1.f);
-    border.setAntiAlias(true);
-    canvas->drawLine(0, candle_area_h, candle_right, candle_area_h, border);
 
     // 6.5. Crosshair — on top of candles/separators, within the candle area.
     //      Only when activated by a touch (long-press); hidden otherwise. The

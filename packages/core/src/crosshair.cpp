@@ -18,17 +18,6 @@ namespace vroom::crosshair {
 namespace {
 constexpr float kRingRadius = 3.5f;  // hollow dot at the intersection
 constexpr SkScalar kDash[2] = {2.f, 2.f};
-
-// Scales each RGB channel by `factor` (clamped), preserving alpha. Used to
-// lighten the ring relative to the crosshair lines without a separate theme key.
-SkColor lighten(SkColor c, float factor) {
-    auto scale = [factor](U8CPU v) -> U8CPU {
-        const float s = v * factor + 0.5f;
-        return static_cast<U8CPU>(s > 255.f ? 255.f : s);
-    };
-    return SkColorSetARGB(SkColorGetA(c), scale(SkColorGetR(c)),
-                          scale(SkColorGetG(c)), scale(SkColorGetB(c)));
-}
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -65,7 +54,7 @@ void draw(SkCanvas* canvas,
 
     SkPaint ring;
     ring.setAntiAlias(true);
-    ring.setColor(lighten(color, 1.3f));  // 30% lighter than the lines
+    ring.setColor(chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET]);
     ring.setStyle(SkPaint::kStroke_Style);
     ring.setStrokeWidth(2.f);  // thicker border so the dot reads clearly
     canvas->drawCircle(cx, cy, kRingRadius, ring);

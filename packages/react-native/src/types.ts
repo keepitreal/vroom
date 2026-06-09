@@ -10,21 +10,40 @@ export type Candle = {
 };
 
 export type CrosshairEvent = {
+  /** True while the crosshair is showing; false when it's dismissed. */
   active: boolean;
-  timeMs: number;
-  price: number;
+  /** OHLCV of the candle under the crosshair, or null when inactive. */
+  candle: Candle | null;
+  /**
+   * Why this event fired — lets the host react differently (e.g. haptics):
+   *   'show' — long-press activated the crosshair
+   *   'move' — the crosshair snapped to a *different* candle (one per candle
+   *            crossed; not per drag frame)
+   *   'hide' — the crosshair was dismissed
+   * The library never plays haptics itself; the host decides.
+   */
+  reason: 'show' | 'move' | 'hide';
 };
 
+// Colors are hex strings ('#0d1117', or 8-digit '#aarrggbb') or a packed ARGB
+// number. Every field is optional — omitted colors keep the library default.
+export type VroomColor = string | number;
+
 export type VroomTheme = {
-  background?: string;
-  bull?: string;
-  bear?: string;
-  wick?: string;
-  grid?: string;
-  axisText?: string;
-  crosshair?: string;
-  tooltipBg?: string;
-  tooltipText?: string;
+  /** Chart + axis-strip background. */
+  background?: VroomColor;
+  /** Up candles (also bull wicks, bull volume bars, rising price indicator). */
+  bull?: VroomColor;
+  /** Down candles (also bear wicks, bear volume bars, falling price indicator). */
+  bear?: VroomColor;
+  /** Gridlines. */
+  grid?: VroomColor;
+  /** Axis label text (price + time). */
+  axisText?: VroomColor;
+  /** Crosshair dashed lines. */
+  crosshair?: VroomColor;
+  /** Crosshair target — the hollow ring/dot at the intersection. */
+  crosshairTarget?: VroomColor;
 };
 
 export type VisibleRange = {

@@ -31,7 +31,9 @@ export function VroomChart(props: VroomChartProps) {
     height: heightProp,
     style,
     visibleRange,
+    theme,
     crosshairOffset = 40,
+    onCrosshair,
     onViewportChange,
   } = props;
 
@@ -50,7 +52,12 @@ export function VroomChart(props: VroomChartProps) {
     );
   }, []);
 
-  const { handle, picture } = useChartCore(candles, { width, height }, visibleRange);
+  const { handle, picture } = useChartCore(
+    candles,
+    { width, height },
+    visibleRange,
+    theme,
+  );
 
   // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat
   // behind JS-thread writes. If it ever reads null it throws ("Invalid prop
@@ -67,6 +74,11 @@ export function VroomChart(props: VroomChartProps) {
   // pinch is disabled. A ref (not state) so gesture callbacks read it
   // synchronously without re-subscribing. Tap dismisses it.
   const crosshairActive = useRef(false);
+
+  // timeMs of the candle last reported through onCrosshair, so a drag fires a
+  // 'move' event only when it crosses into a *different* candle (one per
+  // candle, not per frame). Null while the crosshair is hidden.
+  const lastCrosshairTime = useRef<number | null>(null);
 
   // Sync the initial picture from useChartCore into the SV whenever it
   // refreshes (data load, size change, externally-controlled range change).
@@ -157,6 +169,14 @@ export function VroomChart(props: VroomChartProps) {
         // stay lifted `crosshairOffset` px above the fingertip.
         const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
         if (ch) pictureSV.value = ch;
+        // The line follows the finger every frame (above), but only notify the
+        // host when the snapped candle actually changes.
+        const c = handle.getCrosshairCandle();
+        const t = c?.timeMs ?? null;
+        if (t !== lastCrosshairTime.current) {
+          lastCrosshairTime.current = t;
+          onCrosshair?.({ active: true, candle: c, reason: 'move' });
+        }
         return;
       } else {
         // Chart area: 1-finger drag translates both axes. Horizontal
@@ -284,6 +304,9 @@ export function VroomChart(props: VroomChartProps) {
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
       if (ch) pictureSV.value = ch;
+      const c = handle.getCrosshairCandle();
+      lastCrosshairTime.current = c?.timeMs ?? null;
+      onCrosshair?.({ active: true, candle: c, reason: 'show' });
     });
 
   // A tap dismisses the crosshair while it's up; otherwise it's a no-op (so it
@@ -297,6 +320,8 @@ export function VroomChart(props: VroomChartProps) {
       crosshairActive.current = false;
       const ch = handle.clearCrosshair();
       if (ch) pictureSV.value = ch;
+      lastCrosshairTime.current = null;
+      onCrosshair?.({ active: false, candle: null, reason: 'hide' });
     });
 
   const gesture = Gesture.Simultaneous(pan, pinch, longPress, tap);

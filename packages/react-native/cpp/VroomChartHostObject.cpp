@@ -27,9 +27,10 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(13);
+  out.reserve(15);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
@@ -40,6 +41,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "isAnimating"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "clearCrosshair"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairCandle"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -99,6 +101,26 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float h = static_cast<float>(args[1].asNumber());
           const float r = static_cast<float>(args[2].asNumber());
           vroom_chart_set_size(chart_, w, h, r);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setColor") {
+    // setColor(keyIndex, argb) — keyIndex is a VroomColorKey; argb is a packed
+    // 0xAARRGGBB integer. The core bounds-checks the key and marks dirty.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setColor"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          const int key = static_cast<int>(args[0].asNumber());
+          const uint32_t argb =
+              static_cast<uint32_t>(args[1].asNumber());
+          vroom_chart_set_color(chart_, static_cast<VroomColorKey>(key), argb);
           return jsi::Value::undefined();
         });
   }
@@ -278,6 +300,34 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_clear_crosshair(chart_);
           return wrapPicture(rt2, render_chart_picture(chart_));
+        });
+  }
+
+  if (name == "getCrosshairCandle") {
+    // getCrosshairCandle() -> { timeMs, open, high, low, close, volume } | null.
+    // The OHLCV of the candle the crosshair currently snaps to; null when the
+    // crosshair is inactive. Cheap to call at gesture rate — no rendering.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "getCrosshairCandle"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          VroomCandle c{};
+          if (!vroom_chart_get_crosshair_candle(chart_, &c)) {
+            return jsi::Value::null();
+          }
+          jsi::Object obj(rt2);
+          // time_ms fits in 53 bits well past year 285,000, so Number is exact.
+          obj.setProperty(rt2, "timeMs", static_cast<double>(c.time_ms));
+          obj.setProperty(rt2, "open", c.open);
+          obj.setProperty(rt2, "high", c.high);
+          obj.setProperty(rt2, "low", c.low);
+          obj.setProperty(rt2, "close", c.close);
+          obj.setProperty(rt2, "volume", c.volume);
+          return obj;
         });
   }
 

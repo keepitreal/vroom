@@ -418,6 +418,29 @@ extern "C" void vroom_chart_clear_crosshair(VroomChart* chart) {
     chart->mark_dirty();
 }
 
+extern "C" bool vroom_chart_get_crosshair_candle(VroomChart* chart,
+                                                 VroomCandle* out) {
+    if (!chart || !out || !chart->crosshair_active || chart->candles.empty()) {
+        return false;
+    }
+    // Mirror draw_chart's visible-slice derivation so the queried candle is
+    // exactly the one the crosshair snaps to on screen.
+    const auto lay = chart->layout();
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (n == 0 || window_ms <= 0) return false;
+
+    const ::VroomCandle* visible = chart->candles.data() + range.start;
+    const size_t idx = vroom::snap_index_to_candle(
+        lay, visible, n, chart->candle_duration_ms,
+        chart->visible_start_ms, window_ms, chart->crosshair_x_px);
+    *out = visible[idx];
+    return true;
+}
+
 // ---- Direct draw (used by hosts that don't need the SkPicture cache) ------
 
 extern "C" void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas) {

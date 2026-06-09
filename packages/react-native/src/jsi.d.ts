@@ -5,6 +5,11 @@ import type { SkPicture } from '@shopify/react-native-skia';
 export interface ChartHandle {
   setCandles(buffer: ArrayBuffer): void;
   setSize(width: number, height: number, pxRatio: number): void;
+  /**
+   * Overrides a single theme color. `key` is a VroomColorKey index (see
+   * COLOR_KEYS in theme.ts); `argb` is a packed 0xAARRGGBB integer.
+   */
+  setColor(key: number, argb: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
@@ -42,6 +47,20 @@ export interface ChartHandle {
   setCrosshair(x: number, y: number): SkPicture | null;
   /** Hides the crosshair and returns a fresh picture. */
   clearCrosshair(): SkPicture | null;
+  /**
+   * OHLCV of the candle the crosshair currently snaps to, or null when the
+   * crosshair is inactive / there are no visible candles. Cheap to poll at
+   * gesture rate (no rendering). Call after setCrosshair to read the candle
+   * under the new position.
+   */
+  getCrosshairCandle(): {
+    timeMs: number;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    volume: number;
+  } | null;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

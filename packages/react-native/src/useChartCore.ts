@@ -4,7 +4,8 @@ import type { SkPicture } from '@shopify/react-native-skia';
 import NativeVroomChart from './NativeVroomChart';
 import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
-import type { Candle, VisibleRange } from './types';
+import { applyTheme } from './theme';
+import type { Candle, VisibleRange, VroomTheme } from './types';
 
 let installed = false;
 function ensureInstalled(): void {
@@ -31,6 +32,7 @@ export function useChartCore(
   candles: Candle[],
   size: { width: number; height: number; pxRatio?: number },
   visibleRange?: VisibleRange,
+  theme?: VroomTheme,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
@@ -48,6 +50,10 @@ export function useChartCore(
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
 
+  // Stable dep so an inline `theme={{...}}` literal doesn't re-run the effect
+  // every render — only when the actual color values change.
+  const themeKey = theme ? JSON.stringify(theme) : '';
+
   useEffect(() => {
     const h = handleRef.current;
     if (!h) return;
@@ -58,8 +64,13 @@ export function useChartCore(
     if (explicit) {
       h.setVisibleRange(startMs, endMs);
     }
+    if (theme) {
+      applyTheme(h, theme);
+    }
     setPicture(h.render());
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs]);
+    // `theme` is represented by `themeKey` in the deps (intentional).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey]);
 
   return { handle: handleRef.current, picture };
 }

@@ -54,6 +54,18 @@ float candle_center_x(const Layout& layout,
                       int64_t visible_start_ms,
                       int64_t window_ms);
 
+// Index of the candle whose center is nearest pixel x_px, searching
+// [candles, candles+count). Clamps to the first/last candle. This is the
+// integer counterpart of snap_x_to_candle — both share the same nearest-candle
+// math. Precondition: count > 0 and window_ms > 0 (callers guard).
+size_t snap_index_to_candle(const Layout& layout,
+                            const ::VroomCandle* candles,
+                            size_t count,
+                            int64_t candle_duration_ms,
+                            int64_t visible_start_ms,
+                            int64_t window_ms,
+                            float x_px);
+
 // On-screen x of the candle whose center is nearest pixel x_px, searching
 // [candles, candles+count). Clamps to the first/last candle. Returns x_px
 // unchanged when there are no candles or the window is degenerate. Used to snap
