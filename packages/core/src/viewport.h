@@ -19,7 +19,20 @@ struct Layout {
     float candle_width_ratio;   // 0..1 of slot stride taken by the body
     float top_padding_frac;     // fraction of candle area; keeps prices off edges
     float bottom_padding_frac;
+    float indicator_area_h;     // height reserved for below-chart indicator panes
 };
+
+// Bottom of the price (candle) pane = top of the indicator band. Shrinks when
+// an indicator pane is present so candles, volume, and price labels reflow.
+inline float price_pane_bottom(const Layout& l) {
+    return l.height_px - l.x_axis_height_px - l.indicator_area_h;
+}
+
+// Top of the bottom time-axis strip. Stays anchored regardless of any indicator
+// band (the strip is always the bottom x_axis_height_px of the chart).
+inline float x_axis_top(const Layout& l) {
+    return l.height_px - l.x_axis_height_px;
+}
 
 struct PriceBounds {
     double min;

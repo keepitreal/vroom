@@ -126,9 +126,9 @@ PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {
 float price_to_y(const Layout& layout,
                  const PriceBounds& bounds,
                  double price) {
-    // The candle drawing area is the full height minus the x-axis strip
-    // at the bottom.
-    const float candle_area_h = layout.height_px - layout.x_axis_height_px;
+    // The candle drawing area is the full height minus the x-axis strip and
+    // any below-chart indicator pane.
+    const float candle_area_h = price_pane_bottom(layout);
     const float top = candle_area_h * layout.top_padding_frac;
     const float bot = candle_area_h * (1.f - layout.bottom_padding_frac);
     const float draw_h = bot - top;

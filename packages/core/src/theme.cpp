@@ -26,6 +26,7 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     0.18f,  // Y_AXIS_WIDTH_RATIO — fallback before font is loaded
     22.f,   // X_AXIS_HEIGHT_PX — bottom strip for time labels
     0.5f,   // VOLUME_OPACITY — candle color at 50% transparency
+    0.20f,  // INDICATOR_HEIGHT_FRAC — below-chart indicator pane = 20% of height
 };
 
 }  // namespace

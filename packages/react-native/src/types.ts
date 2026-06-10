@@ -51,6 +51,13 @@ export type VisibleRange = {
   endMs: number;
 };
 
+/** RSI indicator config. Rendered in a pane below the candles when enabled. */
+export type RSIConfig = {
+  enabled?: boolean;
+  /** Lookback period in candle counts. Default 14, clamped to >= 2. */
+  period?: number;
+};
+
 export type VroomChartProps = {
   candles: Candle[];
   /**
@@ -65,6 +72,8 @@ export type VroomChartProps = {
   /** Time window to render. Omit (or both 0) to show every candle. */
   visibleRange?: VisibleRange;
   theme?: VroomTheme;
+  /** RSI indicator (pane below the candles). Omit/disable to hide it. */
+  rsi?: RSIConfig;
   /**
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the

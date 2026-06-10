@@ -64,6 +64,7 @@ typedef enum {
     VROOM_FLOAT_Y_AXIS_WIDTH_RATIO,      // fallback y-axis width when no typeface
     VROOM_FLOAT_X_AXIS_HEIGHT_PX,        // bottom strip reserved for time labels
     VROOM_FLOAT_VOLUME_OPACITY,          // volume bar opacity (1=opaque)
+    VROOM_FLOAT_INDICATOR_HEIGHT_FRAC,   // below-chart indicator pane, fraction of height
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
@@ -116,11 +117,13 @@ void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px);
 void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px);
 void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px);
 
-// Reads the current y-axis width and x-axis height in pixels so callers can
-// hit-test gestures against the right strip on the JS side.
+// Reads the current y-axis width, x-axis height, and below-chart indicator pane
+// height in pixels so callers can hit-test gestures against each region on the
+// JS side. out_indicator_height_px is 0 when no indicator pane is shown.
 void vroom_chart_get_axis_metrics(VroomChart* chart,
                                    float* out_y_axis_width_px,
-                                   float* out_x_axis_height_px);
+                                   float* out_x_axis_height_px,
+                                   float* out_indicator_height_px);
 
 // ---- Crosshair ------------------------------------------------------------
 
@@ -132,6 +135,13 @@ void vroom_chart_clear_crosshair(VroomChart* chart);
 // inactive or there are no visible candles. Stateless — recomputes the snap
 // from the current crosshair x and visible window, matching what's rendered.
 bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
+
+// ---- Indicators -----------------------------------------------------------
+
+// Enables/disables the RSI indicator (rendered in a pane below the candles)
+// and sets its period in candle counts (clamped to >= 2; default 14). When
+// enabled, the candle pane shrinks by VROOM_FLOAT_INDICATOR_HEIGHT_FRAC.
+void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period);
 
 // ---- Rendering ------------------------------------------------------------
 

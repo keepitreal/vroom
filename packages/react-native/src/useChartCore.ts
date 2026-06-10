@@ -5,7 +5,7 @@ import NativeVroomChart from './NativeVroomChart';
 import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
 import { applyTheme } from './theme';
-import type { Candle, VisibleRange, VroomTheme } from './types';
+import type { Candle, RSIConfig, VisibleRange, VroomTheme } from './types';
 
 let installed = false;
 function ensureInstalled(): void {
@@ -33,6 +33,7 @@ export function useChartCore(
   size: { width: number; height: number; pxRatio?: number },
   visibleRange?: VisibleRange,
   theme?: VroomTheme,
+  rsi?: RSIConfig,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
@@ -50,9 +51,10 @@ export function useChartCore(
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
 
-  // Stable dep so an inline `theme={{...}}` literal doesn't re-run the effect
-  // every render — only when the actual color values change.
+  // Stable deps so inline `theme={{...}}` / `rsi={{...}}` literals don't re-run
+  // the effect every render — only when the actual values change.
   const themeKey = theme ? JSON.stringify(theme) : '';
+  const rsiKey = rsi ? JSON.stringify(rsi) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -67,10 +69,11 @@ export function useChartCore(
     if (theme) {
       applyTheme(h, theme);
     }
+    h.setRSI(rsi?.enabled ?? false, rsi?.period ?? 14);
     setPicture(h.render());
-    // `theme` is represented by `themeKey` in the deps (intentional).
+    // `theme`/`rsi` are represented by themeKey/rsiKey in the deps (intentional).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey]);
 
   return { handle: handleRef.current, picture };
 }

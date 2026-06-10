@@ -65,6 +65,15 @@ struct VroomChart {
     float  crosshair_x_px = 0.f;
     float  crosshair_y_px = 0.f;
 
+    // --- indicators ---------------------------------------------------------
+    // RSI, drawn in a pane below the candles. rsi_cache is aligned to `candles`
+    // (one value per candle, NaN where undefined) and recomputed lazily by
+    // ensure_rsi() when rsi_dirty (set on any data or config change).
+    bool rsi_enabled = false;
+    int  rsi_period = 14;
+    std::vector<double> rsi_cache;
+    bool rsi_dirty = true;
+
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;
 
@@ -92,6 +101,10 @@ struct VroomChart {
 
     // Builds a Layout snapshot for the current geometry / theme / axis sizing.
     vroom::Layout layout() const;
+
+    // Recomputes rsi_cache (over the full candle series) when rsi_dirty and
+    // RSI is enabled. No-op otherwise.
+    void ensure_rsi();
 
     // The main drawing pass. Calls into the labels and candles modules.
     void draw_chart(SkCanvas* canvas);

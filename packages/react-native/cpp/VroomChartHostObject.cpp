@@ -27,7 +27,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(15);
+  out.reserve(16);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -42,6 +42,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "clearCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairCandle"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setRSI"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -247,11 +248,12 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
-          float yw = 0.f, xh = 0.f;
-          vroom_chart_get_axis_metrics(chart_, &yw, &xh);
+          float yw = 0.f, xh = 0.f, ih = 0.f;
+          vroom_chart_get_axis_metrics(chart_, &yw, &xh, &ih);
           jsi::Object obj(rt2);
           obj.setProperty(rt2, "yAxisWidth", static_cast<double>(yw));
           obj.setProperty(rt2, "xAxisHeight", static_cast<double>(xh));
+          obj.setProperty(rt2, "indicatorHeight", static_cast<double>(ih));
           return obj;
         });
   }
@@ -328,6 +330,25 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           obj.setProperty(rt2, "close", c.close);
           obj.setProperty(rt2, "volume", c.volume);
           return obj;
+        });
+  }
+
+  if (name == "setRSI") {
+    // setRSI(enabled, period) — toggles the RSI pane below the candles and sets
+    // its period (candle count). No render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setRSI"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          const bool enabled = args[0].asBool();
+          const int period = static_cast<int>(args[1].asNumber());
+          vroom_chart_set_rsi(chart_, enabled, period);
+          return jsi::Value::undefined();
         });
   }
 

@@ -86,9 +86,18 @@ type Props = {
   onClose: () => void;
   state: IndicatorState;
   onToggle: (id: IndicatorId, enabled: boolean) => void;
+  rsiPeriod: number;
+  onRsiPeriodChange: (period: number) => void;
 };
 
-export function IndicatorsMenu({ visible, onClose, state, onToggle }: Props) {
+export function IndicatorsMenu({
+  visible,
+  onClose,
+  state,
+  onToggle,
+  rsiPeriod,
+  onRsiPeriodChange,
+}: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
   // Always reopen on the list, never the last-viewed detail.
@@ -114,6 +123,10 @@ export function IndicatorsMenu({ visible, onClose, state, onToggle }: Props) {
             enabled={state[detail.id].enabled}
             onToggle={(v) => onToggle(detail.id, v)}
             onBack={() => setDetailId(null)}
+            period={detail.id === 'rsi' ? rsiPeriod : undefined}
+            onPeriodChange={
+              detail.id === 'rsi' ? onRsiPeriodChange : undefined
+            }
           />
         ) : (
           <ListScreen state={state} onClose={onClose} onSelect={setDetailId} />
@@ -168,17 +181,25 @@ function ListScreen({
   );
 }
 
+const PERIOD_MIN = 2;
+const PERIOD_MAX = 50;
+
 function DetailScreen({
   meta,
   enabled,
   onToggle,
   onBack,
+  period,
+  onPeriodChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
   onToggle: (value: boolean) => void;
   onBack: () => void;
+  period?: number;
+  onPeriodChange?: (period: number) => void;
 }) {
+  const hasPeriod = period != null && onPeriodChange != null;
   return (
     <View style={styles.flex}>
       <View style={styles.navBar}>
@@ -204,10 +225,35 @@ function DetailScreen({
 
         <View style={styles.settingsSection}>
           <Text style={styles.sectionHeader}>SETTINGS</Text>
-          <Text style={styles.placeholder}>
-            Parameters (period, source, color…) will appear here once this
-            indicator is implemented.
-          </Text>
+          {hasPeriod ? (
+            <View style={styles.paramRow}>
+              <Text style={styles.paramLabel}>Period</Text>
+              <View style={styles.stepper}>
+                <Pressable
+                  style={styles.stepBtn}
+                  onPress={() =>
+                    onPeriodChange!(Math.max(PERIOD_MIN, period! - 1))
+                  }
+                >
+                  <Text style={styles.stepText}>−</Text>
+                </Pressable>
+                <Text style={styles.stepValue}>{period}</Text>
+                <Pressable
+                  style={styles.stepBtn}
+                  onPress={() =>
+                    onPeriodChange!(Math.min(PERIOD_MAX, period! + 1))
+                  }
+                >
+                  <Text style={styles.stepText}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.placeholder}>
+              Parameters (period, source, color…) will appear here once this
+              indicator is implemented.
+            </Text>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -289,4 +335,30 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   placeholder: { color: '#8b949e', fontSize: 14, lineHeight: 20 },
+  paramRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  paramLabel: { color: '#c9d1d9', fontSize: 15 },
+  stepper: { flexDirection: 'row', alignItems: 'center' },
+  stepBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: '#161b22',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#30363d',
+  },
+  stepText: { color: '#c9d1d9', fontSize: 20, fontWeight: '600' },
+  stepValue: {
+    color: '#f0f6fc',
+    fontSize: 16,
+    fontWeight: '700',
+    minWidth: 44,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
 });

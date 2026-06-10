@@ -47,6 +47,7 @@ extern "C" void vroom_chart_destroy(VroomChart* chart) { delete chart; }
 extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* data, size_t count) {
     if (!chart) return;
     chart->candles.assign(data, data + count);
+    chart->rsi_dirty = true;
 
     // Infer the candle period from the first interval. Robust enough for
     // uniform-duration series (the only kind we model today).
@@ -96,12 +97,14 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
 extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* c) {
     if (!chart || !c) return;
     chart->candles.push_back(*c);
+    chart->rsi_dirty = true;
     chart->mark_dirty();
 }
 
 extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c) {
     if (!chart || !c || chart->candles.empty()) return;
     chart->candles.back() = *c;
+    chart->rsi_dirty = true;
     chart->mark_dirty();
 }
 
@@ -217,8 +220,7 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
     // stays constant. We divide by draw_h (the 90% slice of candle area
     // that's actually used for price → y) so translation feels 1:1.
     if (dy_px != 0.f && chart->price_bounds_initialized) {
-        const float candle_area_h =
-            chart->height_px - chart->theme.floats[VROOM_FLOAT_X_AXIS_HEIGHT_PX];
+        const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         const double draw_h = static_cast<double>(candle_area_h) * 0.9;
         if (draw_h > 0.0) {
             const double range =
@@ -309,11 +311,13 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
 
 extern "C" void vroom_chart_get_axis_metrics(VroomChart* chart,
                                               float* out_y_axis_width_px,
-                                              float* out_x_axis_height_px) {
+                                              float* out_x_axis_height_px,
+                                              float* out_indicator_height_px) {
     if (!chart) return;
     const auto lay = chart->layout();
     if (out_y_axis_width_px) *out_y_axis_width_px = lay.y_axis_width_px;
     if (out_x_axis_height_px) *out_x_axis_height_px = lay.x_axis_height_px;
+    if (out_indicator_height_px) *out_indicator_height_px = lay.indicator_area_h;
 }
 
 extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y,
@@ -325,8 +329,7 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
     // --- Y (price) zoom around fy ------------------------------------------
     // scale_y > 1 (vertical pinch out) narrows the price range → taller candles.
     if (scale_y > 0.f && scale_y != 1.f && chart->price_bounds_initialized) {
-        const float candle_area_h =
-            chart->height_px - chart->theme.floats[VROOM_FLOAT_X_AXIS_HEIGHT_PX];
+        const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         const double range = chart->price_bounds.max - chart->price_bounds.min;
         if (candle_area_h > 0.f && range > 0.0) {
             const float frac = std::clamp(fy / candle_area_h, 0.f, 1.f);
@@ -439,6 +442,18 @@ extern "C" bool vroom_chart_get_crosshair_candle(VroomChart* chart,
         chart->visible_start_ms, window_ms, chart->crosshair_x_px);
     *out = visible[idx];
     return true;
+}
+
+// ---- Indicators -----------------------------------------------------------
+
+extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period) {
+    if (!chart) return;
+    if (period < 2) period = 2;
+    if (chart->rsi_enabled == enabled && chart->rsi_period == period) return;
+    chart->rsi_enabled = enabled;
+    chart->rsi_period = period;
+    chart->rsi_dirty = true;
+    chart->mark_dirty();
 }
 
 // ---- Direct draw (used by hosts that don't need the SkPicture cache) ------

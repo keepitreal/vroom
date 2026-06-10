@@ -32,6 +32,7 @@ export function VroomChart(props: VroomChartProps) {
     style,
     visibleRange,
     theme,
+    rsi,
     crosshairOffset = 40,
     onCrosshair,
     onViewportChange,
@@ -57,6 +58,7 @@ export function VroomChart(props: VroomChartProps) {
     { width, height },
     visibleRange,
     theme,
+    rsi,
   );
 
   // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat
@@ -132,20 +134,29 @@ export function VroomChart(props: VroomChartProps) {
   // strips always own their gesture (scale price/time) and take priority over
   // the crosshair: an axis touch never opens, moves, or dismisses it.
   const hitAxis = useCallback(
-    (x: number, y: number): 'chart' | 'price-axis' | 'time-axis' => {
+    (x: number, y: number): 'chart' | 'price-axis' | 'time-axis' | 'indicator' => {
       if (!handle) return 'chart';
-      const { yAxisWidth, xAxisHeight } = handle.getAxisMetrics();
+      const { yAxisWidth, xAxisHeight, indicatorHeight } =
+        handle.getAxisMetrics();
       if (x > width - yAxisWidth) return 'price-axis';
       if (y > height - xAxisHeight) return 'time-axis';
+      // The indicator pane sits just above the time-axis strip. A drag here
+      // scrolls the candles horizontally (no vertical price change).
+      if (indicatorHeight > 0 && y > height - xAxisHeight - indicatorHeight) {
+        return 'indicator';
+      }
       return 'chart';
     },
     [handle, width, height],
   );
 
-  // Pan can route to three different C++ mutators depending on where it
-  // started: the candle area (chart scroll / crosshair move), the y-axis strip
-  // (price scale), or the x-axis strip (time scale). We classify on onStart.
-  const panMode = useRef<'chart' | 'price-axis' | 'time-axis'>('chart');
+  // Pan routes to different C++ mutators depending on where it started: the
+  // candle area (chart scroll / crosshair move), the y-axis strip (price
+  // scale), the x-axis strip (time scale), or the indicator pane (horizontal
+  // scroll only). We classify on onStart.
+  const panMode = useRef<'chart' | 'price-axis' | 'time-axis' | 'indicator'>(
+    'chart',
+  );
 
   const pan = Gesture.Pan()
     .runOnJS(true)
@@ -163,6 +174,10 @@ export function VroomChart(props: VroomChartProps) {
         next = handle.scalePriceAxis(e.changeY);
       } else if (panMode.current === 'time-axis') {
         next = handle.scaleTimeAxis(e.changeX);
+      } else if (panMode.current === 'indicator') {
+        // Drag in an indicator pane scrolls the candles horizontally only —
+        // no vertical price slide (the pane's scale is fixed).
+        next = handle.pan(e.changeX, 0);
       } else if (crosshairActive.current) {
         // Chart area + crosshair up → the drag moves the crosshair instead of
         // scrolling. Vertical line tracks the finger x; the dot/horizontal line
@@ -195,7 +210,8 @@ export function VroomChart(props: VroomChartProps) {
       onViewportChange?.(0, 0);
 
       // Axis drags don't get momentum — they're a precise size adjustment.
-      if (panMode.current !== 'chart') return;
+      // Chart and indicator-pane drags both get horizontal fling momentum.
+      if (panMode.current !== 'chart' && panMode.current !== 'indicator') return;
 
       let velocity = e.velocityX;  // px/s
       const MIN_LAUNCH = 80;       // ignore tiny flicks

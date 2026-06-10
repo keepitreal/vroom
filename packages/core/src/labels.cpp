@@ -56,7 +56,7 @@ void update_y_fades(VroomChart& chart,
     const double range = bounds.max - bounds.min;
     if (range <= 0.0) return;
 
-    const float candle_area_h = chart.height_px - lay.x_axis_height_px;
+    const float candle_area_h = vroom::price_pane_bottom(lay);
     const double interval = vroom::pick_price_interval(range, candle_area_h);
     if (interval <= 0.0) return;
 
@@ -111,7 +111,7 @@ void draw_y_labels(SkCanvas* canvas,
     auto tf = vroom::axis_typeface();
     if (!tf) return;
 
-    const float candle_area_h = chart.height_px - lay.x_axis_height_px;
+    const float candle_area_h = vroom::price_pane_bottom(lay);
 
     SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
     font.setSubpixel(true);
@@ -230,7 +230,9 @@ void draw_x_labels(SkCanvas* canvas,
     if (!tf || chart.candles.empty()) return;
     if (chart.visible_end_ms <= chart.visible_start_ms) return;
 
-    const float candle_area_h = chart.height_px - lay.x_axis_height_px;
+    // X-axis labels live in the bottom strip, which stays anchored regardless
+    // of any indicator pane above it.
+    const float candle_area_h = vroom::x_axis_top(lay);
     const float candle_area_w =
         lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
     if (candle_area_w <= 0.f) return;

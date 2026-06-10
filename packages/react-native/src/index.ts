@@ -6,4 +6,5 @@ export type {
   VroomTheme,
   VroomColor,
   VisibleRange,
+  RSIConfig,
 } from './types';

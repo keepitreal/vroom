@@ -33,7 +33,7 @@ void draw(SkCanvas* canvas,
     for (std::size_t i = 0; i < n; ++i) max_vol = std::max(max_vol, visible[i].volume);
     if (max_vol <= 0.0) return;
 
-    const float candle_area_h = lay.height_px - lay.x_axis_height_px;
+    const float candle_area_h = vroom::price_pane_bottom(lay);
     const float region_h = candle_area_h * kVolumeFrac;
 
     const float body_w = vroom::candle_body_width(

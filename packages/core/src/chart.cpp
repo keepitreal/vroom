@@ -23,6 +23,8 @@
 #include "crosshair.h"
 #include "labels.h"
 #include "price_indicator.h"
+#include "rsi.h"
+#include "rsi_pane.h"
 #include "volume.h"
 #include "theme.h"
 #include "viewport.h"
@@ -38,6 +40,9 @@ vroom::Layout VroomChart::layout() const {
     const float axis_w = axis_width_px > 0.f
         ? axis_width_px
         : width_px * theme.floats[VROOM_FLOAT_Y_AXIS_WIDTH_RATIO];
+    const float indicator_h = rsi_enabled
+        ? height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC]
+        : 0.f;
     return vroom::Layout{
         width_px,
         height_px,
@@ -47,7 +52,14 @@ vroom::Layout VroomChart::layout() const {
         theme.floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO],
         0.05f,
         0.05f,
+        indicator_h,
     };
+}
+
+void VroomChart::ensure_rsi() {
+    if (!rsi_enabled || !rsi_dirty) return;
+    vroom::rsi::compute(candles.data(), candles.size(), rsi_period, rsi_cache);
+    rsi_dirty = false;
 }
 
 void VroomChart::draw_chart(SkCanvas* canvas) {
@@ -73,7 +85,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         : vroom::price_bounds(visible, n);
     const int64_t window_ms = visible_end_ms - visible_start_ms;
 
-    const float candle_area_h = height_px - lay.x_axis_height_px;
+    const float candle_area_h = vroom::price_pane_bottom(lay);
     const float candle_right =
         width_px - lay.y_axis_width_px - lay.right_padding_px;
 
@@ -98,11 +110,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                          window_ms, visible_start_ms, candle_duration_ms);
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
-    //    line is intentionally omitted for now.
+    //    line is intentionally omitted for now. The bottom strip anchors at
+    //    x_axis_top (below any indicator pane) so it never paints over it.
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
-        SkRect::MakeXYWH(0, candle_area_h, candle_right,
+        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), candle_right,
                          lay.x_axis_height_px),
         axis_bg);
     const float axis_block_w = width_px - candle_right;
@@ -129,6 +142,18 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      it overlaps; tracks the latest close as the price scale moves.
     vroom::price_indicator::draw(canvas, *this, lay, bounds,
                                  candle_right, candle_area_h);
+
+    // 7.6. RSI indicator pane below the candles. Shares the candles' horizontal
+    //      mapping; band is [candle_area_h, x_axis_top].
+    if (rsi_enabled && lay.indicator_area_h > 0.f) {
+        ensure_rsi();
+        const double* rsi_vis = rsi_cache.size() == candles.size()
+            ? rsi_cache.data() + range.start
+            : nullptr;
+        vroom::rsi_pane::draw(canvas, *this, lay, visible, n, rsi_vis,
+                              window_ms, visible_start_ms, candle_duration_ms,
+                              candle_right, candle_area_h, vroom::x_axis_top(lay));
+    }
 
     // 8. GC fades that have fully faded out and aren't coming back.
     vroom::labels::gc_y_fades(*this);

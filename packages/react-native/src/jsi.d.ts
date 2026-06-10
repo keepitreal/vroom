@@ -37,8 +37,15 @@ export interface ChartHandle {
    * visible candle stays in place.
    */
   scaleTimeAxis(dx: number): SkPicture | null;
-  /** Current axis dimensions in pixels for hit testing in JS gestures. */
-  getAxisMetrics(): { yAxisWidth: number; xAxisHeight: number };
+  /**
+   * Current axis dimensions in pixels for hit testing in JS gestures.
+   * `indicatorHeight` is the below-chart indicator pane height (0 when none).
+   */
+  getAxisMetrics(): {
+    yAxisWidth: number;
+    xAxisHeight: number;
+    indicatorHeight: number;
+  };
   /**
    * Shows the crosshair at (`x`, `y`) in pixels and returns a fresh picture.
    * `y` should already be lifted above the touch point so the dot/horizontal
@@ -61,6 +68,8 @@ export interface ChartHandle {
     close: number;
     volume: number;
   } | null;
+  /** Enables/disables the RSI pane and sets its period (candle count, >=2). */
+  setRSI(enabled: boolean, period: number): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;
