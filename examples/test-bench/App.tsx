@@ -1,20 +1,29 @@
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-  BottomSheetModalProvider,
-  BottomSheetView,
-  type BottomSheetBackdropProps,
-} from '@gorhom/bottom-sheet';
+import { Picker } from '@react-native-picker/picker';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  Modal,
+  Pressable,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
   VroomChart,
   type Candle,
   type CrosshairEvent,
 } from 'react-native-vroom-chart';
+
+import {
+  DEFAULT_INDICATOR_STATE,
+  enabledCount,
+  IndicatorsMenu,
+  type IndicatorId,
+  type IndicatorState,
+} from './IndicatorsMenu';
 
 const MINUTE = 60_000;
 const INTERVALS = [
@@ -74,6 +83,62 @@ function Field({
   );
 }
 
+// Native interval picker: a compact trigger that opens the OS picker wheel in a
+// bottom modal.
+function IntervalSelect({
+  value,
+  onChange,
+}: {
+  value: Interval;
+  onChange: (interval: Interval) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Pressable style={styles.selectTrigger} onPress={() => setOpen(true)}>
+        <Text style={styles.selectValue}>{value.label}</Text>
+        <Text style={styles.selectCaret}>▾</Text>
+      </Pressable>
+
+      <Modal
+        visible={open}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setOpen(false)}
+      >
+        <Pressable
+          style={styles.pickerBackdrop}
+          onPress={() => setOpen(false)}
+        />
+        <View style={styles.pickerSheet}>
+          <View style={styles.pickerBar}>
+            <Pressable onPress={() => setOpen(false)} hitSlop={8}>
+              <Text style={styles.pickerDone}>Done</Text>
+            </Pressable>
+          </View>
+          <Picker
+            selectedValue={value.label}
+            onValueChange={(label) => {
+              const next = INTERVALS.find((it) => it.label === label);
+              if (next) onChange(next);
+            }}
+            itemStyle={styles.pickerItem}
+          >
+            {INTERVALS.map((it) => (
+              <Picker.Item
+                key={it.label}
+                label={it.label}
+                value={it.label}
+                color="#c9d1d9"
+              />
+            ))}
+          </Picker>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
 export default function App() {
   const [selected, setSelected] = useState<Interval>(INTERVALS[0]);
   const candles = useMemo(() => mockCandles(1000, selected.ms), [selected]);
@@ -96,103 +161,78 @@ export default function App() {
     }
   }, []);
 
-  const indicatorsSheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ['50%'], []);
-  const openIndicators = useCallback(() => {
-    indicatorsSheetRef.current?.present();
-  }, []);
-
-  const renderBackdrop = useCallback(
-    (props: BottomSheetBackdropProps) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        pressBehavior="close"
-      />
-    ),
-    [],
+  // Indicator enable/config state lives here so it can later drive the chart;
+  // the menu only owns its own list↔detail navigation.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [indicators, setIndicators] = useState<IndicatorState>(
+    DEFAULT_INDICATOR_STATE,
   );
+  const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
+    setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
+  }, []);
+  const activeCount = enabledCount(indicators);
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <BottomSheetModalProvider>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Vroom Test Bench</Text>
-          </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Vroom Test Bench</Text>
+        </View>
 
-          <View style={styles.ohlcv}>
-            {shown ? (
-              <>
-                <Field label="O" value={shown.open.toFixed(2)} />
-                <Field label="H" value={shown.high.toFixed(2)} />
-                <Field label="L" value={shown.low.toFixed(2)} />
-                <Field
-                  label="C"
-                  value={shown.close.toFixed(2)}
-                  color={bull ? '#3fb950' : '#f85149'}
-                />
-                <Field label="V" value={fmtVol(shown.volume)} />
-              </>
-            ) : null}
-          </View>
+        <View style={styles.ohlcv}>
+          {shown ? (
+            <>
+              <Field label="O" value={shown.open.toFixed(2)} />
+              <Field label="H" value={shown.high.toFixed(2)} />
+              <Field label="L" value={shown.low.toFixed(2)} />
+              <Field
+                label="C"
+                value={shown.close.toFixed(2)}
+                color={bull ? '#3fb950' : '#f85149'}
+              />
+              <Field label="V" value={fmtVol(shown.volume)} />
+            </>
+          ) : null}
+        </View>
 
-          {/* Remount on interval change so the visible window re-defaults to
-              the new data's recent range. */}
-          <VroomChart
-            key={selected.label}
-            candles={candles}
-            style={styles.chart}
-            onCrosshair={handleCrosshair}
-          />
+        {/* Remount on interval change so the visible window re-defaults to
+            the new data's recent range. */}
+        <VroomChart
+          key={selected.label}
+          candles={candles}
+          style={styles.chart}
+          onCrosshair={handleCrosshair}
+        />
 
-          <View style={styles.footer}>
-            <View style={styles.intervalRow}>
-              {INTERVALS.map((it) => {
-                const active = it.label === selected.label;
-                return (
-                  <Pressable
-                    key={it.label}
-                    onPress={() => setSelected(it)}
-                    style={[
-                      styles.intervalBtn,
-                      active && styles.intervalBtnActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.intervalText,
-                        active && styles.intervalTextActive,
-                      ]}
-                    >
-                      {it.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+        <View style={styles.footer}>
+          <View style={styles.footerRow}>
+            <IntervalSelect value={selected} onChange={setSelected} />
 
-            <Pressable style={styles.indicatorsBtn} onPress={openIndicators}>
-              <Text style={styles.indicatorsText}>Indicators</Text>
+            <Pressable style={styles.fnBtn} onPress={() => setMenuOpen(true)}>
+              <Text
+                style={[
+                  styles.fnSymbol,
+                  activeCount > 0 && styles.fnSymbolActive,
+                ]}
+              >
+                ƒ
+              </Text>
+              {activeCount > 0 ? (
+                <Text style={styles.fnCount}>{activeCount}</Text>
+              ) : null}
             </Pressable>
           </View>
-        </SafeAreaView>
+        </View>
+      </SafeAreaView>
 
-        <BottomSheetModal
-          ref={indicatorsSheetRef}
-          snapPoints={snapPoints}
-          backdropComponent={renderBackdrop}
-          backgroundStyle={styles.sheetBackground}
-          handleIndicatorStyle={styles.sheetHandle}
-        >
-          <BottomSheetView style={styles.sheetContent}>
-            <Text style={styles.sheetTitle}>Add indicators</Text>
-          </BottomSheetView>
-        </BottomSheetModal>
+      <IndicatorsMenu
+        visible={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        state={indicators}
+        onToggle={toggleIndicator}
+      />
 
-        <StatusBar style="light" />
-      </BottomSheetModalProvider>
+      <StatusBar style="light" />
     </GestureHandlerRootView>
   );
 }
@@ -223,34 +263,73 @@ const styles = StyleSheet.create({
   },
   chart: { flex: 1 },
   footer: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#21262d',
   },
-  intervalRow: { flexDirection: 'row' },
-  intervalBtn: {
-    flex: 1,
+  footerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    marginHorizontal: 4,
-    borderRadius: 6,
+    justifyContent: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 12,
   },
-  intervalBtnActive: { backgroundColor: '#21262d' },
-  intervalText: { color: '#8b949e', fontSize: 14, fontWeight: '500' },
-  intervalTextActive: { color: '#c9d1d9' },
-  indicatorsBtn: {
-    marginTop: 8,
-    marginHorizontal: 4,
+  selectTrigger: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#161b22',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#30363d',
+  },
+  selectValue: {
+    color: '#c9d1d9',
+    fontSize: 15,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+  selectCaret: { color: '#8b949e', fontSize: 12 },
+  fnBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 48,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 8,
     backgroundColor: '#161b22',
   },
-  indicatorsText: { color: '#c9d1d9', fontSize: 15, fontWeight: '600' },
-  sheetBackground: { backgroundColor: '#161b22' },
-  sheetHandle: { backgroundColor: '#484f58' },
-  sheetContent: { flex: 1, paddingHorizontal: 16, paddingTop: 8 },
-  sheetTitle: { color: '#c9d1d9', fontSize: 18, fontWeight: '600' },
+  fnSymbol: {
+    color: '#8b949e',
+    fontSize: 18,
+    fontWeight: '600',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  fnSymbolActive: { color: '#3fb950' },
+  fnCount: {
+    color: '#3fb950',
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 3,
+  },
+  pickerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  pickerSheet: {
+    backgroundColor: '#161b22',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#30363d',
+  },
+  pickerBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#21262d',
+  },
+  pickerDone: { color: '#58a6ff', fontSize: 16, fontWeight: '600' },
+  pickerItem: { color: '#c9d1d9', fontSize: 18 },
 });

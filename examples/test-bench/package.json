@@ -4,7 +4,7 @@
   "main": "index.ts",
   "private": true,
   "dependencies": {
-    "@gorhom/bottom-sheet": "^5.2.14",
+    "@react-native-picker/picker": "2.11.1",
     "@shopify/react-native-skia": "2.2.12",
     "expo": "~54.0.34",
     "expo-dev-client": "~6.0.21",
