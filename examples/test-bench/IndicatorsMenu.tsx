@@ -81,13 +81,30 @@ export function enabledCount(state: IndicatorState): number {
   return Object.values(state).filter((c) => c.enabled).length;
 }
 
+// RSI-specific parameters (the enable toggle lives in IndicatorState above).
+export type RSIParams = {
+  period: number;
+  upperBand: number;
+  lowerBand: number;
+  maEnabled: boolean;
+  maPeriod: number;
+};
+
+export const DEFAULT_RSI_PARAMS: RSIParams = {
+  period: 14,
+  upperBand: 70,
+  lowerBand: 30,
+  maEnabled: true,
+  maPeriod: 14,
+};
+
 type Props = {
   visible: boolean;
   onClose: () => void;
   state: IndicatorState;
   onToggle: (id: IndicatorId, enabled: boolean) => void;
-  rsiPeriod: number;
-  onRsiPeriodChange: (period: number) => void;
+  rsiParams: RSIParams;
+  onRsiParamsChange: (patch: Partial<RSIParams>) => void;
 };
 
 export function IndicatorsMenu({
@@ -95,8 +112,8 @@ export function IndicatorsMenu({
   onClose,
   state,
   onToggle,
-  rsiPeriod,
-  onRsiPeriodChange,
+  rsiParams,
+  onRsiParamsChange,
 }: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -123,9 +140,9 @@ export function IndicatorsMenu({
             enabled={state[detail.id].enabled}
             onToggle={(v) => onToggle(detail.id, v)}
             onBack={() => setDetailId(null)}
-            period={detail.id === 'rsi' ? rsiPeriod : undefined}
-            onPeriodChange={
-              detail.id === 'rsi' ? onRsiPeriodChange : undefined
+            rsiParams={detail.id === 'rsi' ? rsiParams : undefined}
+            onRsiParamsChange={
+              detail.id === 'rsi' ? onRsiParamsChange : undefined
             }
           />
         ) : (
@@ -181,25 +198,57 @@ function ListScreen({
   );
 }
 
-const PERIOD_MIN = 2;
-const PERIOD_MAX = 50;
+function Stepper({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <View style={styles.paramRow}>
+      <Text style={styles.paramLabel}>{label}</Text>
+      <View style={styles.stepper}>
+        <Pressable
+          style={styles.stepBtn}
+          onPress={() => onChange(Math.max(min, value - 1))}
+        >
+          <Text style={styles.stepText}>−</Text>
+        </Pressable>
+        <Text style={styles.stepValue}>{value}</Text>
+        <Pressable
+          style={styles.stepBtn}
+          onPress={() => onChange(Math.min(max, value + 1))}
+        >
+          <Text style={styles.stepText}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 function DetailScreen({
   meta,
   enabled,
   onToggle,
   onBack,
-  period,
-  onPeriodChange,
+  rsiParams,
+  onRsiParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
   onToggle: (value: boolean) => void;
   onBack: () => void;
-  period?: number;
-  onPeriodChange?: (period: number) => void;
+  rsiParams?: RSIParams;
+  onRsiParamsChange?: (patch: Partial<RSIParams>) => void;
 }) {
-  const hasPeriod = period != null && onPeriodChange != null;
+  const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   return (
     <View style={styles.flex}>
       <View style={styles.navBar}>
@@ -225,29 +274,49 @@ function DetailScreen({
 
         <View style={styles.settingsSection}>
           <Text style={styles.sectionHeader}>SETTINGS</Text>
-          {hasPeriod ? (
-            <View style={styles.paramRow}>
-              <Text style={styles.paramLabel}>Period</Text>
-              <View style={styles.stepper}>
-                <Pressable
-                  style={styles.stepBtn}
-                  onPress={() =>
-                    onPeriodChange!(Math.max(PERIOD_MIN, period! - 1))
-                  }
-                >
-                  <Text style={styles.stepText}>−</Text>
-                </Pressable>
-                <Text style={styles.stepValue}>{period}</Text>
-                <Pressable
-                  style={styles.stepBtn}
-                  onPress={() =>
-                    onPeriodChange!(Math.min(PERIOD_MAX, period! + 1))
-                  }
-                >
-                  <Text style={styles.stepText}>+</Text>
-                </Pressable>
+          {rsi ? (
+            <>
+              <Stepper
+                label="Period"
+                value={rsi.period}
+                min={2}
+                max={50}
+                onChange={(n) => onRsiParamsChange!({ period: n })}
+              />
+              <Stepper
+                label="Overbought"
+                value={rsi.upperBand}
+                min={rsi.lowerBand + 1}
+                max={100}
+                onChange={(n) => onRsiParamsChange!({ upperBand: n })}
+              />
+              <Stepper
+                label="Oversold"
+                value={rsi.lowerBand}
+                min={0}
+                max={rsi.upperBand - 1}
+                onChange={(n) => onRsiParamsChange!({ lowerBand: n })}
+              />
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Trendline (RSI MA)</Text>
+                <Switch
+                  value={rsi.maEnabled}
+                  onValueChange={(v) => onRsiParamsChange!({ maEnabled: v })}
+                  trackColor={{ true: '#238636', false: '#30363d' }}
+                  thumbColor="#f0f6fc"
+                  ios_backgroundColor="#30363d"
+                />
               </View>
-            </View>
+              {rsi.maEnabled ? (
+                <Stepper
+                  label="Trendline length"
+                  value={rsi.maPeriod}
+                  min={1}
+                  max={50}
+                  onChange={(n) => onRsiParamsChange!({ maPeriod: n })}
+                />
+              ) : null}
+            </>
           ) : (
             <Text style={styles.placeholder}>
               Parameters (period, source, color…) will appear here once this

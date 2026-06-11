@@ -68,3 +68,32 @@ TEST_CASE("rsi::compute") {
         for (double v : out) CHECK(std::isnan(v));
     }
 }
+
+TEST_CASE("rsi::compute_ma") {
+    // closes [10,11,10,11,10], period 2 → rsi = [_,_,50,75,37.5].
+    std::vector<double> rsi;
+    auto c = closes({10, 11, 10, 11, 10});
+    vroom::rsi::compute(c.data(), c.size(), 2, rsi);
+    REQUIRE(rsi.size() == 5);
+    CHECK(rsi[2] == doctest::Approx(50.0));
+    CHECK(rsi[3] == doctest::Approx(75.0));
+    CHECK(rsi[4] == doctest::Approx(37.5));
+
+    std::vector<double> ma;
+    SUBCASE("SMA of RSI, NaN until the window is full of valid values") {
+        vroom::rsi::compute_ma(rsi, 2, ma);
+        REQUIRE(ma.size() == 5);
+        CHECK(std::isnan(ma[0]));
+        CHECK(std::isnan(ma[1]));
+        CHECK(std::isnan(ma[2]));  // window {rsi[1]=NaN, rsi[2]} → NaN
+        CHECK(ma[3] == doctest::Approx(62.5));   // mean(50,75)
+        CHECK(ma[4] == doctest::Approx(56.25));  // mean(75,37.5)
+    }
+
+    SUBCASE("ma_period 1 is the identity") {
+        vroom::rsi::compute_ma(rsi, 1, ma);
+        CHECK(std::isnan(ma[1]));
+        CHECK(ma[2] == doctest::Approx(50.0));
+        CHECK(ma[4] == doctest::Approx(37.5));
+    }
+}

@@ -56,6 +56,14 @@ export type RSIConfig = {
   enabled?: boolean;
   /** Lookback period in candle counts. Default 14, clamped to >= 2. */
   period?: number;
+  /** Overbought band level (0..100). Default 70. */
+  upperBand?: number;
+  /** Oversold band level (0..100). Default 30. */
+  lowerBand?: number;
+  /** Show the RSI-based moving-average trendline. Default true. */
+  maEnabled?: boolean;
+  /** Trendline (MA of RSI) length. Default 14, clamped to >= 1. */
+  maPeriod?: number;
 };
 
 export type VroomChartProps = {

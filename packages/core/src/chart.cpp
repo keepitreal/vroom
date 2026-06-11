@@ -59,6 +59,11 @@ vroom::Layout VroomChart::layout() const {
 void VroomChart::ensure_rsi() {
     if (!rsi_enabled || !rsi_dirty) return;
     vroom::rsi::compute(candles.data(), candles.size(), rsi_period, rsi_cache);
+    if (rsi_ma_enabled) {
+        vroom::rsi::compute_ma(rsi_cache, rsi_ma_period, rsi_ma_cache);
+    } else {
+        rsi_ma_cache.clear();
+    }
     rsi_dirty = false;
 }
 
@@ -150,9 +155,14 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         const double* rsi_vis = rsi_cache.size() == candles.size()
             ? rsi_cache.data() + range.start
             : nullptr;
+        const double* rsi_ma_vis =
+            (rsi_ma_enabled && rsi_ma_cache.size() == candles.size())
+                ? rsi_ma_cache.data() + range.start
+                : nullptr;
         vroom::rsi_pane::draw(canvas, *this, lay, visible, n, rsi_vis,
-                              window_ms, visible_start_ms, candle_duration_ms,
-                              candle_right, candle_area_h, vroom::x_axis_top(lay));
+                              rsi_ma_vis, window_ms, visible_start_ms,
+                              candle_duration_ms, candle_right, candle_area_h,
+                              vroom::x_axis_top(lay));
     }
 
     // 8. GC fades that have fully faded out and aren't coming back.

@@ -69,7 +69,14 @@ export function useChartCore(
     if (theme) {
       applyTheme(h, theme);
     }
-    h.setRSI(rsi?.enabled ?? false, rsi?.period ?? 14);
+    h.setRSI(
+      rsi?.enabled ?? false,
+      rsi?.period ?? 14,
+      rsi?.upperBand ?? 70,
+      rsi?.lowerBand ?? 30,
+      rsi?.maEnabled ?? true,
+      rsi?.maPeriod ?? 14,
+    );
     setPicture(h.render());
     // `theme`/`rsi` are represented by themeKey/rsiKey in the deps (intentional).
     // eslint-disable-next-line react-hooks/exhaustive-deps

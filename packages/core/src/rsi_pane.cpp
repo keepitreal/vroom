@@ -25,12 +25,11 @@
 namespace vroom::rsi_pane {
 
 namespace {
-constexpr SkColor kRsiLine = 0xff8957e5;   // violet RSI line (themable later)
-constexpr SkColor kRefLine = 0xff30363d;   // 70/30 reference lines
-constexpr SkColor kDivider = 0xff21262d;   // pane separator
+constexpr SkColor kRsiLine = 0xff8957e5;    // violet RSI line (themable later)
+constexpr SkColor kRsiMaLine = 0xffd29922;  // amber RSI moving-average trendline
+constexpr SkColor kRefLine = 0xff30363d;    // band reference lines
+constexpr SkColor kDivider = 0xff21262d;    // pane separator
 constexpr SkScalar kDash[2] = {3.f, 3.f};
-constexpr float kRefHigh = 70.f;
-constexpr float kRefLow = 30.f;
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -39,6 +38,7 @@ void draw(SkCanvas* canvas,
           const ::VroomCandle* visible,
           std::size_t n,
           const double* rsi_visible,
+          const double* rsi_ma_visible,
           int64_t window_ms,
           int64_t visible_start_ms,
           int64_t candle_duration_ms,
@@ -71,44 +71,49 @@ void draw(SkCanvas* canvas,
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, pane_top, candle_right, pane_bottom));
 
-    // 70 / 30 dashed reference lines.
+    // Configurable band reference lines (overbought / oversold).
     SkPaint ref;
     ref.setAntiAlias(true);
     ref.setColor(kRefLine);
     ref.setStrokeWidth(1.f);
     ref.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
-    const float y70 = y_for(kRefHigh);
-    const float y30 = y_for(kRefLow);
-    canvas->drawLine(0.f, y70, candle_right, y70, ref);
-    canvas->drawLine(0.f, y30, candle_right, y30, ref);
+    const float y_upper = y_for(chart.rsi_upper);
+    const float y_lower = y_for(chart.rsi_lower);
+    canvas->drawLine(0.f, y_upper, candle_right, y_upper, ref);
+    canvas->drawLine(0.f, y_lower, candle_right, y_lower, ref);
 
-    // RSI line — moveTo the first finite point, lineTo the rest; a NaN lifts the
-    // pen so undefined leading values (i < period) leave a gap.
-    SkPath path;
-    bool pen_down = false;
-    for (std::size_t i = 0; i < n; ++i) {
-        const double v = rsi_visible ? rsi_visible[i] : std::nan("");
-        if (!std::isfinite(v)) {
-            pen_down = false;
-            continue;
+    // Strokes a value series as a polyline; a NaN lifts the pen so undefined
+    // leading values (i < period) leave a gap.
+    auto stroke_series = [&](const double* series, SkColor color) {
+        if (!series) return;
+        SkPath path;
+        bool pen_down = false;
+        for (std::size_t i = 0; i < n; ++i) {
+            const double v = series[i];
+            if (!std::isfinite(v)) {
+                pen_down = false;
+                continue;
+            }
+            const float x = vroom::candle_center_x(
+                lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
+                window_ms);
+            const float y = y_for(v);
+            if (pen_down) {
+                path.lineTo(x, y);
+            } else {
+                path.moveTo(x, y);
+                pen_down = true;
+            }
         }
-        const float x = vroom::candle_center_x(
-            lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
-            window_ms);
-        const float y = y_for(v);
-        if (pen_down) {
-            path.lineTo(x, y);
-        } else {
-            path.moveTo(x, y);
-            pen_down = true;
-        }
-    }
-    SkPaint line;
-    line.setAntiAlias(true);
-    line.setColor(kRsiLine);
-    line.setStyle(SkPaint::kStroke_Style);
-    line.setStrokeWidth(1.5f);
-    canvas->drawPath(path, line);
+        SkPaint line;
+        line.setAntiAlias(true);
+        line.setColor(color);
+        line.setStyle(SkPaint::kStroke_Style);
+        line.setStrokeWidth(1.5f);
+        canvas->drawPath(path, line);
+    };
+    stroke_series(rsi_visible, kRsiLine);
+    stroke_series(rsi_ma_visible, kRsiMaLine);  // trendline on top
 
     // Caption, top-left of the pane.
     auto tf = vroom::axis_typeface();
@@ -149,8 +154,12 @@ void draw(SkCanvas* canvas,
             const float baseline_y = y - (tb.fTop + tb.fBottom) * 0.5f;
             canvas->drawString(s, text_x, baseline_y, font, text_paint);
         };
-        label("70", y70);
-        label("30", y30);
+        char ub[8];
+        char lb[8];
+        std::snprintf(ub, sizeof(ub), "%.0f", chart.rsi_upper);
+        std::snprintf(lb, sizeof(lb), "%.0f", chart.rsi_lower);
+        label(ub, y_upper);
+        label(lb, y_lower);
     }
 }
 

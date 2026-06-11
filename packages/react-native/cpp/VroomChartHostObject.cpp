@@ -334,20 +334,25 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "setRSI") {
-    // setRSI(enabled, period) — toggles the RSI pane below the candles and sets
-    // its period (candle count). No render; the next render() picks it up.
+    // setRSI(enabled, period, upperBand, lowerBand, maEnabled, maPeriod) —
+    // configures the RSI pane. No render; the next render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setRSI"),
-        2,
+        6,
         [this](jsi::Runtime& /*rt2*/,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* args,
                size_t count) -> jsi::Value {
-          if (count < 2) return jsi::Value::undefined();
+          if (count < 6) return jsi::Value::undefined();
           const bool enabled = args[0].asBool();
           const int period = static_cast<int>(args[1].asNumber());
-          vroom_chart_set_rsi(chart_, enabled, period);
+          const double upper = args[2].asNumber();
+          const double lower = args[3].asNumber();
+          const bool ma_enabled = args[4].asBool();
+          const int ma_period = static_cast<int>(args[5].asNumber());
+          vroom_chart_set_rsi(chart_, enabled, period, upper, lower, ma_enabled,
+                              ma_period);
           return jsi::Value::undefined();
         });
   }

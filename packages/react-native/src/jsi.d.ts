@@ -68,8 +68,18 @@ export interface ChartHandle {
     close: number;
     volume: number;
   } | null;
-  /** Enables/disables the RSI pane and sets its period (candle count, >=2). */
-  setRSI(enabled: boolean, period: number): void;
+  /**
+   * Configures the RSI pane: enable, period (>=2), overbought/oversold band
+   * levels (0..100), and the RSI-based MA trendline (toggle + length >=1).
+   */
+  setRSI(
+    enabled: boolean,
+    period: number,
+    upperBand: number,
+    lowerBand: number,
+    maEnabled: boolean,
+    maPeriod: number,
+  ): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

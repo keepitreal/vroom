@@ -71,7 +71,12 @@ struct VroomChart {
     // ensure_rsi() when rsi_dirty (set on any data or config change).
     bool rsi_enabled = false;
     int  rsi_period = 14;
-    std::vector<double> rsi_cache;
+    double rsi_upper = 70.0;   // overbought band
+    double rsi_lower = 30.0;   // oversold band
+    bool rsi_ma_enabled = true;  // RSI-based moving average (trendline)
+    int  rsi_ma_period = 14;
+    std::vector<double> rsi_cache;     // RSI per candle (NaN where undefined)
+    std::vector<double> rsi_ma_cache;  // SMA of rsi_cache (empty if MA off)
     bool rsi_dirty = true;
 
     // --- theme --------------------------------------------------------------

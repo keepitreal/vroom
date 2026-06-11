@@ -138,10 +138,15 @@ bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
 
 // ---- Indicators -----------------------------------------------------------
 
-// Enables/disables the RSI indicator (rendered in a pane below the candles)
-// and sets its period in candle counts (clamped to >= 2; default 14). When
-// enabled, the candle pane shrinks by VROOM_FLOAT_INDICATOR_HEIGHT_FRAC.
-void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period);
+// Configures the RSI indicator (rendered in a pane below the candles). `period`
+// is the RSI lookback in candle counts (clamped >= 2). `upper_band`/`lower_band`
+// are the overbought/oversold reference levels (0..100; default 70/30).
+// `ma_enabled` toggles the RSI-based moving-average trendline and `ma_period`
+// is its length (clamped >= 1). When enabled, the candle pane shrinks by
+// VROOM_FLOAT_INDICATOR_HEIGHT_FRAC.
+void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
+                         double upper_band, double lower_band,
+                         bool ma_enabled, int ma_period);
 
 // ---- Rendering ------------------------------------------------------------
 

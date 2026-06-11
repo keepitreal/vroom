@@ -446,13 +446,32 @@ extern "C" bool vroom_chart_get_crosshair_candle(VroomChart* chart,
 
 // ---- Indicators -----------------------------------------------------------
 
-extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period) {
+extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
+                                    double upper_band, double lower_band,
+                                    bool ma_enabled, int ma_period) {
     if (!chart) return;
     if (period < 2) period = 2;
-    if (chart->rsi_enabled == enabled && chart->rsi_period == period) return;
+    if (ma_period < 1) ma_period = 1;
+    upper_band = std::clamp(upper_band, 0.0, 100.0);
+    lower_band = std::clamp(lower_band, 0.0, 100.0);
+
+    // Only the series-affecting fields force a recompute; band changes are
+    // render-only.
+    const bool recompute = chart->rsi_enabled != enabled ||
+                           chart->rsi_period != period ||
+                           chart->rsi_ma_enabled != ma_enabled ||
+                           chart->rsi_ma_period != ma_period;
+    const bool changed = recompute || chart->rsi_upper != upper_band ||
+                         chart->rsi_lower != lower_band;
+    if (!changed) return;
+
     chart->rsi_enabled = enabled;
     chart->rsi_period = period;
-    chart->rsi_dirty = true;
+    chart->rsi_upper = upper_band;
+    chart->rsi_lower = lower_band;
+    chart->rsi_ma_enabled = ma_enabled;
+    chart->rsi_ma_period = ma_period;
+    if (recompute) chart->rsi_dirty = true;
     chart->mark_dirty();
 }
 

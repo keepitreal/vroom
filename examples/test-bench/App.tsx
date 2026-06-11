@@ -19,10 +19,12 @@ import {
 
 import {
   DEFAULT_INDICATOR_STATE,
+  DEFAULT_RSI_PARAMS,
   enabledCount,
   IndicatorsMenu,
   type IndicatorId,
   type IndicatorState,
+  type RSIParams,
 } from './IndicatorsMenu';
 
 const MINUTE = 60_000;
@@ -167,7 +169,12 @@ export default function App() {
   const [indicators, setIndicators] = useState<IndicatorState>(
     DEFAULT_INDICATOR_STATE,
   );
-  const [rsiPeriod, setRsiPeriod] = useState(14);
+  const [rsiParams, setRsiParams] = useState<RSIParams>(DEFAULT_RSI_PARAMS);
+  const patchRsi = useCallback(
+    (patch: Partial<RSIParams>) =>
+      setRsiParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
   }, []);
@@ -203,7 +210,7 @@ export default function App() {
           candles={candles}
           style={styles.chart}
           onCrosshair={handleCrosshair}
-          rsi={{ enabled: indicators.rsi.enabled, period: rsiPeriod }}
+          rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
         />
 
         <View style={styles.footer}>
@@ -232,8 +239,8 @@ export default function App() {
         onClose={() => setMenuOpen(false)}
         state={indicators}
         onToggle={toggleIndicator}
-        rsiPeriod={rsiPeriod}
-        onRsiPeriodChange={setRsiPeriod}
+        rsiParams={rsiParams}
+        onRsiParamsChange={patchRsi}
       />
 
       <StatusBar style="light" />
