@@ -27,7 +27,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(17);
+  out.reserve(18);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -44,6 +44,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairCandle"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setRSI"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMACD"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -375,6 +376,44 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const int slow = static_cast<int>(args[2].asNumber());
           const int signal = static_cast<int>(args[3].asNumber());
           vroom_chart_set_macd(chart_, enabled, fast, slow, signal);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setOverlays") {
+    // setOverlays([{ kind, period, source, color, width }, ...]) — replaces the
+    // full set of MA/EMA overlay lines. No render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setOverlays"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto obj = args[0].asObject(rt2);
+          if (!obj.isArray(rt2)) return jsi::Value::undefined();
+          auto arr = obj.asArray(rt2);
+          const size_t len = arr.size(rt2);
+          std::vector<VroomOverlay> overlays;
+          overlays.reserve(len);
+          for (size_t i = 0; i < len; ++i) {
+            auto o = arr.getValueAtIndex(rt2, i).asObject(rt2);
+            VroomOverlay ov;
+            ov.kind = static_cast<int32_t>(
+                o.getProperty(rt2, "kind").asNumber());
+            ov.period = static_cast<int32_t>(
+                o.getProperty(rt2, "period").asNumber());
+            ov.source = static_cast<int32_t>(
+                o.getProperty(rt2, "source").asNumber());
+            ov.color = static_cast<uint32_t>(
+                o.getProperty(rt2, "color").asNumber());
+            ov.width = static_cast<float>(
+                o.getProperty(rt2, "width").asNumber());
+            overlays.push_back(ov);
+          }
+          vroom_chart_set_overlays(chart_, overlays.data(), overlays.size());
           return jsi::Value::undefined();
         });
   }

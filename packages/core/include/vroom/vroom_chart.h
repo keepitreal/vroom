@@ -40,6 +40,15 @@ typedef struct VroomCandle {
     double  volume;
 } VroomCandle;
 
+// A moving-average overlay line drawn on the price pane.
+typedef struct VroomOverlay {
+    int32_t  kind;    // 0 = SMA, 1 = EMA
+    int32_t  period;  // lookback in candles (>= 1)
+    int32_t  source;  // 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4
+    uint32_t color;   // 0xAARRGGBB
+    float    width;   // stroke width in px
+} VroomOverlay;
+
 // ---- Styling keys ---------------------------------------------------------
 
 typedef enum {
@@ -154,6 +163,11 @@ void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
 // in enable order, most recently enabled at the bottom.
 void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast, int slow,
                           int signal);
+
+// Replaces the full set of moving-average overlay lines (SMA/EMA) drawn on the
+// price pane. Pass count 0 to clear them. Overlays don't reserve a pane.
+void vroom_chart_set_overlays(VroomChart* chart, const VroomOverlay* overlays,
+                              size_t count);
 
 // ---- Rendering ------------------------------------------------------------
 

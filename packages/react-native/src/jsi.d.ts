@@ -85,6 +85,20 @@ export interface ChartHandle {
    * and the signal-line length. Defaults 12/26/9.
    */
   setMACD(enabled: boolean, fast: number, slow: number, signal: number): void;
+  /**
+   * Replaces the full set of MA/EMA overlay lines drawn on the price pane.
+   * kind: 0=SMA, 1=EMA; source: 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4;
+   * color: packed 0xAARRGGBB; width: stroke px.
+   */
+  setOverlays(
+    overlays: {
+      kind: number;
+      period: number;
+      source: number;
+      color: number;
+      width: number;
+    }[],
+  ): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

@@ -15,10 +15,13 @@ import {
   VroomChart,
   type Candle,
   type CrosshairEvent,
+  type MovingAverageOverlay,
 } from 'react-native-vroom-chart';
 
 import {
+  DEFAULT_EMA_LINE,
   DEFAULT_INDICATOR_STATE,
+  DEFAULT_MA_LINE,
   DEFAULT_MACD_PARAMS,
   DEFAULT_RSI_PARAMS,
   enabledCount,
@@ -26,6 +29,7 @@ import {
   type IndicatorId,
   type IndicatorState,
   type MACDParams,
+  type MALineParams,
   type RSIParams,
 } from './IndicatorsMenu';
 
@@ -183,10 +187,62 @@ export default function App() {
       setMacdParams((prev) => ({ ...prev, ...patch })),
     [],
   );
+
+  // Moving-average overlay lines (ribbons). Each list is edited in its detail
+  // screen and combined into the `movingAverages` prop below.
+  const [maLines, setMaLines] = useState<MALineParams[]>([DEFAULT_MA_LINE]);
+  const [emaLines, setEmaLines] = useState<MALineParams[]>([DEFAULT_EMA_LINE]);
+  const maEditor = {
+    lines: maLines,
+    onChange: (i: number, patch: Partial<MALineParams>) =>
+      setMaLines((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l))),
+    onAdd: () => setMaLines((p) => [...p, DEFAULT_MA_LINE]),
+    onRemove: (i: number) => setMaLines((p) => p.filter((_, idx) => idx !== i)),
+  };
+  const emaEditor = {
+    lines: emaLines,
+    onChange: (i: number, patch: Partial<MALineParams>) =>
+      setEmaLines((p) => p.map((l, idx) => (idx === i ? { ...l, ...patch } : l))),
+    onAdd: () => setEmaLines((p) => [...p, DEFAULT_EMA_LINE]),
+    onRemove: (i: number) => setEmaLines((p) => p.filter((_, idx) => idx !== i)),
+  };
+
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
+    // Seed one default line when enabling an empty MA/EMA group.
+    if (enabled && id === 'ma') {
+      setMaLines((p) => (p.length ? p : [DEFAULT_MA_LINE]));
+    }
+    if (enabled && id === 'ema') {
+      setEmaLines((p) => (p.length ? p : [DEFAULT_EMA_LINE]));
+    }
   }, []);
   const activeCount = enabledCount(indicators);
+
+  const movingAverages: MovingAverageOverlay[] = [
+    ...(indicators.ma.enabled
+      ? maLines.map(
+          (l): MovingAverageOverlay => ({
+            kind: 'sma',
+            length: l.length,
+            source: l.source,
+            color: l.color,
+            width: l.width,
+          }),
+        )
+      : []),
+    ...(indicators.ema.enabled
+      ? emaLines.map(
+          (l): MovingAverageOverlay => ({
+            kind: 'ema',
+            length: l.length,
+            source: l.source,
+            color: l.color,
+            width: l.width,
+          }),
+        )
+      : []),
+  ];
 
   return (
     <GestureHandlerRootView style={styles.root}>
@@ -220,6 +276,7 @@ export default function App() {
           onCrosshair={handleCrosshair}
           rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
           macd={{ enabled: indicators.macd.enabled, ...macdParams }}
+          movingAverages={movingAverages}
         />
 
         <View style={styles.footer}>
@@ -252,6 +309,8 @@ export default function App() {
         onRsiParamsChange={patchRsi}
         macdParams={macdParams}
         onMacdParamsChange={patchMacd}
+        maEditor={maEditor}
+        emaEditor={emaEditor}
       />
 
       <StatusBar style="light" />

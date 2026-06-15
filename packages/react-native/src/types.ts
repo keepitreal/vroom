@@ -66,6 +66,33 @@ export type RSIConfig = {
   maPeriod?: number;
 };
 
+/** Price source for a moving average. */
+export type MASource =
+  | 'close'
+  | 'open'
+  | 'high'
+  | 'low'
+  | 'hl2'
+  | 'hlc3'
+  | 'ohlc4';
+
+/**
+ * A moving-average overlay line drawn on the price pane. Provide an array of
+ * these via `movingAverages` to render a ribbon of SMA/EMA lines.
+ */
+export type MovingAverageOverlay = {
+  /** 'sma' (simple) or 'ema' (exponential). */
+  kind: 'sma' | 'ema';
+  /** Lookback in candles. */
+  length: number;
+  /** Price source. Default 'close'. */
+  source?: MASource;
+  /** Line color (hex string or packed ARGB number). */
+  color?: string | number;
+  /** Stroke width in px. Default 1.5. */
+  width?: number;
+};
+
 /** MACD indicator config. Rendered in its own pane below the candles. */
 export type MACDConfig = {
   enabled?: boolean;
@@ -95,6 +122,8 @@ export type VroomChartProps = {
   rsi?: RSIConfig;
   /** MACD indicator (its own pane below the candles). Omit/disable to hide it. */
   macd?: MACDConfig;
+  /** Moving-average overlay lines (SMA/EMA) drawn on the price pane. */
+  movingAverages?: MovingAverageOverlay[];
   /**
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the

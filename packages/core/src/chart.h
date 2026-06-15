@@ -96,6 +96,13 @@ struct VroomChart {
     int macd_order = -1;
     int pane_seq = 0;
 
+    // Moving-average overlay lines (SMA/EMA) drawn on the price pane. Not panes
+    // — they don't reserve indicator_area_h. overlay_caches[i] is the computed
+    // series for overlays[i], aligned to `candles` (NaN warmup).
+    std::vector<VroomOverlay> overlays;
+    std::vector<std::vector<double>> overlay_caches;
+    bool overlays_dirty = true;
+
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;
 
@@ -130,6 +137,9 @@ struct VroomChart {
 
     // Recomputes the MACD caches when macd_dirty and MACD is enabled.
     void ensure_macd();
+
+    // Recomputes overlay_caches (one per overlay line) when overlays_dirty.
+    void ensure_overlays();
 
     // The main drawing pass. Calls into the labels and candles modules.
     void draw_chart(SkCanvas* canvas);

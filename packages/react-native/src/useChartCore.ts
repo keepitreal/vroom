@@ -4,14 +4,37 @@ import type { SkPicture } from '@shopify/react-native-skia';
 import NativeVroomChart from './NativeVroomChart';
 import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
-import { applyTheme } from './theme';
+import { applyTheme, parseColor } from './theme';
 import type {
   Candle,
   MACDConfig,
+  MovingAverageOverlay,
   RSIConfig,
   VisibleRange,
   VroomTheme,
 } from './types';
+
+// Mirrors vroom::ma::Source order in packages/core/src/ma.h.
+const MA_SOURCES = [
+  'close',
+  'open',
+  'high',
+  'low',
+  'hl2',
+  'hlc3',
+  'ohlc4',
+] as const;
+
+function overlayToNumeric(o: MovingAverageOverlay) {
+  const srcIdx = o.source ? MA_SOURCES.indexOf(o.source) : 0;
+  return {
+    kind: o.kind === 'ema' ? 1 : 0,
+    period: o.length,
+    source: srcIdx < 0 ? 0 : srcIdx,
+    color: (o.color != null ? parseColor(o.color) : null) ?? 0xff2962ff,
+    width: o.width ?? 1.5,
+  };
+}
 
 let installed = false;
 function ensureInstalled(): void {
@@ -41,6 +64,7 @@ export function useChartCore(
   theme?: VroomTheme,
   rsi?: RSIConfig,
   macd?: MACDConfig,
+  movingAverages?: MovingAverageOverlay[],
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
@@ -63,6 +87,7 @@ export function useChartCore(
   const themeKey = theme ? JSON.stringify(theme) : '';
   const rsiKey = rsi ? JSON.stringify(rsi) : '';
   const macdKey = macd ? JSON.stringify(macd) : '';
+  const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -91,10 +116,11 @@ export function useChartCore(
       macd?.slow ?? 26,
       macd?.signal ?? 9,
     );
+    h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
     setPicture(h.render());
-    // theme/rsi/macd are represented by their *Key deps (intentional).
+    // theme/rsi/macd/movingAverages are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey, macdKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey]);
 
   return { handle: handleRef.current, picture };
 }

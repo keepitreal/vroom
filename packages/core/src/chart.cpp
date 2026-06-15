@@ -22,6 +22,8 @@
 #include "chart_internal.h"
 #include "crosshair.h"
 #include "labels.h"
+#include "ma.h"
+#include "ma_overlay.h"
 #include "macd.h"
 #include "macd_pane.h"
 #include "price_indicator.h"
@@ -77,6 +79,17 @@ void VroomChart::ensure_macd() {
     macd_dirty = false;
 }
 
+void VroomChart::ensure_overlays() {
+    if (!overlays_dirty) return;
+    overlay_caches.resize(overlays.size());
+    for (std::size_t i = 0; i < overlays.size(); ++i) {
+        const auto& ov = overlays[i];
+        vroom::ma::compute(candles.data(), candles.size(), ov.kind, ov.period,
+                           ov.source, overlay_caches[i]);
+    }
+    overlays_dirty = false;
+}
+
 void VroomChart::draw_chart(SkCanvas* canvas) {
     const auto lay = layout();
 
@@ -123,6 +136,21 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 5. Candles (wicks + bodies)
     vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
                          window_ms, visible_start_ms, candle_duration_ms);
+
+    // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the
+    //      candles. They share the candle price scale and don't reserve a pane.
+    if (!overlays.empty()) {
+        ensure_overlays();
+        for (std::size_t k = 0; k < overlays.size(); ++k) {
+            if (overlay_caches[k].size() != candles.size()) continue;
+            const double* vis = overlay_caches[k].data() + range.start;
+            vroom::ma_overlay::draw(canvas, lay, bounds, visible, n, vis,
+                                    window_ms, visible_start_ms,
+                                    candle_duration_ms, candle_right,
+                                    candle_area_h, overlays[k].color,
+                                    overlays[k].width);
+        }
+    }
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
     //    line is intentionally omitted for now. The bottom strip anchors at

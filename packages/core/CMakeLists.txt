@@ -45,10 +45,12 @@ if(VROOM_BUILD_TESTS)
         tests/test_ticks.cpp
         tests/test_rsi.cpp
         tests/test_macd.cpp
+        tests/test_ma.cpp
         src/viewport.cpp
         src/ticks.cpp
         src/rsi.cpp
         src/macd.cpp
+        src/ma.cpp
     )
     target_include_directories(vroom_tests PRIVATE include src tests)
     add_test(NAME vroom_tests COMMAND vroom_tests)

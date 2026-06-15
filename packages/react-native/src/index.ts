@@ -8,4 +8,6 @@ export type {
   VisibleRange,
   RSIConfig,
   MACDConfig,
+  MASource,
+  MovingAverageOverlay,
 } from './types';

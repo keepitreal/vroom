@@ -19,6 +19,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import type { MASource } from 'react-native-vroom-chart';
 
 export type IndicatorId = 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
 
@@ -110,6 +111,59 @@ export const DEFAULT_MACD_PARAMS: MACDParams = {
   signal: 9,
 };
 
+// One moving-average overlay line (kind is implied by which list it's in).
+export type MALineParams = {
+  length: number;
+  source: MASource;
+  color: string;
+  width: number;
+};
+
+export const DEFAULT_MA_LINE: MALineParams = {
+  length: 9,
+  source: 'close',
+  color: '#2962ff',
+  width: 1.5,
+};
+
+export const DEFAULT_EMA_LINE: MALineParams = {
+  length: 9,
+  source: 'close',
+  color: '#ff9800',
+  width: 1.5,
+};
+
+// Drives one overlay list editor (MA or EMA) in the detail screen.
+export type OverlayEditor = {
+  lines: MALineParams[];
+  onChange: (index: number, patch: Partial<MALineParams>) => void;
+  onAdd: () => void;
+  onRemove: (index: number) => void;
+};
+
+const MA_SOURCES: MASource[] = [
+  'close',
+  'open',
+  'high',
+  'low',
+  'hl2',
+  'hlc3',
+  'ohlc4',
+];
+const MA_SWATCHES = [
+  '#2962ff',
+  '#ff9800',
+  '#26a69a',
+  '#f85149',
+  '#8957e5',
+  '#00bcd4',
+];
+const MA_WIDTHS = [
+  { label: 'Thin', value: 1 },
+  { label: 'Med', value: 1.5 },
+  { label: 'Thick', value: 2.5 },
+];
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -119,6 +173,8 @@ type Props = {
   onRsiParamsChange: (patch: Partial<RSIParams>) => void;
   macdParams: MACDParams;
   onMacdParamsChange: (patch: Partial<MACDParams>) => void;
+  maEditor: OverlayEditor;
+  emaEditor: OverlayEditor;
 };
 
 export function IndicatorsMenu({
@@ -130,6 +186,8 @@ export function IndicatorsMenu({
   onRsiParamsChange,
   macdParams,
   onMacdParamsChange,
+  maEditor,
+  emaEditor,
 }: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -163,6 +221,13 @@ export function IndicatorsMenu({
             macdParams={detail.id === 'macd' ? macdParams : undefined}
             onMacdParamsChange={
               detail.id === 'macd' ? onMacdParamsChange : undefined
+            }
+            editor={
+              detail.id === 'ma'
+                ? maEditor
+                : detail.id === 'ema'
+                  ? emaEditor
+                  : undefined
             }
           />
         ) : (
@@ -253,6 +318,114 @@ function Stepper({
   );
 }
 
+function Swatches({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+}) {
+  return (
+    <View style={styles.swatchRow}>
+      {MA_SWATCHES.map((c) => (
+        <Pressable
+          key={c}
+          onPress={() => onChange(c)}
+          style={[
+            styles.swatch,
+            { backgroundColor: c },
+            value.toLowerCase() === c.toLowerCase() && styles.swatchSelected,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+
+function Segmented({
+  options,
+  value,
+  onChange,
+}: {
+  options: { label: string; value: number }[];
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <View style={styles.segmented}>
+      {options.map((o) => {
+        const active = o.value === value;
+        return (
+          <Pressable
+            key={o.label}
+            onPress={() => onChange(o.value)}
+            style={[styles.segment, active && styles.segmentActive]}
+          >
+            <Text
+              style={[styles.segmentText, active && styles.segmentTextActive]}
+            >
+              {o.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function OverlayLineEditor({
+  line,
+  index,
+  onChange,
+  onRemove,
+}: {
+  line: MALineParams;
+  index: number;
+  onChange: (patch: Partial<MALineParams>) => void;
+  onRemove: () => void;
+}) {
+  const cycleSource = () => {
+    const i = MA_SOURCES.indexOf(line.source);
+    onChange({ source: MA_SOURCES[(i + 1) % MA_SOURCES.length] });
+  };
+  return (
+    <View style={styles.lineCard}>
+      <View style={styles.lineHeader}>
+        <Text style={styles.lineTitle}>Line {index + 1}</Text>
+        <Pressable onPress={onRemove} hitSlop={8}>
+          <Text style={styles.removeBtn}>Remove</Text>
+        </Pressable>
+      </View>
+      <Stepper
+        label="Length"
+        value={line.length}
+        min={1}
+        max={400}
+        onChange={(n) => onChange({ length: n })}
+      />
+      <View style={styles.paramRow}>
+        <Text style={styles.paramLabel}>Source</Text>
+        <Pressable style={styles.cycleBtn} onPress={cycleSource}>
+          <Text style={styles.cycleText}>{line.source}</Text>
+          <Text style={styles.cycleCaret}>⟳</Text>
+        </Pressable>
+      </View>
+      <View style={styles.paramRow}>
+        <Text style={styles.paramLabel}>Color</Text>
+        <Swatches value={line.color} onChange={(c) => onChange({ color: c })} />
+      </View>
+      <View style={styles.paramRow}>
+        <Text style={styles.paramLabel}>Width</Text>
+        <Segmented
+          options={MA_WIDTHS}
+          value={line.width}
+          onChange={(w) => onChange({ width: w })}
+        />
+      </View>
+    </View>
+  );
+}
+
 function DetailScreen({
   meta,
   enabled,
@@ -262,6 +435,7 @@ function DetailScreen({
   onRsiParamsChange,
   macdParams,
   onMacdParamsChange,
+  editor,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -271,6 +445,7 @@ function DetailScreen({
   onRsiParamsChange?: (patch: Partial<RSIParams>) => void;
   macdParams?: MACDParams;
   onMacdParamsChange?: (patch: Partial<MACDParams>) => void;
+  editor?: OverlayEditor;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
@@ -365,6 +540,21 @@ function DetailScreen({
                 max={50}
                 onChange={(n) => onMacdParamsChange!({ signal: n })}
               />
+            </>
+          ) : editor ? (
+            <>
+              {editor.lines.map((line, i) => (
+                <OverlayLineEditor
+                  key={i}
+                  line={line}
+                  index={i}
+                  onChange={(patch) => editor.onChange(i, patch)}
+                  onRemove={() => editor.onRemove(i)}
+                />
+              ))}
+              <Pressable style={styles.addBtn} onPress={editor.onAdd}>
+                <Text style={styles.addBtnText}>+ Add line</Text>
+              </Pressable>
             </>
           ) : (
             <Text style={styles.placeholder}>
@@ -479,4 +669,63 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
+  lineCard: {
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#161b22',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#21262d',
+  },
+  lineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  lineTitle: { color: '#8b949e', fontSize: 12, fontWeight: '600' },
+  removeBtn: { color: '#f85149', fontSize: 13, fontWeight: '600' },
+  cycleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#0d1117',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#30363d',
+  },
+  cycleText: { color: '#c9d1d9', fontSize: 14, fontWeight: '600' },
+  cycleCaret: { color: '#6e7681', fontSize: 13, marginLeft: 6 },
+  swatchRow: { flexDirection: 'row', alignItems: 'center' },
+  swatch: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    marginLeft: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  swatchSelected: { borderColor: '#f0f6fc' },
+  segmented: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#30363d',
+  },
+  segment: { paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#0d1117' },
+  segmentActive: { backgroundColor: '#21262d' },
+  segmentText: { color: '#8b949e', fontSize: 13, fontWeight: '500' },
+  segmentTextActive: { color: '#c9d1d9' },
+  addBtn: {
+    marginTop: 4,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#30363d',
+    borderStyle: 'dashed',
+  },
+  addBtnText: { color: '#58a6ff', fontSize: 15, fontWeight: '600' },
 });

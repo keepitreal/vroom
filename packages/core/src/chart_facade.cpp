@@ -49,6 +49,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->candles.assign(data, data + count);
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
+    chart->overlays_dirty = true;
 
     // Infer the candle period from the first interval. Robust enough for
     // uniform-duration series (the only kind we model today).
@@ -100,6 +101,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     chart->candles.push_back(*c);
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
+    chart->overlays_dirty = true;
     chart->mark_dirty();
 }
 
@@ -108,6 +110,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     chart->candles.back() = *c;
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
+    chart->overlays_dirty = true;
     chart->mark_dirty();
 }
 
@@ -504,6 +507,15 @@ extern "C" void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast,
     chart->macd_slow = slow;
     chart->macd_signal = signal;
     chart->macd_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_overlays(VroomChart* chart,
+                                         const VroomOverlay* overlays,
+                                         size_t count) {
+    if (!chart) return;
+    chart->overlays.assign(overlays, overlays + count);
+    chart->overlays_dirty = true;
     chart->mark_dirty();
 }
 
