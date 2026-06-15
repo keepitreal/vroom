@@ -33,6 +33,7 @@ export function VroomChart(props: VroomChartProps) {
     visibleRange,
     theme,
     rsi,
+    macd,
     crosshairOffset = 40,
     onCrosshair,
     onViewportChange,
@@ -59,6 +60,7 @@ export function VroomChart(props: VroomChartProps) {
     visibleRange,
     theme,
     rsi,
+    macd,
   );
 
   // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat

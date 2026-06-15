@@ -148,6 +148,13 @@ void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
                          double upper_band, double lower_band,
                          bool ma_enabled, int ma_period);
 
+// Configures the MACD indicator (its own pane below the candles). `fast`/`slow`
+// are the EMA lengths (clamped >= 1, slow forced > fast; default 12/26) and
+// `signal` is the signal-line EMA length (clamped >= 1; default 9). Panes stack
+// in enable order, most recently enabled at the bottom.
+void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast, int slow,
+                          int signal);
+
 // ---- Rendering ------------------------------------------------------------
 
 void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas);

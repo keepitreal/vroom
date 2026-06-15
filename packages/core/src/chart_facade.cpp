@@ -48,6 +48,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     if (!chart) return;
     chart->candles.assign(data, data + count);
     chart->rsi_dirty = true;
+    chart->macd_dirty = true;
 
     // Infer the candle period from the first interval. Robust enough for
     // uniform-duration series (the only kind we model today).
@@ -98,6 +99,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     if (!chart || !c) return;
     chart->candles.push_back(*c);
     chart->rsi_dirty = true;
+    chart->macd_dirty = true;
     chart->mark_dirty();
 }
 
@@ -105,6 +107,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     if (!chart || !c || chart->candles.empty()) return;
     chart->candles.back() = *c;
     chart->rsi_dirty = true;
+    chart->macd_dirty = true;
     chart->mark_dirty();
 }
 
@@ -465,6 +468,10 @@ extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
                          chart->rsi_lower != lower_band;
     if (!changed) return;
 
+    // Pane order: claim the next slot on an off->on transition, release on off.
+    if (enabled && !chart->rsi_enabled) chart->rsi_order = chart->pane_seq++;
+    else if (!enabled) chart->rsi_order = -1;
+
     chart->rsi_enabled = enabled;
     chart->rsi_period = period;
     chart->rsi_upper = upper_band;
@@ -472,6 +479,31 @@ extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
     chart->rsi_ma_enabled = ma_enabled;
     chart->rsi_ma_period = ma_period;
     if (recompute) chart->rsi_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast,
+                                     int slow, int signal) {
+    if (!chart) return;
+    if (fast < 1) fast = 1;
+    if (slow < 1) slow = 1;
+    if (slow <= fast) slow = fast + 1;
+    if (signal < 1) signal = 1;
+
+    const bool recompute = chart->macd_enabled != enabled ||
+                           chart->macd_fast != fast ||
+                           chart->macd_slow != slow ||
+                           chart->macd_signal != signal;
+    if (!recompute) return;
+
+    if (enabled && !chart->macd_enabled) chart->macd_order = chart->pane_seq++;
+    else if (!enabled) chart->macd_order = -1;
+
+    chart->macd_enabled = enabled;
+    chart->macd_fast = fast;
+    chart->macd_slow = slow;
+    chart->macd_signal = signal;
+    chart->macd_dirty = true;
     chart->mark_dirty();
 }
 

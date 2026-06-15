@@ -80,6 +80,11 @@ export interface ChartHandle {
     maEnabled: boolean,
     maPeriod: number,
   ): void;
+  /**
+   * Configures the MACD pane: enable, fast/slow EMA lengths (slow forced > fast)
+   * and the signal-line length. Defaults 12/26/9.
+   */
+  setMACD(enabled: boolean, fast: number, slow: number, signal: number): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

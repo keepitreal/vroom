@@ -24,6 +24,7 @@ void draw(SkCanvas* canvas,
           const VroomChart& chart,
           float candle_right,
           float candle_area_h,
+          float vline_bottom,
           float snap_x) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
 
@@ -35,15 +36,16 @@ void draw(SkCanvas* canvas,
 
     const SkColor color = chart.theme.colors[VROOM_COLOR_CROSSHAIR];
 
-    // Dashed perpendicular lines. Vertical spans the full chart height down to
-    // the x-axis separator; horizontal spans from the left edge to the y-axis
-    // separator at candle_right.
+    // Dashed perpendicular lines. The vertical line runs the full height of the
+    // candle + indicator region (down to vline_bottom) so it stays visible over
+    // any below-chart panes; the horizontal line spans from the left edge to the
+    // y-axis strip at candle_right.
     SkPaint dash;
     dash.setAntiAlias(true);
     dash.setColor(color);
     dash.setStrokeWidth(1.f);
     dash.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
-    canvas->drawLine(cx, 0.f, cx, candle_area_h, dash);
+    canvas->drawLine(cx, 0.f, cx, vline_bottom, dash);
     canvas->drawLine(0.f, cy, candle_right, cy, dash);
 
     // Punch the dashes out from under the ring so its center reads as hollow.

@@ -5,7 +5,13 @@ import NativeVroomChart from './NativeVroomChart';
 import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
 import { applyTheme } from './theme';
-import type { Candle, RSIConfig, VisibleRange, VroomTheme } from './types';
+import type {
+  Candle,
+  MACDConfig,
+  RSIConfig,
+  VisibleRange,
+  VroomTheme,
+} from './types';
 
 let installed = false;
 function ensureInstalled(): void {
@@ -34,6 +40,7 @@ export function useChartCore(
   visibleRange?: VisibleRange,
   theme?: VroomTheme,
   rsi?: RSIConfig,
+  macd?: MACDConfig,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
@@ -55,6 +62,7 @@ export function useChartCore(
   // the effect every render — only when the actual values change.
   const themeKey = theme ? JSON.stringify(theme) : '';
   const rsiKey = rsi ? JSON.stringify(rsi) : '';
+  const macdKey = macd ? JSON.stringify(macd) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -77,10 +85,16 @@ export function useChartCore(
       rsi?.maEnabled ?? true,
       rsi?.maPeriod ?? 14,
     );
+    h.setMACD(
+      macd?.enabled ?? false,
+      macd?.fast ?? 12,
+      macd?.slow ?? 26,
+      macd?.signal ?? 9,
+    );
     setPicture(h.render());
-    // `theme`/`rsi` are represented by themeKey/rsiKey in the deps (intentional).
+    // theme/rsi/macd are represented by their *Key deps (intentional).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey, macdKey]);
 
   return { handle: handleRef.current, picture };
 }

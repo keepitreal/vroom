@@ -27,7 +27,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(16);
+  out.reserve(17);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -43,6 +43,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "clearCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairCandle"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setRSI"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setMACD"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -353,6 +354,27 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const int ma_period = static_cast<int>(args[5].asNumber());
           vroom_chart_set_rsi(chart_, enabled, period, upper, lower, ma_enabled,
                               ma_period);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setMACD") {
+    // setMACD(enabled, fast, slow, signal) — configures the MACD pane. No
+    // render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setMACD"),
+        4,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 4) return jsi::Value::undefined();
+          const bool enabled = args[0].asBool();
+          const int fast = static_cast<int>(args[1].asNumber());
+          const int slow = static_cast<int>(args[2].asNumber());
+          const int signal = static_cast<int>(args[3].asNumber());
+          vroom_chart_set_macd(chart_, enabled, fast, slow, signal);
           return jsi::Value::undefined();
         });
   }

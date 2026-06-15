@@ -79,6 +79,23 @@ struct VroomChart {
     std::vector<double> rsi_ma_cache;  // SMA of rsi_cache (empty if MA off)
     bool rsi_dirty = true;
 
+    // MACD, drawn in its own pane. Caches aligned to `candles` (NaN warmup).
+    bool macd_enabled = false;
+    int  macd_fast = 12;
+    int  macd_slow = 26;
+    int  macd_signal = 9;
+    std::vector<double> macd_cache;
+    std::vector<double> macd_signal_cache;
+    std::vector<double> macd_hist_cache;
+    bool macd_dirty = true;
+
+    // Stacking order for the indicator panes: each indicator gets the next
+    // sequence number on its off->on transition, so the most recently enabled
+    // pane sorts last (bottom). -1 = not currently enabled.
+    int rsi_order = -1;
+    int macd_order = -1;
+    int pane_seq = 0;
+
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;
 
@@ -110,6 +127,9 @@ struct VroomChart {
     // Recomputes rsi_cache (over the full candle series) when rsi_dirty and
     // RSI is enabled. No-op otherwise.
     void ensure_rsi();
+
+    // Recomputes the MACD caches when macd_dirty and MACD is enabled.
+    void ensure_macd();
 
     // The main drawing pass. Calls into the labels and candles modules.
     void draw_chart(SkCanvas* canvas);

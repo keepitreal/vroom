@@ -98,6 +98,18 @@ export const DEFAULT_RSI_PARAMS: RSIParams = {
   maPeriod: 14,
 };
 
+export type MACDParams = {
+  fast: number;
+  slow: number;
+  signal: number;
+};
+
+export const DEFAULT_MACD_PARAMS: MACDParams = {
+  fast: 12,
+  slow: 26,
+  signal: 9,
+};
+
 type Props = {
   visible: boolean;
   onClose: () => void;
@@ -105,6 +117,8 @@ type Props = {
   onToggle: (id: IndicatorId, enabled: boolean) => void;
   rsiParams: RSIParams;
   onRsiParamsChange: (patch: Partial<RSIParams>) => void;
+  macdParams: MACDParams;
+  onMacdParamsChange: (patch: Partial<MACDParams>) => void;
 };
 
 export function IndicatorsMenu({
@@ -114,6 +128,8 @@ export function IndicatorsMenu({
   onToggle,
   rsiParams,
   onRsiParamsChange,
+  macdParams,
+  onMacdParamsChange,
 }: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -143,6 +159,10 @@ export function IndicatorsMenu({
             rsiParams={detail.id === 'rsi' ? rsiParams : undefined}
             onRsiParamsChange={
               detail.id === 'rsi' ? onRsiParamsChange : undefined
+            }
+            macdParams={detail.id === 'macd' ? macdParams : undefined}
+            onMacdParamsChange={
+              detail.id === 'macd' ? onMacdParamsChange : undefined
             }
           />
         ) : (
@@ -240,6 +260,8 @@ function DetailScreen({
   onBack,
   rsiParams,
   onRsiParamsChange,
+  macdParams,
+  onMacdParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -247,8 +269,11 @@ function DetailScreen({
   onBack: () => void;
   rsiParams?: RSIParams;
   onRsiParamsChange?: (patch: Partial<RSIParams>) => void;
+  macdParams?: MACDParams;
+  onMacdParamsChange?: (patch: Partial<MACDParams>) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
+  const macd = macdParams && onMacdParamsChange ? macdParams : null;
   return (
     <View style={styles.flex}>
       <View style={styles.navBar}>
@@ -316,6 +341,30 @@ function DetailScreen({
                   onChange={(n) => onRsiParamsChange!({ maPeriod: n })}
                 />
               ) : null}
+            </>
+          ) : macd ? (
+            <>
+              <Stepper
+                label="Fast"
+                value={macd.fast}
+                min={1}
+                max={macd.slow - 1}
+                onChange={(n) => onMacdParamsChange!({ fast: n })}
+              />
+              <Stepper
+                label="Slow"
+                value={macd.slow}
+                min={macd.fast + 1}
+                max={100}
+                onChange={(n) => onMacdParamsChange!({ slow: n })}
+              />
+              <Stepper
+                label="Signal"
+                value={macd.signal}
+                min={1}
+                max={50}
+                onChange={(n) => onMacdParamsChange!({ signal: n })}
+              />
             </>
           ) : (
             <Text style={styles.placeholder}>

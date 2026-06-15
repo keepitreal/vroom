@@ -7,4 +7,5 @@ export type {
   VroomColor,
   VisibleRange,
   RSIConfig,
+  MACDConfig,
 } from './types';

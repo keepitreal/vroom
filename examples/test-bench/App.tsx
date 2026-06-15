@@ -19,11 +19,13 @@ import {
 
 import {
   DEFAULT_INDICATOR_STATE,
+  DEFAULT_MACD_PARAMS,
   DEFAULT_RSI_PARAMS,
   enabledCount,
   IndicatorsMenu,
   type IndicatorId,
   type IndicatorState,
+  type MACDParams,
   type RSIParams,
 } from './IndicatorsMenu';
 
@@ -175,6 +177,12 @@ export default function App() {
       setRsiParams((prev) => ({ ...prev, ...patch })),
     [],
   );
+  const [macdParams, setMacdParams] = useState<MACDParams>(DEFAULT_MACD_PARAMS);
+  const patchMacd = useCallback(
+    (patch: Partial<MACDParams>) =>
+      setMacdParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
   }, []);
@@ -211,6 +219,7 @@ export default function App() {
           style={styles.chart}
           onCrosshair={handleCrosshair}
           rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
+          macd={{ enabled: indicators.macd.enabled, ...macdParams }}
         />
 
         <View style={styles.footer}>
@@ -241,6 +250,8 @@ export default function App() {
         onToggle={toggleIndicator}
         rsiParams={rsiParams}
         onRsiParamsChange={patchRsi}
+        macdParams={macdParams}
+        onMacdParamsChange={patchMacd}
       />
 
       <StatusBar style="light" />

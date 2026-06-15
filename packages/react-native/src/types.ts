@@ -66,6 +66,17 @@ export type RSIConfig = {
   maPeriod?: number;
 };
 
+/** MACD indicator config. Rendered in its own pane below the candles. */
+export type MACDConfig = {
+  enabled?: boolean;
+  /** Fast EMA length. Default 12. */
+  fast?: number;
+  /** Slow EMA length (forced > fast). Default 26. */
+  slow?: number;
+  /** Signal-line EMA length. Default 9. */
+  signal?: number;
+};
+
 export type VroomChartProps = {
   candles: Candle[];
   /**
@@ -82,6 +93,8 @@ export type VroomChartProps = {
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;
+  /** MACD indicator (its own pane below the candles). Omit/disable to hide it. */
+  macd?: MACDConfig;
   /**
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the
