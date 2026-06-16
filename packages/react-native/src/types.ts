@@ -93,6 +93,20 @@ export type MovingAverageOverlay = {
   width?: number;
 };
 
+/**
+ * VWAP overlay config (session anchor). Drawn as a single line on the price
+ * pane, resetting each session.
+ */
+export type VWAPConfig = {
+  enabled?: boolean;
+  /** Session reset offset from UTC midnight, in minutes (default 0). */
+  resetMinutes?: number;
+  /** Line color (hex string or packed ARGB number). */
+  color?: string | number;
+  /** Stroke width in px. Default 1.5. */
+  width?: number;
+};
+
 /** MACD indicator config. Rendered in its own pane below the candles. */
 export type MACDConfig = {
   enabled?: boolean;
@@ -124,6 +138,8 @@ export type VroomChartProps = {
   macd?: MACDConfig;
   /** Moving-average overlay lines (SMA/EMA) drawn on the price pane. */
   movingAverages?: MovingAverageOverlay[];
+  /** VWAP overlay (session anchor, configurable reset). */
+  vwap?: VWAPConfig;
   /**
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the

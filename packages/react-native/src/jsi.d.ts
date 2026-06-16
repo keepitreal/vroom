@@ -99,6 +99,16 @@ export interface ChartHandle {
       width: number;
     }[],
   ): void;
+  /**
+   * Configures the session VWAP overlay. `resetOffsetMin` shifts the session
+   * boundary from UTC midnight (minutes); `color` is packed 0xAARRGGBB.
+   */
+  setVWAP(
+    enabled: boolean,
+    resetOffsetMin: number,
+    color: number,
+    width: number,
+  ): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

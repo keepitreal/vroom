@@ -10,4 +10,5 @@ export type {
   MACDConfig,
   MASource,
   MovingAverageOverlay,
+  VWAPConfig,
 } from './types';

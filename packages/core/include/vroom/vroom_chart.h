@@ -169,6 +169,12 @@ void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast, int slow,
 void vroom_chart_set_overlays(VroomChart* chart, const VroomOverlay* overlays,
                               size_t count);
 
+// Configures the session VWAP overlay (a single price-pane line). The session
+// resets each UTC day shifted by `reset_offset_min` minutes (the configurable
+// reset time). `color` is 0xAARRGGBB; `width` is the stroke px.
+void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
+                          uint32_t color, float width);
+
 // ---- Rendering ------------------------------------------------------------
 
 void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas);

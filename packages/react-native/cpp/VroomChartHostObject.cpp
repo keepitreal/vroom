@@ -27,7 +27,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(18);
+  out.reserve(19);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -45,6 +45,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setRSI"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMACD"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -414,6 +415,26 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
             overlays.push_back(ov);
           }
           vroom_chart_set_overlays(chart_, overlays.data(), overlays.size());
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setVWAP") {
+    // setVWAP(enabled, resetOffsetMin, color, width) — session VWAP overlay.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setVWAP"),
+        4,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 4) return jsi::Value::undefined();
+          const bool enabled = args[0].asBool();
+          const int reset = static_cast<int>(args[1].asNumber());
+          const uint32_t color = static_cast<uint32_t>(args[2].asNumber());
+          const float width = static_cast<float>(args[3].asNumber());
+          vroom_chart_set_vwap(chart_, enabled, reset, color, width);
           return jsi::Value::undefined();
         });
   }

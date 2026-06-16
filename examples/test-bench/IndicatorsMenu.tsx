@@ -133,6 +133,19 @@ export const DEFAULT_EMA_LINE: MALineParams = {
   width: 1.5,
 };
 
+// VWAP params (session anchor). resetHour is the UTC hour the session resets.
+export type VWAPParams = {
+  resetHour: number;
+  color: string;
+  width: number;
+};
+
+export const DEFAULT_VWAP_PARAMS: VWAPParams = {
+  resetHour: 0,
+  color: '#00bcd4',
+  width: 1.5,
+};
+
 // Drives one overlay list editor (MA or EMA) in the detail screen.
 export type OverlayEditor = {
   lines: MALineParams[];
@@ -175,6 +188,8 @@ type Props = {
   onMacdParamsChange: (patch: Partial<MACDParams>) => void;
   maEditor: OverlayEditor;
   emaEditor: OverlayEditor;
+  vwapParams: VWAPParams;
+  onVwapParamsChange: (patch: Partial<VWAPParams>) => void;
 };
 
 export function IndicatorsMenu({
@@ -188,6 +203,8 @@ export function IndicatorsMenu({
   onMacdParamsChange,
   maEditor,
   emaEditor,
+  vwapParams,
+  onVwapParamsChange,
 }: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -228,6 +245,10 @@ export function IndicatorsMenu({
                 : detail.id === 'ema'
                   ? emaEditor
                   : undefined
+            }
+            vwapParams={detail.id === 'vwap' ? vwapParams : undefined}
+            onVwapParamsChange={
+              detail.id === 'vwap' ? onVwapParamsChange : undefined
             }
           />
         ) : (
@@ -436,6 +457,8 @@ function DetailScreen({
   macdParams,
   onMacdParamsChange,
   editor,
+  vwapParams,
+  onVwapParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -446,9 +469,12 @@ function DetailScreen({
   macdParams?: MACDParams;
   onMacdParamsChange?: (patch: Partial<MACDParams>) => void;
   editor?: OverlayEditor;
+  vwapParams?: VWAPParams;
+  onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
+  const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   return (
     <View style={styles.flex}>
       <View style={styles.navBar}>
@@ -555,6 +581,31 @@ function DetailScreen({
               <Pressable style={styles.addBtn} onPress={editor.onAdd}>
                 <Text style={styles.addBtnText}>+ Add line</Text>
               </Pressable>
+            </>
+          ) : vwap ? (
+            <>
+              <Stepper
+                label="Reset hour (UTC)"
+                value={vwap.resetHour}
+                min={0}
+                max={23}
+                onChange={(n) => onVwapParamsChange!({ resetHour: n })}
+              />
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Color</Text>
+                <Swatches
+                  value={vwap.color}
+                  onChange={(c) => onVwapParamsChange!({ color: c })}
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Width</Text>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={vwap.width}
+                  onChange={(w) => onVwapParamsChange!({ width: w })}
+                />
+              </View>
             </>
           ) : (
             <Text style={styles.placeholder}>

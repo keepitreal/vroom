@@ -20,6 +20,10 @@ namespace vroom::ma_overlay {
 // Draws `values_visible` (aligned with `visible`, NaN where undefined) as a
 // polyline on the price pane using candle_center_x + price_to_y. `color` is
 // 0xAARRGGBB; `width` is the stroke px. Clipped to the candle area.
+//
+// `break_before` (optional, aligned with `visible`) forces a new subpath at any
+// index where it is non-zero — used by VWAP to break the line at session
+// resets. Pass nullptr for continuous lines (SMA/EMA).
 void draw(SkCanvas* canvas,
           const Layout& lay,
           const PriceBounds& bounds,
@@ -32,6 +36,7 @@ void draw(SkCanvas* canvas,
           float candle_right,
           float candle_area_h,
           uint32_t color,
-          float width);
+          float width,
+          const unsigned char* break_before = nullptr);
 
 }  // namespace vroom::ma_overlay

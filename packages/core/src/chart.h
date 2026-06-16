@@ -103,6 +103,16 @@ struct VroomChart {
     std::vector<std::vector<double>> overlay_caches;
     bool overlays_dirty = true;
 
+    // VWAP overlay (session anchor, configurable reset time). Single line on the
+    // price pane; vwap_breaks marks session resets so the line lifts the pen.
+    bool vwap_enabled = false;
+    int  vwap_reset_offset_min = 0;       // session boundary offset from UTC midnight
+    uint32_t vwap_color = 0xff00bcd4;     // cyan
+    float vwap_width = 1.5f;
+    std::vector<double> vwap_cache;
+    std::vector<unsigned char> vwap_breaks;
+    bool vwap_dirty = true;
+
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;
 
@@ -140,6 +150,9 @@ struct VroomChart {
 
     // Recomputes overlay_caches (one per overlay line) when overlays_dirty.
     void ensure_overlays();
+
+    // Recomputes the VWAP cache when vwap_dirty and VWAP is enabled.
+    void ensure_vwap();
 
     // The main drawing pass. Calls into the labels and candles modules.
     void draw_chart(SkCanvas* canvas);

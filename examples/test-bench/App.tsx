@@ -24,6 +24,7 @@ import {
   DEFAULT_MA_LINE,
   DEFAULT_MACD_PARAMS,
   DEFAULT_RSI_PARAMS,
+  DEFAULT_VWAP_PARAMS,
   enabledCount,
   IndicatorsMenu,
   type IndicatorId,
@@ -31,6 +32,7 @@ import {
   type MACDParams,
   type MALineParams,
   type RSIParams,
+  type VWAPParams,
 } from './IndicatorsMenu';
 
 const MINUTE = 60_000;
@@ -207,6 +209,13 @@ export default function App() {
     onRemove: (i: number) => setEmaLines((p) => p.filter((_, idx) => idx !== i)),
   };
 
+  const [vwapParams, setVwapParams] = useState<VWAPParams>(DEFAULT_VWAP_PARAMS);
+  const patchVwap = useCallback(
+    (patch: Partial<VWAPParams>) =>
+      setVwapParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
     // Seed one default line when enabling an empty MA/EMA group.
@@ -277,6 +286,12 @@ export default function App() {
           rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
           macd={{ enabled: indicators.macd.enabled, ...macdParams }}
           movingAverages={movingAverages}
+          vwap={{
+            enabled: indicators.vwap.enabled,
+            resetMinutes: vwapParams.resetHour * 60,
+            color: vwapParams.color,
+            width: vwapParams.width,
+          }}
         />
 
         <View style={styles.footer}>
@@ -311,6 +326,8 @@ export default function App() {
         onMacdParamsChange={patchMacd}
         maEditor={maEditor}
         emaEditor={emaEditor}
+        vwapParams={vwapParams}
+        onVwapParamsChange={patchVwap}
       />
 
       <StatusBar style="light" />

@@ -12,6 +12,7 @@ import type {
   RSIConfig,
   VisibleRange,
   VroomTheme,
+  VWAPConfig,
 } from './types';
 
 // Mirrors vroom::ma::Source order in packages/core/src/ma.h.
@@ -65,6 +66,7 @@ export function useChartCore(
   rsi?: RSIConfig,
   macd?: MACDConfig,
   movingAverages?: MovingAverageOverlay[],
+  vwap?: VWAPConfig,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
@@ -88,6 +90,7 @@ export function useChartCore(
   const rsiKey = rsi ? JSON.stringify(rsi) : '';
   const macdKey = macd ? JSON.stringify(macd) : '';
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
+  const vwapKey = vwap ? JSON.stringify(vwap) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -117,10 +120,16 @@ export function useChartCore(
       macd?.signal ?? 9,
     );
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
+    h.setVWAP(
+      vwap?.enabled ?? false,
+      vwap?.resetMinutes ?? 0,
+      (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
+      vwap?.width ?? 1.5,
+    );
     setPicture(h.render());
-    // theme/rsi/macd/movingAverages are represented by their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey]);
 
   return { handle: handleRef.current, picture };
 }

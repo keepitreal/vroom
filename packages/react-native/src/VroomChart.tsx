@@ -35,6 +35,7 @@ export function VroomChart(props: VroomChartProps) {
     rsi,
     macd,
     movingAverages,
+    vwap,
     crosshairOffset = 40,
     onCrosshair,
     onViewportChange,
@@ -63,6 +64,7 @@ export function VroomChart(props: VroomChartProps) {
     rsi,
     macd,
     movingAverages,
+    vwap,
   );
 
   // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat

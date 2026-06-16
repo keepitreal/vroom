@@ -30,6 +30,7 @@
 #include "rsi.h"
 #include "rsi_pane.h"
 #include "volume.h"
+#include "vwap.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -88,6 +89,13 @@ void VroomChart::ensure_overlays() {
                            ov.source, overlay_caches[i]);
     }
     overlays_dirty = false;
+}
+
+void VroomChart::ensure_vwap() {
+    if (!vwap_enabled || !vwap_dirty) return;
+    vroom::vwap::compute(candles.data(), candles.size(), vwap_reset_offset_min,
+                         vwap_cache, vwap_breaks);
+    vwap_dirty = false;
 }
 
 void VroomChart::draw_chart(SkCanvas* canvas) {
@@ -149,6 +157,22 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                     candle_duration_ms, candle_right,
                                     candle_area_h, overlays[k].color,
                                     overlays[k].width);
+        }
+    }
+
+    // 5.6. VWAP overlay (session, configurable reset) — a single price-pane line
+    //      that breaks at each session reset (vwap_breaks).
+    if (vwap_enabled) {
+        ensure_vwap();
+        if (vwap_cache.size() == candles.size()) {
+            const double* vis = vwap_cache.data() + range.start;
+            const unsigned char* brk = vwap_breaks.size() == candles.size()
+                ? vwap_breaks.data() + range.start
+                : nullptr;
+            vroom::ma_overlay::draw(canvas, lay, bounds, visible, n, vis,
+                                    window_ms, visible_start_ms,
+                                    candle_duration_ms, candle_right,
+                                    candle_area_h, vwap_color, vwap_width, brk);
         }
     }
 

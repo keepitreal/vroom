@@ -27,7 +27,8 @@ void draw(SkCanvas* canvas,
           float candle_right,
           float candle_area_h,
           uint32_t color,
-          float width) {
+          float width,
+          const unsigned char* break_before) {
     if (!canvas || !values_visible || n == 0 || candle_right <= 0.f ||
         candle_area_h <= 0.f) {
         return;
@@ -45,7 +46,7 @@ void draw(SkCanvas* canvas,
             lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
             window_ms);
         const float y = vroom::price_to_y(lay, bounds, v);
-        if (pen_down) {
+        if (pen_down && !(break_before && break_before[i])) {
             path.lineTo(x, y);
         } else {
             path.moveTo(x, y);

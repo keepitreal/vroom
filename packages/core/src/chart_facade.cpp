@@ -50,6 +50,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
     chart->overlays_dirty = true;
+    chart->vwap_dirty = true;
 
     // Infer the candle period from the first interval. Robust enough for
     // uniform-duration series (the only kind we model today).
@@ -102,6 +103,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
     chart->overlays_dirty = true;
+    chart->vwap_dirty = true;
     chart->mark_dirty();
 }
 
@@ -111,6 +113,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
     chart->overlays_dirty = true;
+    chart->vwap_dirty = true;
     chart->mark_dirty();
 }
 
@@ -516,6 +519,23 @@ extern "C" void vroom_chart_set_overlays(VroomChart* chart,
     if (!chart) return;
     chart->overlays.assign(overlays, overlays + count);
     chart->overlays_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_vwap(VroomChart* chart, bool enabled,
+                                     int reset_offset_min, uint32_t color,
+                                     float width) {
+    if (!chart) return;
+    // Keep the offset within a day [0, 1440).
+    int off = reset_offset_min % 1440;
+    if (off < 0) off += 1440;
+    const bool recompute =
+        chart->vwap_enabled != enabled || chart->vwap_reset_offset_min != off;
+    chart->vwap_enabled = enabled;
+    chart->vwap_reset_offset_min = off;
+    chart->vwap_color = color;
+    chart->vwap_width = width;
+    if (recompute) chart->vwap_dirty = true;
     chart->mark_dirty();
 }
 
