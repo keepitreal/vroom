@@ -1,0 +1,40 @@
+name: Docs
+
+# Verifies the generated API reference (docs/reference) is in sync with the
+# source types. It does NOT commit — if the docs are stale, the job fails and
+# the author must run `pnpm docs:gen` locally and commit the result.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  docs-fresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Regenerate docs
+        run: pnpm docs:gen
+
+      - name: Fail if generated docs are stale
+        run: |
+          # Stage first so newly-generated (untracked) pages are caught too,
+          # not just edits to already-committed files.
+          git add -A docs/
+          if ! git diff --cached --exit-code docs/; then
+            echo "::error::Generated docs are out of date. Run 'pnpm docs:gen' and commit the result."
+            exit 1
+          fi

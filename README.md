@@ -85,9 +85,16 @@ pnpm install
 pnpm example          # runs the RN test bench
 ```
 
+## Docs
+
+Full documentation lives in [`docs/`](docs/) and is published with GitBook (Git
+Sync). The API reference under `docs/reference/` is generated from the React
+Native package's types — run `pnpm docs:gen` after changing public types and
+commit the result (CI verifies it's fresh).
+
 ## Architecture
 
-See `docs/` (TODO). Short version: `packages/core/` exposes a thin `extern "C"` API
+Short version: `packages/core/` exposes a thin `extern "C"` API
 (`vroom_chart.h`). Each distribution wraps that facade — RN via JSI, iOS via Swift, Android
 via JNI. The core owns all Skia drawing; consumers only provide an `SkCanvas` and forward
 gesture events.

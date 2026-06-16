@@ -1,14 +1,22 @@
 import type { StyleProp, ViewStyle } from 'react-native';
 
+/** A single OHLCV bar. `candles` is an array of these. */
 export type Candle = {
+  /** Bar open time as Unix epoch milliseconds. */
   timeMs: number;
+  /** Opening price. */
   open: number;
+  /** Highest price during the bar. */
   high: number;
+  /** Lowest price during the bar. */
   low: number;
+  /** Closing price. */
   close: number;
+  /** Traded volume during the bar. */
   volume: number;
 };
 
+/** Payload passed to `onCrosshair` as the crosshair shows, moves, or hides. */
 export type CrosshairEvent = {
   /** True while the crosshair is showing; false when it's dismissed. */
   active: boolean;
@@ -25,10 +33,14 @@ export type CrosshairEvent = {
   reason: 'show' | 'move' | 'hide';
 };
 
-// Colors are hex strings ('#0d1117', or 8-digit '#aarrggbb') or a packed ARGB
-// number. Every field is optional — omitted colors keep the library default.
+/**
+ * A color value: a hex string (`'#0d1117'`, or 8-digit `'#aarrggbb'`) or a
+ * packed ARGB number. In `VroomTheme` every field is optional — omitted colors
+ * keep the library default.
+ */
 export type VroomColor = string | number;
 
+/** Color overrides for the chart, passed via the `theme` prop. */
 export type VroomTheme = {
   /** Chart + axis-strip background. */
   background?: VroomColor;
@@ -46,8 +58,11 @@ export type VroomTheme = {
   crosshairTarget?: VroomColor;
 };
 
+/** A time window over the candle data, as Unix epoch milliseconds. */
 export type VisibleRange = {
+  /** Window start (inclusive), Unix epoch milliseconds. */
   startMs: number;
+  /** Window end (inclusive), Unix epoch milliseconds. */
   endMs: number;
 };
 
@@ -118,7 +133,9 @@ export type MACDConfig = {
   signal?: number;
 };
 
+/** Props for the {@link VroomChart} component. */
 export type VroomChartProps = {
+  /** OHLCV bars to render. The only required prop. */
   candles: Candle[];
   /**
    * Explicit size overrides in logical px. When omitted, the chart fills its
