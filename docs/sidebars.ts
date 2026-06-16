@@ -1,0 +1,34 @@
+import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
+
+// docusaurus-plugin-typedoc regenerates content/reference/ (including this
+// sidebar file) on every build. It's committed so this require resolves on a
+// clean checkout / first build.
+const typedocSidebar = require('./content/reference/typedoc-sidebar.cjs');
+
+const sidebars: SidebarsConfig = {
+  docsSidebar: [
+    'intro',
+    {
+      type: 'category',
+      label: 'Getting started',
+      items: ['getting-started/installation', 'getting-started/quickstart'],
+    },
+    {
+      type: 'category',
+      label: 'Guides',
+      items: [
+        'guides/theming',
+        'guides/indicators',
+        'guides/crosshair-and-events',
+        'guides/gestures-and-viewport',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'API reference',
+      items: typedocSidebar.items ?? typedocSidebar,
+    },
+  ],
+};
+
+export default sidebars;

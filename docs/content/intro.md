@@ -1,4 +1,8 @@
 ---
+id: intro
+slug: /
+title: Introduction
+sidebar_label: Introduction
 description: Lightning-fast, Skia-powered candlestick charts for React Native.
 ---
 
@@ -32,12 +36,10 @@ This site documents the React Native package, **`react-native-vroom-chart`**.
 ## How these docs are maintained
 
 The **API reference** under `reference/` is generated from the package's
-TypeScript types with [TypeDoc](https://typedoc.org) — run `pnpm docs:gen` from
-the repo root after changing public types, then commit the result. Everything
-else (this page, the guides) is hand-written. CI fails if the generated
-reference is out of date.
+TypeScript types with [TypeDoc](https://typedoc.org) (via
+`docusaurus-plugin-typedoc`) — it regenerates on every build, so it can't drift
+from the source. Everything else (this page, the guides) is hand-written.
 
-This site is published with **GitBook Git Sync**. To connect it: create a
-GitBook space, configure Git Sync against this repository and branch, and
-GitBook will pick up [`.gitbook.yaml`](https://gitbook.com/docs/getting-started/git-sync)
-automatically and import `docs/`.
+The site is built with [Docusaurus](https://docusaurus.io) and deploys as a
+static site (e.g. on Vercel). Run it locally from the repo root with
+`pnpm docs` (dev server) or `pnpm docs:build` (production build).

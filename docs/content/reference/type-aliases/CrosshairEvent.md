@@ -8,7 +8,7 @@ type CrosshairEvent = {
 };
 ```
 
-Defined in: [types.ts:20](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L20)
+Defined in: [types.ts:20](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L20)
 
 Payload passed to `onCrosshair` as the crosshair shows, moves, or hides.
 
@@ -20,7 +20,7 @@ Payload passed to `onCrosshair` as the crosshair shows, moves, or hides.
 active: boolean;
 ```
 
-Defined in: [types.ts:22](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L22)
+Defined in: [types.ts:22](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L22)
 
 True while the crosshair is showing; false when it's dismissed.
 
@@ -32,7 +32,7 @@ True while the crosshair is showing; false when it's dismissed.
 candle: Candle | null;
 ```
 
-Defined in: [types.ts:24](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L24)
+Defined in: [types.ts:24](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L24)
 
 OHLCV of the candle under the crosshair, or null when inactive.
 
@@ -44,7 +44,7 @@ OHLCV of the candle under the crosshair, or null when inactive.
 reason: "show" | "move" | "hide";
 ```
 
-Defined in: [types.ts:33](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L33)
+Defined in: [types.ts:33](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L33)
 
 Why this event fired — lets the host react differently (e.g. haptics):
   'show' — long-press activated the crosshair

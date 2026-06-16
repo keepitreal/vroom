@@ -1,8 +1,8 @@
 name: Docs
 
-# Verifies the generated API reference (docs/reference) is in sync with the
-# source types. It does NOT commit — if the docs are stale, the job fails and
-# the author must run `pnpm docs:gen` locally and commit the result.
+# Builds the Docusaurus site (which fails on broken links and regenerates the
+# TypeDoc API reference) and verifies the committed reference is in sync with
+# the source types. Vercel deploys separately on push; this is the CI gate.
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
   pull_request:
 
 jobs:
-  docs-fresh:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,15 +26,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Regenerate docs
-        run: pnpm docs:gen
+      # Builds the site and regenerates docs/content/reference via
+      # docusaurus-plugin-typedoc. onBrokenLinks: 'throw' fails on dead links.
+      - name: Build docs
+        run: pnpm --filter vroom-docs build
 
-      - name: Fail if generated docs are stale
+      - name: Verify generated API reference is committed
         run: |
-          # Stage first so newly-generated (untracked) pages are caught too,
-          # not just edits to already-committed files.
-          git add -A docs/
-          if ! git diff --cached --exit-code docs/; then
-            echo "::error::Generated docs are out of date. Run 'pnpm docs:gen' and commit the result."
+          git add -A docs/content/reference
+          if ! git diff --cached --exit-code docs/content/reference; then
+            echo "::error::API reference is out of date. Run 'pnpm docs:build' and commit docs/content/reference."
             exit 1
           fi

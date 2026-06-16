@@ -9,7 +9,8 @@
     "rebuild:ios": "pnpm --filter test-bench rebuild:ios",
     "test": "pnpm --filter react-native-vroom-chart test",
     "test:core": "cmake -S packages/core -B packages/core/build -DVROOM_BUILD_TESTS=ON && cmake --build packages/core/build --target vroom_tests && ctest --test-dir packages/core/build --output-on-failure",
-    "docs:gen": "pnpm --filter react-native-vroom-chart docs && node scripts/gen-docs-summary.mjs"
+    "docs": "pnpm --filter vroom-docs start",
+    "docs:build": "pnpm --filter vroom-docs build"
   },
   "devDependencies": {}
 }

@@ -69,9 +69,9 @@ platforms are consumed through the React Native package above.
 
 - `packages/core/` — platform-agnostic C++ engine (Skia-based). Public C facade.
 - `packages/react-native/` — RN npm package. JSI bridge + iOS/Android shims around the core.
-- `examples/react-native/` — Expo dev-client test bench app.
+- `examples/test-bench/` — Expo dev-client test bench app.
+- `docs/` — Docusaurus documentation site.
 - `third_party/skia/` — fetched prebuilts (gitignored).
-- `scripts/` — build helpers.
 
 Future:
 
@@ -87,10 +87,19 @@ pnpm example          # runs the RN test bench
 
 ## Docs
 
-Full documentation lives in [`docs/`](docs/) and is published with GitBook (Git
-Sync). The API reference under `docs/reference/` is generated from the React
-Native package's types — run `pnpm docs:gen` after changing public types and
-commit the result (CI verifies it's fresh).
+Full documentation is a [Docusaurus](https://docusaurus.io) site in
+[`docs/`](docs/), deployed as a static site (Vercel). Content lives in
+`docs/content/`; the API reference under `docs/content/reference/` is generated
+from the React Native package's types by `docusaurus-plugin-typedoc` on every
+build, so it can't drift from the source.
+
+```sh
+pnpm docs          # local dev server
+pnpm docs:build    # production build (regenerates the API reference)
+```
+
+After changing public types, run `pnpm docs:build` and commit the regenerated
+`docs/content/reference/` (CI verifies it's fresh).
 
 ## Architecture
 

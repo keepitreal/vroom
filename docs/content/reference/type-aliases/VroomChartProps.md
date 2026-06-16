@@ -18,7 +18,7 @@ type VroomChartProps = {
 };
 ```
 
-Defined in: [types.ts:137](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L137)
+Defined in: [types.ts:137](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L137)
 
 Props for the [VroomChart](../functions/VroomChart.md) component.
 
@@ -30,7 +30,7 @@ Props for the [VroomChart](../functions/VroomChart.md) component.
 candles: Candle[];
 ```
 
-Defined in: [types.ts:139](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L139)
+Defined in: [types.ts:139](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L139)
 
 OHLCV bars to render. The only required prop.
 
@@ -42,7 +42,7 @@ OHLCV bars to render. The only required prop.
 optional crosshairOffset?: number;
 ```
 
-Defined in: [types.ts:165](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L165)
+Defined in: [types.ts:165](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L165)
 
 Pixels the crosshair dot / horizontal line sit *above* the touch point so
 they aren't hidden under the thumb. The vertical line stays centered on the
@@ -56,7 +56,7 @@ touch x. Default 40.
 optional height?: number;
 ```
 
-Defined in: [types.ts:146](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L146)
+Defined in: [types.ts:146](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L146)
 
 ***
 
@@ -66,7 +66,7 @@ Defined in: [types.ts:146](https://github.com/keepitreal/vroom/blob/main/package
 optional macd?: MACDConfig;
 ```
 
-Defined in: [types.ts:155](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L155)
+Defined in: [types.ts:155](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L155)
 
 MACD indicator (its own pane below the candles). Omit/disable to hide it.
 
@@ -78,7 +78,7 @@ MACD indicator (its own pane below the candles). Omit/disable to hide it.
 optional movingAverages?: MovingAverageOverlay[];
 ```
 
-Defined in: [types.ts:157](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L157)
+Defined in: [types.ts:157](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L157)
 
 Moving-average overlay lines (SMA/EMA) drawn on the price pane.
 
@@ -90,7 +90,7 @@ Moving-average overlay lines (SMA/EMA) drawn on the price pane.
 optional onCrosshair?: (e) => void;
 ```
 
-Defined in: [types.ts:166](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L166)
+Defined in: [types.ts:166](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L166)
 
 #### Parameters
 
@@ -110,7 +110,7 @@ Defined in: [types.ts:166](https://github.com/keepitreal/vroom/blob/main/package
 optional onViewportChange?: (startMs, endMs) => void;
 ```
 
-Defined in: [types.ts:167](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L167)
+Defined in: [types.ts:167](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L167)
 
 #### Parameters
 
@@ -131,7 +131,7 @@ Defined in: [types.ts:167](https://github.com/keepitreal/vroom/blob/main/package
 optional rsi?: RSIConfig;
 ```
 
-Defined in: [types.ts:153](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L153)
+Defined in: [types.ts:153](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L153)
 
 RSI indicator (pane below the candles). Omit/disable to hide it.
 
@@ -143,7 +143,7 @@ RSI indicator (pane below the candles). Omit/disable to hide it.
 optional style?: StyleProp<ViewStyle>;
 ```
 
-Defined in: [types.ts:148](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L148)
+Defined in: [types.ts:148](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L148)
 
 Style for the chart's root view. Defaults to filling the parent.
 
@@ -155,7 +155,7 @@ Style for the chart's root view. Defaults to filling the parent.
 optional theme?: VroomTheme;
 ```
 
-Defined in: [types.ts:151](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L151)
+Defined in: [types.ts:151](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L151)
 
 ***
 
@@ -165,7 +165,7 @@ Defined in: [types.ts:151](https://github.com/keepitreal/vroom/blob/main/package
 optional visibleRange?: VisibleRange;
 ```
 
-Defined in: [types.ts:150](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L150)
+Defined in: [types.ts:150](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L150)
 
 Time window to render. Omit (or both 0) to show every candle.
 
@@ -177,7 +177,7 @@ Time window to render. Omit (or both 0) to show every candle.
 optional vwap?: VWAPConfig;
 ```
 
-Defined in: [types.ts:159](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L159)
+Defined in: [types.ts:159](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L159)
 
 VWAP overlay (session anchor, configurable reset).
 
@@ -189,7 +189,7 @@ VWAP overlay (session anchor, configurable reset).
 optional width?: number;
 ```
 
-Defined in: [types.ts:145](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L145)
+Defined in: [types.ts:145](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L145)
 
 Explicit size overrides in logical px. When omitted, the chart fills its
 parent (measured via onLayout). Use `style` (flex / aspectRatio / absolute
