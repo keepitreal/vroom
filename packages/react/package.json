@@ -1,0 +1,30 @@
+{
+  "name": "@vroom/react",
+  "version": "0.0.1",
+  "description": "Skia-quality candlestick chart for the web (React DOM).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "!**/*.test.ts"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vroom/core-wasm": "workspace:*",
+    "@vroom/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "@types/react-dom": "~19.1.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "typescript": "~5.9.2"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@vroom/core-wasm",
+  "version": "0.0.1",
+  "description": "Framework-agnostic web core for the vroom chart (Canvas2D stub today, Skia-WASM later).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "!**/*.test.ts"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vroom/types": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}
