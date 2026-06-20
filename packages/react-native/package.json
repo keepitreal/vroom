@@ -28,6 +28,9 @@
       "javaPackageName": "com.vroom.chart"
     }
   },
+  "dependencies": {
+    "@vroom/types": "workspace:*"
+  },
   "peerDependencies": {
     "@shopify/react-native-skia": ">=2.0.0",
     "react": "*",
