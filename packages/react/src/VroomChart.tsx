@@ -28,8 +28,12 @@ const CANVAS_STYLE: CSSProperties = {
  * @see {@link VroomChartProps} for the full prop reference.
  */
 export function VroomChart(props: VroomChartProps) {
-  const { className, style, crosshairOffset = 40, onCrosshair, onViewportChange } = props;
-  const { containerRef, canvasRef, handleRef, scheduleRender } = useChartCore(props);
+  const { className, style, wasm, forceStub, crosshairOffset = 40, onCrosshair, onViewportChange } =
+    props;
+  const { containerRef, canvasRef, handleRef, scheduleRender } = useChartCore(
+    props,
+    wasm || forceStub ? { wasm, forceStub } : undefined,
+  );
 
   useGestures(containerRef, handleRef, scheduleRender, {
     crosshairOffset,

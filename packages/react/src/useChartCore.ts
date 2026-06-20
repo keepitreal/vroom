@@ -10,6 +10,7 @@ import {
   packCandles,
   applyTheme,
   parseColor,
+  type LoadVroomOptions,
   type OverlaySpec,
   type VroomChartHandle,
 } from '@vroom/core-wasm';
@@ -41,7 +42,10 @@ export type UseChartCore = {
   size: { width: number; height: number };
 };
 
-export function useChartCore(props: VroomChartCoreProps): UseChartCore {
+export function useChartCore(
+  props: VroomChartCoreProps,
+  loadOpts?: LoadVroomOptions,
+): UseChartCore {
   const {
     candles,
     width: widthProp,
@@ -60,6 +64,11 @@ export function useChartCore(props: VroomChartCoreProps): UseChartCore {
   const rafRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [measured, setMeasured] = useState({ width: 0, height: 0 });
+
+  // Captured at mount: which core to load (stub vs Skia-WASM). Changing it after
+  // mount has no effect — the core is created once and shared process-wide.
+  const loadOptsRef = useRef(loadOpts);
+  loadOptsRef.current = loadOpts;
 
   const width = widthProp ?? measured.width;
   const height = heightProp ?? measured.height;
@@ -80,7 +89,7 @@ export function useChartCore(props: VroomChartCoreProps): UseChartCore {
     const canvas = canvasRef.current;
     if (!canvas) return;
     let disposed = false;
-    loadVroom().then((mod) => {
+    loadVroom(loadOptsRef.current).then((mod) => {
       if (disposed) return;
       handleRef.current = mod.create(canvas);
       setReady(true);
