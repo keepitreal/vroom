@@ -10,7 +10,8 @@
     "!**/*.test.ts"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build:wasm": "../core/scripts/build-wasm.sh"
   },
   "dependencies": {
     "@vroom/types": "workspace:*"

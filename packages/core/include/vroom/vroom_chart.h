@@ -179,6 +179,10 @@ void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
 
 void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas);
 
+// True while any axis-label fade is still animating. Hosts that drive their own
+// redraw loop (e.g. the web WASM build) poll this to know when to keep ticking.
+bool vroom_chart_is_animating(VroomChart* chart);
+
 // ---- Styling --------------------------------------------------------------
 
 void vroom_chart_set_color(VroomChart* chart, VroomColorKey key, uint32_t argb);

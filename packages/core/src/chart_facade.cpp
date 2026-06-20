@@ -546,6 +546,10 @@ extern "C" void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas) {
     chart->draw_chart(canvas);
 }
 
+extern "C" bool vroom_chart_is_animating(VroomChart* chart) {
+    return chart ? chart->is_animating_now() : false;
+}
+
 // ---- Theme setters ---------------------------------------------------------
 
 extern "C" void vroom_chart_set_color(VroomChart* chart, VroomColorKey key, uint32_t argb) {

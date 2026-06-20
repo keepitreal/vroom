@@ -8,6 +8,7 @@
 
 import type { VroomModule } from './handle';
 import { createStubModule } from './stub/stubModule';
+import { loadWasmCore, type WasmConfig } from './wasm/loadWasm';
 
 export type {
   VroomModule,
@@ -19,13 +20,19 @@ export type {
 export { ColorKey } from './handle';
 export { packCandles, unpackCandles, BYTES_PER_CANDLE } from './packCandles';
 export { parseColor, applyTheme, argbToCss, COLOR_KEYS } from './color';
+export type { WasmConfig } from './wasm/loadWasm';
 
-/** Options for loading the core. (WASM URL / font URL land here later.) */
+/** Options for loading the core. */
 export type LoadVroomOptions = {
   /**
-   * Force the Canvas2D stub even once the real WASM core is wired in. Useful
-   * for tests / SSR fallbacks. Defaults to false.
+   * Load the real Skia-WASM core from these URLs instead of the Canvas2D stub.
+   * Omit to use the stub. If WASM instantiation fails and `fallbackToStub` is
+   * not false, the stub is used and a warning is logged.
    */
+  wasm?: WasmConfig;
+  /** When wasm loading fails, fall back to the stub (default true). */
+  fallbackToStub?: boolean;
+  /** Force the Canvas2D stub even when `wasm` is provided (tests / SSR). */
   forceStub?: boolean;
 };
 
@@ -34,14 +41,22 @@ let modulePromise: Promise<VroomModule> | null = null;
 /**
  * Load the chart core. Cached: repeated calls share one module instance.
  *
- * Currently always resolves to the Canvas2D stub. When the Skia-WASM build is
- * available, instantiate it here (guarded by `!opts?.forceStub`) and fall back
- * to the stub on failure.
+ * Default (no `wasm` config) resolves to the Canvas2D stub. Pass `wasm` (built
+ * via packages/core CMake VROOM_WASM) to use the real Skia core; on failure it
+ * falls back to the stub unless `fallbackToStub: false`.
  */
 export function loadVroom(opts?: LoadVroomOptions): Promise<VroomModule> {
-  void opts;
-  if (!modulePromise) {
-    // TODO(web-wasm): instantiate the Skia-WASM module here when available.
+  if (modulePromise) return modulePromise;
+
+  if (opts?.wasm && !opts.forceStub) {
+    const cfg = opts.wasm;
+    const fallback = opts.fallbackToStub !== false;
+    modulePromise = loadWasmCore(cfg).catch((err) => {
+      if (!fallback) throw err;
+      console.warn('[vroom] Skia-WASM core failed to load; using Canvas2D stub.', err);
+      return createStubModule();
+    });
+  } else {
     modulePromise = Promise.resolve(createStubModule());
   }
   return modulePromise;
