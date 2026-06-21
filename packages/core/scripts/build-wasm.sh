@@ -24,7 +24,14 @@ if [[ -z "${SKIA_DIR:-}" ]]; then
   exit 1
 fi
 
-SKIA_LIB="${SKIA_LIB:-$SKIA_DIR/out/wasm/libskia.a}"
+# Skia names the wasm static lib libskia.wasm.a (older trees: libskia.a).
+if [[ -z "${SKIA_LIB:-}" ]]; then
+  if [[ -f "$SKIA_DIR/out/wasm/libskia.wasm.a" ]]; then
+    SKIA_LIB="$SKIA_DIR/out/wasm/libskia.wasm.a"
+  else
+    SKIA_LIB="$SKIA_DIR/out/wasm/libskia.a"
+  fi
+fi
 if [[ ! -f "$SKIA_LIB" ]]; then
   echo "error: Skia static lib not found at $SKIA_LIB (build Skia for wasm, or set SKIA_LIB)." >&2
   exit 1
