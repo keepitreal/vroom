@@ -8,6 +8,7 @@
 #include "include/core/SkFontTypes.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkTypeface.h"
 #include "include/effects/SkDashPathEffect.h"
@@ -86,7 +87,7 @@ void draw(SkCanvas* canvas,
     // leading values (i < period) leave a gap.
     auto stroke_series = [&](const double* series, SkColor color) {
         if (!series) return;
-        SkPath path;
+        SkPathBuilder path;
         bool pen_down = false;
         for (std::size_t i = 0; i < n; ++i) {
             const double v = series[i];
@@ -110,7 +111,7 @@ void draw(SkCanvas* canvas,
         line.setColor(color);
         line.setStyle(SkPaint::kStroke_Style);
         line.setStrokeWidth(1.5f);
-        canvas->drawPath(path, line);
+        canvas->drawPath(path.detach(), line);
     };
     stroke_series(rsi_visible, kRsiLine);
     stroke_series(rsi_ma_visible, kRsiMaLine);  // trendline on top

@@ -6,6 +6,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# The native stub static library + unit tests are irrelevant to (and would fail
+# under) the emscripten/WASM build, which compiles the full renderer against a
+# real Skia. Skip them entirely when VROOM_WASM is set.
+option(VROOM_WASM "Build the WebAssembly chart module (requires emscripten)" OFF)
+
+if(NOT VROOM_WASM)
+
 # The core builds as a static library; each platform shim links it in.
 add_library(vroom_core STATIC
     src/chart.cpp
@@ -58,6 +65,8 @@ if(VROOM_BUILD_TESTS)
     add_test(NAME vroom_tests COMMAND vroom_tests)
 endif()
 
+endif()  # NOT VROOM_WASM
+
 # WebAssembly build (A1c): the whole core + a Skia-for-WASM static lib compiled
 # into one emscripten ES module that owns a WebGL Skia surface and paints a
 # <canvas> (web/vroom_web.cpp). Off by default so the native/test paths above are
@@ -69,7 +78,6 @@ endif()
 #
 # Output: build-wasm/vroom_core.mjs + vroom_core.wasm (consumed by
 # @vroom/core-wasm). See packages/core/web/README.md for the toolchain setup.
-option(VROOM_WASM "Build the WebAssembly chart module (requires emscripten)" OFF)
 if(VROOM_WASM)
     if(NOT EMSCRIPTEN)
         message(FATAL_ERROR

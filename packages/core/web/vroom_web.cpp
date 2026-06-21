@@ -223,10 +223,10 @@ class WebChart {
     gl_ = emscripten_webgl_create_context(canvas_selector_.c_str(), &attrs);
     if (gl_ <= 0) return;
     emscripten_webgl_make_context_current(gl_);
-    // WebGL-specific GL interface (what CanvasKit uses under emscripten). If the
-    // chosen Skia revision lacks GrGLInterfaces::MakeWebGL, GrGLMakeNativeInterface()
-    // is the fallback.
-    auto interface = GrGLInterfaces::MakeWebGL();
+    // Native interface resolves WebGL entry points under emscripten (works
+    // across Skia revisions; the GrGLInterfaces::MakeWebGL helper only exists in
+    // newer trees).
+    auto interface = GrGLMakeNativeInterface();
     gr_context_ = GrDirectContexts::MakeGL(interface);
   }
 

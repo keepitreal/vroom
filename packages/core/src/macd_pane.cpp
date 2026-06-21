@@ -8,6 +8,7 @@
 #include "include/core/SkFontTypes.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkTypeface.h"
 #pragma clang diagnostic pop
@@ -128,7 +129,7 @@ void draw(SkCanvas* canvas,
     // MACD + signal lines.
     auto stroke_series = [&](const double* series, SkColor color) {
         if (!series) return;
-        SkPath path;
+        SkPathBuilder path;
         bool pen_down = false;
         for (std::size_t i = 0; i < n; ++i) {
             const double v = series[i];
@@ -152,7 +153,7 @@ void draw(SkCanvas* canvas,
         line.setColor(color);
         line.setStyle(SkPaint::kStroke_Style);
         line.setStrokeWidth(1.5f);
-        canvas->drawPath(path, line);
+        canvas->drawPath(path.detach(), line);
     };
     stroke_series(signal_visible, kSignalLine);
     stroke_series(macd_visible, kMacdLine);  // MACD over signal

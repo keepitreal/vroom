@@ -6,6 +6,7 @@
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
 
@@ -34,7 +35,8 @@ void draw(SkCanvas* canvas,
         return;
     }
 
-    SkPath path;
+    // SkPathBuilder (not SkPath's edit methods, removed in newer Skia tips).
+    SkPathBuilder path;
     bool pen_down = false;
     for (std::size_t i = 0; i < n; ++i) {
         const double v = values_visible[i];
@@ -64,7 +66,7 @@ void draw(SkCanvas* canvas,
     // the axis strips or any indicator pane below.
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
-    canvas->drawPath(path, line);
+    canvas->drawPath(path.detach(), line);
     canvas->restore();
 }
 
