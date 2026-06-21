@@ -12,8 +12,10 @@ set -euo pipefail
 
 CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "$CORE_DIR/../.." && pwd)"
+# Canonical home for the published artifacts: @vroom/core-wasm/assets/, which is
+# tracked and shipped in the package (referenced via new URL(..., import.meta.url)).
 BUILD_DIR="$CORE_DIR/build-wasm"
-OUT_DIR="$REPO_ROOT/packages/core-wasm/wasm"
+OUT_DIR="$REPO_ROOT/packages/core-wasm/assets"
 
 if ! command -v emcmake >/dev/null 2>&1; then
   echo "error: emcmake not found. Install + activate emsdk first (see web/README.md)." >&2
@@ -52,16 +54,7 @@ mkdir -p "$OUT_DIR"
 cp "$BUILD_DIR/vroom_core.mjs" "$OUT_DIR/"
 cp "$BUILD_DIR/vroom_core.wasm" "$OUT_DIR/"
 
-# Optional: also drop them where the web-demo serves them, so `?wasm=1` works.
-if [[ "${COPY_TO_DEMO:-}" == "1" ]]; then
-  DEMO_DIR="$REPO_ROOT/examples/web-demo/public/vroom"
-  echo "==> Copying to web-demo ($DEMO_DIR)"
-  mkdir -p "$DEMO_DIR"
-  cp "$BUILD_DIR/vroom_core.mjs" "$DEMO_DIR/"
-  cp "$BUILD_DIR/vroom_core.wasm" "$DEMO_DIR/"
-  if [[ ! -f "$DEMO_DIR/Inter-Regular.ttf" ]]; then
-    echo "    note: drop a font at $DEMO_DIR/Inter-Regular.ttf (labels need it)."
-  fi
-fi
+echo "==> Done. @vroom/core-wasm now bundles the updated core; rebuild dependents."
+echo "    (The web-demo and any consumer pick these up via new URL(import.meta.url).)"
 
 echo "==> Done. Point loadVroom({ wasm: { moduleUrl, wasmUrl, fontUrl } }) at the served files."
