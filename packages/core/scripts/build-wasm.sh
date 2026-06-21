@@ -45,4 +45,16 @@ mkdir -p "$OUT_DIR"
 cp "$BUILD_DIR/vroom_core.mjs" "$OUT_DIR/"
 cp "$BUILD_DIR/vroom_core.wasm" "$OUT_DIR/"
 
+# Optional: also drop them where the web-demo serves them, so `?wasm=1` works.
+if [[ "${COPY_TO_DEMO:-}" == "1" ]]; then
+  DEMO_DIR="$REPO_ROOT/examples/web-demo/public/vroom"
+  echo "==> Copying to web-demo ($DEMO_DIR)"
+  mkdir -p "$DEMO_DIR"
+  cp "$BUILD_DIR/vroom_core.mjs" "$DEMO_DIR/"
+  cp "$BUILD_DIR/vroom_core.wasm" "$DEMO_DIR/"
+  if [[ ! -f "$DEMO_DIR/Inter-Regular.ttf" ]]; then
+    echo "    note: drop a font at $DEMO_DIR/Inter-Regular.ttf (labels need it)."
+  fi
+fi
+
 echo "==> Done. Point loadVroom({ wasm: { moduleUrl, wasmUrl, fontUrl } }) at the served files."

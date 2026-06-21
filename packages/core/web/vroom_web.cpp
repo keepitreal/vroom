@@ -19,7 +19,7 @@
 #include <emscripten/html5_webgl.h>
 #include <emscripten/val.h>
 
-#include <GLES2/gl2.h>
+#include <GLES3/gl3.h>  // WebGL2 — defines GL_RGBA8 (GLES2 only has GL_RGBA8_OES)
 
 #include <cstdint>
 #include <cstring>
@@ -45,9 +45,10 @@
 #include "include/gpu/ganesh/gl/GrGLDirectContext.h"
 #include "include/gpu/ganesh/gl/GrGLInterface.h"
 
-// FreeType-backed font manager so we can build typefaces from raw .ttf bytes
-// (the WASM sandbox has no system font manager).
-#include "include/ports/SkFontMgr_data.h"
+// FreeType-backed "empty" font manager so we can build typefaces from raw
+// .ttf bytes (the WASM sandbox has no system font manager). This is what
+// CanvasKit uses; requires Skia built with skia_enable_fontmgr_custom_empty.
+#include "include/ports/SkFontMgr_empty.h"
 
 // The core keeps the axis typeface as a process global (see fonts.cpp). It's set
 // by the host; declared here to avoid pulling in the internal header.
@@ -189,7 +190,7 @@ class WebChart {
     auto data = SkData::MakeUninitialized(len);
     em::val view{em::typed_memory_view(len, static_cast<uint8_t*>(data->writable_data()))};
     view.call<void>("set", bytes);
-    sk_sp<SkFontMgr> mgr = SkFontMgr_New_Custom_Data(SkSpan(&data, 1));
+    sk_sp<SkFontMgr> mgr = SkFontMgr_New_Custom_Empty();
     if (!mgr) return;
     sk_sp<SkTypeface> tf = mgr->makeFromData(data);
     if (tf) vroom::set_axis_typeface(std::move(tf));
@@ -222,7 +223,10 @@ class WebChart {
     gl_ = emscripten_webgl_create_context(canvas_selector_.c_str(), &attrs);
     if (gl_ <= 0) return;
     emscripten_webgl_make_context_current(gl_);
-    auto interface = GrGLMakeNativeInterface();
+    // WebGL-specific GL interface (what CanvasKit uses under emscripten). If the
+    // chosen Skia revision lacks GrGLInterfaces::MakeWebGL, GrGLMakeNativeInterface()
+    // is the fallback.
+    auto interface = GrGLInterfaces::MakeWebGL();
     gr_context_ = GrDirectContexts::MakeGL(interface);
   }
 
