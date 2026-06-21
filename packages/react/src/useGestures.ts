@@ -227,11 +227,17 @@ export function useGestures(
       e.preventDefault();
       const { x, y } = rel(e);
       if (e.ctrlKey || e.metaKey) {
+        // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.
         const f = Math.exp(-e.deltaY * WHEEL_K);
         h.zoom(f, f, x, y);
       } else if (e.shiftKey) {
-        h.pan(-e.deltaY, 0);
+        // Shift+wheel → horizontal pan (mouse-wheel-only users).
+        h.pan(-(e.deltaX || e.deltaY), 0);
+      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+        // Horizontal scroll → pan the time axis (scroll right = forward in time).
+        h.pan(-e.deltaX, 0);
       } else {
+        // Vertical scroll → zoom the time window around the cursor.
         const f = Math.exp(-e.deltaY * WHEEL_K);
         h.zoom(f, 1, x, y);
       }
