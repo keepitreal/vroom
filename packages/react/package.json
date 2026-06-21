@@ -2,19 +2,50 @@
   "name": "@vroom/react",
   "version": "0.0.1",
   "description": "Skia-quality candlestick chart for the web (React DOM).",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "source": "src/index.ts",
+  "license": "MIT",
+  "author": "Darion Welch",
+  "homepage": "https://github.com/darionwelch/vroom#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darionwelch/vroom.git",
+    "directory": "packages/react"
+  },
+  "keywords": [
+    "chart",
+    "candlestick",
+    "react",
+    "skia",
+    "wasm",
+    "finance",
+    "trading",
+    "charting"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
-    "src",
-    "!**/*.test.ts"
+    "dist",
+    "README.md"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "tsup",
+    "prepublishOnly": "tsup"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
-    "@vroom/core-wasm": "workspace:*",
-    "@vroom/types": "workspace:*"
+    "@vroom/core-wasm": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -23,8 +54,10 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "@types/react-dom": "~19.1.0",
+    "@vroom/types": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tsup": "^8.5.1",
     "typescript": "~5.9.2"
   }
 }

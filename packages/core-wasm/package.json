@@ -1,22 +1,55 @@
 {
   "name": "@vroom/core-wasm",
   "version": "0.0.1",
-  "description": "Framework-agnostic web core for the vroom chart (Canvas2D stub today, Skia-WASM later).",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
-  "source": "src/index.ts",
+  "description": "Framework-agnostic web core for the vroom chart — Skia-WASM renderer with a Canvas2D fallback.",
+  "license": "MIT",
+  "author": "Darion Welch",
+  "homepage": "https://github.com/darionwelch/vroom#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darionwelch/vroom.git",
+    "directory": "packages/core-wasm"
+  },
+  "keywords": [
+    "chart",
+    "candlestick",
+    "skia",
+    "wasm",
+    "webassembly",
+    "canvas",
+    "finance",
+    "trading"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./assets/*": "./assets/*",
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
   "files": [
-    "src",
-    "!**/*.test.ts"
+    "dist",
+    "assets",
+    "README.md"
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build:wasm": "../core/scripts/build-wasm.sh"
+    "build": "tsup",
+    "build:wasm": "../core/scripts/build-wasm.sh",
+    "prepublishOnly": "tsup"
   },
-  "dependencies": {
-    "@vroom/types": "workspace:*"
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
+    "@vroom/types": "workspace:*",
+    "tsup": "^8.5.1",
     "typescript": "~5.9.2"
   }
 }

@@ -12,5 +12,7 @@
     "docs": "pnpm --filter vroom-docs start",
     "docs:build": "pnpm --filter vroom-docs build"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0"
+  }
 }
