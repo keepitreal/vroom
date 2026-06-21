@@ -200,6 +200,13 @@ export function useGestures(
       else if (panMode === 'time-axis') h.scaleTimeAxis(dx);
       else if (panMode === 'indicator') h.pan(dx, 0);
       else h.translate(dx, dy);
+
+      // Keep a hover crosshair glued to the cursor while dragging — the chart
+      // pans under it, so re-snap to whatever candle is now beneath the cursor.
+      if (crosshairActive && crosshairSource === 'hover') {
+        h.setCrosshair(x, y);
+        reportCrosshair('move');
+      }
       scheduleRender();
     };
 
