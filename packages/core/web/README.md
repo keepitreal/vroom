@@ -54,7 +54,7 @@ bin/gn gen out/wasm --args='
   skia_enable_fontmgr_custom_empty=true
   skia_use_dng_sdk=false skia_use_expat=false skia_use_libjpeg_turbo_decode=false
 '
-ninja -C out/wasm libskia.a
+ninja -C out/wasm skia    # target is `skia`; produces out/wasm/libskia.a
 ```
 
 Match the Skia revision to the one `@shopify/react-native-skia` ships on native
