@@ -40,8 +40,19 @@ export async function loadWasmCore(cfg: WasmConfig): Promise<VroomModule> {
 
   let fontBytes: Uint8Array | null = null;
   if (cfg.fontUrl) {
-    const res = await fetch(cfg.fontUrl);
-    if (res.ok) fontBytes = new Uint8Array(await res.arrayBuffer());
+    try {
+      const res = await fetch(cfg.fontUrl);
+      if (res.ok) {
+        fontBytes = new Uint8Array(await res.arrayBuffer());
+        console.info(`[vroom] axis font loaded (${cfg.fontUrl}, ${fontBytes.length} bytes)`);
+      } else {
+        console.warn(`[vroom] axis font fetch ${cfg.fontUrl} → HTTP ${res.status}; labels will be blank.`);
+      }
+    } catch (e) {
+      console.warn(`[vroom] axis font fetch failed (${cfg.fontUrl}); labels will be blank.`, e);
+    }
+  } else {
+    console.warn('[vroom] no fontUrl provided; text labels will be blank.');
   }
 
   return makeWasmModule(instance, fontBytes);
