@@ -25,17 +25,25 @@ Pod::Spec.new do |s|
 
   # CocoaPods source_files globs (a) refuse paths outside the spec's source
   # root and (b) don't follow symlinks. We mirror the core sources into a
-  # sibling directory inside this pod every time the spec is evaluated, so
-  # edits to packages/core/ propagate on the next `pod install`.
+  # sibling directory inside this pod.
+  #
+  # In the monorepo (../core present) we re-mirror on every spec evaluation so
+  # edits to packages/core/ propagate on the next `pod install`. In a published
+  # install there is no ../core — the cpp/_core_{src,include} copies were already
+  # vendored into the tarball at publish time (scripts/vendor-core.mjs), so we
+  # leave them in place.
   # (Using `prepare_command` doesn't work because CocoaPods caches it per
   # pod version and doesn't re-run for local pods on subsequent installs.)
   require "fileutils"
   spec_dir = __dir__
-  ["src", "include"].each do |sub|
-    src = File.join(spec_dir, "..", "core", sub)
-    dst = File.join(spec_dir, "cpp", "_core_#{sub}")
-    FileUtils.rm_rf(dst)
-    FileUtils.cp_r(src, dst)
+  core_root = File.join(spec_dir, "..", "core")
+  if File.directory?(core_root)
+    ["src", "include"].each do |sub|
+      src = File.join(core_root, sub)
+      dst = File.join(spec_dir, "cpp", "_core_#{sub}")
+      FileUtils.rm_rf(dst)
+      FileUtils.cp_r(src, dst)
+    end
   end
 
   s.source_files = [

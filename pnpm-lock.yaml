@@ -176,10 +176,6 @@ importers:
         version: 5.9.3
 
   packages/react-native:
-    dependencies:
-      '@vroom/types':
-        specifier: workspace:*
-        version: link:../types
     devDependencies:
       '@shopify/react-native-skia':
         specifier: 2.2.12
@@ -187,6 +183,9 @@ importers:
       '@types/react':
         specifier: ~19.1.0
         version: 19.1.17
+      '@vroom/types':
+        specifier: workspace:*
+        version: link:../types
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -199,6 +198,9 @@ importers:
       react-native-reanimated:
         specifier: ~4.1.1
         version: 4.1.7(react-native-worklets@0.8.3(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
+      tsup:
+        specifier: ^8.5.1
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.15)(typescript@5.9.3)(yaml@2.9.0)
       typescript:
         specifier: ~5.9.2
         version: 5.9.3

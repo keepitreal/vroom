@@ -2,11 +2,31 @@
   "name": "react-native-vroom-chart",
   "version": "0.0.1",
   "description": "Mobile-first Skia candlestick chart for React Native",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "license": "MIT",
+  "author": "Darion Welch",
+  "homepage": "https://github.com/darionwelch/vroom#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/darionwelch/vroom.git",
+    "directory": "packages/react-native"
+  },
+  "keywords": [
+    "react-native",
+    "chart",
+    "candlestick",
+    "skia",
+    "finance",
+    "trading",
+    "charting",
+    "ios"
+  ],
+  "main": "lib/index.js",
+  "module": "lib/index.mjs",
+  "types": "lib/index.d.ts",
   "react-native": "src/index.ts",
   "source": "src/index.ts",
   "files": [
+    "lib",
     "src",
     "cpp",
     "ios",
@@ -18,7 +38,10 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "tsup",
+    "vendor:core": "node scripts/vendor-core.mjs",
+    "prepack": "node scripts/vendor-core.mjs && tsup"
   },
   "codegenConfig": {
     "name": "VroomChartSpec",
@@ -28,8 +51,8 @@
       "javaPackageName": "com.vroom.chart"
     }
   },
-  "dependencies": {
-    "@vroom/types": "workspace:*"
+  "publishConfig": {
+    "access": "public"
   },
   "peerDependencies": {
     "@shopify/react-native-skia": ">=2.0.0",
@@ -40,12 +63,14 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@vroom/types": "workspace:*",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "typescript": "~5.9.2",
     "@shopify/react-native-skia": "2.2.12",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-reanimated": "~4.1.1",
+    "tsup": "^8.5.1",
     "vitest": "^2.1.9"
   }
 }
