@@ -39,21 +39,36 @@ cd skia
 python3 tools/git-sync-deps
 bin/fetch-gn
 
-# WASM build with the GL (Ganesh) backend, GPU on. Trim codecs you don't need,
-# but KEEP font/text (we draw axis labels). Use emscripten's clang.
+# WASM build with the GL (Ganesh) backend, GPU on. Use BUNDLED system libs
+# (skia_use_system_*=false) — the emscripten sysroot has no system zlib/png/etc,
+# so those would fail with "header not found". Keep font/text (axis labels);
+# drop codecs/pdf/skottie we don't use. This mirrors CanvasKit's args.
 bin/gn gen out/wasm --args='
   is_official_build=true
   target_cpu="wasm"
-  skia_use_freetype=true
-  skia_use_system_freetype2=false
   skia_enable_ganesh=true
   skia_use_gl=true
   skia_use_webgl=true
-  skia_enable_fontmgr_custom_directory=false
-  skia_enable_fontmgr_custom_embedded=false
+  skia_use_freetype=true
   skia_enable_fontmgr_custom_empty=true
-  skia_use_dng_sdk=false skia_use_expat=false skia_use_libjpeg_turbo_decode=false
-'
+  skia_use_system_freetype2=false
+  skia_use_system_zlib=false
+  skia_use_system_libpng=false
+  skia_use_system_libjpeg_turbo=false
+  skia_use_system_harfbuzz=false
+  skia_use_system_icu=false
+  skia_use_system_expat=false
+  skia_use_libjpeg_turbo_decode=false
+  skia_use_libjpeg_turbo_encode=false
+  skia_use_libpng_decode=false
+  skia_use_libpng_encode=false
+  skia_use_libwebp_decode=false
+  skia_use_libwebp_encode=false
+  skia_use_wuffs=false
+  skia_use_dng_sdk=false
+  skia_use_expat=false
+  skia_enable_pdf=false
+  skia_enable_skottie=false'
 ninja -C out/wasm skia    # target is `skia`; produces out/wasm/libskia.a
 ```
 
