@@ -1,7 +1,8 @@
 {
   "name": "@vroom/types",
   "version": "0.0.1",
-  "description": "Shared TypeScript types for the vroom chart public API (React Native + web).",
+  "private": true,
+  "description": "Shared TypeScript types for the vroom chart public API (bundled into the published packages, not published itself).",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "source": "src/index.ts",
