@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@vroom/react": "workspace:*",
+    "@vroomchart/react": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

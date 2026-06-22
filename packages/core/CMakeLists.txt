@@ -77,7 +77,7 @@ endif()  # NOT VROOM_WASM
 #   cmake --build packages/core/build-wasm
 #
 # Output: build-wasm/vroom_core.mjs + vroom_core.wasm (consumed by
-# @vroom/core-wasm). See packages/core/web/README.md for the toolchain setup.
+# @vroomchart/core-wasm). See packages/core/web/README.md for the toolchain setup.
 if(VROOM_WASM)
     if(NOT EMSCRIPTEN)
         message(FATAL_ERROR

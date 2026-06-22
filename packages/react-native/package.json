@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
-    "@vroom/types": "workspace:*",
+    "@vroomchart/types": "workspace:*",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "typescript": "~5.9.2",

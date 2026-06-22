@@ -1,6 +1,6 @@
 // VroomChart (web) — DOM React component that renders the candlestick chart to
-// a <canvas> via @vroom/core-wasm and wires pointer/wheel gestures. API-matched
-// to the React Native component (same props from @vroom/types).
+// a <canvas> via @vroomchart/core-wasm and wires pointer/wheel gestures. API-matched
+// to the React Native component (same props from @vroomchart/types).
 
 import React from 'react';
 import type { CSSProperties } from 'react';

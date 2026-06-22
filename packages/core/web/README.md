@@ -7,7 +7,7 @@ the web chart renders **pixel-identically to native** — no SkPicture
 serialization, no second renderer.
 
 Architecture context: this is the deferred "A1c" half of the web port. The
-TypeScript side (`@vroom/core-wasm`, `@vroom/react`) is already complete and runs
+TypeScript side (`@vroomchart/core-wasm`, `@vroomchart/react`) is already complete and runs
 today against a Canvas2D **stub**; building this module and pointing `loadVroom`
 at it swaps in the real core with no API changes.
 
@@ -79,7 +79,7 @@ reference if the above needs tuning.)
 ## Build the module
 
 ```sh
-SKIA_DIR=/abs/path/to/skia pnpm --filter @vroom/core-wasm build:wasm
+SKIA_DIR=/abs/path/to/skia pnpm --filter @vroomchart/core-wasm build:wasm
 # or directly:
 SKIA_DIR=/abs/path/to/skia packages/core/scripts/build-wasm.sh
 ```
@@ -95,7 +95,7 @@ The web component uses the stub by default. To use the real core, pass `wasm`
 URLs through `loadVroom` (these are served static assets in your app):
 
 ```ts
-import { loadVroom } from '@vroom/core-wasm';
+import { loadVroom } from '@vroomchart/core-wasm';
 
 await loadVroom({
   wasm: {
@@ -106,7 +106,7 @@ await loadVroom({
 });
 ```
 
-`@vroom/react` will expose this via a prop in a follow-up; for now `loadVroom`
+`@vroomchart/react` will expose this via a prop in a follow-up; for now `loadVroom`
 is the seam.
 
 ### Fonts

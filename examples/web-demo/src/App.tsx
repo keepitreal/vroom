@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { VroomChart, type Candle, type CrosshairEvent } from '@vroom/react';
+import { VroomChart, type Candle, type CrosshairEvent } from '@vroomchart/react';
 
 // Synthetic random-walk candles for the demo.
 function mockCandles(n: number, stepMs: number): Candle[] {
@@ -27,8 +27,8 @@ function mockCandles(n: number, stepMs: number): Candle[] {
 const DAY = 24 * 60 * 60 * 1000;
 
 export function App() {
-  // No wasm/asset config needed — @vroom/react defaults to the Skia-WASM core
-  // bundled in @vroom/core-wasm (and falls back to the Canvas2D stub on failure).
+  // No wasm/asset config needed — @vroomchart/react defaults to the Skia-WASM core
+  // bundled in @vroomchart/core-wasm (and falls back to the Canvas2D stub on failure).
   const candles = useMemo(() => mockCandles(300, DAY), []);
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
 

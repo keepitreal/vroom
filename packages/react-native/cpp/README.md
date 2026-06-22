@@ -3,7 +3,7 @@
 When the JS API is stable enough to wire to native, this directory will hold:
 
 - `VroomChartJSI.h` / `VroomChartJSI.cpp` — JSI HostObject(s) exposing the C
-  facade from `@vroom/core` to JS.
+  facade from `@vroomchart/core` to JS.
 - Glue for borrowing an `SkCanvas` from `@shopify/react-native-skia` and
   passing it to `vroom_chart_draw`.
 

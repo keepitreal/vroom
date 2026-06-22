@@ -1,4 +1,4 @@
-import type { VroomColor, VroomTheme } from '@vroom/types';
+import type { VroomColor, VroomTheme } from '@vroomchart/types';
 import { ColorKey, type VroomChartHandle } from './handle';
 
 // Maps each VroomTheme field to its ColorKey. Mirror of

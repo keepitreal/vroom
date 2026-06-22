@@ -1,5 +1,5 @@
 // Adapts the emscripten `WebChart` (embind class from web/vroom_web.cpp) to the
-// VroomChartHandle / VroomModule contract that @vroom/react consumes. This is
+// VroomChartHandle / VroomModule contract that @vroomchart/react consumes. This is
 // the only place that knows the WASM module's shape — swapping the stub for the
 // real core changes nothing above this line.
 

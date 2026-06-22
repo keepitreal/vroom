@@ -12,7 +12,7 @@ set -euo pipefail
 
 CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO_ROOT="$(cd "$CORE_DIR/../.." && pwd)"
-# Canonical home for the published artifacts: @vroom/core-wasm/assets/, which is
+# Canonical home for the published artifacts: @vroomchart/core-wasm/assets/, which is
 # tracked and shipped in the package (referenced via new URL(..., import.meta.url)).
 BUILD_DIR="$CORE_DIR/build-wasm"
 OUT_DIR="$REPO_ROOT/packages/core-wasm/assets"
@@ -54,7 +54,7 @@ mkdir -p "$OUT_DIR"
 cp "$BUILD_DIR/vroom_core.mjs" "$OUT_DIR/"
 cp "$BUILD_DIR/vroom_core.wasm" "$OUT_DIR/"
 
-echo "==> Done. @vroom/core-wasm now bundles the updated core; rebuild dependents."
+echo "==> Done. @vroomchart/core-wasm now bundles the updated core; rebuild dependents."
 echo "    (The web-demo and any consumer pick these up via new URL(import.meta.url).)"
 
 echo "==> Done. Point loadVroom({ wasm: { moduleUrl, wasmUrl, fontUrl } }) at the served files."

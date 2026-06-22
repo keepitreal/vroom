@@ -5,7 +5,7 @@
 // SkPicture return values. On web the core (A1c) owns the <canvas> and its
 // rendering surface, so mutations are `void` and `present()` paints. Today this
 // is backed by a Canvas2D stub (./stub); later by the Skia-WASM module, with no
-// change to this interface or to @vroom/react.
+// change to this interface or to @vroomchart/react.
 
 /** Theme color slots — mirrors the `VroomColorKey` enum in the C facade. */
 export enum ColorKey {

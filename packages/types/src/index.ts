@@ -1,6 +1,6 @@
 // Shared, platform-agnostic types for the vroom chart public API.
 //
-// Both `react-native-vroom-chart` (native) and `@vroom/react` (web) re-export
+// Both `react-native-vroom-chart` (native) and `@vroomchart/react` (web) re-export
 // these and add their own platform-specific `style` typing on top, so the two
 // components present one identical API surface.
 

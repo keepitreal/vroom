@@ -1,6 +1,6 @@
 // Canvas2D stub of the chart core.
 //
-// A pure-TS stand-in for the Skia-WASM core so @vroom/react can be built and
+// A pure-TS stand-in for the Skia-WASM core so @vroomchart/react can be built and
 // run in a browser before the WASM toolchain exists. It implements the same
 // VroomChartHandle contract and the same viewport model as the C++ core
 // (count-based default window, fixed candle slots, persistent price bounds),
@@ -11,7 +11,7 @@
 // loadVroom() to the WASM module replaces this with pixel-accurate rendering and
 // no API change.
 
-import type { Candle } from '@vroom/types';
+import type { Candle } from '@vroomchart/types';
 import {
   ColorKey,
   type AxisMetrics,

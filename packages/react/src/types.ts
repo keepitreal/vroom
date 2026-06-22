@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react';
-import type { VroomChartCoreProps } from '@vroom/types';
-import type { WasmConfig } from '@vroom/core-wasm';
+import type { VroomChartCoreProps } from '@vroomchart/types';
+import type { WasmConfig } from '@vroomchart/core-wasm';
 
-// The cross-platform props come from @vroom/types; `style`/`className` and the
+// The cross-platform props come from @vroomchart/types; `style`/`className` and the
 // core-selection props (`wasm`/`forceStub`) are the web (DOM) flavor. This
 // mirrors the React Native package's VroomChartProps, which adds
 // StyleProp<ViewStyle> instead.

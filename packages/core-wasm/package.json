@@ -1,5 +1,5 @@
 {
-  "name": "@vroom/core-wasm",
+  "name": "@vroomchart/core-wasm",
   "version": "0.0.1",
   "description": "Framework-agnostic web core for the vroom chart — Skia-WASM renderer with a Canvas2D fallback.",
   "license": "MIT",
@@ -48,7 +48,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@vroom/types": "workspace:*",
+    "@vroomchart/types": "workspace:*",
     "tsup": "^8.5.1",
     "typescript": "~5.9.2"
   }

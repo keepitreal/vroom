@@ -13,8 +13,8 @@ import {
   type LoadVroomOptions,
   type OverlaySpec,
   type VroomChartHandle,
-} from '@vroom/core-wasm';
-import type { VroomChartCoreProps } from '@vroom/types';
+} from '@vroomchart/core-wasm';
+import type { VroomChartCoreProps } from '@vroomchart/types';
 
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;

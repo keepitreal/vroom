@@ -1,5 +1,5 @@
 {
-  "name": "@vroom/types",
+  "name": "@vroomchart/types",
   "version": "0.0.1",
   "private": true,
   "description": "Shared TypeScript types for the vroom chart public API (bundled into the published packages, not published itself).",

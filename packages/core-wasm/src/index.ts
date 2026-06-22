@@ -1,4 +1,4 @@
-// @vroom/core-wasm — the framework-agnostic web core for the vroom chart.
+// @vroomchart/core-wasm — the framework-agnostic web core for the vroom chart.
 //
 // Exposes loadVroom(): Promise<VroomModule>, which yields a factory for chart
 // instances bound to a <canvas>. Today it resolves to a Canvas2D stub so the

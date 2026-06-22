@@ -1,4 +1,4 @@
-import type { Candle } from '@vroom/types';
+import type { Candle } from '@vroomchart/types';
 
 // Wire format must match `VroomCandle` in packages/core/include/vroom/vroom_chart.h:
 //   int64_t time_ms;  double open, high, low, close, volume;

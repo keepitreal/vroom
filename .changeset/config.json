@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["test-bench", "web-demo", "vroom-docs", "@vroom/types"]
+  "ignore": ["test-bench", "web-demo", "vroom-docs", "@vroomchart/types"]
 }

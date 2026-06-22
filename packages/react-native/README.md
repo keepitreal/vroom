@@ -23,5 +23,5 @@ import { VroomChart } from 'react-native-vroom-chart';
 
 Pre-alpha. The TS layer renders a placeholder chart area with working
 gestures (long-press crosshair); the actual candle rendering will move to
-the C++ core (`@vroom/core`) via JSI once that bridge lands. See
+the C++ core (`@vroomchart/core`) via JSI once that bridge lands. See
 `cpp/README.md`.

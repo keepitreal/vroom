@@ -8,10 +8,10 @@ To record a change for the next release, run:
 pnpm changeset
 ```
 
-Pick the affected packages (`react-native-vroom-chart`, `@vroom/core-wasm`,
-`@vroom/react`) and a semver bump, and write a short summary. Commit the
+Pick the affected packages (`react-native-vroom-chart`, `@vroomchart/core-wasm`,
+`@vroomchart/react`) and a semver bump, and write a short summary. Commit the
 generated markdown file. On merge to `main`, the release workflow opens/updates a
 "Version Packages" PR; merging that PR publishes the bumped packages to npm.
 
-`@vroom/types` is bundled into the published packages (not published), so it's
+`@vroomchart/types` is bundled into the published packages (not published), so it's
 ignored here.

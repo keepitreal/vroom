@@ -5,7 +5,7 @@
 // lib, owns a GPU (WebGL) Skia surface bound to an HTML <canvas>, and paints it
 // directly — so the web core renders pixel-identically to native without any
 // SkPicture serialization. JS reaches this through embind (see the bindings at
-// the bottom), adapted to the VroomChartHandle contract in @vroom/core-wasm.
+// the bottom), adapted to the VroomChartHandle contract in @vroomchart/core-wasm.
 //
 // Surface attachment follows CanvasKit's MakeOnScreenGLSurface pattern.
 //

@@ -1,5 +1,5 @@
 {
-  "name": "@vroom/react",
+  "name": "@vroomchart/react",
   "version": "0.0.1",
   "description": "Skia-quality candlestick chart for the web (React DOM).",
   "license": "MIT",
@@ -45,7 +45,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@vroom/core-wasm": "workspace:*"
+    "@vroomchart/core-wasm": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -54,7 +54,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "@types/react-dom": "~19.1.0",
-    "@vroom/types": "workspace:*",
+    "@vroomchart/types": "workspace:*",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tsup": "^8.5.1",

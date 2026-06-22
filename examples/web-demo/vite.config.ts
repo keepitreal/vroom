@@ -19,9 +19,9 @@ export default defineConfig({
     // The published packages resolve to built dist/; in the monorepo demo, point
     // the workspace packages at their TS source so dev has live HMR (no build step).
     alias: {
-      '@vroom/react': src('../../packages/react/src/index.ts'),
-      '@vroom/core-wasm': src('../../packages/core-wasm/src/index.ts'),
-      '@vroom/types': src('../../packages/types/src/index.ts'),
+      '@vroomchart/react': src('../../packages/react/src/index.ts'),
+      '@vroomchart/core-wasm': src('../../packages/core-wasm/src/index.ts'),
+      '@vroomchart/types': src('../../packages/types/src/index.ts'),
     },
   },
   server: { headers: coopCoep },

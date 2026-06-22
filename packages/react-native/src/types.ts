@@ -1,7 +1,7 @@
 import type { StyleProp, ViewStyle } from 'react-native';
-import type { VroomChartCoreProps } from '@vroom/types';
+import type { VroomChartCoreProps } from '@vroomchart/types';
 
-// The data/config types are platform-agnostic and live in @vroom/types so the
+// The data/config types are platform-agnostic and live in @vroomchart/types so the
 // native and web components share one identical API. Re-exported here so the
 // package's public surface (via index.ts) is unchanged.
 export type {
@@ -15,7 +15,7 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   MACDConfig,
-} from '@vroom/types';
+} from '@vroomchart/types';
 
 /**
  * Props for the {@link VroomChart} component. The cross-platform props come

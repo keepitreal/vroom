@@ -3,9 +3,9 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
-  // Inline @vroom/types into the .d.ts so it isn't a published dependency.
+  // Inline @vroomchart/types into the .d.ts so it isn't a published dependency.
   // RN peers stay external; Metro consumes src/ via the "react-native" field.
-  dts: { resolve: ['@vroom/types'] },
+  dts: { resolve: ['@vroomchart/types'] },
   clean: true,
   sourcemap: true,
   target: 'es2020',
@@ -17,5 +17,5 @@ export default defineConfig({
     'react-native-gesture-handler',
     'react-native-reanimated',
   ],
-  noExternal: ['@vroom/types'],
+  noExternal: ['@vroomchart/types'],
 });

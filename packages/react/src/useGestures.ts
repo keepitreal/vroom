@@ -5,8 +5,8 @@
 // be non-passive and call preventDefault.
 
 import { useEffect, useRef } from 'react';
-import type { CrosshairEvent } from '@vroom/types';
-import type { VroomChartHandle } from '@vroom/core-wasm';
+import type { CrosshairEvent } from '@vroomchart/types';
+import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
 type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator';
 

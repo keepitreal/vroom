@@ -1,4 +1,4 @@
-# @vroom/core
+# @vroomchart/core
 
 Platform-agnostic C++ candlestick chart engine built on Skia. Exposes a thin
 `extern "C"` facade (`vroom_chart.h`) so it can be bridged from Swift, JNI, or
