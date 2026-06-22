@@ -12,7 +12,7 @@ type VroomTheme = {
 };
 ```
 
-Defined in: [types.ts:44](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L44)
+Defined in: [types/src/index.ts:48](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L48)
 
 Color overrides for the chart, passed via the `theme` prop.
 
@@ -24,7 +24,7 @@ Color overrides for the chart, passed via the `theme` prop.
 optional axisText?: VroomColor;
 ```
 
-Defined in: [types.ts:54](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L54)
+Defined in: [types/src/index.ts:58](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L58)
 
 Axis label text (price + time).
 
@@ -36,7 +36,7 @@ Axis label text (price + time).
 optional background?: VroomColor;
 ```
 
-Defined in: [types.ts:46](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L46)
+Defined in: [types/src/index.ts:50](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L50)
 
 Chart + axis-strip background.
 
@@ -48,7 +48,7 @@ Chart + axis-strip background.
 optional bear?: VroomColor;
 ```
 
-Defined in: [types.ts:50](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L50)
+Defined in: [types/src/index.ts:54](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L54)
 
 Down candles (also bear wicks, bear volume bars, falling price indicator).
 
@@ -60,7 +60,7 @@ Down candles (also bear wicks, bear volume bars, falling price indicator).
 optional bull?: VroomColor;
 ```
 
-Defined in: [types.ts:48](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L48)
+Defined in: [types/src/index.ts:52](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L52)
 
 Up candles (also bull wicks, bull volume bars, rising price indicator).
 
@@ -72,7 +72,7 @@ Up candles (also bull wicks, bull volume bars, rising price indicator).
 optional crosshair?: VroomColor;
 ```
 
-Defined in: [types.ts:56](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L56)
+Defined in: [types/src/index.ts:60](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L60)
 
 Crosshair dashed lines.
 
@@ -84,7 +84,7 @@ Crosshair dashed lines.
 optional crosshairTarget?: VroomColor;
 ```
 
-Defined in: [types.ts:58](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L58)
+Defined in: [types/src/index.ts:62](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L62)
 
 Crosshair target — the hollow ring/dot at the intersection.
 
@@ -96,6 +96,6 @@ Crosshair target — the hollow ring/dot at the intersection.
 optional grid?: VroomColor;
 ```
 
-Defined in: [types.ts:52](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L52)
+Defined in: [types/src/index.ts:56](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L56)
 
 Gridlines.

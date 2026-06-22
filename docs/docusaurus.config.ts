@@ -6,7 +6,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 // and the sitemap). `baseUrl` stays '/' for a root-domain Vercel deployment.
 const config: Config = {
   title: 'Vroom',
-  tagline: 'Lightning-fast, Skia-powered candlestick charts for React Native',
+  tagline: 'Lightning-fast, Skia-powered candlestick charts for React Native and the web',
   favicon: 'img/favicon.svg',
 
   url: 'https://vroom-docs.vercel.app',

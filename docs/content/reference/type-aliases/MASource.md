@@ -4,6 +4,6 @@
 type MASource = "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4";
 ```
 
-Defined in: [types.ts:85](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L85)
+Defined in: [types/src/index.ts:89](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L89)
 
 Price source for a moving average.

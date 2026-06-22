@@ -11,7 +11,7 @@ type Candle = {
 };
 ```
 
-Defined in: [types.ts:4](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L4)
+Defined in: [types/src/index.ts:8](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L8)
 
 A single OHLCV bar. `candles` is an array of these.
 
@@ -23,7 +23,7 @@ A single OHLCV bar. `candles` is an array of these.
 close: number;
 ```
 
-Defined in: [types.ts:14](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L14)
+Defined in: [types/src/index.ts:18](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L18)
 
 Closing price.
 
@@ -35,7 +35,7 @@ Closing price.
 high: number;
 ```
 
-Defined in: [types.ts:10](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L10)
+Defined in: [types/src/index.ts:14](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L14)
 
 Highest price during the bar.
 
@@ -47,7 +47,7 @@ Highest price during the bar.
 low: number;
 ```
 
-Defined in: [types.ts:12](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L12)
+Defined in: [types/src/index.ts:16](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L16)
 
 Lowest price during the bar.
 
@@ -59,7 +59,7 @@ Lowest price during the bar.
 open: number;
 ```
 
-Defined in: [types.ts:8](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L8)
+Defined in: [types/src/index.ts:12](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L12)
 
 Opening price.
 
@@ -71,7 +71,7 @@ Opening price.
 timeMs: number;
 ```
 
-Defined in: [types.ts:6](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L6)
+Defined in: [types/src/index.ts:10](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L10)
 
 Bar open time as Unix epoch milliseconds.
 
@@ -83,6 +83,6 @@ Bar open time as Unix epoch milliseconds.
 volume: number;
 ```
 
-Defined in: [types.ts:16](https://github.com/keepitreal/vroom/blob/5754f44f04cecef0138d960a9d6cb9811c7231fa/packages/react-native/src/types.ts#L16)
+Defined in: [types/src/index.ts:20](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L20)
 
 Traded volume during the bar.

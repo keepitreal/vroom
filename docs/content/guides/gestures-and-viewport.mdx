@@ -1,6 +1,12 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Gestures & viewport
 
 All navigation is handled inside the chart — you don't wire up any gesture code.
+
+<Tabs groupId="platform" queryString>
+<TabItem value="react-native" label="React Native">
 
 | Gesture | Effect |
 | --- | --- |
@@ -8,7 +14,23 @@ All navigation is handled inside the chart — you don't wire up any gesture cod
 | Pinch | Zoom around the focus point |
 | Drag the price axis (right) | Rescale price only |
 | Drag the time axis (bottom) | Rescale time only |
-| Long-press | Show the snapping [crosshair](crosshair-and-events.md) |
+| Long-press | Show the snapping [crosshair](crosshair-and-events.mdx) |
+
+</TabItem>
+<TabItem value="web" label="Web">
+
+| Input | Effect |
+| --- | --- |
+| Drag | Scroll through time; vertical drag moves the price window |
+| Wheel scroll (vertical) | Zoom the time window around the cursor |
+| Horizontal scroll / shift+wheel | Pan through time |
+| Ctrl/⌘+wheel or trackpad pinch | Zoom both axes around the cursor |
+| Drag the price axis (right) | Rescale price only |
+| Drag the time axis (bottom) | Rescale time only |
+| Hover (mouse) | Show the snapping [crosshair](crosshair-and-events.mdx) under the cursor |
+
+</TabItem>
+</Tabs>
 
 ## Controlling the visible window
 
@@ -23,7 +45,7 @@ it explicitly, pass [`visibleRange`](../reference/index.md):
 ```
 
 Omit it (or pass both `0`) to fit all candles. When you do drive `visibleRange`,
-treat [`onViewportChange`](crosshair-and-events.md) as the source of truth for the
+treat [`onViewportChange`](crosshair-and-events.mdx) as the source of truth for the
 current window after the user pans/zooms, and feed it back into state if you want
 a fully controlled chart.
 

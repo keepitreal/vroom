@@ -1,0 +1,92 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Installation
+
+<Tabs groupId="platform" queryString>
+<TabItem value="react-native" label="React Native">
+
+```sh
+npm install react-native-vroom-chart
+```
+
+## Peer dependencies
+
+vroom renders through Skia and handles gestures with Reanimated worklets, so it
+relies on three peer dependencies. Install them if your app doesn't already have
+them:
+
+```sh
+npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+```
+
+| Package | Version |
+| --- | --- |
+| [`@shopify/react-native-skia`](https://shopify.github.io/react-native-skia/) | `>= 2.0.0` |
+| [`react-native-gesture-handler`](https://docs.swmansion.com/react-native-gesture-handler/) | `>= 2.16.0` |
+| [`react-native-reanimated`](https://docs.swmansion.com/react-native-reanimated/) | `>= 4.0.0` |
+
+Wrap your app (or at least the screen containing a chart) in a
+`GestureHandlerRootView`, and follow the Reanimated Babel-plugin setup if you
+haven't already.
+
+## Native build step
+
+`react-native-vroom-chart` ships a native module (the C++ Skia core via JSI), so
+it is **not** available in Expo Go. Use a development build / dev client:
+
+- **Expo:** run a prebuild and install the dev client, then rebuild the native
+  app whenever the native module changes.
+- **Bare React Native (iOS):** run `pod install` and rebuild. In this repo's test
+  bench that's wired up as `pnpm rebuild:ios`.
+
+After the native module is installed, JS-only changes hot-reload normally; you
+only need to rebuild when native code changes.
+
+> **Android** support is in progress. Today native is consumed through this React
+> Native package; standalone Swift/Kotlin packages are planned.
+
+</TabItem>
+<TabItem value="web" label="Web">
+
+```sh
+npm install @vroomchart/react
+```
+
+This pulls in **`@vroomchart/core-wasm`** automatically — the Skia core compiled
+to WebAssembly, bundled together with its WASM binary and a font, so there's
+nothing extra to host.
+
+## Peer dependencies
+
+The web package targets React DOM:
+
+| Package | Version |
+| --- | --- |
+| [`react`](https://react.dev) | `>= 18` |
+| [`react-dom`](https://react.dev) | `>= 18` |
+
+Unlike the native package, there's no gesture-handler / Reanimated setup and no
+root-view wrapper — input is handled internally with Pointer/Wheel events.
+
+## Bundler & headers
+
+The package locates its WASM/font assets with `new URL(..., import.meta.url)`, so
+a modern bundler (**Vite**, **webpack 5+**, or any tool that understands that
+pattern) emits and rewrites the asset URLs for you — no manual asset hosting.
+
+If your WASM build uses pthreads (and therefore `SharedArrayBuffer`), the page
+must be **cross-origin isolated**. Serve it with:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+These headers are harmless otherwise. In Vite, for example, set them under
+`server.headers` / `preview.headers`.
+
+</TabItem>
+</Tabs>
+
+Next: [Quickstart](quickstart.mdx).

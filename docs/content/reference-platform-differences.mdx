@@ -1,0 +1,75 @@
+---
+title: Platform differences
+sidebar_label: Platform differences
+slug: /reference/platform-differences
+description: How VroomChartProps differs between the React Native and web packages.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
+# Platform differences
+
+The data, indicator, theme, and event types — [`Candle`](/reference/type-aliases/Candle),
+[`CrosshairEvent`](/reference/type-aliases/CrosshairEvent),
+[`VroomTheme`](/reference/type-aliases/VroomTheme),
+[`RSIConfig`](/reference/type-aliases/RSIConfig),
+[`MACDConfig`](/reference/type-aliases/MACDConfig),
+[`MovingAverageOverlay`](/reference/type-aliases/MovingAverageOverlay),
+[`VWAPConfig`](/reference/type-aliases/VWAPConfig),
+[`VisibleRange`](/reference/type-aliases/VisibleRange), and the `onCrosshair` /
+`onViewportChange` callbacks — are **identical across both packages**. They're
+defined once and shared, so everything in the [API reference](/reference/) applies
+to both platforms.
+
+The only prop that differs is **`style`**, plus a few web-only props. The
+generated [`VroomChartProps`](/reference/type-aliases/VroomChartProps) reference
+reflects the React Native package; the deltas are:
+
+<Tabs groupId="platform" queryString>
+<TabItem value="react-native" label="React Native">
+
+```ts
+type VroomChartProps = VroomChartCoreProps & {
+  /** Style for the chart's root view. Defaults to filling the parent. */
+  style?: StyleProp<ViewStyle>;
+};
+```
+
+`style` is a React Native [`ViewStyle`](https://reactnative.dev/docs/view-style-props).
+There are no other native-only props.
+
+</TabItem>
+<TabItem value="web" label="Web">
+
+```ts
+type VroomChartProps = VroomChartCoreProps & {
+  /** Class applied to the chart's root element. */
+  className?: string;
+  /** Inline style for the chart's root element. Defaults to filling its parent. */
+  style?: CSSProperties;
+  /**
+   * Use the real Skia-WASM core instead of the Canvas2D stub by pointing at the
+   * built module/font assets. Omit to use the bundled WASM core.
+   */
+  wasm?: WasmConfig;
+  /** Force the Canvas2D stub even when `wasm` is provided (tests / SSR). */
+  forceStub?: boolean;
+};
+```
+
+On the web, `style` is a DOM [`CSSProperties`](https://developer.mozilla.org/en-US/docs/Web/CSS),
+and three extra props are available:
+
+- **`className`** — a class on the chart's root element.
+- **`wasm`** — override where the Skia-WASM core/font assets load from. Omit to
+  use the build bundled in `@vroomchart/core-wasm`.
+- **`forceStub`** — force the lightweight Canvas2D fallback (useful in tests or
+  SSR).
+
+</TabItem>
+</Tabs>
+
+Everything else — `candles`, `visibleRange`, `theme`, `rsi`, `macd`,
+`movingAverages`, `vwap`, `crosshairOffset`, `width`/`height`, and both event
+callbacks — is shared (`VroomChartCoreProps`).

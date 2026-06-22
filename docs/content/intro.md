@@ -3,17 +3,24 @@ id: intro
 slug: /
 title: Introduction
 sidebar_label: Introduction
-description: Lightning-fast, Skia-powered candlestick charts for React Native.
+description: Lightning-fast, Skia-powered candlestick charts for React Native and the web.
 ---
 
 # Introduction
 
-**vroom** is a mobile-first candlestick charting library. Its rendering core is
-written in C++ on top of [Skia](https://skia.org), so charts stay smooth under
-pans, pinches, and live updates — the same engine that powers native iOS and
-Android, exposed to React Native through a thin JSI bridge.
+**vroom** is a candlestick charting library with a single C++ rendering core
+built on [Skia](https://skia.org), so charts stay smooth under pans, pinches, and
+live updates. That one core powers two front-ends:
 
-This site documents the React Native package, **`react-native-vroom-chart`**.
+- **`react-native-vroom-chart`** — native iOS/Android, exposed to React Native
+  through a thin JSI bridge.
+- **`@vroomchart/react`** — the web/DOM component, backed by
+  **`@vroomchart/core-wasm`** (the same core compiled to WebAssembly, painting a
+  `<canvas>`).
+
+Both expose the **same props and events**, so this site documents them together:
+platform-specific bits (install, imports, input idioms) are shown in **React
+Native / Web** tabs — pick your platform once and it sticks across every page.
 
 ## Features
 
@@ -28,10 +35,11 @@ This site documents the React Native package, **`react-native-vroom-chart`**.
 
 ## Get started
 
-- [Installation](getting-started/installation.md) — peer dependencies and the
-  native build step.
-- [Quickstart](getting-started/quickstart.md) — render your first chart.
-- [API reference](reference/index.md) — generated from the source types.
+- [Installation](getting-started/installation.mdx) — packages and peer
+  dependencies for each platform.
+- [Quickstart](getting-started/quickstart.mdx) — render your first chart.
+- [API reference](reference/index.md) — generated from the source types (see
+  [Platform differences](reference/platform-differences) for the per-platform props).
 
 ## How these docs are maintained
 

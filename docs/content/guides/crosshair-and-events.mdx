@@ -1,3 +1,6 @@
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+
 # Crosshair & events
 
 vroom surfaces what the user is looking at back to your app so you can render
@@ -6,8 +9,12 @@ it just tells you what happened.
 
 ## Crosshair
 
-A long-press shows a crosshair that snaps to the nearest candle. Subscribe with
-`onCrosshair`; the callback receives a [`CrosshairEvent`](../reference/index.md):
+The crosshair snaps to the nearest candle and reports it through `onCrosshair`.
+It's activated by a **long-press** on touch and by **hovering** the mouse on the
+web. The callback receives a [`CrosshairEvent`](../reference/index.md):
+
+<Tabs groupId="platform" queryString>
+<TabItem value="react-native" label="React Native">
 
 ```tsx
 import * as Haptics from 'expo-haptics';
@@ -23,14 +30,34 @@ import * as Haptics from 'expo-haptics';
 />
 ```
 
+</TabItem>
+<TabItem value="web" label="Web">
+
+```tsx
+<VroomChart
+  candles={candles}
+  onCrosshair={(e) => {
+    if (e.reason === 'show' || e.reason === 'move') {
+      // Optional haptic — supported on some mobile browsers only.
+      navigator.vibrate?.(10);
+    }
+    setSelected(e.active ? e.candle : null); // full OHLCV under the crosshair
+  }}
+/>
+```
+
+</TabItem>
+</Tabs>
+
 - `active` — whether the crosshair is showing.
 - `candle` — the [`Candle`](../reference/index.md) under the crosshair (OHLCV), or
   `null` when inactive.
-- `reason` — `'show'` (long-press activated), `'move'` (snapped to a different
-  candle — one event per candle crossed, not per frame), or `'hide'` (dismissed).
+- `reason` — `'show'` (activated), `'move'` (snapped to a different candle — one
+  event per candle crossed, not per frame), or `'hide'` (dismissed).
 
 Use `crosshairOffset` to lift the dot/horizontal line above the touch point so
-they aren't hidden under the thumb (default 40px).
+they aren't hidden under the thumb (default 40px). On the web, a hover crosshair
+sits directly under the cursor.
 
 ## Viewport changes
 
@@ -47,4 +74,4 @@ you the new window bounds:
 ```
 
 This is the read-side counterpart to the [`visibleRange`](../reference/index.md)
-prop — see [Gestures & viewport](gestures-and-viewport.md).
+prop — see [Gestures & viewport](gestures-and-viewport.mdx).

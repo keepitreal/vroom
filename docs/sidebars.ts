@@ -26,7 +26,10 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'API reference',
-      items: typedocSidebar.items ?? typedocSidebar,
+      // Hand-written platform-differences page lives at content root (outside
+      // content/reference/, which docusaurus-plugin-typedoc wipes on every build),
+      // slotted in ahead of the generated entries.
+      items: ['reference-platform-differences', ...(typedocSidebar.items ?? typedocSidebar)],
     },
   ],
 };

@@ -11,7 +11,7 @@
 | [MovingAverageOverlay](type-aliases/MovingAverageOverlay.md) | A moving-average overlay line drawn on the price pane. Provide an array of these via `movingAverages` to render a ribbon of SMA/EMA lines. |
 | [RSIConfig](type-aliases/RSIConfig.md) | RSI indicator config. Rendered in a pane below the candles when enabled. |
 | [VisibleRange](type-aliases/VisibleRange.md) | A time window over the candle data, as Unix epoch milliseconds. |
-| [VroomChartProps](type-aliases/VroomChartProps.md) | Props for the [VroomChart](functions/VroomChart.md) component. |
+| [VroomChartProps](type-aliases/VroomChartProps.md) | Props for the [VroomChart](functions/VroomChart.md) component. The cross-platform props come from VroomChartCoreProps; `style` is the React Native flavor. |
 | [VroomColor](type-aliases/VroomColor.md) | A color value: a hex string (`'#0d1117'`, or 8-digit `'#aarrggbb'`) or a packed ARGB number. In `VroomTheme` every field is optional — omitted colors keep the library default. |
 | [VroomTheme](type-aliases/VroomTheme.md) | Color overrides for the chart, passed via the `theme` prop. |
 | [VWAPConfig](type-aliases/VWAPConfig.md) | VWAP overlay config (session anchor). Drawn as a single line on the price pane, resetting each session. |
