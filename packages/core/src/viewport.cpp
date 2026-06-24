@@ -195,4 +195,17 @@ float price_to_y(const Layout& layout,
     return bot - static_cast<float>(t) * draw_h;    // invert: high price → low y
 }
 
+double y_to_price(const Layout& layout,
+                  const PriceBounds& bounds,
+                  float y) {
+    const float candle_area_h = price_pane_bottom(layout);
+    const float top = candle_area_h * layout.top_padding_frac;
+    const float bot = candle_area_h * (1.f - layout.bottom_padding_frac);
+    const float draw_h = bot - top;
+    const double range = bounds.max - bounds.min;
+    if (draw_h <= 0.f || range <= 0.0) return bounds.min;
+    const double t = (bot - y) / draw_h;  // 0 at min (bottom), 1 at top
+    return bounds.min + t * range;
+}
+
 }  // namespace vroom

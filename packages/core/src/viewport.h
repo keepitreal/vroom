@@ -119,4 +119,8 @@ PriceBounds price_bounds(const ::VroomCandle* candles, size_t count);
 // Map a price to y in pixels. y=0 is top of the chart.
 float price_to_y(const Layout& layout, const PriceBounds& bounds, double price);
 
+// Inverse of price_to_y: map a pixel y in the price pane back to a price.
+// Returns bounds.min for a degenerate range or draw band.
+double y_to_price(const Layout& layout, const PriceBounds& bounds, float y);
+
 }  // namespace vroom

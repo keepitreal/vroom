@@ -256,11 +256,17 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      horizontal line + ring stay in the price pane (clamped to
     //      candle_area_h).
     if (crosshair_active) {
-        const float snap_x = vroom::snap_x_to_candle(
+        // Snap once: the slot gives both the vertical line's x (its center) and
+        // the time shown in the date badge. (snap_x_to_candle does exactly this
+        // internally, so the line position is unchanged.)
+        const vroom::SnapResult snap = vroom::snap_to_slot(
             lay, visible, n, candle_duration_ms, visible_start_ms, window_ms,
             crosshair_x_px);
-        vroom::crosshair::draw(canvas, *this, candle_right, candle_area_h,
-                               vroom::x_axis_top(lay), snap_x);
+        const float snap_x = vroom::candle_center_x(
+            lay, snap.time_ms, candle_duration_ms, visible_start_ms, window_ms);
+        vroom::crosshair::draw(canvas, *this, lay, bounds, candle_right,
+                               candle_area_h, vroom::x_axis_top(lay), snap_x,
+                               snap.time_ms);
     }
 
     // 8. GC fades that have fully faded out and aren't coming back.

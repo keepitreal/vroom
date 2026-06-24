@@ -276,3 +276,33 @@ TEST_CASE("price_to_y") {
         CHECK(vroom::price_to_y(l, b, 100.0) == doctest::Approx(0.f));
     }
 }
+
+TEST_CASE("y_to_price") {
+    Layout l = make_layout();  // candle area = full 1000px height, no padding
+    PriceBounds b{0.0, 100.0};
+
+    SUBCASE("inverts price_to_y: small y -> high price, large y -> low price") {
+        CHECK(vroom::y_to_price(l, b, 0.f) == doctest::Approx(100.0));
+        CHECK(vroom::y_to_price(l, b, 1000.f) == doctest::Approx(0.0));
+        CHECK(vroom::y_to_price(l, b, 500.f) == doctest::Approx(50.0));
+    }
+
+    SUBCASE("round-trips with price_to_y") {
+        for (double price : {0.0, 12.5, 50.0, 87.3, 100.0}) {
+            const float y = vroom::price_to_y(l, b, price);
+            CHECK(vroom::y_to_price(l, b, y) == doctest::Approx(price));
+        }
+    }
+
+    SUBCASE("zero range returns bounds.min") {
+        PriceBounds flat{50.0, 50.0};
+        CHECK(vroom::y_to_price(l, flat, 500.f) == doctest::Approx(50.0));
+    }
+
+    SUBCASE("honors top/bottom padding fractions") {
+        l.top_padding_frac = 0.1f;
+        l.bottom_padding_frac = 0.1f;  // draw band 100..900
+        CHECK(vroom::y_to_price(l, b, 100.f) == doctest::Approx(100.0));
+        CHECK(vroom::y_to_price(l, b, 900.f) == doctest::Approx(0.0));
+    }
+}
