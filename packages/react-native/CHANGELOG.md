@@ -1,5 +1,11 @@
 # react-native-vroom-chart
 
+## 0.1.1
+
+### Patch Changes
+
+- x-axis: calendar-aware tick labels (month/year cadences) so labels no longer overlap when zoomed out, and extend the future-scroll cap to 25% candles visible with rubber-band resistance.
+
 ## 0.1.0
 
 ### Minor Changes
