@@ -2,10 +2,9 @@
 //
 // This mirrors the C facade (packages/core/include/vroom/vroom_chart.h) and the
 // native JSI handle (packages/react-native/src/jsi.d.ts) — but WITHOUT the
-// SkPicture return values. On web the core (A1c) owns the <canvas> and its
-// rendering surface, so mutations are `void` and `present()` paints. Today this
-// is backed by a Canvas2D stub (./stub); later by the Skia-WASM module, with no
-// change to this interface or to @vroomchart/react.
+// SkPicture return values. On web the core owns the <canvas> and its rendering
+// surface, so mutations are `void` and `present()` paints. Backed by the
+// Skia-WASM module (./wasm).
 
 /** Theme color slots — mirrors the `VroomColorKey` enum in the C facade. */
 export enum ColorKey {

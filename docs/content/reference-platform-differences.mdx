@@ -49,23 +49,19 @@ type VroomChartProps = VroomChartCoreProps & {
   /** Inline style for the chart's root element. Defaults to filling its parent. */
   style?: CSSProperties;
   /**
-   * Use the real Skia-WASM core instead of the Canvas2D stub by pointing at the
-   * built module/font assets. Omit to use the bundled WASM core.
+   * Load the Skia-WASM core from your own module/font URLs instead of the
+   * build bundled in `@vroomchart/core-wasm`.
    */
   wasm?: WasmConfig;
-  /** Force the Canvas2D stub even when `wasm` is provided (tests / SSR). */
-  forceStub?: boolean;
 };
 ```
 
 On the web, `style` is a DOM [`CSSProperties`](https://developer.mozilla.org/en-US/docs/Web/CSS),
-and three extra props are available:
+and two extra props are available:
 
 - **`className`** — a class on the chart's root element.
 - **`wasm`** — override where the Skia-WASM core/font assets load from. Omit to
   use the build bundled in `@vroomchart/core-wasm`.
-- **`forceStub`** — force the lightweight Canvas2D fallback (useful in tests or
-  SSR).
 
 </TabItem>
 </Tabs>

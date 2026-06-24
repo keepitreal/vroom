@@ -72,9 +72,11 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
         chart->visible_end_ms = chart->candles.back().time_ms;
     }
 
-    // Snap the price (y-axis) bounds to whatever's visible right now. After
-    // this, only zoom / axis-drags change them; panning preserves them.
-    if (!chart->candles.empty()) {
+    // Snap the price (y-axis) bounds to whatever's visible — but only on the
+    // first load. After they're initialized, leave them alone so live data
+    // updates (new / updated candles) preserve the user's pan/scale; from then
+    // on only zoom / axis-drags / vertical translate change them.
+    if (!chart->candles.empty() && !chart->price_bounds_initialized) {
         const auto idx = vroom::visible_indices(
             chart->candles.data(), chart->candles.size(),
             chart->visible_start_ms, chart->visible_end_ms);

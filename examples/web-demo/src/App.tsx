@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { VroomChart, type Candle, type CrosshairEvent } from '@vroomchart/react';
+import { StreamingRepro } from './StreamingRepro';
 
 // Synthetic random-walk candles for the demo.
 function mockCandles(n: number, stepMs: number): Candle[] {
@@ -27,10 +28,11 @@ function mockCandles(n: number, stepMs: number): Candle[] {
 const DAY = 24 * 60 * 60 * 1000;
 
 export function App() {
-  // No wasm/asset config needed — @vroomchart/react defaults to the Skia-WASM core
-  // bundled in @vroomchart/core-wasm (and falls back to the Canvas2D stub on failure).
+  // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
+  // bundled in @vroomchart/core-wasm.
   const candles = useMemo(() => mockCandles(300, DAY), []);
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
+  const [view, setView] = useState<'repro' | 'demo'>('repro');
 
   const onCrosshair = (e: CrosshairEvent) => {
     if (!e.active || !e.candle) {
@@ -44,13 +46,40 @@ export function App() {
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', color: '#c9d1d9', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'baseline' }}>
+      <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center' }}>
         <strong style={{ fontSize: 16 }}>Vroom</strong>
-        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['repro', 'demo'] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                background: view === v ? '#21262d' : 'transparent',
+                color: '#c9d1d9',
+                border: '1px solid #30363d',
+                borderRadius: 6,
+                padding: '4px 10px',
+                fontSize: 13,
+                cursor: 'pointer',
+              }}
+            >
+              {v === 'repro' ? 'Repro' : 'Demo'}
+            </button>
+          ))}
+        </div>
+        {view === 'demo' && (
+          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
+        )}
       </div>
-      <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>
-        <VroomChart candles={candles} onCrosshair={onCrosshair} />
-      </div>
+      {view === 'repro' ? (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <StreamingRepro />
+        </div>
+      ) : (
+        <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>
+          <VroomChart candles={candles} onCrosshair={onCrosshair} />
+        </div>
+      )}
     </div>
   );
 }

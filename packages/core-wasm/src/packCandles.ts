@@ -26,7 +26,7 @@ export function packCandles(candles: Candle[]): ArrayBuffer {
   return buf;
 }
 
-/** Decode the packed buffer back to candles (used by the Canvas2D stub core). */
+/** Decode the packed buffer back to candles (inverse of packCandles). */
 export function unpackCandles(buf: ArrayBuffer): Candle[] {
   const view = new DataView(buf);
   const n = Math.floor(buf.byteLength / BYTES_PER_CANDLE);
