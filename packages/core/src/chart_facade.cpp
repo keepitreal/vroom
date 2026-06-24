@@ -30,6 +30,30 @@ constexpr double kAxisDragSensitivity = 300.0;
 constexpr double kMinCandleBodyPx = 1.5;
 constexpr double kMaxCandleBodyPx = 32.0;
 
+// Hard cap on the future gap (visible_end - last_candle): 3/4 of the window so
+// at least 25% of the chart still shows candles. Never forces an existing larger
+// gap (e.g. from the x-axis drag zoom) to snap back — only limits new growth.
+int64_t max_future_gap(int64_t window_ms, int64_t cur_future) {
+    return std::max<int64_t>((window_ms * 3) / 4, cur_future);
+}
+
+// Rubber-band a forward (into-future) pan delta: once the current future gap is
+// past the soft cap (window/2), damp the delta quadratically toward zero as it
+// nears the hard cap (3*window/4). Backward (into-past) deltas are unaffected.
+int64_t damp_future_delta(int64_t delta_ms, int64_t cur_future,
+                          int64_t window_ms) {
+    if (delta_ms <= 0) return delta_ms;       // only resist forward motion
+    const int64_t soft = window_ms / 2;
+    if (cur_future <= soft) return delta_ms;  // free until the soft cap
+    const int64_t hard = (window_ms * 3) / 4;
+    const double span = static_cast<double>(hard - soft);
+    if (span <= 0.0) return 0;
+    const double depth = std::clamp(
+        static_cast<double>(cur_future - soft) / span, 0.0, 1.0);
+    const double resist = (1.0 - depth) * (1.0 - depth);
+    return static_cast<int64_t>(static_cast<double>(delta_ms) * resist);
+}
+
 }  // namespace
 
 // ---- Lifecycle -------------------------------------------------------------
@@ -157,21 +181,22 @@ extern "C" void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/)
         (-dx_px / usable_px) * static_cast<float>(window_ms));
     if (delta_ms == 0) return;
 
-    int64_t new_start = chart->visible_start_ms + delta_ms;
-    int64_t new_end = chart->visible_end_ms + delta_ms;
-
-    // Right edge can overshoot the last candle by up to half a window so the
-    // user can scroll into empty "future" space (e.g., to view right-anchored
-    // indicators). The x-axis drag zoom can intentionally exceed that 50% cap
-    // (it zooms in until ~one candle remains), so snapping straight back to 50%
-    // here would make the first pan lurch. Instead permit the current (larger)
-    // gap to persist and shrink naturally as the user scrolls, then re-cap at
-    // 50% once it falls back there. Left edge still hard-clamps at the first
-    // candle.
+    // The right edge can overshoot the last candle into empty "future" space.
+    // Free scrolling up to half a window (candles fill >= 50%); from there to
+    // 3/4 of a window (candles fill >= 25%) panning forward is rubber-banded so
+    // it slows and hard-stops at the cap. The x-axis drag zoom can leave a gap
+    // larger than the cap (it zooms in until ~one candle remains), so the cap
+    // never forces it back — it just shrinks naturally as the user scrolls.
+    // Left edge still hard-clamps at the first candle.
     const int64_t first_time = chart->candles.front().time_ms;
     const int64_t last_time = chart->candles.back().time_ms;
-    const int64_t max_future =
-        std::max<int64_t>(window_ms / 2, chart->visible_end_ms - last_time);
+    const int64_t cur_future = chart->visible_end_ms - last_time;
+    const int64_t eff_delta = damp_future_delta(delta_ms, cur_future, window_ms);
+
+    int64_t new_start = chart->visible_start_ms + eff_delta;
+    int64_t new_end = chart->visible_end_ms + eff_delta;
+
+    const int64_t max_future = max_future_gap(window_ms, cur_future);
     if (new_end > last_time + max_future) {
         new_end = last_time + max_future;
         new_start = new_end - window_ms;
@@ -211,15 +236,18 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
             const int64_t delta_ms = static_cast<int64_t>(
                 (-dx_px / usable_px) * static_cast<float>(window_ms));
             if (delta_ms != 0) {
-                int64_t new_start = chart->visible_start_ms + delta_ms;
-                int64_t new_end = chart->visible_end_ms + delta_ms;
+                // See vroom_chart_pan: rubber-band forward scrolling between the
+                // 50% and 25%-candles caps, and let an existing larger gap (from
+                // the x-axis drag zoom) shrink naturally instead of snapping.
                 const int64_t first_time = chart->candles.front().time_ms;
                 const int64_t last_time = chart->candles.back().time_ms;
-                // See vroom_chart_pan: allow an existing >50% future gap (from
-                // the x-axis drag zoom) to persist and shrink instead of
-                // snapping back, which would make the first drag lurch.
-                const int64_t max_future = std::max<int64_t>(
-                    window_ms / 2, chart->visible_end_ms - last_time);
+                const int64_t cur_future = chart->visible_end_ms - last_time;
+                const int64_t eff_delta =
+                    damp_future_delta(delta_ms, cur_future, window_ms);
+                int64_t new_start = chart->visible_start_ms + eff_delta;
+                int64_t new_end = chart->visible_end_ms + eff_delta;
+                const int64_t max_future =
+                    max_future_gap(window_ms, cur_future);
                 if (new_end > last_time + max_future) {
                     new_end = last_time + max_future;
                     new_start = new_end - window_ms;
@@ -428,7 +456,11 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
                 int64_t new_end = new_start + new_window;
                 const int64_t first_time = chart->candles.front().time_ms;
                 const int64_t last_time = chart->candles.back().time_ms;
-                const int64_t max_future = new_window / 2;
+                // Cap the future gap at 3/4 of the (new) window so >= 25% of the
+                // chart still shows candles, without snapping back an existing
+                // larger gap (e.g. from the x-axis drag zoom).
+                const int64_t max_future = max_future_gap(
+                    new_window, chart->visible_end_ms - last_time);
                 if (new_end > last_time + max_future) {
                     new_end = last_time + max_future;
                     new_start = new_end - new_window;

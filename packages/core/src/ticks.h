@@ -17,10 +17,33 @@ inline constexpr float kXLabelMinSpacing = 50.f;
 // Target spacing for y-axis labels — used to derive a target count.
 inline constexpr float kYLabelTargetSpacing = 55.f;
 
-// Selects the smallest time interval whose pixel-spacing meets the minimum.
-// Returns milliseconds. Hierarchy: 1m → 5m → 15m → 30m → 1h → 2h → 4h → 6h →
-// 12h → 1d → 2d → 1w.
-int64_t pick_time_interval(int64_t window_ms, float candle_area_w);
+// X-axis tick cadence. The hierarchy starts with fixed millisecond intervals
+// (1m … 1w) and, beyond a week, switches to calendar-aware month/year steps so
+// labels land on real month and year boundaries instead of drifting epoch
+// multiples.
+enum class TimeUnit { Fixed, Month, Year };
+
+// A chosen tick cadence. For Fixed, ticks land on epoch multiples of step_ms.
+// For Month/Year, ticks land on local-calendar boundaries `step` units apart
+// (e.g. {Month, step=3} → quarter starts; {Year, step=1} → Jan 1 each year).
+struct TimeTick {
+    TimeUnit unit;
+    int64_t  step_ms;  // valid iff unit == Fixed
+    int      step;     // valid iff unit == Month or Year
+};
+
+// Selects the coarsest-enough cadence whose on-screen spacing meets the minimum.
+// Hierarchy: 1m → 5m → 15m → 30m → 1h → 2h → 4h → 6h → 12h → 1d → 2d → 1w →
+// 1mo → 3mo → 6mo → 1y → 2y → 5y → … (the year step grows as 1/2/5 × 10ⁿ so
+// arbitrarily wide windows never overlap).
+TimeTick pick_time_tick(int64_t window_ms, float candle_area_w);
+
+// First tick at or after from_ms for the given cadence. Calendar units align to
+// local month/year boundaries.
+int64_t first_tick_at_or_after(int64_t from_ms, const TimeTick& tick);
+
+// The next tick strictly after t for the given cadence.
+int64_t next_tick(int64_t t, const TimeTick& tick);
 
 // "Nice number" tick selection for the y-axis: snaps to 1, 2, or 5 × 10ⁿ
 // based on the price range and target spacing. Returns the price interval

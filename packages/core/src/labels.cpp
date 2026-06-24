@@ -171,17 +171,16 @@ void update_x_fades(VroomChart& chart, const Layout& lay) {
     if (candle_area_w <= 0.f) return;
 
     const int64_t window_ms = chart.visible_end_ms - chart.visible_start_ms;
-    const int64_t interval = vroom::pick_time_interval(window_ms, candle_area_w);
-    if (interval <= 0) return;
+    const vroom::TimeTick tick =
+        vroom::pick_time_tick(window_ms, candle_area_w);
 
     for (auto& f : chart.x_fades) f.target = 0.f;
 
-    int64_t t = (chart.visible_start_ms / interval) * interval;
-    if (t < chart.visible_start_ms) t += interval;
+    int64_t t = vroom::first_tick_at_or_after(chart.visible_start_ms, tick);
     constexpr int kMaxLabels = 64;
     int promoted = 0;
     for (; t <= chart.visible_end_ms && promoted < kMaxLabels;
-         t += interval, ++promoted) {
+         t = vroom::next_tick(t, tick), ++promoted) {
         bool found = false;
         for (auto& f : chart.x_fades) {
             if (f.time_ms == t) {
@@ -238,8 +237,9 @@ void draw_x_labels(SkCanvas* canvas,
     if (candle_area_w <= 0.f) return;
 
     const int64_t window_ms = chart.visible_end_ms - chart.visible_start_ms;
-    // Recompute interval here just to decide HH:MM vs MM/DD formatting.
-    const int64_t interval = vroom::pick_time_interval(window_ms, candle_area_w);
+    // Recompute the cadence here just to decide label formatting.
+    const vroom::TimeTick tick =
+        vroom::pick_time_tick(window_ms, candle_area_w);
 
     SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
     font.setSubpixel(true);
@@ -257,7 +257,9 @@ void draw_x_labels(SkCanvas* canvas,
 
     const float baseline_y =
         candle_area_h + (lay.x_axis_height_px + cap_h) * 0.5f;
-    const bool use_date = interval >= 24LL * 60 * 60 * 1000;
+    const bool use_date =
+        tick.unit == vroom::TimeUnit::Fixed &&
+        tick.step_ms >= 24LL * 60 * 60 * 1000;
     for (const auto& f : chart.x_fades) {
         if (f.opacity <= 1e-3f) continue;
         const float frac =
@@ -269,7 +271,16 @@ void draw_x_labels(SkCanvas* canvas,
         const time_t time_s = static_cast<time_t>(f.time_ms / 1000);
         struct tm tm_buf;
         localtime_r(&time_s, &tm_buf);
-        if (use_date) {
+        if (tick.unit == vroom::TimeUnit::Year) {
+            std::snprintf(buf, sizeof(buf), "%d", tm_buf.tm_year + 1900);
+        } else if (tick.unit == vroom::TimeUnit::Month) {
+            // Show the year at January so month ticks read across years.
+            if (tm_buf.tm_mon == 0) {
+                std::snprintf(buf, sizeof(buf), "%d", tm_buf.tm_year + 1900);
+            } else {
+                std::strftime(buf, sizeof(buf), "%b", &tm_buf);
+            }
+        } else if (use_date) {
             std::snprintf(buf, sizeof(buf), "%02d/%02d",
                           tm_buf.tm_mon + 1, tm_buf.tm_mday);
         } else {
