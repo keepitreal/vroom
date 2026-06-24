@@ -455,6 +455,31 @@ extern "C" bool vroom_chart_get_crosshair_candle(VroomChart* chart,
     return true;
 }
 
+extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
+                                               VroomCrosshairInfo* out) {
+    if (!chart || !out || !chart->crosshair_active || chart->candles.empty()) {
+        return false;
+    }
+    // Mirror draw_chart's visible-slice derivation so the queried slot is
+    // exactly the one the crosshair snaps to on screen.
+    const auto lay = chart->layout();
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (n == 0 || window_ms <= 0) return false;
+
+    const ::VroomCandle* visible = chart->candles.data() + range.start;
+    const vroom::SnapResult snap = vroom::snap_to_slot(
+        lay, visible, n, chart->candle_duration_ms,
+        chart->visible_start_ms, window_ms, chart->crosshair_x_px);
+    out->time_ms = snap.time_ms;
+    out->has_candle = snap.has_candle;
+    if (snap.has_candle) out->candle = visible[snap.index];
+    return true;
+}
+
 // ---- Indicators -----------------------------------------------------------
 
 extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,

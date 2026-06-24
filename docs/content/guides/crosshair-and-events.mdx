@@ -51,9 +51,28 @@ import * as Haptics from 'expo-haptics';
 
 - `active` — whether the crosshair is showing.
 - `candle` — the [`Candle`](../reference/index.md) under the crosshair (OHLCV), or
-  `null` when inactive.
-- `reason` — `'show'` (activated), `'move'` (snapped to a different candle — one
-  event per candle crossed, not per frame), or `'hide'` (dismissed).
+  `null` when inactive **or when the crosshair sits on a future slot** (see below).
+- `timeMs` — the bar-open time (Unix epoch ms) of the slot the crosshair snaps
+  to, or `null` when inactive. This is set even in the empty space ahead of the
+  most recent candle, so you can read the future time when `candle` is `null`.
+- `reason` — `'show'` (activated), `'move'` (snapped to a different slot — one
+  event per slot crossed, not per frame), or `'hide'` (dismissed).
+
+### Snapping into the future
+
+The crosshair still locks to candles, but it keeps snapping to candle-aligned
+slots as it moves horizontally into the empty space the chart leaves ahead of
+the most recent candle. Over real candles, `candle` holds the OHLCV. On a future
+slot (where no candle exists yet) `candle` is `null` while `timeMs` reports the
+slot's time:
+
+```tsx
+onCrosshair={(e) => {
+  if (!e.active) return clearReadout();
+  if (e.candle) showOhlcv(e.candle);          // over a real candle
+  else showFutureTime(e.timeMs);              // empty slot ahead of the last bar
+}}
+```
 
 Use `crosshairOffset` to lift the dot/horizontal line above the touch point so
 they aren't hidden under the thumb (default 40px). On the web, a hover crosshair

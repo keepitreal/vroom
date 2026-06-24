@@ -25,6 +25,7 @@ export type {
   VroomChartHandle,
   AxisMetrics,
   CrosshairCandle,
+  CrosshairInfo,
   OverlaySpec,
 } from './handle';
 export { ColorKey } from './handle';

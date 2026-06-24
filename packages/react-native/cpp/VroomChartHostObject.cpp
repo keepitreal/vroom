@@ -42,6 +42,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "clearCrosshair"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairCandle"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairInfo"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setRSI"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMACD"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
@@ -332,6 +333,42 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           obj.setProperty(rt2, "low", c.low);
           obj.setProperty(rt2, "close", c.close);
           obj.setProperty(rt2, "volume", c.volume);
+          return obj;
+        });
+  }
+
+  if (name == "getCrosshairInfo") {
+    // getCrosshairInfo() -> { timeMs, candle: {...} | null } | null. The slot
+    // the crosshair snaps to (real candle or a future candle-aligned slot past
+    // the last bar); null when the crosshair is inactive. `candle` is null in
+    // the empty space ahead of the most recent candle. No rendering.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "getCrosshairInfo"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          VroomCrosshairInfo info{};
+          if (!vroom_chart_get_crosshair_info(chart_, &info)) {
+            return jsi::Value::null();
+          }
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "timeMs", static_cast<double>(info.time_ms));
+          if (info.has_candle) {
+            jsi::Object c(rt2);
+            c.setProperty(rt2, "timeMs",
+                          static_cast<double>(info.candle.time_ms));
+            c.setProperty(rt2, "open", info.candle.open);
+            c.setProperty(rt2, "high", info.candle.high);
+            c.setProperty(rt2, "low", info.candle.low);
+            c.setProperty(rt2, "close", info.candle.close);
+            c.setProperty(rt2, "volume", info.candle.volume);
+            obj.setProperty(rt2, "candle", c);
+          } else {
+            obj.setProperty(rt2, "candle", jsi::Value::null());
+          }
           return obj;
         });
   }

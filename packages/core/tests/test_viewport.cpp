@@ -101,9 +101,19 @@ TEST_CASE("snap_x_to_candle") {
               doctest::Approx(50.f));
     }
 
-    SUBCASE("right of last clamps to last candle center") {
-        CHECK(vroom::snap_x_to_candle(l, candles, 10, 100, 0, 1000, 2000.f) ==
+    SUBCASE("just past the last candle still snaps to it") {
+        // x=965 -> target ~915, within half a period of the last candle
+        // (t=900, center 950).
+        CHECK(vroom::snap_x_to_candle(l, candles, 10, 100, 0, 1000, 965.f) ==
               doctest::Approx(950.f));
+    }
+
+    SUBCASE("past the last candle snaps onto the future grid") {
+        // window 2000 leaves empty room past the last candle (t=900). x=550
+        // maps to ~t=1100, snapping to the empty future slot at t=1100
+        // (center 575) instead of clamping to the last candle.
+        CHECK(vroom::snap_x_to_candle(l, candles, 10, 100, 0, 2000, 550.f) ==
+              doctest::Approx(575.f));
     }
 
     SUBCASE("snaps to the nearer of two candles") {
@@ -139,6 +149,53 @@ TEST_CASE("snap_index_to_candle") {
         // x=90 -> key 40, nearer to candle t=0 (index 0).
         CHECK(vroom::snap_index_to_candle(l, candles, 10, 100, 0, 1000, 90.f) ==
               0u);
+    }
+}
+
+TEST_CASE("snap_to_slot") {
+    Layout l = make_layout();
+    // 10 candles at t = 0,100,...,900; duration 100; usable 1000.
+    VroomCandle candles[10];
+    for (int i = 0; i < 10; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+
+    SUBCASE("over a real candle reports the candle and its index") {
+        // x=140 -> key 90, nearest real candle is t=100 (index 1).
+        auto r = vroom::snap_to_slot(l, candles, 10, 100, 0, 1000, 140.f);
+        CHECK(r.has_candle == true);
+        CHECK(r.index == 1u);
+        CHECK(r.time_ms == 100);
+    }
+
+    SUBCASE("left of first clamps to the first candle") {
+        auto r = vroom::snap_to_slot(l, candles, 10, 100, 0, 1000, -50.f);
+        CHECK(r.has_candle == true);
+        CHECK(r.index == 0u);
+        CHECK(r.time_ms == 0);
+    }
+
+    SUBCASE("just past the last candle still resolves to it") {
+        // x=965 -> key ~915, within half a period of the last candle (t=900).
+        auto r = vroom::snap_to_slot(l, candles, 10, 100, 0, 1000, 965.f);
+        CHECK(r.has_candle == true);
+        CHECK(r.index == 9u);
+        CHECK(r.time_ms == 900);
+    }
+
+    SUBCASE("beyond the last candle snaps to an empty future slot") {
+        // window 2000 leaves room past the last candle. x=550 -> key ~1050,
+        // snapping to the empty grid slot at t=1100 (no candle there).
+        auto r = vroom::snap_to_slot(l, candles, 10, 100, 0, 2000, 550.f);
+        CHECK(r.has_candle == false);
+        CHECK(r.time_ms == 1100);
+    }
+
+    SUBCASE("x clamps to the usable width (no off-screen future slots)") {
+        // window 2000, x far past the right edge clamps to x=usable (1000),
+        // i.e. target time = visible_end (2000) -> key ~1950 -> slot t=1950.
+        auto r = vroom::snap_to_slot(l, candles, 10, 100, 0, 2000, 9000.f);
+        auto edge = vroom::snap_to_slot(l, candles, 10, 100, 0, 2000, 1000.f);
+        CHECK(r.has_candle == false);
+        CHECK(r.time_ms == edge.time_ms);
     }
 }
 

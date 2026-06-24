@@ -30,6 +30,17 @@ export type CrosshairCandle = {
   volume: number;
 };
 
+/**
+ * What the crosshair currently snaps to. `timeMs` is the snapped slot's
+ * period-start time — set even in the empty space ahead of the most recent
+ * candle. `candle` holds the OHLCV when a real candle sits at that slot, and is
+ * null when the crosshair is parked on a future candle-aligned slot.
+ */
+export type CrosshairInfo = {
+  timeMs: number;
+  candle: CrosshairCandle | null;
+};
+
 /** Axis region sizes in CSS px, for hit-testing gestures on the JS side. */
 export type AxisMetrics = {
   yAxisWidth: number;
@@ -85,6 +96,12 @@ export interface VroomChartHandle {
   clearCrosshair(): void;
   /** OHLCV of the candle the crosshair snaps to, or null when inactive. */
   getCrosshairCandle(): CrosshairCandle | null;
+  /**
+   * The slot the crosshair snaps to (real candle or future candle-aligned
+   * slot), or null when inactive. Unlike getCrosshairCandle this reports a
+   * timeMs even in the empty space ahead of the most recent candle.
+   */
+  getCrosshairInfo(): CrosshairInfo | null;
 
   setRSI(
     enabled: boolean,

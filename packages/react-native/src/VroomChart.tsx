@@ -200,12 +200,13 @@ export function VroomChart(props: VroomChartProps) {
         const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
         if (ch) pictureSV.value = ch;
         // The line follows the finger every frame (above), but only notify the
-        // host when the snapped candle actually changes.
-        const c = handle.getCrosshairCandle();
-        const t = c?.timeMs ?? null;
+        // host when the snapped slot actually changes. The slot has a timeMs
+        // even in the empty space ahead of the last candle, where candle=null.
+        const info = handle.getCrosshairInfo();
+        const t = info?.timeMs ?? null;
         if (t !== lastCrosshairTime.current) {
           lastCrosshairTime.current = t;
-          onCrosshair?.({ active: true, candle: c, reason: 'move' });
+          onCrosshair?.({ active: true, candle: info?.candle ?? null, timeMs: t, reason: 'move' });
         }
         return;
       } else {
@@ -335,9 +336,14 @@ export function VroomChart(props: VroomChartProps) {
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
       if (ch) pictureSV.value = ch;
-      const c = handle.getCrosshairCandle();
-      lastCrosshairTime.current = c?.timeMs ?? null;
-      onCrosshair?.({ active: true, candle: c, reason: 'show' });
+      const info = handle.getCrosshairInfo();
+      lastCrosshairTime.current = info?.timeMs ?? null;
+      onCrosshair?.({
+        active: true,
+        candle: info?.candle ?? null,
+        timeMs: info?.timeMs ?? null,
+        reason: 'show',
+      });
     });
 
   // A tap dismisses the crosshair while it's up; otherwise it's a no-op (so it
@@ -352,7 +358,7 @@ export function VroomChart(props: VroomChartProps) {
       const ch = handle.clearCrosshair();
       if (ch) pictureSV.value = ch;
       lastCrosshairTime.current = null;
-      onCrosshair?.({ active: false, candle: null, reason: 'hide' });
+      onCrosshair?.({ active: false, candle: null, timeMs: null, reason: 'hide' });
     });
 
   const gesture = Gesture.Simultaneous(pan, pinch, longPress, tap);

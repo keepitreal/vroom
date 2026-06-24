@@ -1,6 +1,7 @@
 #include "viewport.h"
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace vroom {
@@ -66,6 +67,62 @@ size_t snap_index_to_candle(const Layout& layout,
                                  : static_cast<size_t>(it - 1 - candles);
 }
 
+SnapResult snap_to_slot(const Layout& layout,
+                        const ::VroomCandle* candles,
+                        size_t count,
+                        int64_t candle_duration_ms,
+                        int64_t visible_start_ms,
+                        int64_t window_ms,
+                        float x_px) {
+    if (count == 0) return {visible_start_ms, false, 0};
+
+    const float usable =
+        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    if (usable <= 0.f || window_ms <= 0 || candle_duration_ms <= 0) {
+        return {candles[0].time_ms, true, 0};
+    }
+
+    // Clamp to the usable candle width so snapping never runs past the visible
+    // right edge into off-screen space.
+    const float clamped_x = std::clamp(x_px, 0.f, usable);
+
+    // Pixel x -> the period start time of the candle that would sit there.
+    const double target_center =
+        static_cast<double>(visible_start_ms) +
+        (static_cast<double>(clamped_x) / static_cast<double>(usable)) *
+            static_cast<double>(window_ms);
+    const int64_t key =
+        static_cast<int64_t>(target_center) - candle_duration_ms / 2;
+
+    const int64_t last_time = candles[count - 1].time_ms;
+    if (key > last_time) {
+        // Past the last candle: snap to the nearest candle-aligned grid slot.
+        // Within half a period of the last candle we still land on it (steps
+        // 0); beyond that we snap to an empty future slot with no candle data.
+        const double k = static_cast<double>(key - last_time) /
+                         static_cast<double>(candle_duration_ms);
+        const int64_t steps = std::llround(k);
+        if (steps <= 0) return {last_time, true, count - 1};
+        return {last_time + steps * candle_duration_ms, false, 0};
+    }
+
+    // Populated region: pick whichever of the lower_bound candle / its
+    // predecessor is closer in time.
+    auto* it = std::lower_bound(
+        candles, candles + count, key,
+        [](const ::VroomCandle& c, int64_t t) { return c.time_ms < t; });
+    if (it == candles) return {candles[0].time_ms, true, 0};
+    if (it == candles + count) {
+        return {candles[count - 1].time_ms, true, count - 1};
+    }
+    const int64_t hi = it->time_ms;
+    const int64_t lo = (it - 1)->time_ms;
+    const size_t idx = (hi - key < key - lo)
+                           ? static_cast<size_t>(it - candles)
+                           : static_cast<size_t>(it - 1 - candles);
+    return {candles[idx].time_ms, true, idx};
+}
+
 float snap_x_to_candle(const Layout& layout,
                        const ::VroomCandle* candles,
                        size_t count,
@@ -79,10 +136,10 @@ float snap_x_to_candle(const Layout& layout,
         layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
     if (usable <= 0.f) return x_px;
 
-    const size_t idx = snap_index_to_candle(
+    const SnapResult snap = snap_to_slot(
         layout, candles, count, candle_duration_ms, visible_start_ms,
         window_ms, x_px);
-    return candle_center_x(layout, candles[idx].time_ms, candle_duration_ms,
+    return candle_center_x(layout, snap.time_ms, candle_duration_ms,
                            visible_start_ms, window_ms);
 }
 

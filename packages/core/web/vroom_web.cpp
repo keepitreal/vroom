@@ -179,6 +179,29 @@ class WebChart {
     return o;
   }
 
+  // Returns { timeMs, candle: {timeMs, open, high, low, close, volume} | null },
+  // or null when the crosshair is inactive. `candle` is null when the crosshair
+  // sits on a future candle-aligned slot past the last bar.
+  em::val getCrosshairInfo() {
+    VroomCrosshairInfo info{};
+    if (!vroom_chart_get_crosshair_info(chart_, &info)) return em::val::null();
+    em::val o = em::val::object();
+    o.set("timeMs", static_cast<double>(info.time_ms));
+    if (info.has_candle) {
+      em::val c = em::val::object();
+      c.set("timeMs", static_cast<double>(info.candle.time_ms));
+      c.set("open", info.candle.open);
+      c.set("high", info.candle.high);
+      c.set("low", info.candle.low);
+      c.set("close", info.candle.close);
+      c.set("volume", info.candle.volume);
+      o.set("candle", c);
+    } else {
+      o.set("candle", em::val::null());
+    }
+    return o;
+  }
+
   bool isAnimating() { return vroom_chart_is_animating(chart_); }
 
   // --- font -------------------------------------------------------------
@@ -281,6 +304,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setCrosshair", &WebChart::setCrosshair)
       .function("clearCrosshair", &WebChart::clearCrosshair)
       .function("getCrosshairCandle", &WebChart::getCrosshairCandle)
+      .function("getCrosshairInfo", &WebChart::getCrosshairInfo)
       .function("setRSI", &WebChart::setRSI)
       .function("setMACD", &WebChart::setMACD)
       .function("setOverlays", &WebChart::setOverlays)

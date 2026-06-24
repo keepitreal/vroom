@@ -6,6 +6,7 @@
 import type {
   AxisMetrics,
   CrosshairCandle,
+  CrosshairInfo,
   OverlaySpec,
   VroomChartHandle,
   VroomModule,
@@ -27,6 +28,7 @@ interface WebChartInstance {
   setCrosshair(x: number, y: number): void;
   clearCrosshair(): void;
   getCrosshairCandle(): CrosshairCandle | null;
+  getCrosshairInfo(): CrosshairInfo | null;
   setRSI(e: boolean, p: number, u: number, l: number, mae: boolean, map: number): void;
   setMACD(e: boolean, f: number, s: number, sig: number): void;
   setOverlays(overlays: OverlaySpec[]): void;
@@ -85,6 +87,9 @@ class WasmHandle implements VroomChartHandle {
   }
   getCrosshairCandle(): CrosshairCandle | null {
     return this.wc.getCrosshairCandle();
+  }
+  getCrosshairInfo(): CrosshairInfo | null {
+    return this.wc.getCrosshairInfo();
   }
   setRSI(
     enabled: boolean,

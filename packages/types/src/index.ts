@@ -24,8 +24,18 @@ export type Candle = {
 export type CrosshairEvent = {
   /** True while the crosshair is showing; false when it's dismissed. */
   active: boolean;
-  /** OHLCV of the candle under the crosshair, or null when inactive. */
+  /**
+   * OHLCV of the candle under the crosshair, or null when inactive. Also null
+   * when the crosshair is parked on a *future* candle-aligned slot in the empty
+   * space ahead of the most recent candle (no candle exists there yet) — use
+   * `timeMs` to read the slot's time in that case.
+   */
   candle: Candle | null;
+  /**
+   * Bar-open time (Unix epoch ms) of the slot the crosshair snaps to, including
+   * future candle-aligned slots past the last candle. Null when inactive.
+   */
+  timeMs: number | null;
   /**
    * Why this event fired — lets the host react differently (e.g. haptics):
    *   'show' — long-press activated the crosshair

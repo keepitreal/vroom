@@ -4,6 +4,7 @@
 type CrosshairEvent = {
   active: boolean;
   candle: Candle | null;
+  timeMs: number | null;
   reason: "show" | "move" | "hide";
 };
 ```
@@ -34,7 +35,23 @@ candle: Candle | null;
 
 Defined in: [types/src/index.ts:28](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L28)
 
-OHLCV of the candle under the crosshair, or null when inactive.
+OHLCV of the candle under the crosshair, or null when inactive. Also null when
+the crosshair is parked on a future candle-aligned slot in the empty space ahead
+of the most recent candle (no candle exists there yet) — use `timeMs` to read
+the slot's time in that case.
+
+***
+
+### timeMs
+
+```ts
+timeMs: number | null;
+```
+
+Defined in: [types/src/index.ts:35](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L35)
+
+Bar-open time (Unix epoch ms) of the slot the crosshair snaps to, including
+future candle-aligned slots past the last candle. Null when inactive.
 
 ***
 

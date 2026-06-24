@@ -69,6 +69,24 @@ export interface ChartHandle {
     volume: number;
   } | null;
   /**
+   * The slot the crosshair currently snaps to, or null when the crosshair is
+   * inactive / there are no visible candles. Unlike getCrosshairCandle, this
+   * reports a `timeMs` even in the empty space ahead of the most recent candle;
+   * `candle` is null when the crosshair is parked on such a future slot. Cheap
+   * to poll at gesture rate (no rendering).
+   */
+  getCrosshairInfo(): {
+    timeMs: number;
+    candle: {
+      timeMs: number;
+      open: number;
+      high: number;
+      low: number;
+      close: number;
+      volume: number;
+    } | null;
+  } | null;
+  /**
    * Configures the RSI pane: enable, period (>=2), overbought/oversold band
    * levels (0..100), and the RSI-based MA trendline (toggle + length >=1).
    */

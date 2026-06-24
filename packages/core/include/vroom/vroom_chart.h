@@ -145,6 +145,24 @@ void vroom_chart_clear_crosshair(VroomChart* chart);
 // from the current crosshair x and visible window, matching what's rendered.
 bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
 
+// What the crosshair currently snaps to, including future candle-aligned slots
+// to the right of the last candle (empty space the chart leaves ahead of the
+// most recent bar). `time_ms` is the snapped slot's period-start time — always
+// valid. `has_candle` is true when a real candle sits at that slot, in which
+// case `candle` holds its OHLCV; in the future region `has_candle` is false and
+// `candle` is left untouched.
+typedef struct VroomCrosshairInfo {
+    int64_t     time_ms;
+    bool        has_candle;
+    VroomCandle candle;
+} VroomCrosshairInfo;
+
+// Fills *out with the snapped slot the crosshair currently sits on and returns
+// true. Returns false (leaving *out untouched) when the crosshair is inactive
+// or there are no visible candles. Stateless — recomputes the snap from the
+// current crosshair x and visible window, matching what's rendered.
+bool vroom_chart_get_crosshair_info(VroomChart* chart, VroomCrosshairInfo* out);
+
 // ---- Indicators -----------------------------------------------------------
 
 // Configures the RSI indicator (rendered in a pane below the candles). `period`

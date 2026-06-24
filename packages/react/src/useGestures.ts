@@ -66,11 +66,18 @@ export function useGestures(
     const reportCrosshair = (reason: CrosshairEvent['reason']) => {
       const h = handleRef.current;
       if (!h) return;
-      const c = h.getCrosshairCandle();
-      const t = c?.timeMs ?? null;
+      // Snapped slot — has a timeMs even in the empty space ahead of the last
+      // candle, where `candle` is null.
+      const info = h.getCrosshairInfo();
+      const t = info?.timeMs ?? null;
       if (reason === 'move' && t === lastCrosshairTime) return;
       lastCrosshairTime = t;
-      optsRef.current.onCrosshair?.({ active: reason !== 'hide', candle: c, reason });
+      optsRef.current.onCrosshair?.({
+        active: reason !== 'hide',
+        candle: info?.candle ?? null,
+        timeMs: t,
+        reason,
+      });
     };
 
     const clearLongPress = () => {

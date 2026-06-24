@@ -79,10 +79,32 @@ size_t snap_index_to_candle(const Layout& layout,
                             int64_t window_ms,
                             float x_px);
 
-// On-screen x of the candle whose center is nearest pixel x_px, searching
-// [candles, candles+count). Clamps to the first/last candle. Returns x_px
-// unchanged when there are no candles or the window is degenerate. Used to snap
-// the crosshair to candles.
+// Result of snapping a pixel x to the candle grid. The grid extends past the
+// last candle into the empty "future" space: slots there sit at
+// last_candle.time_ms + k × candle_duration_ms and carry no candle data.
+struct SnapResult {
+    int64_t time_ms;     // period-start time of the snapped slot (real or future)
+    bool has_candle;     // true when a real candle sits at this slot
+    size_t index;        // index into [candles, candles+count); valid iff has_candle
+};
+
+// Snaps pixel x_px to the nearest candle-grid slot. Over the populated region
+// this returns the nearest real candle (has_candle = true). To the right of the
+// last candle it snaps to future grid slots (has_candle = false). x_px is
+// clamped to the usable candle width so snapping never runs past the visible
+// right edge. Precondition: count > 0 and window_ms > 0 (callers guard).
+SnapResult snap_to_slot(const Layout& layout,
+                        const ::VroomCandle* candles,
+                        size_t count,
+                        int64_t candle_duration_ms,
+                        int64_t visible_start_ms,
+                        int64_t window_ms,
+                        float x_px);
+
+// On-screen x of the slot whose center is nearest pixel x_px, searching
+// [candles, candles+count) and the future grid past the last candle. Returns
+// x_px unchanged when there are no candles or the window is degenerate. Used to
+// snap the crosshair to candles (and to future candle-aligned slots).
 float snap_x_to_candle(const Layout& layout,
                        const ::VroomCandle* candles,
                        size_t count,
