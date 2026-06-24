@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 
 #include "chart.h"
 #include "labels.h"
@@ -161,10 +162,16 @@ extern "C" void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/)
 
     // Right edge can overshoot the last candle by up to half a window so the
     // user can scroll into empty "future" space (e.g., to view right-anchored
-    // indicators). Left edge still hard-clamps at the first candle.
+    // indicators). The x-axis drag zoom can intentionally exceed that 50% cap
+    // (it zooms in until ~one candle remains), so snapping straight back to 50%
+    // here would make the first pan lurch. Instead permit the current (larger)
+    // gap to persist and shrink naturally as the user scrolls, then re-cap at
+    // 50% once it falls back there. Left edge still hard-clamps at the first
+    // candle.
     const int64_t first_time = chart->candles.front().time_ms;
     const int64_t last_time = chart->candles.back().time_ms;
-    const int64_t max_future = window_ms / 2;
+    const int64_t max_future =
+        std::max<int64_t>(window_ms / 2, chart->visible_end_ms - last_time);
     if (new_end > last_time + max_future) {
         new_end = last_time + max_future;
         new_start = new_end - window_ms;
@@ -208,7 +215,11 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
                 int64_t new_end = chart->visible_end_ms + delta_ms;
                 const int64_t first_time = chart->candles.front().time_ms;
                 const int64_t last_time = chart->candles.back().time_ms;
-                const int64_t max_future = window_ms / 2;
+                // See vroom_chart_pan: allow an existing >50% future gap (from
+                // the x-axis drag zoom) to persist and shrink instead of
+                // snapping back, which would make the first drag lurch.
+                const int64_t max_future = std::max<int64_t>(
+                    window_ms / 2, chart->visible_end_ms - last_time);
                 if (new_end > last_time + max_future) {
                     new_end = last_time + max_future;
                     new_start = new_end - window_ms;
@@ -288,22 +299,50 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
     int64_t new_window_ms = static_cast<int64_t>(
         static_cast<double>(window_ms) * scale);
 
-    // Clamp window so candle body width stays in [kMinCandleBodyPx,
-    // kMaxCandleBodyPx]. body_w = usable × (dur / window) × ratio →
+    // Candle body width bounds [kMinCandleBodyPx, kMaxCandleBodyPx] map to a
+    // window range: body_w = usable × (dur / window) × ratio →
     // window for a given body_w = usable × dur × ratio / body_w.
     const auto lay = chart->layout();
     const double usable =
         lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
     const double ratio = chart->theme.floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO];
     const double dur = static_cast<double>(chart->candle_duration_ms);
+    int64_t min_window = 0;
+    int64_t max_window = std::numeric_limits<int64_t>::max();
     if (usable > 0.0 && ratio > 0.0 && dur > 0.0) {
-        const int64_t min_window = static_cast<int64_t>(
-            (usable * dur * ratio) / kMaxCandleBodyPx);
-        const int64_t max_window = static_cast<int64_t>(
-            (usable * dur * ratio) / kMinCandleBodyPx);
-        if (new_window_ms < min_window) new_window_ms = min_window;
-        if (new_window_ms > max_window) new_window_ms = max_window;
+        min_window = static_cast<int64_t>((usable * dur * ratio) / kMaxCandleBodyPx);
+        max_window = static_cast<int64_t>((usable * dur * ratio) / kMinCandleBodyPx);
     }
+
+    // The right edge is pinned, so when it sits in the empty "future" space
+    // past the last candle (pan/scroll allow it to overshoot by up to half a
+    // window), zooming in shrinks the window from the left and slides candles
+    // off-screen. Rather than blocking it outright, allow the zoom down to a
+    // floor that keeps the last candle on screen, and add rubber-band
+    // resistance once the future region passes 50% of the window so the
+    // discouraged zoom visibly slows before it stops.
+    const int64_t last_time = chart->candles.back().time_ms;
+    const int64_t future_ms = chart->visible_end_ms - last_time;
+    if (future_ms > 0 && new_window_ms < window_ms) {
+        const int64_t floor_window = future_ms + chart->candle_duration_ms;
+        const int64_t soft_window = 2 * future_ms;  // future occupies 50%
+        if (soft_window > floor_window) {
+            // depth 0 at the soft point, 1 at the floor; resistance eases the
+            // shrink toward zero as the window approaches the floor.
+            const double span = static_cast<double>(soft_window - floor_window);
+            double depth = (static_cast<double>(soft_window) -
+                            static_cast<double>(window_ms)) / span;
+            depth = std::clamp(depth, 0.0, 1.0);
+            const double resist = (1.0 - depth) * (1.0 - depth);
+            const int64_t raw_delta = new_window_ms - window_ms;  // negative
+            new_window_ms = window_ms + static_cast<int64_t>(
+                static_cast<double>(raw_delta) * resist);
+        }
+        if (new_window_ms < floor_window) new_window_ms = floor_window;
+    }
+
+    if (new_window_ms < min_window) new_window_ms = min_window;
+    if (new_window_ms > max_window) new_window_ms = max_window;
 
     // Pivot around the right edge — most-recent visible candle stays put.
     int64_t new_start = chart->visible_end_ms - new_window_ms;
