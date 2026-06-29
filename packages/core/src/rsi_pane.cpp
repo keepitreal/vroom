@@ -50,8 +50,13 @@ void draw(SkCanvas* canvas,
     const float band_h = pane_bottom - pane_top;
     if (band_h <= 0.f) return;
 
+    // Map 0..100 about the pane center so the user y-zoom scales symmetrically
+    // around 50. z == 1 reproduces the default fit (0 -> pane_bottom, 100 ->
+    // pane_top); z > 1 zooms in (taller), z < 1 zooms out (flatter).
+    const float center_y = (pane_top + pane_bottom) * 0.5f;
+    const float z = static_cast<float>(chart.rsi_y_scale);
     auto y_for = [&](double v) -> float {
-        return pane_bottom - static_cast<float>(v / 100.0) * band_h;
+        return center_y - static_cast<float>((v - 50.0) / 100.0) * band_h * z;
     };
 
     // Mask the band with the background so candles/volume that overflow below

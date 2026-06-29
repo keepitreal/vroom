@@ -62,6 +62,12 @@ typedef enum {
     VROOM_COLOR_TOOLTIP_BG,
     VROOM_COLOR_TOOLTIP_TEXT,
     VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
+    VROOM_COLOR_BORDER_BULL,       // bull body 1px outline; 0 alpha => inherit BULL fill
+    VROOM_COLOR_BORDER_BEAR,       // bear body 1px outline; 0 alpha => inherit BEAR fill
+    VROOM_COLOR_WICK_BULL,         // bull wick; 0 alpha => inherit BULL fill
+    VROOM_COLOR_WICK_BEAR,         // bear wick; 0 alpha => inherit BEAR fill
+    VROOM_COLOR_ACCENT_BULL,       // generic up color: price indicator, volume, MACD
+    VROOM_COLOR_ACCENT_BEAR,       // generic down color
     VROOM_COLOR_COUNT_
 } VroomColorKey;
 
@@ -125,6 +131,19 @@ void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px);
 //   scale_time_axis:  dx > 0 (drag right) widens the time range → candles thin
 void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px);
 void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px);
+
+// Scale the y-axis of the below-chart indicator pane that contains y_px.
+// dy_px > 0 (drag down) zooms out (widens the visible value range); dy_px < 0
+// zooms in. RSI scales about 50, MACD about its zero line. No-op when y_px is
+// not over an indicator pane.
+void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px, float dy_px);
+
+// Drag the separator between the price pane and the below-chart indicator band.
+// dy_px > 0 (drag down) grows the price pane and shrinks the indicator band.
+// Candle pixel scale is preserved: the price range is widened/narrowed in step
+// (anchored at the top price), so the viewport reveals/hides price rather than
+// rescaling candles. No-op when no indicator pane is shown.
+void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px);
 
 // Reads the current y-axis width, x-axis height, and below-chart indicator pane
 // height in pixels so callers can hit-test gestures against each region on the

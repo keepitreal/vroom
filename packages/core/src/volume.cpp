@@ -43,12 +43,12 @@ void draw(SkCanvas* canvas,
     const float opacity = theme.floats[VROOM_FLOAT_VOLUME_OPACITY];
     SkPaint bull_paint;
     bull_paint.setAntiAlias(true);
-    bull_paint.setColor(theme.colors[VROOM_COLOR_BULL]);
+    bull_paint.setColor(theme.colors[VROOM_COLOR_ACCENT_BULL]);
     bull_paint.setAlphaf(opacity);
 
     SkPaint bear_paint;
     bear_paint.setAntiAlias(true);
-    bear_paint.setColor(theme.colors[VROOM_COLOR_BEAR]);
+    bear_paint.setColor(theme.colors[VROOM_COLOR_ACCENT_BEAR]);
     bear_paint.setAlphaf(opacity);
 
     for (std::size_t i = 0; i < n; ++i) {

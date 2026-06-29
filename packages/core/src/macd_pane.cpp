@@ -52,7 +52,10 @@ void draw(SkCanvas* canvas,
     if (band_h <= 0.f) return;
 
     const float mid = (pane_top + pane_bottom) * 0.5f;
-    const float half = band_h * 0.5f * kPadFrac;
+    // User y-zoom scales the amplitude about the zero line (mid). 1.0 = the
+    // default auto-fit; >1 zooms in, <1 zooms out.
+    const float half =
+        band_h * 0.5f * kPadFrac * static_cast<float>(chart.macd_y_scale);
 
     // Auto-scale symmetric about zero across all visible finite values.
     double scale = 0.0;
@@ -100,8 +103,8 @@ void draw(SkCanvas* canvas,
             vroom::candle_body_width(lay, window_ms, candle_duration_ms);
         const float half_body = body_w * 0.5f;
         const float zero_y = y_for(0.0);
-        const SkColor bull = chart.theme.colors[VROOM_COLOR_BULL];
-        const SkColor bear = chart.theme.colors[VROOM_COLOR_BEAR];
+        const SkColor bull = chart.theme.colors[VROOM_COLOR_ACCENT_BULL];
+        const SkColor bear = chart.theme.colors[VROOM_COLOR_ACCENT_BEAR];
         for (std::size_t i = 0; i < n; ++i) {
             const double h = hist_visible[i];
             if (!std::isfinite(h)) continue;

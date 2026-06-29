@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { VroomChart, type Candle } from '@vroomchart/react';
+import { VroomChart, type Candle, type VroomTheme } from '@vroomchart/react';
+import type { IndicatorChartProps } from './IndicatorsModal';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -65,7 +66,13 @@ const btn: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-export function StreamingRepro() {
+export function StreamingRepro({
+  theme,
+  indicators,
+}: {
+  theme?: VroomTheme;
+  indicators?: IndicatorChartProps;
+}) {
   const [candles, setCandles] = useState<Candle[]>(() => mockCandles(300, DAY));
   const [live, setLive] = useState(false);
   const [intervalMs, setIntervalMs] = useState(1000);
@@ -161,7 +168,7 @@ export function StreamingRepro() {
         auto-fit bounds on each new candle instead of staying where you put it.
       </div>
       <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>
-        <VroomChart candles={candles} />
+        <VroomChart candles={candles} theme={theme} {...indicators} />
       </div>
     </div>
   );

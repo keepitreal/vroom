@@ -78,6 +78,9 @@ struct VroomChart {
     std::vector<double> rsi_cache;     // RSI per candle (NaN where undefined)
     std::vector<double> rsi_ma_cache;  // SMA of rsi_cache (empty if MA off)
     bool rsi_dirty = true;
+    // User y-axis zoom for the RSI pane (drag on its y-axis strip). 1.0 = the
+    // default 0..100 fit; >1 zooms in (taller), <1 zooms out. Anchored at 50.
+    double rsi_y_scale = 1.0;
 
     // MACD, drawn in its own pane. Caches aligned to `candles` (NaN warmup).
     bool macd_enabled = false;
@@ -88,6 +91,9 @@ struct VroomChart {
     std::vector<double> macd_signal_cache;
     std::vector<double> macd_hist_cache;
     bool macd_dirty = true;
+    // User y-axis zoom for the MACD pane (drag on its y-axis strip). 1.0 = the
+    // default auto-fit amplitude; >1 zooms in, <1 zooms out. Anchored at zero.
+    double macd_y_scale = 1.0;
 
     // Stacking order for the indicator panes: each indicator gets the next
     // sequence number on its off->on transition, so the most recently enabled

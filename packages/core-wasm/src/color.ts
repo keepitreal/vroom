@@ -11,6 +11,12 @@ export const COLOR_KEYS: Record<keyof VroomTheme, ColorKey> = {
   axisText: ColorKey.AxisText,
   crosshair: ColorKey.Crosshair,
   crosshairTarget: ColorKey.CrosshairTarget,
+  borderBull: ColorKey.BorderBull,
+  borderBear: ColorKey.BorderBear,
+  wickBull: ColorKey.WickBull,
+  wickBear: ColorKey.WickBear,
+  accentBull: ColorKey.AccentBull,
+  accentBear: ColorKey.AccentBear,
 };
 
 /**

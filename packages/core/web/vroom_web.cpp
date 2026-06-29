@@ -124,6 +124,12 @@ class WebChart {
   }
   void scalePriceAxis(float dy) { vroom_chart_scale_price_axis(chart_, dy); }
   void scaleTimeAxis(float dx) { vroom_chart_scale_time_axis(chart_, dx); }
+  void resizeIndicatorPane(float dy) {
+    vroom_chart_resize_indicator_pane(chart_, dy);
+  }
+  void scaleIndicatorAxis(float y, float dy) {
+    vroom_chart_scale_indicator_axis(chart_, y, dy);
+  }
 
   void setCrosshair(float x, float y) { vroom_chart_set_crosshair(chart_, x, y); }
   void clearCrosshair() { vroom_chart_clear_crosshair(chart_); }
@@ -300,6 +306,8 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("zoom", &WebChart::zoom)
       .function("scalePriceAxis", &WebChart::scalePriceAxis)
       .function("scaleTimeAxis", &WebChart::scaleTimeAxis)
+      .function("resizeIndicatorPane", &WebChart::resizeIndicatorPane)
+      .function("scaleIndicatorAxis", &WebChart::scaleIndicatorAxis)
       .function("getAxisMetrics", &WebChart::getAxisMetrics)
       .function("setCrosshair", &WebChart::setCrosshair)
       .function("clearCrosshair", &WebChart::clearCrosshair)

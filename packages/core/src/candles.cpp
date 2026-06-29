@@ -14,6 +14,14 @@
 
 namespace vroom::candles {
 
+namespace {
+// New border/wick colors use a transparent sentinel (alpha == 0) to mean
+// "inherit the body fill color". Resolve to `fill` in that case.
+inline uint32_t resolve_color(uint32_t color, uint32_t fill) {
+    return (color >> 24) == 0 ? fill : color;
+}
+}  // namespace
+
 void draw(SkCanvas* canvas,
           const ::VroomCandle* visible,
           std::size_t n,
@@ -28,22 +36,40 @@ void draw(SkCanvas* canvas,
     const float body_w = vroom::candle_body_width(
         lay, window_ms, candle_duration_ms);
 
+    const uint32_t fill_bull = theme.colors[VROOM_COLOR_BULL];
+    const uint32_t fill_bear = theme.colors[VROOM_COLOR_BEAR];
+
     SkPaint bull_paint;
     bull_paint.setAntiAlias(true);
-    bull_paint.setColor(theme.colors[VROOM_COLOR_BULL]);
+    bull_paint.setColor(fill_bull);
 
     SkPaint bear_paint;
     bear_paint.setAntiAlias(true);
-    bear_paint.setColor(theme.colors[VROOM_COLOR_BEAR]);
+    bear_paint.setColor(fill_bear);
 
     SkPaint wick_bull;
     wick_bull.setAntiAlias(true);
-    wick_bull.setColor(theme.colors[VROOM_COLOR_BULL]);
+    wick_bull.setColor(
+        resolve_color(theme.colors[VROOM_COLOR_WICK_BULL], fill_bull));
     wick_bull.setStrokeWidth(theme.floats[VROOM_FLOAT_WICK_WIDTH_PX]);
     wick_bull.setStyle(SkPaint::kStroke_Style);
 
     SkPaint wick_bear = wick_bull;
-    wick_bear.setColor(theme.colors[VROOM_COLOR_BEAR]);
+    wick_bear.setColor(
+        resolve_color(theme.colors[VROOM_COLOR_WICK_BEAR], fill_bear));
+
+    // 1px body outlines. Default sentinel resolves to the fill color, so the
+    // border is invisible until a consumer sets borderBull/borderBear.
+    SkPaint border_bull;
+    border_bull.setAntiAlias(true);
+    border_bull.setStyle(SkPaint::kStroke_Style);
+    border_bull.setStrokeWidth(1.f);
+    border_bull.setColor(
+        resolve_color(theme.colors[VROOM_COLOR_BORDER_BULL], fill_bull));
+
+    SkPaint border_bear = border_bull;
+    border_bear.setColor(
+        resolve_color(theme.colors[VROOM_COLOR_BORDER_BEAR], fill_bear));
 
     const float half_body = body_w * 0.5f;
 
@@ -65,9 +91,9 @@ void draw(SkCanvas* canvas,
         const float y_top = std::min(y_open, y_close);
         const float y_bot = std::max(y_open, y_close);
         const float h = std::max(1.f, y_bot - y_top);
-        canvas->drawRect(
-            SkRect::MakeXYWH(cx - half_body, y_top, body_w, h),
-            bull ? bull_paint : bear_paint);
+        const SkRect body = SkRect::MakeXYWH(cx - half_body, y_top, body_w, h);
+        canvas->drawRect(body, bull ? bull_paint : bear_paint);
+        canvas->drawRect(body, bull ? border_bull : border_bear);
     }
 }
 

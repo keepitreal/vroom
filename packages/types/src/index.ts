@@ -58,10 +58,22 @@ export type VroomColor = string | number;
 export type VroomTheme = {
   /** Chart + axis-strip background. */
   background?: VroomColor;
-  /** Up candles (also bull wicks, bull volume bars, rising price indicator). */
+  /** Up candle body fill. Wick and border default to this unless overridden. */
   bull?: VroomColor;
-  /** Down candles (also bear wicks, bear volume bars, falling price indicator). */
+  /** Down candle body fill. Wick and border default to this unless overridden. */
   bear?: VroomColor;
+  /** Generic up color for the price indicator, volume bars, and MACD histogram. Defaults to teal-green; independent of `bull`. */
+  accentBull?: VroomColor;
+  /** Generic down color for the price indicator, volume bars, and MACD histogram. Defaults to red; independent of `bear`. */
+  accentBear?: VroomColor;
+  /** Up candle body 1px border. Defaults to the bull fill color. */
+  borderBull?: VroomColor;
+  /** Down candle body 1px border. Defaults to the bear fill color. */
+  borderBear?: VroomColor;
+  /** Up candle wick color. Defaults to the bull fill color. */
+  wickBull?: VroomColor;
+  /** Down candle wick color. Defaults to the bear fill color. */
+  wickBear?: VroomColor;
   /** Gridlines. */
   grid?: VroomColor;
   /** Axis label text (price + time). */

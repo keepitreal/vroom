@@ -18,6 +18,12 @@ export enum ColorKey {
   TooltipBg = 7,
   TooltipText = 8,
   CrosshairTarget = 9,
+  BorderBull = 10,
+  BorderBear = 11,
+  WickBull = 12,
+  WickBear = 13,
+  AccentBull = 14,
+  AccentBear = 15,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
@@ -86,6 +92,18 @@ export interface VroomChartHandle {
   scalePriceAxis(dy: number): void;
   /** Drag-on-x-axis time scaling; dx>0 widens the time window. */
   scaleTimeAxis(dx: number): void;
+  /**
+   * Drag the separator between the price pane and the below-chart indicator
+   * band. dy>0 (drag down) grows the price pane and shrinks the indicator band,
+   * preserving candle pixel scale (the price range adjusts instead).
+   */
+  resizeIndicatorPane(dy: number): void;
+  /**
+   * Scale the y-axis of the below-chart indicator pane containing `y` (px).
+   * dy>0 (drag down) zooms out (widens the value range); dy<0 zooms in. RSI
+   * scales about 50, MACD about its zero line. No-op when `y` is not over a pane.
+   */
+  scaleIndicatorAxis(y: number, dy: number): void;
 
   /** Current axis dimensions for hit-testing in JS gestures. */
   getAxisMetrics(): AxisMetrics;

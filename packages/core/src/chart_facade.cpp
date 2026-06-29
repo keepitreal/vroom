@@ -387,6 +387,102 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px) {
+    if (!chart || dy_px == 0.f) return;
+
+    const int pane_count = (chart->rsi_enabled ? 1 : 0) + (chart->macd_enabled ? 1 : 0);
+    if (pane_count == 0) return;  // nothing below the chart to resize
+
+    const auto lay = chart->layout();
+    const float old_pane_bottom = vroom::price_pane_bottom(lay);
+    const float old_band = lay.indicator_area_h;
+
+    // Drag down (dy > 0) shrinks the indicator band and grows the price pane.
+    // Keep both regions usable: each pane >= kMinPanePx, price pane >= a share
+    // of the candle+indicator area.
+    constexpr float kMinPanePx = 48.f;
+    const float content_h = lay.height_px - lay.x_axis_height_px;  // candle + indicators
+    const float min_band = static_cast<float>(pane_count) * kMinPanePx;
+    const float max_band = content_h * 0.70f;  // leave the price pane >= 30%
+    if (max_band <= min_band) return;
+
+    float new_band = old_band - dy_px;
+    new_band = std::clamp(new_band, min_band, max_band);
+    if (new_band == old_band) return;
+
+    const float per_pane = new_band / static_cast<float>(pane_count);
+    chart->theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC] =
+        chart->height_px > 0.f ? per_pane / chart->height_px : 0.f;
+
+    // Preserve candle pixel scale: scale the price range by the price-pane
+    // height ratio, anchoring the top (max) price so existing candles stay put
+    // and the newly revealed space opens at the bottom.
+    if (chart->price_bounds_initialized && old_pane_bottom > 0.f) {
+        const float new_pane_bottom = content_h - new_band;
+        const double scale = static_cast<double>(new_pane_bottom) /
+                             static_cast<double>(old_pane_bottom);
+        const double range = chart->price_bounds.max - chart->price_bounds.min;
+        if (range > 0.0 && scale > 0.0) {
+            chart->price_bounds.min =
+                chart->price_bounds.max - range * scale;
+            vroom::labels::recompute_axis_width(*chart);
+        }
+    }
+
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px,
+                                                  float dy_px) {
+    if (!chart || dy_px == 0.f) return;
+
+    const auto lay = chart->layout();
+    if (lay.indicator_area_h <= 0.f) return;
+
+    // Rebuild the same ordered pane stack draw_chart uses (most recently
+    // enabled pane sorts to the bottom) to find which pane y_px falls in.
+    struct ActivePane { int order; int type; };  // type: 0 = RSI, 1 = MACD
+    ActivePane panes[2];
+    int count = 0;
+    if (chart->rsi_enabled) panes[count++] = {chart->rsi_order, 0};
+    if (chart->macd_enabled) panes[count++] = {chart->macd_order, 1};
+    if (count == 0) return;
+    if (count == 2 && panes[0].order > panes[1].order) {
+        const ActivePane tmp = panes[0];
+        panes[0] = panes[1];
+        panes[1] = tmp;
+    }
+
+    const float pane_h =
+        chart->height_px * chart->theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
+    if (pane_h <= 0.f) return;
+
+    int target = -1;  // 0 = RSI, 1 = MACD
+    float pane_top = vroom::price_pane_bottom(lay);
+    for (int i = 0; i < count; ++i) {
+        const float pane_bottom = pane_top + pane_h;
+        if (y_px >= pane_top && y_px < pane_bottom) {
+            target = panes[i].type;
+            break;
+        }
+        pane_top = pane_bottom;
+    }
+    if (target < 0) return;  // not over a pane
+
+    // Drag down (dy > 0) widens the visible value range (zoom out), matching
+    // scale_price_axis's sign. The zoom is the inverse of the range scale.
+    double range_scale = 1.0 + static_cast<double>(dy_px) / kAxisDragSensitivity;
+    if (range_scale < 0.05) range_scale = 0.05;  // never collapse or flip
+
+    double& zoom = target == 0 ? chart->rsi_y_scale : chart->macd_y_scale;
+    double next = zoom / range_scale;
+    next = std::clamp(next, 0.1, 10.0);
+    if (next == zoom) return;
+    zoom = next;
+
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_get_axis_metrics(VroomChart* chart,
                                               float* out_y_axis_width_px,
                                               float* out_x_axis_height_px,

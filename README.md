@@ -56,7 +56,7 @@ Pan to scroll, pinch to zoom, and drag the price/time axes to rescale them.
 | `width`            | `number`                      | Explicit width override in px. Default: measured from the parent.                                                    |
 | `height`           | `number`                      | Explicit height override in px. Default: measured from the parent.                                                   |
 | `visibleRange`     | `{ startMs, endMs }`          | Time window to render. Omit to fit all candles.                                                                      |
-| `theme`            | `VroomTheme`                  | Color overrides (`background`, `bull`, `bear`, `wick`, `grid`, `axisText`, `crosshair`, `tooltipBg`, `tooltipText`). |
+| `theme`            | `VroomTheme`                  | Color overrides (`background`, `bull`, `bear`, `borderBull`, `borderBear`, `wickBull`, `wickBear`, `accentBull`, `accentBear`, `grid`, `axisText`, `crosshair`, `crosshairTarget`). |
 | `onCrosshair`      | `(e: CrosshairEvent) => void` | Fires as the crosshair moves (`active`, `timeMs`, `price`).                                                          |
 | `onViewportChange` | `(startMs, endMs) => void`    | Fires when the visible time range changes via gesture.                                                               |
 

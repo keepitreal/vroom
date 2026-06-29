@@ -24,6 +24,8 @@ interface WebChartInstance {
   zoom(sx: number, sy: number, fx: number, fy: number): void;
   scalePriceAxis(dy: number): void;
   scaleTimeAxis(dx: number): void;
+  resizeIndicatorPane(dy: number): void;
+  scaleIndicatorAxis(y: number, dy: number): void;
   getAxisMetrics(): AxisMetrics;
   setCrosshair(x: number, y: number): void;
   clearCrosshair(): void;
@@ -75,6 +77,12 @@ class WasmHandle implements VroomChartHandle {
   }
   scaleTimeAxis(dx: number): void {
     this.wc.scaleTimeAxis(dx);
+  }
+  resizeIndicatorPane(dy: number): void {
+    this.wc.resizeIndicatorPane(dy);
+  }
+  scaleIndicatorAxis(y: number, dy: number): void {
+    this.wc.scaleIndicatorAxis(y, dy);
   }
   getAxisMetrics(): AxisMetrics {
     return this.wc.getAxisMetrics();

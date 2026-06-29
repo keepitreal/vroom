@@ -12,6 +12,12 @@ export const COLOR_KEYS: Record<keyof VroomTheme, number> = {
   axisText: 5, // VROOM_COLOR_AXIS_TEXT
   crosshair: 6, // VROOM_COLOR_CROSSHAIR
   crosshairTarget: 9, // VROOM_COLOR_CROSSHAIR_TARGET
+  borderBull: 10, // VROOM_COLOR_BORDER_BULL
+  borderBear: 11, // VROOM_COLOR_BORDER_BEAR
+  wickBull: 12, // VROOM_COLOR_WICK_BULL
+  wickBear: 13, // VROOM_COLOR_WICK_BEAR
+  accentBull: 14, // VROOM_COLOR_ACCENT_BULL
+  accentBear: 15, // VROOM_COLOR_ACCENT_BEAR
 };
 
 // Parses a color into a packed 0xAARRGGBB integer (Skia's ARGB order).

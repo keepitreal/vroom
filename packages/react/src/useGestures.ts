@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import type { CrosshairEvent } from '@vroomchart/types';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
-type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator';
+type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' | 'indicator-axis';
 
 export type GestureOptions = {
   crosshairOffset: number;
@@ -21,6 +21,7 @@ const AXIS_RATIO = 0.5; // an axis scales only if its span ≥ this × the other
 const LONG_PRESS_MS = 350;
 const MOVE_THRESH = 6; // px before a press becomes a drag
 const WHEEL_K = 0.0015; // wheel delta → zoom factor exponent
+const SEP_HIT = 4; // px band around the indicator separator for hit-testing
 
 export function useGestures(
   containerRef: React.RefObject<HTMLElement | null>,
@@ -57,7 +58,21 @@ export function useGestures(
       const r = el.getBoundingClientRect();
       if (!h) return 'chart';
       const { yAxisWidth, xAxisHeight, indicatorHeight } = h.getAxisMetrics();
-      if (x > r.width - yAxisWidth) return 'price-axis';
+      if (x > r.width - yAxisWidth) {
+        // The y-axis strip beside an indicator pane scales that pane's y-axis;
+        // the rest of the strip scales the main price axis.
+        const priceBottom = r.height - xAxisHeight - indicatorHeight;
+        if (indicatorHeight > 0 && y > priceBottom && y < r.height - xAxisHeight) {
+          return 'indicator-axis';
+        }
+        return 'price-axis';
+      }
+      // Separator sits at the top edge of the indicator band, within the candle
+      // area width — a narrow grab band for resizing the panes.
+      const sepY = r.height - xAxisHeight - indicatorHeight;
+      if (indicatorHeight > 0 && x <= r.width - yAxisWidth && Math.abs(y - sepY) <= SEP_HIT) {
+        return 'separator';
+      }
       if (y > r.height - xAxisHeight) return 'time-axis';
       if (indicatorHeight > 0 && y > r.height - xAxisHeight - indicatorHeight) return 'indicator';
       return 'chart';
@@ -153,7 +168,14 @@ export function useGestures(
       // Hover (mouse, no button) → crosshair follows the cursor on the chart.
       if (!pointers.has(e.pointerId)) {
         if (e.pointerType === 'mouse' && pointers.size === 0) {
-          if (regionAt(x, y) === 'chart') {
+          const region = regionAt(x, y);
+          el.style.cursor =
+            region === 'separator'
+              ? 'row-resize'
+              : region === 'indicator-axis'
+                ? 'ns-resize'
+                : '';
+          if (region === 'chart') {
             showCrosshair(x, y, 'hover', crosshairActive ? 'move' : 'show');
           } else {
             hideCrosshair();
@@ -205,6 +227,8 @@ export function useGestures(
 
       if (panMode === 'price-axis') h.scalePriceAxis(dy);
       else if (panMode === 'time-axis') h.scaleTimeAxis(dx);
+      else if (panMode === 'separator') h.resizeIndicatorPane(dy);
+      else if (panMode === 'indicator-axis') h.scaleIndicatorAxis(downY, dy);
       else if (panMode === 'indicator') h.pan(dx, 0);
       else h.translate(dx, dy);
 
@@ -229,10 +253,12 @@ export function useGestures(
       } else if (moved && (panMode === 'chart' || panMode === 'indicator')) {
         optsRef.current.onViewportChange?.(0, 0);
       }
+      if (pointers.size === 0) el.style.cursor = '';
     };
 
     const onPointerLeave = () => {
       if (crosshairSource === 'hover') hideCrosshair();
+      el.style.cursor = '';
     };
 
     const onWheel = (e: WheelEvent) => {

@@ -43,7 +43,7 @@ void draw(SkCanvas* canvas,
     const ::VroomCandle& last = chart.candles.back();
     const bool bull = last.close >= last.open;
     const SkColor color =
-        chart.theme.colors[bull ? VROOM_COLOR_BULL : VROOM_COLOR_BEAR];
+        chart.theme.colors[bull ? VROOM_COLOR_ACCENT_BULL : VROOM_COLOR_ACCENT_BEAR];
 
     const float y = vroom::price_to_y(lay, bounds, last.close);
     if (y < 0.f || y > candle_area_h) return;  // price scrolled off-range
