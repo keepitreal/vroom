@@ -1,5 +1,22 @@
 # @vroomchart/react
 
+## 0.1.2
+
+### Patch Changes
+
+- Customizable candle/indicator styling and new web gestures.
+
+  - Per-variant candle border and wick colors (`borderBull`/`borderBear`,
+    `wickBull`/`wickBear`) that inherit the body fill when left transparent.
+  - Generic `accentBull`/`accentBear` colors for the current-price indicator,
+    volume bars, and MACD histogram, decoupled from the candle bull/bear colors.
+  - Web: draggable separator to resize the indicator band vs the price pane
+    without rescaling candles, and a scalable indicator y-axis (drag the strip
+    beside an RSI/MACD pane to zoom its value range independently).
+
+- Updated dependencies
+  - @vroomchart/core-wasm@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes
