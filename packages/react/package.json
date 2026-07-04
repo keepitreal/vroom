@@ -38,6 +38,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "build": "tsup",
     "prepublishOnly": "tsup"
   },
@@ -58,6 +59,7 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "tsup": "^8.5.1",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^2.1.9"
   }
 }

@@ -5,8 +5,10 @@
 
 import type {
   AxisMetrics,
+  Coord,
   CrosshairCandle,
   CrosshairInfo,
+  DrawingSpec,
   OverlaySpec,
   VroomChartHandle,
   VroomModule,
@@ -19,6 +21,9 @@ interface WebChartInstance {
   setSize(width: number, height: number, dpr: number): void;
   setColor(key: number, argb: number): void;
   setVisibleRange(startMs: number, endMs: number): void;
+  getVisibleRange(): { startMs: number; endMs: number };
+  resetView(): void;
+  resetPriceScale(): void;
   pan(dx: number, dy: number): void;
   translate(dx: number, dy: number): void;
   zoom(sx: number, sy: number, fx: number, fy: number): void;
@@ -35,6 +40,19 @@ interface WebChartInstance {
   setMACD(e: boolean, f: number, s: number, sig: number): void;
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(e: boolean, reset: number, color: number, width: number): void;
+  setDrawings(drawings: DrawingSpec[]): void;
+  setDraft(
+    aTime: number,
+    aPrice: number,
+    hasB: boolean,
+    bTime: number,
+    bPrice: number,
+    guide: boolean,
+    color: number,
+    width: number,
+  ): void;
+  clearDraft(): void;
+  coordAt(x: number, y: number): Coord | null;
   setTypeface(bytes: Uint8Array): void;
   isAnimating(): boolean;
   present(): void;
@@ -62,6 +80,15 @@ class WasmHandle implements VroomChartHandle {
   }
   setVisibleRange(startMs: number, endMs: number): void {
     this.wc.setVisibleRange(startMs, endMs);
+  }
+  getVisibleRange(): { startMs: number; endMs: number } {
+    return this.wc.getVisibleRange();
+  }
+  resetView(): void {
+    this.wc.resetView();
+  }
+  resetPriceScale(): void {
+    this.wc.resetPriceScale();
   }
   pan(dx: number, dy: number): void {
     this.wc.pan(dx, dy);
@@ -117,6 +144,29 @@ class WasmHandle implements VroomChartHandle {
   }
   setVWAP(enabled: boolean, resetOffsetMin: number, color: number, width: number): void {
     this.wc.setVWAP(enabled, resetOffsetMin, color >>> 0, width);
+  }
+  setDrawings(drawings: DrawingSpec[]): void {
+    this.wc.setDrawings(
+      drawings.map((d) => ({ ...d, color: d.color >>> 0 })),
+    );
+  }
+  setDraft(
+    aTime: number,
+    aPrice: number,
+    hasB: boolean,
+    bTime: number,
+    bPrice: number,
+    guide: boolean,
+    color: number,
+    width: number,
+  ): void {
+    this.wc.setDraft(aTime, aPrice, hasB, bTime, bPrice, guide, color >>> 0, width);
+  }
+  clearDraft(): void {
+    this.wc.clearDraft();
+  }
+  coordAt(x: number, y: number): Coord | null {
+    return this.wc.coordAt(x, y);
   }
   isAnimating(): boolean {
     return this.wc.isAnimating();

@@ -69,6 +69,27 @@ export type OverlaySpec = {
 };
 
 /**
+ * A committed line drawing in the core's numeric encoding. Endpoints are in data
+ * space (epoch ms + price) so the line tracks the candles on pan/zoom.
+ */
+export type DrawingSpec = {
+  aTime: number;
+  aPrice: number;
+  bTime: number;
+  bPrice: number;
+  /** Packed 0xAARRGGBB. */
+  color: number;
+  /** Stroke width in px. */
+  width: number;
+};
+
+/** A continuous data coordinate at a pixel position (no candle snapping). */
+export type Coord = {
+  timeMs: number;
+  price: number;
+};
+
+/**
  * A single chart instance bound to a canvas. Method semantics match the native
  * handle one-to-one (see jsi.d.ts) so the two platforms behave identically.
  */
@@ -81,6 +102,23 @@ export interface VroomChartHandle {
   setColor(key: ColorKey | number, argb: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
+  // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale on
+  // the JSI handle — currently web-only.
+  /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
+  getVisibleRange(): { startMs: number; endMs: number };
+  /**
+   * Reset to the fresh-mount view: frame the most recent ~80 candles and
+   * re-enable continuous y auto-fit (the price range follows the visible
+   * candles until the next manual y gesture). Use when the data series is
+   * wholesale replaced — e.g. switching assets.
+   */
+  resetView(): void;
+  /**
+   * Re-enable continuous y auto-fit only; the time window is untouched. Use
+   * after repositioning the window for a same-asset data swap (e.g. a
+   * timeframe switch) so the price scale re-fits the newly visible candles.
+   */
+  resetPriceScale(): void;
 
   /** Shift the visible range by dx/dy CSS px. */
   pan(dx: number, dy: number): void;
@@ -137,6 +175,32 @@ export interface VroomChartHandle {
     color: number,
     width: number,
   ): void;
+
+  /** Replace the full set of committed line drawings. Pass [] to clear. */
+  setDrawings(drawings: DrawingSpec[]): void;
+  /**
+   * Set the transient in-progress draft shown while placing a line. Node A is
+   * always shown; node B is shown when `hasB`. `guide` also draws the guideline
+   * A→B (the live preview); when false only the node dots show (the committed
+   * segment renders via setDrawings). `color`/`width` style the guideline.
+   */
+  setDraft(
+    aTime: number,
+    aPrice: number,
+    hasB: boolean,
+    bTime: number,
+    bPrice: number,
+    guide: boolean,
+    color: number,
+    width: number,
+  ): void;
+  /** Clear the draft (hide in-progress node dots / guideline). */
+  clearDraft(): void;
+  /**
+   * The continuous data coordinate at pixel (x, y) — not snapped to a candle
+   * slot. Null when there are no candles or the viewport is degenerate.
+   */
+  coordAt(x: number, y: number): Coord | null;
 
   /** True while any axis-label fade is in progress (drives the rAF loop). */
   isAnimating(): boolean;

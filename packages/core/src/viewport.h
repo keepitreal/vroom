@@ -113,8 +113,32 @@ float snap_x_to_candle(const Layout& layout,
                        int64_t window_ms,
                        float x_px);
 
+// Free (non-snapped, non-candle-centered) mapping between time and pixel x,
+// used for drawing-tool endpoints that can sit anywhere — not just on a candle
+// slot. `x_at_time` is the exact inverse of `time_at_x`:
+//   frac = (time - start) / window;  x = usable * frac
+// where `usable` is the candle area width (width - y-axis - right padding).
+// Returns 0 / visible_start_ms respectively for a degenerate window/usable.
+int64_t time_at_x(const Layout& layout,
+                  int64_t visible_start_ms,
+                  int64_t window_ms,
+                  float x_px);
+float x_at_time(const Layout& layout,
+                int64_t visible_start_ms,
+                int64_t window_ms,
+                int64_t time_ms);
+
 // Min/max of (low..high) across the given range.
 PriceBounds price_bounds(const ::VroomCandle* candles, size_t count);
+
+// Widening applied to auto-fit price bounds so candles keep some headroom
+// instead of touching the pane edges. 1.0 = snug; larger = wider.
+constexpr double kAutoYZoom = 1.5;
+
+// price_bounds() widened about its midpoint by kAutoYZoom. This is the y-range
+// used whenever the price scale is in auto (follow-the-data) mode. Returns the
+// {0, 1} sentinel when count == 0 (callers keep their previous bounds).
+PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count);
 
 // Map a price to y in pixels. y=0 is top of the chart.
 float price_to_y(const Layout& layout, const PriceBounds& bounds, double price);

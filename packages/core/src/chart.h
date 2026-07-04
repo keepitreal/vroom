@@ -46,7 +46,7 @@ struct VroomChart {
     float height_px = 0.f;
     float px_ratio = 1.f;
 
-    // 0/0 = uninitialized; set_candles defaults to last ~60 candles.
+    // 0/0 = uninitialized; set_candles defaults to last ~80 candles.
     int64_t visible_start_ms = 0;
     int64_t visible_end_ms = 0;
 
@@ -55,10 +55,13 @@ struct VroomChart {
     float axis_width_px = 0.f;
 
     // --- price bounds (y-axis state) ---------------------------------------
-    // Persistent across pans (panning preserves the price scale). Mutated
-    // only by pinch zoom, axis drags, vertical drag-translate.
+    // Two modes. Auto (price_bounds_manual == false, the default): the y-range
+    // continuously follows the visible candles each frame and `price_bounds`
+    // is ignored. Manual: the user has touched the y-axis (pinch zoom, axis
+    // drag, vertical drag-translate) and `price_bounds` is frozen until
+    // vroom_chart_reset_view / reset_price_scale re-enables auto mode.
     vroom::PriceBounds price_bounds{0.0, 1.0};
-    bool price_bounds_initialized = false;
+    bool price_bounds_manual = false;
 
     // --- crosshair (not yet drawn) -----------------------------------------
     bool   crosshair_active = false;
@@ -118,6 +121,24 @@ struct VroomChart {
     std::vector<double> vwap_cache;
     std::vector<unsigned char> vwap_breaks;
     bool vwap_dirty = true;
+
+    // --- drawings (line annotations) ---------------------------------------
+    // Committed two-point lines, anchored in data space so they track the
+    // candles on pan/zoom. Drawn on the price pane above candles/overlays.
+    std::vector<VroomDrawing> drawings;
+
+    // Transient in-progress "draft" the drawing tool shows while placing points.
+    // draft_a is always drawn (node dot); draft_b is drawn when draft_has_b.
+    // draft_guide draws the live guideline A->B; when false only node dots show
+    // (the committed segment renders via `drawings`). draft_color/draft_width
+    // style the guideline to match the eventual line.
+    bool           draft_active = false;
+    VroomDrawPoint draft_a{};
+    bool           draft_has_b = false;
+    VroomDrawPoint draft_b{};
+    bool           draft_guide = false;
+    uint32_t       draft_color = 0xff2962ff;
+    float          draft_width = 2.f;
 
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;

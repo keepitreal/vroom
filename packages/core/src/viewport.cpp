@@ -35,6 +35,31 @@ float candle_center_x(const Layout& layout,
     return static_cast<float>(static_cast<double>(usable) * frac);
 }
 
+int64_t time_at_x(const Layout& layout,
+                  int64_t visible_start_ms,
+                  int64_t window_ms,
+                  float x_px) {
+    const float usable =
+        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    if (usable <= 0.f || window_ms <= 0) return visible_start_ms;
+    const double frac = static_cast<double>(x_px) / static_cast<double>(usable);
+    return visible_start_ms +
+           static_cast<int64_t>(std::llround(frac * static_cast<double>(window_ms)));
+}
+
+float x_at_time(const Layout& layout,
+                int64_t visible_start_ms,
+                int64_t window_ms,
+                int64_t time_ms) {
+    if (window_ms <= 0) return 0.f;
+    const float usable =
+        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    const double frac =
+        static_cast<double>(time_ms - visible_start_ms) /
+        static_cast<double>(window_ms);
+    return static_cast<float>(static_cast<double>(usable) * frac);
+}
+
 size_t snap_index_to_candle(const Layout& layout,
                             const ::VroomCandle* candles,
                             size_t count,
@@ -178,6 +203,14 @@ PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {
         b.max = 1.0;
     }
     return b;
+}
+
+PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count) {
+    PriceBounds b = price_bounds(candles, count);
+    if (count == 0) return b;
+    const double mid = (b.min + b.max) * 0.5;
+    const double half = (b.max - b.min) * 0.5 * kAutoYZoom;
+    return {mid - half, mid + half};
 }
 
 float price_to_y(const Layout& layout,

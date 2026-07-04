@@ -318,7 +318,7 @@ void recompute_axis_width(VroomChart& chart) {
         return;
     }
     double hi, lo;
-    if (chart.price_bounds_initialized) {
+    if (chart.price_bounds_manual) {
         hi = chart.price_bounds.max;
         lo = chart.price_bounds.min;
     } else if (!chart.candles.empty()) {

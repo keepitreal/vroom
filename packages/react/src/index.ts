@@ -1,5 +1,11 @@
 export { VroomChart } from './VroomChart';
 export type { VroomChartProps } from './types';
+export {
+  classifyTransition,
+  inferStepMs,
+  timeframeWindow,
+  type DataTransition,
+} from './dataTransitions';
 export type { WasmConfig } from '@vroomchart/core-wasm';
 
 // Re-export the shared API types so web consumers can import everything from
@@ -15,4 +21,8 @@ export type {
   MASource,
   MovingAverageOverlay,
   VWAPConfig,
+  ChartMode,
+  DrawTool,
+  DrawPoint,
+  Drawing,
 } from '@vroomchart/types';

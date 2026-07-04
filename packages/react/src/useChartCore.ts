@@ -12,9 +12,16 @@ import {
   parseColor,
   type LoadVroomOptions,
   type OverlaySpec,
+  type DrawingSpec,
   type VroomChartHandle,
 } from '@vroomchart/core-wasm';
 import type { VroomChartCoreProps } from '@vroomchart/types';
+import {
+  classifyTransition,
+  inferStepMs,
+  timeframeWindow,
+  type DataTransition,
+} from './dataTransitions';
 
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;
@@ -29,6 +36,19 @@ function overlayToNumeric(
     source: srcIdx < 0 ? 0 : srcIdx,
     color: (o.color != null ? parseColor(o.color) : null) ?? 0xff2962ff,
     width: o.width ?? 1.5,
+  };
+}
+
+function drawingToSpec(
+  d: NonNullable<VroomChartCoreProps['drawings']>[number],
+): DrawingSpec {
+  return {
+    aTime: d.points[0].timeMs,
+    aPrice: d.points[0].price,
+    bTime: d.points[1].timeMs,
+    bPrice: d.points[1].price,
+    color: (d.color != null ? parseColor(d.color) : null) ?? 0xff2962ff,
+    width: d.width ?? 2,
   };
 }
 
@@ -48,6 +68,7 @@ export function useChartCore(
 ): UseChartCore {
   const {
     candles,
+    seriesKey,
     width: widthProp,
     height: heightProp,
     visibleRange,
@@ -56,11 +77,19 @@ export function useChartCore(
     macd,
     movingAverages,
     vwap,
+    drawings,
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const handleRef = useRef<VroomChartHandle | null>(null);
+  // What the core currently holds, for classifying the next data change.
+  // Keyed by handle so a recreated core is treated as a fresh initial load.
+  const prevDataRef = useRef<{
+    handle: VroomChartHandle;
+    candles: VroomChartCoreProps['candles'];
+    seriesKey?: string;
+  } | null>(null);
   const rafRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [measured, setMeasured] = useState({ width: 0, height: 0 });
@@ -125,6 +154,7 @@ export function useChartCore(
   const macdKey = macd ? JSON.stringify(macd) : '';
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
+  const drawingsKey = drawings ? JSON.stringify(drawings) : '';
   const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
@@ -135,7 +165,52 @@ export function useChartCore(
     if (!h || width <= 0 || height <= 0) return;
     const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     h.setSize(width, height, dpr);
-    if (candles.length > 0) h.setCandles(packCandles(candles));
+    if (candles.length > 0) {
+      const prev = prevDataRef.current;
+      const freshHandle = prev == null || prev.handle !== h;
+      if (freshHandle || prev.candles !== candles || prev.seriesKey !== seriesKey) {
+        // A fresh core frames itself (its window starts at 0/0); an explicit
+        // visibleRange prop overrides any auto behavior, so treat the change
+        // like a stream and let the range application below win.
+        const transition: DataTransition = freshHandle
+          ? 'initial'
+          : explicit
+            ? 'stream'
+            : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+
+        // Capture the outgoing view before setCandles re-infers the candle
+        // period from the new data.
+        let tfArgs: { oldWindow: { startMs: number; endMs: number }; oldStepMs: number; oldLastMs: number } | null =
+          null;
+        if (transition === 'timeframe' && prev != null) {
+          const oldWindow = h.getVisibleRange();
+          const oldStepMs = inferStepMs(prev.candles);
+          if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
+            tfArgs = { oldWindow, oldStepMs, oldLastMs: prev.candles[prev.candles.length - 1].timeMs };
+          }
+        }
+
+        h.setCandles(packCandles(candles));
+
+        if (transition === 'timeframe') {
+          const newStepMs = inferStepMs(candles);
+          if (tfArgs && newStepMs != null) {
+            const w = timeframeWindow(
+              tfArgs.oldWindow,
+              tfArgs.oldStepMs,
+              tfArgs.oldLastMs,
+              newStepMs,
+              candles[candles.length - 1].timeMs,
+            );
+            h.setVisibleRange(w.startMs, w.endMs);
+          }
+          h.resetPriceScale();
+        } else if (transition === 'reset') {
+          h.resetView();
+        }
+        prevDataRef.current = { handle: h, candles, seriesKey };
+      }
+    }
     if (explicit) h.setVisibleRange(startMs, endMs);
     if (theme) applyTheme(h, theme);
     h.setRSI(
@@ -154,10 +229,11 @@ export function useChartCore(
       (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
       vwap?.width ?? 1.5,
     );
+    h.setDrawings((drawings ?? []).map(drawingToSpec));
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap tracked via their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/drawings tracked via their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

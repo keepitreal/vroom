@@ -117,6 +117,17 @@ class WebChart {
     vroom_chart_set_visible_range(chart_, static_cast<int64_t>(start_ms),
                                   static_cast<int64_t>(end_ms));
   }
+  em::val getVisibleRange() {
+    int64_t start_ms = 0, end_ms = 0;
+    vroom_chart_get_visible_range(chart_, &start_ms, &end_ms);
+    em::val o = em::val::object();
+    // Epoch ms fits a double exactly (< 2^53).
+    o.set("startMs", static_cast<double>(start_ms));
+    o.set("endMs", static_cast<double>(end_ms));
+    return o;
+  }
+  void resetView() { vroom_chart_reset_view(chart_); }
+  void resetPriceScale() { vroom_chart_reset_price_scale(chart_); }
   void pan(float dx, float dy) { vroom_chart_pan(chart_, dx, dy); }
   void translate(float dx, float dy) { vroom_chart_translate(chart_, dx, dy); }
   void zoom(float sx, float sy, float fx, float fy) {
@@ -160,7 +171,40 @@ class WebChart {
     vroom_chart_set_overlays(chart_, out.data(), n);
   }
 
+  // `drawings` is a JS array of {aTime, aPrice, bTime, bPrice, color, width}.
+  void setDrawings(const em::val& drawings) {
+    const size_t n = drawings["length"].as<size_t>();
+    std::vector<VroomDrawing> out(n);
+    for (size_t i = 0; i < n; ++i) {
+      em::val d = drawings[i];
+      out[i].a.time_ms = static_cast<int64_t>(d["aTime"].as<double>());
+      out[i].a.price = d["aPrice"].as<double>();
+      out[i].b.time_ms = static_cast<int64_t>(d["bTime"].as<double>());
+      out[i].b.price = d["bPrice"].as<double>();
+      out[i].color = d["color"].as<uint32_t>();
+      out[i].width = d["width"].as<float>();
+    }
+    vroom_chart_set_drawings(chart_, out.data(), n);
+  }
+  void setDraft(double a_time, double a_price, bool has_b, double b_time,
+                double b_price, bool guide, uint32_t color, float width) {
+    vroom_chart_set_draft(chart_, static_cast<int64_t>(a_time), a_price, has_b,
+                          static_cast<int64_t>(b_time), b_price, guide, color,
+                          width);
+  }
+  void clearDraft() { vroom_chart_clear_draft(chart_); }
+
   // --- reads ------------------------------------------------------------
+  // Returns the continuous {timeMs, price} at pixel (x, y), or null.
+  em::val coordAt(float x, float y) {
+    VroomCoord c{};
+    if (!vroom_chart_coord_at(chart_, x, y, &c)) return em::val::null();
+    em::val o = em::val::object();
+    o.set("timeMs", static_cast<double>(c.time_ms));
+    o.set("price", c.price);
+    return o;
+  }
+
   em::val getAxisMetrics() {
     float yw = 0, xh = 0, ind = 0;
     vroom_chart_get_axis_metrics(chart_, &yw, &xh, &ind);
@@ -301,6 +345,9 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setSize", &WebChart::setSize)
       .function("setColor", &WebChart::setColor)
       .function("setVisibleRange", &WebChart::setVisibleRange)
+      .function("getVisibleRange", &WebChart::getVisibleRange)
+      .function("resetView", &WebChart::resetView)
+      .function("resetPriceScale", &WebChart::resetPriceScale)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)
       .function("zoom", &WebChart::zoom)
@@ -317,6 +364,10 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setMACD", &WebChart::setMACD)
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
+      .function("setDrawings", &WebChart::setDrawings)
+      .function("setDraft", &WebChart::setDraft)
+      .function("clearDraft", &WebChart::clearDraft)
+      .function("coordAt", &WebChart::coordAt)
       .function("setTypeface", &WebChart::setTypeface)
       .function("isAnimating", &WebChart::isAnimating)
       .function("present", &WebChart::present);

@@ -49,6 +49,27 @@ typedef struct VroomOverlay {
     float    width;   // stroke width in px
 } VroomOverlay;
 
+// A drawing anchor in data space (so a drawing tracks the candles on pan/zoom).
+typedef struct VroomDrawPoint {
+    int64_t time_ms;  // epoch milliseconds (not snapped to a candle slot)
+    double  price;
+} VroomDrawPoint;
+
+// A committed line drawing: a two-point trendline on the price pane.
+typedef struct VroomDrawing {
+    VroomDrawPoint a;
+    VroomDrawPoint b;
+    uint32_t       color;  // 0xAARRGGBB
+    float          width;  // stroke width in px
+} VroomDrawing;
+
+// A continuous data coordinate at a pixel position (no candle snapping). Used to
+// translate a drawing-tool click into a data-space anchor.
+typedef struct VroomCoord {
+    int64_t time_ms;
+    double  price;
+} VroomCoord;
+
 // ---- Styling keys ---------------------------------------------------------
 
 typedef enum {
@@ -109,6 +130,24 @@ void vroom_chart_set_size(VroomChart* chart, float width_px, float height_px, fl
 // ---- Viewport -------------------------------------------------------------
 
 void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t end_ms);
+
+// Reads the current visible time window. Either out pointer may be null.
+// Both are 0 when the window is still uninitialized.
+void vroom_chart_get_visible_range(VroomChart* chart,
+                                   int64_t* out_start_ms, int64_t* out_end_ms);
+
+// Reset to the fresh-mount view: frame the most recent ~80 candles and
+// re-enable continuous y auto-fit (the price range follows the visible candles
+// until the next manual y gesture). Use when the data series is wholesale
+// replaced — e.g. switching assets. With no candles loaded, clears the window
+// to 0/0 so the next set_candles applies the default framing.
+void vroom_chart_reset_view(VroomChart* chart);
+
+// Re-enable continuous y auto-fit only; the time window is untouched. Use
+// after repositioning the window for a same-asset data swap (e.g. a timeframe
+// switch) so the price scale re-fits the newly visible candles.
+void vroom_chart_reset_price_scale(VroomChart* chart);
+
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
 // Directional zoom. scale_x scales the time window around focus_x_px (>1 =
 // narrower window, wider candles); scale_y scales the price range around
@@ -211,6 +250,33 @@ void vroom_chart_set_overlays(VroomChart* chart, const VroomOverlay* overlays,
 // reset time). `color` is 0xAARRGGBB; `width` is the stroke px.
 void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
                           uint32_t color, float width);
+
+// ---- Drawings (line annotations) ------------------------------------------
+
+// Replaces the full set of committed line drawings (data-anchored, so they track
+// the candles on pan/zoom). Pass count 0 to clear. Drawings render on the price
+// pane above the candles/overlays and below the axis labels & crosshair.
+void vroom_chart_set_drawings(VroomChart* chart, const VroomDrawing* drawings,
+                              size_t count);
+
+// Sets the transient in-progress "draft" the drawing tool shows while the user
+// places points. Node A is always shown; when `has_b`, node B is shown too.
+// `guide != 0` also draws the guideline A->B (the live line preview); `guide == 0`
+// draws node dots only (the committed segment already renders via set_drawings).
+// `color`/`width` style the guideline to match the eventual line.
+void vroom_chart_set_draft(VroomChart* chart, int64_t a_time, double a_price,
+                           bool has_b, int64_t b_time, double b_price,
+                           bool guide, uint32_t color, float width);
+
+// Clears the draft (hides the in-progress node dots / guideline).
+void vroom_chart_clear_draft(VroomChart* chart);
+
+// Fills *out with the continuous data coordinate (time_ms, price) at pixel
+// (x_px, y_px) using the free (non-snapped) mapping, and returns true. Returns
+// false (leaving *out untouched) when there are no candles or the viewport is
+// degenerate.
+bool vroom_chart_coord_at(VroomChart* chart, float x_px, float y_px,
+                          VroomCoord* out);
 
 // ---- Rendering ------------------------------------------------------------
 

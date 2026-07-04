@@ -5,15 +5,23 @@
 // be non-passive and call preventDefault.
 
 import { useEffect, useRef } from 'react';
-import type { CrosshairEvent } from '@vroomchart/types';
+import type { ChartMode, CrosshairEvent, Drawing, DrawTool } from '@vroomchart/types';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
 type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' | 'indicator-axis';
 
 export type GestureOptions = {
   crosshairOffset: number;
+  /** Interaction mode. In 'draw' mode panning/zooming/crosshair are suppressed. */
+  mode?: ChartMode;
+  /** Active drawing tool while in 'draw' mode. */
+  tool?: DrawTool;
   onCrosshair?: (e: CrosshairEvent) => void;
   onViewportChange?: (startMs: number, endMs: number) => void;
+  /** Fired with the finished line when the user places its second point. */
+  onDrawingComplete?: (drawing: Drawing) => void;
+  /** Fired when the chart wants the host to change mode (e.g. exit on click-away). */
+  onRequestMode?: (mode: ChartMode) => void;
 };
 
 const MIN_SPAN = 24; // px — minimum two-finger span for an axis to scale
@@ -22,6 +30,37 @@ const LONG_PRESS_MS = 350;
 const MOVE_THRESH = 6; // px before a press becomes a drag
 const WHEEL_K = 0.0015; // wheel delta → zoom factor exponent
 const SEP_HIT = 4; // px band around the indicator separator for hit-testing
+
+// Drawing-tool styling: the guideline (and committed line) default to solid blue
+// at 2px, matching the core's default and useChartCore's drawing color.
+const DRAW_COLOR = 0xff2962ff;
+const DRAW_WIDTH = 2;
+const DRAW_HIT = 6; // px tolerance for "clicked on the selected line" vs. away
+
+// Stable unique id for a freshly drawn line.
+function drawingId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `draw-${Math.random().toString(36).slice(2)}`;
+}
+
+// Distance in px from point (px,py) to the segment (ax,ay)-(bx,by).
+function distToSegment(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  let t = len2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
 
 export function useGestures(
   containerRef: React.RefObject<HTMLElement | null>,
@@ -32,6 +71,36 @@ export function useGestures(
   // Keep latest opts in a ref so the effect's listeners stay stable.
   const optsRef = useRef(opts);
   optsRef.current = opts;
+
+  // Drawing-tool state. Lives in refs (not effect-local) so the mode-change
+  // effect below can reset it when the host leaves draw mode, and so it survives
+  // the gesture effect's stable-listener lifecycle.
+  //   drawAnchor* — first point placed, awaiting the second (data + px coords).
+  //   drawSelectedPx — set once a line is committed: its px endpoints, used to
+  //                    hit-test "clicked on the line" vs. "clicked away to exit".
+  const drawAnchorRef = useRef<{ timeMs: number; price: number } | null>(null);
+  const drawAnchorPxRef = useRef<{ x: number; y: number } | null>(null);
+  const drawSelectedPxRef = useRef<{
+    ax: number;
+    ay: number;
+    bx: number;
+    by: number;
+  } | null>(null);
+
+  // Reset the in-progress draft whenever draw+line mode is not active (e.g. the
+  // host toggled the tool off mid-draw), so re-entering draw mode starts clean.
+  useEffect(() => {
+    const active = opts.mode === 'draw' && opts.tool === 'line';
+    if (active) return;
+    drawAnchorRef.current = null;
+    drawAnchorPxRef.current = null;
+    drawSelectedPxRef.current = null;
+    const h = handleRef.current;
+    if (h) {
+      h.clearDraft();
+      scheduleRender();
+    }
+  }, [opts.mode, opts.tool, handleRef, scheduleRender]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -123,6 +192,70 @@ export function useGestures(
       reportCrosshair('hide');
     };
 
+    // True while the line tool should own input (suppress pan/zoom/crosshair).
+    const drawActive = () =>
+      optsRef.current.mode === 'draw' && optsRef.current.tool === 'line';
+
+    // While placing the second point, keep the guideline glued to the cursor.
+    const updateGuideline = (x: number, y: number) => {
+      const h = handleRef.current;
+      if (!h) return;
+      if (!drawAnchorRef.current || drawSelectedPxRef.current) return;
+      const c = h.coordAt(x, y);
+      if (!c) return;
+      const a = drawAnchorRef.current;
+      h.setDraft(a.timeMs, a.price, true, c.timeMs, c.price, true, DRAW_COLOR, DRAW_WIDTH);
+      scheduleRender();
+    };
+
+    // A tap in the chart area: place the next point, or exit on click-away.
+    const handleDrawClick = (x: number, y: number) => {
+      const h = handleRef.current;
+      if (!h) return;
+      const o = optsRef.current;
+
+      // A committed line is selected: clicking on it keeps it; clicking away
+      // hides the nodes and asks the host to return to pan mode.
+      const sel = drawSelectedPxRef.current;
+      if (sel) {
+        if (distToSegment(x, y, sel.ax, sel.ay, sel.bx, sel.by) <= DRAW_HIT) return;
+        drawAnchorRef.current = null;
+        drawAnchorPxRef.current = null;
+        drawSelectedPxRef.current = null;
+        h.clearDraft();
+        scheduleRender();
+        el.style.cursor = '';
+        o.onRequestMode?.('pan');
+        return;
+      }
+
+      const coord = h.coordAt(x, y);
+      if (!coord) return;
+
+      if (!drawAnchorRef.current) {
+        // First point: show node A; the guideline follows on the next move.
+        drawAnchorRef.current = coord;
+        drawAnchorPxRef.current = { x, y };
+        h.setDraft(coord.timeMs, coord.price, false, 0, 0, true, DRAW_COLOR, DRAW_WIDTH);
+        scheduleRender();
+      } else {
+        // Second point: commit the line and keep both nodes shown (selected).
+        const a = drawAnchorRef.current;
+        const apx = drawAnchorPxRef.current!;
+        o.onDrawingComplete?.({
+          id: drawingId(),
+          type: 'line',
+          points: [
+            { timeMs: a.timeMs, price: a.price },
+            { timeMs: coord.timeMs, price: coord.price },
+          ],
+        });
+        drawSelectedPxRef.current = { ax: apx.x, ay: apx.y, bx: x, by: y };
+        h.setDraft(a.timeMs, a.price, true, coord.timeMs, coord.price, false, DRAW_COLOR, DRAW_WIDTH);
+        scheduleRender();
+      }
+    };
+
     const onPointerDown = (e: PointerEvent) => {
       const h = handleRef.current;
       if (!h) return;
@@ -152,7 +285,7 @@ export function useGestures(
       downY = y;
       moved = false;
       panMode = regionAt(x, y);
-      if (e.pointerType !== 'mouse' && panMode === 'chart') {
+      if (e.pointerType !== 'mouse' && panMode === 'chart' && !drawActive()) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;
           if (!moved) showCrosshair(downX, downY, 'press', 'show');
@@ -168,6 +301,12 @@ export function useGestures(
       // Hover (mouse, no button) → crosshair follows the cursor on the chart.
       if (!pointers.has(e.pointerId)) {
         if (e.pointerType === 'mouse' && pointers.size === 0) {
+          // Draw mode: no crosshair; the guideline tracks the cursor instead.
+          if (drawActive()) {
+            el.style.cursor = 'crosshair';
+            updateGuideline(x, y);
+            return;
+          }
           const region = regionAt(x, y);
           el.style.cursor =
             region === 'separator'
@@ -189,8 +328,8 @@ export function useGestures(
       const dy = y - prev.y;
       pointers.set(e.pointerId, { x, y });
 
-      // Two-finger directional pinch.
-      if (pointers.size >= 2 && pinch.active) {
+      // Two-finger directional pinch (disabled while drawing).
+      if (pointers.size >= 2 && pinch.active && !drawActive()) {
         const pts = [...pointers.values()];
         const focalX = (pts[0]!.x + pts[1]!.x) / 2;
         const focalY = (pts[0]!.y + pts[1]!.y) / 2;
@@ -218,6 +357,13 @@ export function useGestures(
         clearLongPress();
       }
       if (!moved) return;
+
+      // Draw mode: a press-drag neither pans nor moves a crosshair; if a point
+      // is down, keep the guideline tracking the cursor so a drag still previews.
+      if (drawActive()) {
+        if (panMode === 'chart') updateGuideline(x, y);
+        return;
+      }
 
       // Chart-area drag with the (press) crosshair up moves the crosshair.
       if (crosshairActive && crosshairSource === 'press' && panMode === 'chart') {
@@ -247,6 +393,14 @@ export function useGestures(
       if (pointers.size < 2) pinch.active = false;
       if (!had) return;
 
+      // Draw mode: a stationary tap in the chart places a point (or exits on
+      // click-away). Drags are ignored (no pan). Crosshair logic is skipped.
+      if (drawActive() && pointers.size === 0) {
+        if (!moved && panMode === 'chart') handleDrawClick(downX, downY);
+        else el.style.cursor = 'crosshair';
+        return;
+      }
+
       // Press crosshair is active only while held — release dismisses it.
       if (crosshairSource === 'press' && pointers.size === 0) {
         hideCrosshair();
@@ -265,6 +419,8 @@ export function useGestures(
       const h = handleRef.current;
       if (!h) return;
       e.preventDefault();
+      // Draw mode: no pan/zoom from the wheel (keeps placed points stable).
+      if (drawActive()) return;
       const { x, y } = rel(e);
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.

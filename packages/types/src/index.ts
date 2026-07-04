@@ -92,6 +92,42 @@ export type VisibleRange = {
   endMs: number;
 };
 
+/**
+ * Chart interaction mode.
+ *   'pan'  — default: drag to pan, pinch/wheel to zoom, hover/long-press crosshair.
+ *   'draw' — left-clicks place drawing points; panning/zooming are suppressed.
+ */
+export type ChartMode = 'pan' | 'draw';
+
+/** Active drawing tool while in `draw` mode. `null` draws nothing. */
+export type DrawTool = null | 'line';
+
+/** A drawing anchor in data space, so it stays glued to the candles on pan/zoom. */
+export type DrawPoint = {
+  /** Anchor time as Unix epoch milliseconds (not snapped to a candle slot). */
+  timeMs: number;
+  /** Anchor price. */
+  price: number;
+};
+
+/**
+ * A committed drawing. Pass an array of these via the `drawings` prop to render
+ * persisted annotations; the chart appends a new one (via `onDrawingComplete`)
+ * each time the user finishes drawing. For now only the `'line'` (two-point
+ * trendline) type exists.
+ */
+export type Drawing = {
+  /** Stable unique id (the chart generates one for drawings it creates). */
+  id: string;
+  type: 'line';
+  /** The two endpoints, in data space. */
+  points: [DrawPoint, DrawPoint];
+  /** Line color (hex string or packed ARGB number). Default solid blue. */
+  color?: VroomColor;
+  /** Stroke width in px. Default 2. */
+  width?: number;
+};
+
 /** RSI indicator config. Rendered in a pane below the candles when enabled. */
 export type RSIConfig = {
   enabled?: boolean;
@@ -168,6 +204,14 @@ export type VroomChartCoreProps = {
   /** OHLCV bars to render. The only required prop. */
   candles: Candle[];
   /**
+   * Identity of the data series (e.g. "BTC-USD"). When it changes between
+   * renders the chart resets to the default view (most recent candles + price
+   * auto-fit), regardless of what the data heuristics conclude — the escape
+   * hatch for ambiguous switches like two assets trading at similar prices.
+   * Omit to rely on automatic detection from the candle data alone.
+   */
+  seriesKey?: string;
+  /**
    * Explicit size overrides in logical px. When omitted, the chart fills its
    * parent (measured at runtime). Prefer layout-driven sizing via the
    * platform's `style` (flex / aspect-ratio / absolute fill) over hard-coding.
@@ -191,6 +235,27 @@ export type VroomChartCoreProps = {
    * touch x. Default 40.
    */
   crosshairOffset?: number;
+  /**
+   * Interaction mode. Default `'pan'`. Set to `'draw'` (with a `tool`) to let
+   * the user place drawing points; panning/zooming are suppressed while drawing.
+   */
+  mode?: ChartMode;
+  /** Active drawing tool while in `draw` mode. Default `null` (draws nothing). */
+  tool?: DrawTool;
+  /**
+   * Committed drawings to render, anchored to data so they track the candles on
+   * pan/zoom. This is a controlled prop: append the value the chart hands you in
+   * `onDrawingComplete` to persist it.
+   */
+  drawings?: Drawing[];
+  /** Fired with the finished drawing when the user completes one. */
+  onDrawingComplete?: (drawing: Drawing) => void;
+  /**
+   * Fired when the chart wants the mode changed — e.g. it requests `'pan'` after
+   * the user clicks away from a just-drawn line. Since `mode` is controlled, the
+   * host should apply the requested mode.
+   */
+  onModeChange?: (mode: ChartMode) => void;
   onCrosshair?: (e: CrosshairEvent) => void;
   onViewportChange?: (startMs: number, endMs: number) => void;
 };

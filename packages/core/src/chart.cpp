@@ -21,6 +21,7 @@
 #include "candles.h"
 #include "chart_internal.h"
 #include "crosshair.h"
+#include "drawings.h"
 #include "labels.h"
 #include "ma.h"
 #include "ma_overlay.h"
@@ -116,9 +117,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     if (n == 0) return;
     const ::VroomCandle* visible = candles.data() + range.start;
 
-    const auto bounds = price_bounds_initialized
+    const auto bounds = price_bounds_manual
         ? price_bounds
-        : vroom::price_bounds(visible, n);
+        : vroom::auto_price_bounds(visible, n);
     const int64_t window_ms = visible_end_ms - visible_start_ms;
 
     const float candle_area_h = vroom::price_pane_bottom(lay);
@@ -175,6 +176,11 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                     candle_area_h, vwap_color, vwap_width, brk);
         }
     }
+
+    // 5.7. Drawing annotations (committed line tools + the in-progress draft).
+    //      On the price pane above the candles/overlays, below the axis labels.
+    vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,
+                          candle_area_h);
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
     //    line is intentionally omitted for now. The bottom strip anchors at

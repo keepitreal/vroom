@@ -126,6 +126,50 @@ TEST_CASE("snap_x_to_candle") {
     }
 }
 
+TEST_CASE("time_at_x / x_at_time (free drawing-endpoint mapping)") {
+    Layout l = make_layout();  // usable = 1000px
+
+    SUBCASE("x_at_time maps linearly across the window") {
+        // window 1000 starting at 0: t=0 -> 0px, t=500 -> 500px, t=1000 -> 1000px.
+        CHECK(vroom::x_at_time(l, 0, 1000, 0) == doctest::Approx(0.f));
+        CHECK(vroom::x_at_time(l, 0, 1000, 500) == doctest::Approx(500.f));
+        CHECK(vroom::x_at_time(l, 0, 1000, 1000) == doctest::Approx(1000.f));
+    }
+
+    SUBCASE("time_at_x is the inverse of x_at_time") {
+        CHECK(vroom::time_at_x(l, 0, 1000, 0.f) == 0);
+        CHECK(vroom::time_at_x(l, 0, 1000, 500.f) == 500);
+        CHECK(vroom::time_at_x(l, 0, 1000, 1000.f) == 1000);
+    }
+
+    SUBCASE("honors a non-zero visible start") {
+        CHECK(vroom::x_at_time(l, 1000, 1000, 1500) == doctest::Approx(500.f));
+        CHECK(vroom::time_at_x(l, 1000, 1000, 500.f) == 1500);
+    }
+
+    SUBCASE("subtracts y-axis and right padding from usable width") {
+        l.y_axis_width_px = 80.f;
+        l.right_padding_px = 20.f;  // usable = 900
+        CHECK(vroom::x_at_time(l, 0, 900, 900) == doctest::Approx(900.f));
+        CHECK(vroom::time_at_x(l, 0, 900, 900.f) == 900);
+    }
+
+    SUBCASE("round-trips for assorted times") {
+        for (int64_t t : {0, 137, 500, 813, 1000}) {
+            const float x = vroom::x_at_time(l, 0, 1000, t);
+            CHECK(vroom::time_at_x(l, 0, 1000, x) == t);
+        }
+    }
+
+    SUBCASE("degenerate window/usable falls back to the visible start") {
+        CHECK(vroom::time_at_x(l, 42, 0, 500.f) == 42);
+        Layout z = make_layout();
+        z.width_px = 0.f;  // usable <= 0
+        CHECK(vroom::time_at_x(z, 42, 1000, 500.f) == 42);
+        CHECK(vroom::x_at_time(z, 0, 0, 100) == 0.f);
+    }
+}
+
 TEST_CASE("snap_index_to_candle") {
     Layout l = make_layout();
     // 10 candles at t = 0,100,...,900; duration 100; window 1000; usable 1000.
@@ -245,6 +289,32 @@ TEST_CASE("price_bounds") {
         PriceBounds b = vroom::price_bounds(candles, 3);
         CHECK(b.min == doctest::Approx(3.0));
         CHECK(b.max == doctest::Approx(20.0));
+    }
+}
+
+TEST_CASE("auto_price_bounds") {
+    SUBCASE("empty keeps the {0,1} sentinel unwidened") {
+        PriceBounds b = vroom::auto_price_bounds(nullptr, 0);
+        CHECK(b.min == 0.0);
+        CHECK(b.max == 1.0);
+    }
+
+    SUBCASE("widens price_bounds about the midpoint by kAutoYZoom") {
+        VroomCandle candles[2] = {
+            ohlc(0, 10.0, 20.0),
+            ohlc(1, 12.0, 30.0),
+        };
+        // raw bounds {10,30}: mid 20, half 10 -> widened half 15 -> {5,35}
+        PriceBounds b = vroom::auto_price_bounds(candles, 2);
+        CHECK(b.min == doctest::Approx(5.0));
+        CHECK(b.max == doctest::Approx(35.0));
+    }
+
+    SUBCASE("flat candle collapses to a zero-height range at its price") {
+        VroomCandle candles[1] = {ohlc(0, 50.0, 50.0)};
+        PriceBounds b = vroom::auto_price_bounds(candles, 1);
+        CHECK(b.min == doctest::Approx(50.0));
+        CHECK(b.max == doctest::Approx(50.0));
     }
 }
 

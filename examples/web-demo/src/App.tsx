@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { VroomChart, type Candle, type CrosshairEvent } from '@vroomchart/react';
+import {
+  VroomChart,
+  type Candle,
+  type CrosshairEvent,
+  type ChartMode,
+  type DrawTool,
+  type Drawing,
+} from '@vroomchart/react';
 import { StreamingRepro } from './StreamingRepro';
 import { SettingsModal, DEFAULT_THEME, type ThemeState } from './SettingsModal';
 import {
@@ -22,6 +29,16 @@ import {
 
 const THEME_STORAGE_KEY = 'vroom-theme';
 
+// Drawing-tool props shared by both chart views (the line tool toggled in the
+// top bar). Bundled so each view just spreads them onto its <VroomChart>.
+export type DrawProps = {
+  mode: ChartMode;
+  tool: DrawTool;
+  drawings: Drawing[];
+  onDrawingComplete: (d: Drawing) => void;
+  onModeChange: (m: ChartMode) => void;
+};
+
 // Read the saved theme, merging onto DEFAULT_THEME so newly-added fields are
 // always present even if an older payload was stored. Falls back to defaults
 // on missing/corrupt data.
@@ -37,39 +54,124 @@ function loadTheme(): ThemeState {
   }
 }
 
-// Synthetic random-walk candles for the demo.
-function mockCandles(n: number, stepMs: number): Candle[] {
+// ---- Demo data: per-asset seeded 1m base series + timeframe aggregation ----
+// Both timeframes of one asset aggregate the same 1m walk, so a timeframe
+// switch has genuine price/time continuity (exercising the chart's heuristic
+// detection, not just the seriesKey escape hatch).
+
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+
+const ASSETS = { BTC: 60_000, SOL: 80 } as const;
+type Asset = keyof typeof ASSETS;
+
+const TIMEFRAMES = [
+  { label: '1m', stepMs: MINUTE },
+  { label: '5m', stepMs: 5 * MINUTE },
+  { label: '15m', stepMs: 15 * MINUTE },
+  { label: '1h', stepMs: HOUR },
+] as const;
+
+// Deterministic PRNG so each asset renders the same walk across switches.
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const BASE_BARS = 12_000; // 1m bars -> 200 bars even at the 1h timeframe
+
+const baseCache = new Map<Asset, Candle[]>();
+function baseSeries(asset: Asset): Candle[] {
+  const cached = baseCache.get(asset);
+  if (cached) return cached;
+  const seed = [...asset].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7);
+  const rand = mulberry32(seed);
+  const basePrice = ASSETS[asset];
+  // Anchor to the top of the hour so every timeframe buckets cleanly.
+  const endMs = Math.floor(Date.now() / HOUR) * HOUR;
   const out: Candle[] = [];
-  let price = 100;
-  const now = Date.now();
-  for (let i = 0; i < n; i++) {
+  let price: number = basePrice;
+  for (let i = 0; i < BASE_BARS; i++) {
     const open = price;
-    const close = open + (Math.random() - 0.5) * 4;
-    const high = Math.max(open, close) + Math.random() * 2;
-    const low = Math.min(open, close) - Math.random() * 2;
+    const close = open + (rand() - 0.5) * basePrice * 0.002;
+    const high = Math.max(open, close) + rand() * basePrice * 0.001;
+    const low = Math.min(open, close) - rand() * basePrice * 0.001;
     out.push({
-      timeMs: now - (n - i) * stepMs,
+      timeMs: endMs - (BASE_BARS - i) * MINUTE,
       open,
       high,
       low,
       close,
-      volume: Math.random() * 1000,
+      volume: rand() * 1000,
     });
     price = close;
+  }
+  baseCache.set(asset, out);
+  return out;
+}
+
+// Bucket 1m bars into a coarser timeframe (first open, max high, min low,
+// last close, summed volume).
+function aggregate(base: Candle[], stepMs: number): Candle[] {
+  if (stepMs <= MINUTE) return base;
+  const out: Candle[] = [];
+  for (const c of base) {
+    const bucket = Math.floor(c.timeMs / stepMs) * stepMs;
+    const last = out[out.length - 1];
+    if (last && last.timeMs === bucket) {
+      last.high = Math.max(last.high, c.high);
+      last.low = Math.min(last.low, c.low);
+      last.close = c.close;
+      last.volume += c.volume;
+    } else {
+      out.push({ ...c, timeMs: bucket });
+    }
   }
   return out;
 }
 
-const DAY = 24 * 60 * 60 * 1000;
-
 export function App() {
   // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
   // bundled in @vroomchart/core-wasm.
-  const candles = useMemo(() => mockCandles(300, DAY), []);
+  const [asset, setAsset] = useState<Asset>('BTC');
+  const [tf, setTf] = useState<number>(MINUTE);
+  const [useSeriesKey, setUseSeriesKey] = useState(true);
+  const candles = useMemo(() => aggregate(baseSeries(asset), tf), [asset, tf]);
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
   const [view, setView] = useState<'repro' | 'demo'>('repro');
   const [theme, setTheme] = useState<ThemeState>(loadTheme);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Drawing tool state. `drawMode`/`drawTool` drive the chart; `drawings` is the
+  // controlled list the chart appends to via onDrawingComplete.
+  const [drawMode, setDrawMode] = useState<ChartMode>('pan');
+  const [drawTool, setDrawTool] = useState<DrawTool>(null);
+  const [drawings, setDrawings] = useState<Drawing[]>([]);
+
+  const toggleLineTool = useCallback(() => {
+    setDrawMode((m) => {
+      const next = m === 'draw' ? 'pan' : 'draw';
+      setDrawTool(next === 'draw' ? 'line' : null);
+      return next;
+    });
+  }, []);
+
+  const drawProps: DrawProps = {
+    mode: drawMode,
+    tool: drawTool,
+    drawings,
+    onDrawingComplete: (d) => setDrawings((p) => [...p, d]),
+    // The chart asks to return to pan after the user clicks away from a line.
+    onModeChange: (m) => {
+      setDrawMode(m);
+      if (m === 'pan') setDrawTool(null);
+    },
+  };
 
   useEffect(() => {
     try {
@@ -168,9 +270,74 @@ export function App() {
           ))}
         </div>
         {view === 'demo' && (
-          <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
+          <>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {(Object.keys(ASSETS) as Asset[]).map((a) => (
+                <button
+                  key={a}
+                  onClick={() => setAsset(a)}
+                  style={{
+                    background: asset === a ? '#21262d' : 'transparent',
+                    color: '#c9d1d9',
+                    border: '1px solid #30363d',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {TIMEFRAMES.map((t) => (
+                <button
+                  key={t.label}
+                  onClick={() => setTf(t.stepMs)}
+                  style={{
+                    background: tf === t.stepMs ? '#21262d' : 'transparent',
+                    color: '#c9d1d9',
+                    border: '1px solid #30363d',
+                    borderRadius: 6,
+                    padding: '4px 10px',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: 0.8, cursor: 'pointer' }}
+              title="Pass seriesKey={asset} so asset switches reset explicitly; uncheck to exercise pure data-heuristic detection"
+            >
+              <input
+                type="checkbox"
+                checked={useSeriesKey}
+                onChange={(e) => setUseSeriesKey(e.target.checked)}
+              />
+              seriesKey
+            </label>
+            <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
+          </>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <button
+            onClick={toggleLineTool}
+            style={{
+              background: drawMode === 'draw' ? '#1f6feb' : 'transparent',
+              color: drawMode === 'draw' ? '#f0f6fc' : '#c9d1d9',
+              border: '1px solid #30363d',
+              borderRadius: 6,
+              padding: '4px 10px',
+              fontSize: 13,
+              cursor: 'pointer',
+            }}
+          >
+            Line
+          </button>
           <button
             onClick={() => setIndicatorsOpen(true)}
             style={{
@@ -221,14 +388,16 @@ export function App() {
       </div>
       {view === 'repro' ? (
         <div style={{ flex: 1, minHeight: 0 }}>
-          <StreamingRepro theme={theme} indicators={indicatorProps} />
+          <StreamingRepro theme={theme} indicators={indicatorProps} draw={drawProps} />
         </div>
       ) : (
         <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>
           <VroomChart
             candles={candles}
+            seriesKey={useSeriesKey ? asset : undefined}
             theme={theme}
             {...indicatorProps}
+            {...drawProps}
             onCrosshair={onCrosshair}
           />
         </div>

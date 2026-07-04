@@ -54,6 +54,33 @@ int64_t damp_future_delta(int64_t delta_ms, int64_t cur_future,
     return static_cast<int64_t>(static_cast<double>(delta_ms) * resist);
 }
 
+// Frame the default view: the most recent ~80 candles — a narrower x-window
+// so candles read wider. No-op when there are no candles.
+void apply_default_framing(VroomChart* chart) {
+    if (chart->candles.empty()) return;
+    constexpr size_t kDefaultVisible = 80;
+    const size_t start_idx = chart->candles.size() > kDefaultVisible
+        ? chart->candles.size() - kDefaultVisible
+        : 0;
+    chart->visible_start_ms = chart->candles[start_idx].time_ms;
+    chart->visible_end_ms = chart->candles.back().time_ms;
+}
+
+// On the first manual-y gesture, adopt the on-screen auto-fit bounds so the
+// gesture continues from exactly what the user sees. No-op once manual.
+void ensure_manual_price_bounds(VroomChart* chart) {
+    if (chart->price_bounds_manual) return;
+    const auto idx = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    if (idx.end > idx.start) {
+        chart->price_bounds = vroom::auto_price_bounds(
+            chart->candles.data() + idx.start, idx.end - idx.start);
+    }  // else: no visible candles — keep whatever bounds we had
+    chart->price_bounds_manual = true;
+    vroom::labels::recompute_axis_width(*chart);
+}
+
 }  // namespace
 
 // ---- Lifecycle -------------------------------------------------------------
@@ -85,40 +112,12 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     }
     vroom::labels::recompute_axis_width(*chart);
 
-    // Default the visible window to the most recent ~80 candles when the
-    // consumer hasn't set one — a narrower x-window so candles read wider.
-    if (chart->visible_start_ms == 0 && chart->visible_end_ms == 0 &&
-        !chart->candles.empty()) {
-        constexpr size_t kDefaultVisible = 80;
-        const size_t start_idx = chart->candles.size() > kDefaultVisible
-            ? chart->candles.size() - kDefaultVisible
-            : 0;
-        chart->visible_start_ms = chart->candles[start_idx].time_ms;
-        chart->visible_end_ms = chart->candles.back().time_ms;
-    }
-
-    // Snap the price (y-axis) bounds to whatever's visible — but only on the
-    // first load. After they're initialized, leave them alone so live data
-    // updates (new / updated candles) preserve the user's pan/scale; from then
-    // on only zoom / axis-drags / vertical translate change them.
-    if (!chart->candles.empty() && !chart->price_bounds_initialized) {
-        const auto idx = vroom::visible_indices(
-            chart->candles.data(), chart->candles.size(),
-            chart->visible_start_ms, chart->visible_end_ms);
-        if (idx.end > idx.start) {
-            auto b = vroom::price_bounds(
-                chart->candles.data() + idx.start, idx.end - idx.start);
-            // Widen the default y-window beyond the data's min/max so candles
-            // fill less vertical space (shorter candles, more headroom). 1.0 =
-            // snug; larger = wider. Only the default — zoom/axis-drag override.
-            constexpr double kDefaultYZoom = 1.5;
-            const double mid = (b.min + b.max) * 0.5;
-            const double half = (b.max - b.min) * 0.5 * kDefaultYZoom;
-            b.min = mid - half;
-            b.max = mid + half;
-            chart->price_bounds = b;
-            chart->price_bounds_initialized = true;
-        }
+    // Default the visible window when the consumer hasn't set one. The y-axis
+    // needs no equivalent: while the price scale is in auto mode the draw path
+    // fits it to the visible candles every frame, and once the user has taken
+    // it manual, live data updates must not disturb their pan/scale.
+    if (chart->visible_start_ms == 0 && chart->visible_end_ms == 0) {
+        apply_default_framing(chart);
     }
 
     chart->mark_dirty();
@@ -165,6 +164,35 @@ extern "C" void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_m
     if (chart->cb.on_viewport_changed) {
         chart->cb.on_viewport_changed(chart->user_ctx, start_ms, end_ms);
     }
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_get_visible_range(VroomChart* chart,
+                                              int64_t* out_start_ms,
+                                              int64_t* out_end_ms) {
+    if (!chart) return;
+    if (out_start_ms) *out_start_ms = chart->visible_start_ms;
+    if (out_end_ms) *out_end_ms = chart->visible_end_ms;
+}
+
+extern "C" void vroom_chart_reset_view(VroomChart* chart) {
+    if (!chart) return;
+    chart->visible_start_ms = 0;
+    chart->visible_end_ms = 0;
+    chart->price_bounds_manual = false;
+    apply_default_framing(chart);
+    vroom::labels::recompute_axis_width(*chart);
+    if (chart->cb.on_viewport_changed) {
+        chart->cb.on_viewport_changed(chart->user_ctx, chart->visible_start_ms,
+                                      chart->visible_end_ms);
+    }
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_reset_price_scale(VroomChart* chart) {
+    if (!chart || !chart->price_bounds_manual) return;
+    chart->price_bounds_manual = false;
+    vroom::labels::recompute_axis_width(*chart);
     chart->mark_dirty();
 }
 
@@ -269,7 +297,8 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
     // Vertical: shift price bounds by the price-equivalent of dy_px. Range
     // stays constant. We divide by draw_h (the 90% slice of candle area
     // that's actually used for price → y) so translation feels 1:1.
-    if (dy_px != 0.f && chart->price_bounds_initialized) {
+    if (dy_px != 0.f && !chart->candles.empty()) {
+        ensure_manual_price_bounds(chart);
         const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         const double draw_h = static_cast<double>(candle_area_h) * 0.9;
         if (draw_h > 0.0) {
@@ -296,7 +325,7 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
 
 extern "C" void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px) {
     if (!chart || dy_px == 0.f) return;
-    if (!chart->price_bounds_initialized) return;
+    ensure_manual_price_bounds(chart);
 
     const double range = chart->price_bounds.max - chart->price_bounds.min;
     if (range <= 0.0) return;
@@ -417,7 +446,7 @@ extern "C" void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px
     // Preserve candle pixel scale: scale the price range by the price-pane
     // height ratio, anchoring the top (max) price so existing candles stay put
     // and the newly revealed space opens at the bottom.
-    if (chart->price_bounds_initialized && old_pane_bottom > 0.f) {
+    if (chart->price_bounds_manual && old_pane_bottom > 0.f) {
         const float new_pane_bottom = content_h - new_band;
         const double scale = static_cast<double>(new_pane_bottom) /
                              static_cast<double>(old_pane_bottom);
@@ -502,7 +531,8 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
 
     // --- Y (price) zoom around fy ------------------------------------------
     // scale_y > 1 (vertical pinch out) narrows the price range → taller candles.
-    if (scale_y > 0.f && scale_y != 1.f && chart->price_bounds_initialized) {
+    if (scale_y > 0.f && scale_y != 1.f && !chart->candles.empty()) {
+        ensure_manual_price_bounds(chart);
         const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         const double range = chart->price_bounds.max - chart->price_bounds.min;
         if (candle_area_h > 0.f && range > 0.0) {
@@ -644,6 +674,60 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
     out->time_ms = snap.time_ms;
     out->has_candle = snap.has_candle;
     if (snap.has_candle) out->candle = visible[snap.index];
+    return true;
+}
+
+// ---- Drawings (line annotations) ------------------------------------------
+
+extern "C" void vroom_chart_set_drawings(VroomChart* chart,
+                                         const VroomDrawing* drawings,
+                                         size_t count) {
+    if (!chart) return;
+    chart->drawings.assign(drawings, drawings + count);
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_draft(VroomChart* chart, int64_t a_time,
+                                      double a_price, bool has_b, int64_t b_time,
+                                      double b_price, bool guide, uint32_t color,
+                                      float width) {
+    if (!chart) return;
+    chart->draft_active = true;
+    chart->draft_a = VroomDrawPoint{a_time, a_price};
+    chart->draft_has_b = has_b;
+    chart->draft_b = VroomDrawPoint{b_time, b_price};
+    chart->draft_guide = guide;
+    chart->draft_color = color;
+    chart->draft_width = width;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_clear_draft(VroomChart* chart) {
+    if (!chart) return;
+    if (!chart->draft_active) return;
+    chart->draft_active = false;
+    chart->mark_dirty();
+}
+
+extern "C" bool vroom_chart_coord_at(VroomChart* chart, float x_px, float y_px,
+                                     VroomCoord* out) {
+    if (!chart || !out || chart->candles.empty()) return false;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (window_ms <= 0) return false;
+    const auto lay = chart->layout();
+    // Mirror draw_chart's bounds: the frozen manual scale, else the auto-fit
+    // over the visible slice — so y_to_price matches what's on screen.
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+    out->time_ms =
+        vroom::time_at_x(lay, chart->visible_start_ms, window_ms, x_px);
+    out->price = vroom::y_to_price(lay, bounds, y_px);
     return true;
 }
 

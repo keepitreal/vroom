@@ -27,6 +27,8 @@ export type {
   CrosshairCandle,
   CrosshairInfo,
   OverlaySpec,
+  DrawingSpec,
+  Coord,
 } from './handle';
 export { ColorKey } from './handle';
 export { packCandles, unpackCandles, BYTES_PER_CANDLE } from './packCandles';

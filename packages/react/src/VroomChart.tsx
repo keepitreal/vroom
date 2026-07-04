@@ -28,7 +28,18 @@ const CANVAS_STYLE: CSSProperties = {
  * @see {@link VroomChartProps} for the full prop reference.
  */
 export function VroomChart(props: VroomChartProps) {
-  const { className, style, wasm, crosshairOffset = 40, onCrosshair, onViewportChange } = props;
+  const {
+    className,
+    style,
+    wasm,
+    crosshairOffset = 40,
+    mode,
+    tool,
+    onCrosshair,
+    onViewportChange,
+    onDrawingComplete,
+    onModeChange,
+  } = props;
   const { containerRef, canvasRef, handleRef, scheduleRender } = useChartCore(
     props,
     wasm ? { wasm } : undefined,
@@ -36,8 +47,12 @@ export function VroomChart(props: VroomChartProps) {
 
   useGestures(containerRef, handleRef, scheduleRender, {
     crosshairOffset,
+    mode,
+    tool,
     onCrosshair,
     onViewportChange,
+    onDrawingComplete,
+    onRequestMode: onModeChange,
   });
 
   const rootStyle: CSSProperties = {
