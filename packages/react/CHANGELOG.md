@@ -1,5 +1,11 @@
 # @vroomchart/react
 
+## 0.1.4
+
+### Patch Changes
+
+- Republish: 0.1.3 shipped an unresolvable `workspace:*` dependency on @vroomchart/core-wasm (published with npm publish, which does not rewrite the workspace protocol)
+
 ## 0.1.3
 
 ### Patch Changes
