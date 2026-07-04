@@ -1,5 +1,11 @@
 # @vroomchart/core-wasm
 
+## 0.1.3
+
+### Patch Changes
+
+- 955df2c: Improve chart handling when switching time frames and assets: constant candle width across timeframe changes, full view reset on symbol change, continuous y auto-fit
+
 ## 0.1.2
 
 ### Patch Changes
