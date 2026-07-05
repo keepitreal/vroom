@@ -44,6 +44,8 @@ export type CrosshairCandle = {
  */
 export type CrosshairInfo = {
   timeMs: number;
+  /** Free price at the crosshair's horizontal line (the price-badge value). */
+  price: number;
   candle: CrosshairCandle | null;
 };
 
@@ -148,6 +150,14 @@ export interface VroomChartHandle {
 
   /** Show the crosshair at (x, y) CSS px (y already lifted above the pointer). */
   setCrosshair(x: number, y: number): void;
+  /**
+   * Show the crosshair at a data-space position (epoch ms + price) instead of
+   * pixels — used to mirror one chart's crosshair onto another (cross-chart
+   * sync). Converts to pixels via this chart's own window/price scale; the
+   * vertical line snaps to the candle for `timeMs`, the horizontal line sits at
+   * `price`. Does not emit any callback.
+   */
+  setCrosshairData(timeMs: number, price: number): void;
   /** Hide the crosshair. */
   clearCrosshair(): void;
   /** OHLCV of the candle the crosshair snaps to, or null when inactive. */

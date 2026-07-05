@@ -37,10 +37,18 @@ export type CrosshairEvent = {
    */
   timeMs: number | null;
   /**
+   * Free price at the crosshair's horizontal line (what the price badge shows),
+   * in data space. Null when inactive. Pair with `timeMs` to mirror this
+   * crosshair onto another chart via its `crosshairOverride` prop.
+   */
+  price: number | null;
+  /**
    * Why this event fired — lets the host react differently (e.g. haptics):
    *   'show' — long-press activated the crosshair
-   *   'move' — the crosshair snapped to a *different* candle (one per candle
-   *            crossed; not per drag frame)
+   *   'move' — the crosshair moved: a different candle (time) or a vertical move
+   *            within the same candle (price). Fires on any positional change so
+   *            `price` stays current for cross-chart sync; for a per-candle
+   *            signal (e.g. haptics), dedupe on `timeMs` yourself.
    *   'hide' — the crosshair was dismissed
    * The library never plays haptics itself; the host decides.
    */
@@ -235,6 +243,16 @@ export type VroomChartCoreProps = {
    * touch x. Default 40.
    */
   crosshairOffset?: number;
+  /**
+   * Controlled external crosshair, in data space (epoch ms + price). When
+   * non-null the chart shows a crosshair there — typically synced from another
+   * chart's `onCrosshair` — *without* emitting its own `onCrosshair`, so two
+   * charts can drive each other without a feedback loop. A local hover/press on
+   * this chart takes precedence; on release the override is restored. Set null
+   * to clear. Best when the synced charts share a comparable price scale (the
+   * horizontal line clamps to the pane edge when the price is off-scale).
+   */
+  crosshairOverride?: { timeMs: number; price: number } | null;
   /**
    * Interaction mode. Default `'pan'`. Set to `'draw'` (with a `tool`) to let
    * the user place drawing points; panning/zooming are suppressed while drawing.

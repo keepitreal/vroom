@@ -33,6 +33,7 @@ interface WebChartInstance {
   scaleIndicatorAxis(y: number, dy: number): void;
   getAxisMetrics(): AxisMetrics;
   setCrosshair(x: number, y: number): void;
+  setCrosshairData(timeMs: number, price: number): void;
   clearCrosshair(): void;
   getCrosshairCandle(): CrosshairCandle | null;
   getCrosshairInfo(): CrosshairInfo | null;
@@ -116,6 +117,9 @@ class WasmHandle implements VroomChartHandle {
   }
   setCrosshair(x: number, y: number): void {
     this.wc.setCrosshair(x, y);
+  }
+  setCrosshairData(timeMs: number, price: number): void {
+    this.wc.setCrosshairData(timeMs, price);
   }
   clearCrosshair(): void {
     this.wc.clearCrosshair();

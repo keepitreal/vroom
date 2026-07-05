@@ -17,6 +17,8 @@ export type GestureOptions = {
   /** Active drawing tool while in 'draw' mode. */
   tool?: DrawTool;
   onCrosshair?: (e: CrosshairEvent) => void;
+  /** External crosshair to mirror (data space), or null. See VroomChartCoreProps. */
+  crosshairOverride?: { timeMs: number; price: number } | null;
   onViewportChange?: (startMs: number, endMs: number) => void;
   /** Fired with the finished line when the user places its second point. */
   onDrawingComplete?: (drawing: Drawing) => void;
@@ -87,6 +89,10 @@ export function useGestures(
     by: number;
   } | null>(null);
 
+  // True while a local pointer (hover/press) owns the crosshair. Lets the
+  // crosshair-override effect below know to stand down (local input wins).
+  const localCrosshairActiveRef = useRef(false);
+
   // Reset the in-progress draft whenever draw+line mode is not active (e.g. the
   // host toggled the tool off mid-draw), so re-entering draw mode starts clean.
   useEffect(() => {
@@ -102,6 +108,21 @@ export function useGestures(
     }
   }, [opts.mode, opts.tool, handleRef, scheduleRender]);
 
+  // Apply the controlled crosshair override (cross-chart sync). A local
+  // hover/press always wins, so we stand down while one is active; the override
+  // is (re)applied on local release inside hideCrosshair. This path is silent —
+  // it never calls onCrosshair — so two charts driving each other can't loop.
+  // (If the override is set before the WASM handle finishes loading it applies
+  // on its next change; in the sync use case the initial value is null.)
+  useEffect(() => {
+    const h = handleRef.current;
+    if (!h || localCrosshairActiveRef.current) return;
+    const ov = opts.crosshairOverride;
+    if (ov) h.setCrosshairData(ov.timeMs, ov.price);
+    else h.clearCrosshair();
+    scheduleRender();
+  }, [opts.crosshairOverride, handleRef, scheduleRender]);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -111,6 +132,7 @@ export function useGestures(
     let crosshairActive = false;
     let crosshairSource: 'press' | 'hover' | null = null;
     let lastCrosshairTime: number | null = null;
+    let lastCrosshairPrice: number | null = null;
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let downX = 0;
     let downY = 0;
@@ -154,12 +176,18 @@ export function useGestures(
       // candle, where `candle` is null.
       const info = h.getCrosshairInfo();
       const t = info?.timeMs ?? null;
-      if (reason === 'move' && t === lastCrosshairTime) return;
+      const p = info?.price ?? null;
+      // Fire on any positional change — a different candle (time) OR a vertical
+      // move within the same candle (price). Deduping on time alone would freeze
+      // the reported price mid-candle, which breaks cross-chart price sync.
+      if (reason === 'move' && t === lastCrosshairTime && p === lastCrosshairPrice) return;
       lastCrosshairTime = t;
+      lastCrosshairPrice = p;
       optsRef.current.onCrosshair?.({
         active: reason !== 'hide',
         candle: info?.candle ?? null,
         timeMs: t,
+        price: reason === 'hide' ? null : p,
         reason,
       });
     };
@@ -175,6 +203,7 @@ export function useGestures(
       const h = handleRef.current;
       if (!h) return;
       crosshairActive = true;
+      localCrosshairActiveRef.current = true;
       crosshairSource = source;
       const lift = source === 'press' ? optsRef.current.crosshairOffset : 0;
       h.setCrosshair(x, y - lift);
@@ -186,8 +215,13 @@ export function useGestures(
       const h = handleRef.current;
       if (!h || !crosshairActive) return;
       crosshairActive = false;
+      localCrosshairActiveRef.current = false;
       crosshairSource = null;
-      h.clearCrosshair();
+      // Fall back to the synced crosshair (if any) rather than clearing, so
+      // releasing a local hover on a follower chart restores the driver's line.
+      const ov = optsRef.current.crosshairOverride;
+      if (ov) h.setCrosshairData(ov.timeMs, ov.price);
+      else h.clearCrosshair();
       scheduleRender();
       reportCrosshair('hide');
     };
