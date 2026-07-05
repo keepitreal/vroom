@@ -1,5 +1,11 @@
 # @vroomchart/core-wasm
 
+## 0.1.4
+
+### Patch Changes
+
+- c9c78da: Cross-chart crosshair sync: hovering one chart can drive another's crosshair. Adds `price` to the `onCrosshair` event, a controlled `crosshairOverride` prop to mirror a crosshair in data space, and the `setCrosshairData(timeMs, price)` handle / `vroom_chart_set_crosshair_data` core method. The `onCrosshair` `move` event now also fires on vertical (price) moves within a candle so the synced price stays current.
+
 ## 0.1.3
 
 ### Patch Changes
