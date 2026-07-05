@@ -206,7 +206,8 @@ export function VroomChart(props: VroomChartProps) {
         const t = info?.timeMs ?? null;
         if (t !== lastCrosshairTime.current) {
           lastCrosshairTime.current = t;
-          onCrosshair?.({ active: true, candle: info?.candle ?? null, timeMs: t, reason: 'move' });
+          // price is web-only for now (see @vroomchart/react); RN reports null.
+          onCrosshair?.({ active: true, candle: info?.candle ?? null, timeMs: t, price: null, reason: 'move' });
         }
         return;
       } else {
@@ -342,6 +343,7 @@ export function VroomChart(props: VroomChartProps) {
         active: true,
         candle: info?.candle ?? null,
         timeMs: info?.timeMs ?? null,
+        price: null, // web-only for now (see @vroomchart/react)
         reason: 'show',
       });
     });
@@ -358,7 +360,7 @@ export function VroomChart(props: VroomChartProps) {
       const ch = handle.clearCrosshair();
       if (ch) pictureSV.value = ch;
       lastCrosshairTime.current = null;
-      onCrosshair?.({ active: false, candle: null, timeMs: null, reason: 'hide' });
+      onCrosshair?.({ active: false, candle: null, timeMs: null, price: null, reason: 'hide' });
     });
 
   const gesture = Gesture.Simultaneous(pan, pinch, longPress, tap);

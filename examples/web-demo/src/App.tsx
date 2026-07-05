@@ -143,7 +143,19 @@ export function App() {
   const [useSeriesKey, setUseSeriesKey] = useState(true);
   const candles = useMemo(() => aggregate(baseSeries(asset), tf), [asset, tf]);
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
-  const [view, setView] = useState<'repro' | 'demo'>('repro');
+  const [view, setView] = useState<'repro' | 'demo' | 'sync'>('repro');
+
+  // Sync view: two charts of the same asset (comparable price scale so the
+  // synced horizontal line stays on-screen) sharing one crosshair. Each chart
+  // both emits its crosshair (onCrosshair) and mirrors the shared one
+  // (crosshairOverride); the library ignores the override on whichever chart is
+  // actively hovered, so no host-side source tracking is needed.
+  const syncTop = useMemo(() => aggregate(baseSeries('BTC'), MINUTE), []);
+  const syncBottom = useMemo(() => aggregate(baseSeries('BTC'), 15 * MINUTE), []);
+  const [xhair, setXhair] = useState<{ timeMs: number; price: number } | null>(null);
+  const onSyncCrosshair = useCallback((e: CrosshairEvent) => {
+    setXhair(e.active && e.timeMs != null && e.price != null ? { timeMs: e.timeMs, price: e.price } : null);
+  }, []);
   const [theme, setTheme] = useState<ThemeState>(loadTheme);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -251,7 +263,7 @@ export function App() {
       <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center' }}>
         <strong style={{ fontSize: 16 }}>Vroom</strong>
         <div style={{ display: 'flex', gap: 4 }}>
-          {(['repro', 'demo'] as const).map((v) => (
+          {(['repro', 'demo', 'sync'] as const).map((v) => (
             <button
               key={v}
               onClick={() => setView(v)}
@@ -265,7 +277,7 @@ export function App() {
                 cursor: 'pointer',
               }}
             >
-              {v === 'repro' ? 'Repro' : 'Demo'}
+              {v === 'repro' ? 'Repro' : v === 'demo' ? 'Demo' : 'Sync'}
             </button>
           ))}
         </div>
@@ -389,6 +401,27 @@ export function App() {
       {view === 'repro' ? (
         <div style={{ flex: 1, minHeight: 0 }}>
           <StreamingRepro theme={theme} indicators={indicatorProps} draw={drawProps} />
+        </div>
+      ) : view === 'sync' ? (
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', gap: 8, padding: '0 8px 8px' }}>
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+            <VroomChart
+              candles={syncTop}
+              seriesKey="BTC-1m"
+              theme={theme}
+              onCrosshair={onSyncCrosshair}
+              crosshairOverride={xhair}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
+            <VroomChart
+              candles={syncBottom}
+              seriesKey="BTC-15m"
+              theme={theme}
+              onCrosshair={onSyncCrosshair}
+              crosshairOverride={xhair}
+            />
+          </div>
         </div>
       ) : (
         <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>

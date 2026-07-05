@@ -33,6 +33,7 @@ export function VroomChart(props: VroomChartProps) {
     style,
     wasm,
     crosshairOffset = 40,
+    crosshairOverride,
     mode,
     tool,
     onCrosshair,
@@ -47,6 +48,7 @@ export function VroomChart(props: VroomChartProps) {
 
   useGestures(containerRef, handleRef, scheduleRender, {
     crosshairOffset,
+    crosshairOverride,
     mode,
     tool,
     onCrosshair,

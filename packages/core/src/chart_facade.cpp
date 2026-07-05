@@ -623,6 +623,28 @@ extern "C" void vroom_chart_set_crosshair(VroomChart* chart, float x, float y) {
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_crosshair_data(VroomChart* chart,
+                                               int64_t time_ms, double price) {
+    if (!chart || chart->candles.empty()) return;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (window_ms <= 0) return;
+    const auto lay = chart->layout();
+    // Mirror coord_at's bounds so price -> y matches what's on screen.
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+    chart->crosshair_active = true;
+    chart->crosshair_x_px =
+        vroom::x_at_time(lay, chart->visible_start_ms, window_ms, time_ms);
+    chart->crosshair_y_px = vroom::price_to_y(lay, bounds, price);
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_clear_crosshair(VroomChart* chart) {
     if (!chart) return;
     chart->crosshair_active = false;
@@ -672,6 +694,13 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
         lay, visible, n, chart->candle_duration_ms,
         chart->visible_start_ms, window_ms, chart->crosshair_x_px);
     out->time_ms = snap.time_ms;
+    // Free price at the crosshair's horizontal line — same bounds as the price
+    // badge (crosshair.cpp) so the reported value equals what's drawn.
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(visible, n);
+    out->price = vroom::y_to_price(lay, bounds, chart->crosshair_y_px);
     out->has_candle = snap.has_candle;
     if (snap.has_candle) out->candle = visible[snap.index];
     return true;

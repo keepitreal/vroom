@@ -143,6 +143,9 @@ class WebChart {
   }
 
   void setCrosshair(float x, float y) { vroom_chart_set_crosshair(chart_, x, y); }
+  void setCrosshairData(double timeMs, double price) {
+    vroom_chart_set_crosshair_data(chart_, static_cast<int64_t>(timeMs), price);
+  }
   void clearCrosshair() { vroom_chart_clear_crosshair(chart_); }
 
   void setRSI(bool enabled, int period, double upper, double lower,
@@ -237,6 +240,7 @@ class WebChart {
     if (!vroom_chart_get_crosshair_info(chart_, &info)) return em::val::null();
     em::val o = em::val::object();
     o.set("timeMs", static_cast<double>(info.time_ms));
+    o.set("price", info.price);
     if (info.has_candle) {
       em::val c = em::val::object();
       c.set("timeMs", static_cast<double>(info.candle.time_ms));
@@ -357,6 +361,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("scaleIndicatorAxis", &WebChart::scaleIndicatorAxis)
       .function("getAxisMetrics", &WebChart::getAxisMetrics)
       .function("setCrosshair", &WebChart::setCrosshair)
+      .function("setCrosshairData", &WebChart::setCrosshairData)
       .function("clearCrosshair", &WebChart::clearCrosshair)
       .function("getCrosshairCandle", &WebChart::getCrosshairCandle)
       .function("getCrosshairInfo", &WebChart::getCrosshairInfo)

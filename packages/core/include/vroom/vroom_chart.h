@@ -195,6 +195,15 @@ void vroom_chart_get_axis_metrics(VroomChart* chart,
 // ---- Crosshair ------------------------------------------------------------
 
 void vroom_chart_set_crosshair(VroomChart* chart, float x_px, float y_px);
+
+// Show the crosshair at a data-space position (epoch ms + price) rather than
+// pixels — used to drive one chart's crosshair from another's (cross-chart
+// sync). Converts to pixels via the current visible window and price scale;
+// the vertical line then snaps to the nearest candle center at draw time, so
+// the crosshair lands on the candle for `time_ms`. The horizontal line sits at
+// `price` (clamped to the pane when off-scale).
+void vroom_chart_set_crosshair_data(VroomChart* chart, int64_t time_ms, double price);
+
 void vroom_chart_clear_crosshair(VroomChart* chart);
 
 // Fills *out with the OHLCV of the candle the crosshair currently snaps to and
@@ -211,6 +220,10 @@ bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
 // `candle` is left untouched.
 typedef struct VroomCrosshairInfo {
     int64_t     time_ms;
+    // Free price under the crosshair's horizontal line — the value drawn on the
+    // price badge (not snapped to any candle). Valid whenever the call returns
+    // true, including in the future region where `has_candle` is false.
+    double      price;
     bool        has_candle;
     VroomCandle candle;
 } VroomCrosshairInfo;
