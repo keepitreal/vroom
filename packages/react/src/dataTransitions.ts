@@ -40,6 +40,23 @@ export function inferStepMs(candles: Candle[]): number | null {
   return median > 0 ? median : null;
 }
 
+// Index of the candle whose timeMs exactly equals `t`, or -1. Binary search over
+// the ascending-by-time series, so it tolerates interior gaps (missing bars from
+// downtime / illiquid periods) — unlike a uniform-grid index computed from the
+// step, which assumes a hole-free grid.
+function indexByTime(candles: Candle[], t: number): number {
+  let lo = 0;
+  let hi = candles.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    const v = candles[mid].timeMs;
+    if (v === t) return mid;
+    if (v < t) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return -1;
+}
+
 /**
  * Classify a candles-prop change. `prev` is the previously rendered array
  * (null on first render); `seriesKeyChanged` forces `reset` regardless of the
@@ -66,15 +83,17 @@ export function classifyTransition(
   const nextLast = next[next.length - 1];
 
   if (Math.abs(nextStep - prevStep) <= prevStep * STEP_TOLERANCE) {
-    // Same step: streaming iff prev's last bar sits at its expected slot in
-    // next (O(1) for a uniform series — covers append, update-last, and
-    // rolling buffers that drop old bars from the front) and the series only
-    // advanced by a few bars. Time alignment alone isn't enough: two assets
-    // on the same exchange share the bar grid, so the bar at the shared
-    // timestamp must also be (nearly) the same bar — update-last moves the
-    // close, but never by the same-asset ratio.
-    const idx = Math.round((prevLast.timeMs - next[0].timeMs) / nextStep);
-    const aligned = idx >= 0 && idx < next.length && next[idx].timeMs === prevLast.timeMs;
+    // Same step: streaming iff prev's last bar still appears in next (covers
+    // append, update-last, and rolling buffers that drop old bars from the
+    // front) and the series only advanced by a few bars. Locate that bar by
+    // timestamp, not by a step-derived index — real series have interior gaps
+    // (downtime / illiquid periods), so a uniform-grid index would miss it and
+    // misread a harmless in-place tick as a reset.
+    // Time alignment alone isn't enough: two assets on the same exchange share
+    // the bar grid, so the bar at the shared timestamp must also be (nearly) the
+    // same bar — update-last moves the close, but never by the same-asset ratio.
+    const idx = indexByTime(next, prevLast.timeMs);
+    const aligned = idx >= 0;
     const sharedBarRatio =
       aligned && next[idx].close > 0 && prevLast.close > 0
         ? Math.max(next[idx].close / prevLast.close, prevLast.close / next[idx].close)

@@ -29,6 +29,15 @@ function series(opts: {
   return out;
 }
 
+// Punch a couple of interior holes into a uniform series to simulate real-world
+// downtime / illiquid gaps (a non-uniform bar grid). The last bar is left intact.
+function withGaps(c: Candle[]): Candle[] {
+  const out = c.slice();
+  out.splice(Math.floor(out.length * 0.6), 1);
+  out.splice(Math.floor(out.length * 0.3), 1);
+  return out;
+}
+
 const NOW = 1_750_000_000 * 1000; // fixed "now", minute-aligned
 
 describe('inferStepMs', () => {
@@ -71,6 +80,31 @@ describe('classifyTransition', () => {
   it('classifies a rolling buffer (drop oldest, append newest) as stream', () => {
     const next = [...btc1m.slice(1), { ...btc1m[btc1m.length - 1], timeMs: NOW + MINUTE }];
     expect(classifyTransition(btc1m, next, false)).toBe('stream');
+  });
+
+  // Regression: a deep-history pane (e.g. 1h over ~60 days) accumulates interior
+  // gaps, so the bar grid isn't uniform. An index derived from the step misses
+  // prev's last bar and misreads a harmless tick as a reset (snapping the pan
+  // back). Locating the bar by timestamp fixes it.
+  it('classifies an in-place tick on a gappy (non-uniform) series as stream', () => {
+    const h1 = withGaps(series({ count: 500, stepMs: 60 * MINUTE, endMs: NOW, price: 80 }));
+    const next = h1.slice(0, -1);
+    const last = h1[h1.length - 1];
+    next.push({ ...last, close: last.close * 1.001 });
+    expect(classifyTransition(h1, next, false)).toBe('stream');
+  });
+
+  it('classifies an append on a gappy series as stream', () => {
+    const h1 = withGaps(series({ count: 500, stepMs: 60 * MINUTE, endMs: NOW, price: 80 }));
+    const last = h1[h1.length - 1];
+    const next = [...h1, { ...last, timeMs: last.timeMs + 60 * MINUTE }];
+    expect(classifyTransition(h1, next, false)).toBe('stream');
+  });
+
+  it('still classifies a same-step asset swap as reset on a gappy series', () => {
+    const solH1 = withGaps(series({ count: 500, stepMs: 60 * MINUTE, endMs: NOW, price: 80 }));
+    const btcH1 = withGaps(series({ count: 500, stepMs: 60 * MINUTE, endMs: NOW, price: 60_000 }));
+    expect(classifyTransition(solH1, btcH1, false)).toBe('reset');
   });
 
   it('classifies a same-step jump of many bars as reset (re-fetch elsewhere)', () => {
