@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   VroomChart,
   type Candle,
@@ -135,13 +135,73 @@ function aggregate(base: Candle[], stepMs: number): Candle[] {
   return out;
 }
 
+// Streaming mutations for the demo/sync views. Volatility scales with price
+// (matching baseSeries) so BTC and SOL both move realistically. Non-deterministic
+// (Math.random) since these fire on live user interaction, not initial framing.
+function appendCandle(prev: Candle[], stepMs: number): Candle[] {
+  if (prev.length === 0) return prev;
+  const last = prev[prev.length - 1];
+  const vol = last.close * 0.002;
+  const open = last.close;
+  const close = open + (Math.random() - 0.5) * 2 * vol;
+  const high = Math.max(open, close) + Math.random() * vol;
+  const low = Math.min(open, close) - Math.random() * vol;
+  return [
+    ...prev,
+    { timeMs: last.timeMs + stepMs, open, high, low, close, volume: Math.random() * 1000 },
+  ];
+}
+
+// Mutate the most recent bar in place (simulates an in-progress candle ticking).
+function updateLast(prev: Candle[]): Candle[] {
+  if (prev.length === 0) return prev;
+  const last = prev[prev.length - 1];
+  const vol = last.open * 0.002;
+  const close = last.open + (Math.random() - 0.5) * 2 * vol;
+  const high = Math.max(last.high, last.open, close);
+  const low = Math.min(last.low, last.open, close);
+  return [...prev.slice(0, -1), { ...last, close, high, low }];
+}
+
+// Drop a few runs of interior bars to simulate downtime / illiquid gaps — a
+// NON-uniform bar grid. The last bar is left intact (splices run high->low so
+// earlier indices don't shift). The "Gaps" toggle uses this to reproduce the
+// bug where a gappy series made an in-place tick misclassify as a viewport
+// reset: pan a chart, enable Gaps, then Add/Update — the pan must hold.
+function punchGaps(c: Candle[]): Candle[] {
+  const out = c.slice();
+  for (const frac of [0.8, 0.55, 0.3]) out.splice(Math.floor(out.length * frac), 3);
+  return out;
+}
+
+// Shared toolbar button style.
+const toolBtn: CSSProperties = {
+  background: 'transparent',
+  color: '#c9d1d9',
+  border: '1px solid #30363d',
+  borderRadius: 6,
+  padding: '4px 10px',
+  fontSize: 13,
+  cursor: 'pointer',
+};
+
 export function App() {
   // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
   // bundled in @vroomchart/core-wasm.
   const [asset, setAsset] = useState<Asset>('BTC');
   const [tf, setTf] = useState<number>(MINUTE);
   const [useSeriesKey, setUseSeriesKey] = useState(true);
-  const candles = useMemo(() => aggregate(baseSeries(asset), tf), [asset, tf]);
+  const [gaps, setGaps] = useState(false);
+  // Demo candles are stateful so the Add/Update tools can stream into them; they
+  // reset to the base series whenever the asset/timeframe (or Gaps) changes.
+  const demoBase = useMemo(() => {
+    const base = aggregate(baseSeries(asset), tf);
+    return gaps ? punchGaps(base) : base;
+  }, [asset, tf, gaps]);
+  const [candles, setCandles] = useState<Candle[]>(demoBase);
+  useEffect(() => {
+    setCandles(demoBase);
+  }, [demoBase]);
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
   const [view, setView] = useState<'repro' | 'demo' | 'sync'>('repro');
 
@@ -150,12 +210,32 @@ export function App() {
   // both emits its crosshair (onCrosshair) and mirrors the shared one
   // (crosshairOverride); the library ignores the override on whichever chart is
   // actively hovered, so no host-side source tracking is needed.
-  const syncTop = useMemo(() => aggregate(baseSeries('BTC'), MINUTE), []);
-  const syncBottom = useMemo(() => aggregate(baseSeries('BTC'), 15 * MINUTE), []);
+  const [syncTop, setSyncTop] = useState<Candle[]>(() => aggregate(baseSeries('BTC'), MINUTE));
+  const [syncBottom, setSyncBottom] = useState<Candle[]>(() => aggregate(baseSeries('BTC'), 15 * MINUTE));
   const [xhair, setXhair] = useState<{ timeMs: number; price: number } | null>(null);
   const onSyncCrosshair = useCallback((e: CrosshairEvent) => {
     setXhair(e.active && e.timeMs != null && e.price != null ? { timeMs: e.timeMs, price: e.price } : null);
   }, []);
+
+  // Streaming tools shared by the demo and sync views. In sync, both charts get
+  // a bar on each click (each at its own timeframe step) to show streaming and
+  // crosshair sync coexisting; in demo, the single series streams at `tf`.
+  const onAddCandle = useCallback(() => {
+    if (view === 'sync') {
+      setSyncTop((p) => appendCandle(p, MINUTE));
+      setSyncBottom((p) => appendCandle(p, 15 * MINUTE));
+    } else {
+      setCandles((p) => appendCandle(p, tf));
+    }
+  }, [view, tf]);
+  const onUpdateLast = useCallback(() => {
+    if (view === 'sync') {
+      setSyncTop(updateLast);
+      setSyncBottom(updateLast);
+    } else {
+      setCandles(updateLast);
+    }
+  }, [view]);
   const [theme, setTheme] = useState<ThemeState>(loadTheme);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -332,8 +412,25 @@ export function App() {
               />
               seriesKey
             </label>
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: 0.8, cursor: 'pointer' }}
+              title="Punch interior holes into the series (non-uniform grid). Pan the chart, then Add/Update a candle — the pan must hold (regression test for gappy-series streaming)."
+            >
+              <input type="checkbox" checked={gaps} onChange={(e) => setGaps(e.target.checked)} />
+              gaps
+            </label>
             <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
           </>
+        )}
+        {(view === 'demo' || view === 'sync') && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={onAddCandle} style={toolBtn}>
+              Add candle
+            </button>
+            <button onClick={onUpdateLast} style={toolBtn}>
+              Update last candle
+            </button>
+          </div>
         )}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <button
