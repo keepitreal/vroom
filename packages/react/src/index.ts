@@ -21,6 +21,8 @@ export type {
   MASource,
   MovingAverageOverlay,
   VWAPConfig,
+  LiquidityBand,
+  LiquidityConfig,
   ChartMode,
   DrawTool,
   DrawPoint,

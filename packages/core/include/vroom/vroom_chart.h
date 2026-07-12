@@ -63,6 +63,29 @@ typedef struct VroomDrawing {
     float          width;  // stroke width in px
 } VroomDrawing;
 
+// A resting-liquidity band: a price interval carrying a total order size on one
+// side of the book. Anchored in price space, so it scales with the y-axis.
+typedef struct VroomBand {
+    double  min_price;  // bottom of the interval
+    double  max_price;  // top of the interval
+    int32_t side;       // 0 = buy, 1 = sell (selects the color)
+    double  volume;     // total resting size; drives the band's opacity
+} VroomBand;
+
+// Style shared by all liquidity bands. `buy_color`/`sell_color` are 0xAARRGGBB;
+// the alpha is replaced per band by its volume mapped into
+// [min_opacity, max_opacity]. `max_volume <= 0` auto-scales to the largest band.
+// The leftward reach is min(width_px, width_frac * pane_width).
+typedef struct VroomLiquidityStyle {
+    uint32_t buy_color;
+    uint32_t sell_color;
+    double   max_volume;
+    float    min_opacity;
+    float    max_opacity;
+    float    width_px;
+    float    width_frac;
+} VroomLiquidityStyle;
+
 // A continuous data coordinate at a pixel position (no candle snapping). Used to
 // translate a drawing-tool click into a data-space anchor.
 typedef struct VroomCoord {
@@ -271,6 +294,14 @@ void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
 // pane above the candles/overlays and below the axis labels & crosshair.
 void vroom_chart_set_drawings(VroomChart* chart, const VroomDrawing* drawings,
                               size_t count);
+
+// ---- Liquidity bands (order-book depth overlay) ---------------------------
+
+// Replaces the full set of resting-liquidity bands and their shared style.
+// Bands render behind the candles, anchored at the inner edge of the price axis
+// and fading left. Pass count 0 to clear; `style` may be null when count is 0.
+void vroom_chart_set_liquidity(VroomChart* chart, const VroomBand* bands,
+                               size_t count, const VroomLiquidityStyle* style);
 
 // Sets the transient in-progress "draft" the drawing tool shows while the user
 // places points. Node A is always shown; when `has_b`, node B is shown too.

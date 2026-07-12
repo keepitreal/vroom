@@ -28,6 +28,8 @@ export type {
   CrosshairInfo,
   OverlaySpec,
   DrawingSpec,
+  BandSpec,
+  LiquiditySpec,
   Coord,
 } from './handle';
 export { ColorKey } from './handle';

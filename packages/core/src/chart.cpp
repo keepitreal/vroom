@@ -23,6 +23,7 @@
 #include "crosshair.h"
 #include "drawings.h"
 #include "labels.h"
+#include "liquidity.h"
 #include "ma.h"
 #include "ma_overlay.h"
 #include "macd.h"
@@ -141,6 +142,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
     vroom::volume::draw(canvas, visible, n, lay, theme,
                         window_ms, visible_start_ms, candle_duration_ms);
+
+    // 4.6. Liquidity bands (resting-order depth) — behind the candles so the
+    //      candle bodies paint over the volume-driven tint. Anchored in price
+    //      space, so they scale with the y-axis.
+    vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
+                           candle_area_h);
 
     // 5. Candles (wicks + bodies)
     vroom::candles::draw(canvas, visible, n, lay, theme, bounds,

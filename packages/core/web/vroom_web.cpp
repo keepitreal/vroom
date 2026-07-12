@@ -189,6 +189,29 @@ class WebChart {
     }
     vroom_chart_set_drawings(chart_, out.data(), n);
   }
+  // `cfg` is a JS object { bands: [{minPrice, maxPrice, side, volume}, ...],
+  // buyColor, sellColor, maxVolume, minOpacity, maxOpacity, widthPx, widthFrac }.
+  void setLiquidity(const em::val& cfg) {
+    em::val bands = cfg["bands"];
+    const size_t n = bands["length"].as<size_t>();
+    std::vector<VroomBand> out(n);
+    for (size_t i = 0; i < n; ++i) {
+      em::val b = bands[i];
+      out[i].min_price = b["minPrice"].as<double>();
+      out[i].max_price = b["maxPrice"].as<double>();
+      out[i].side = b["side"].as<int32_t>();
+      out[i].volume = b["volume"].as<double>();
+    }
+    VroomLiquidityStyle style{};
+    style.buy_color = cfg["buyColor"].as<uint32_t>();
+    style.sell_color = cfg["sellColor"].as<uint32_t>();
+    style.max_volume = cfg["maxVolume"].as<double>();
+    style.min_opacity = cfg["minOpacity"].as<float>();
+    style.max_opacity = cfg["maxOpacity"].as<float>();
+    style.width_px = cfg["widthPx"].as<float>();
+    style.width_frac = cfg["widthFrac"].as<float>();
+    vroom_chart_set_liquidity(chart_, out.data(), n, &style);
+  }
   void setDraft(double a_time, double a_price, bool has_b, double b_time,
                 double b_price, bool guide, uint32_t color, float width) {
     vroom_chart_set_draft(chart_, static_cast<int64_t>(a_time), a_price, has_b,
@@ -370,6 +393,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
       .function("setDrawings", &WebChart::setDrawings)
+      .function("setLiquidity", &WebChart::setLiquidity)
       .function("setDraft", &WebChart::setDraft)
       .function("clearDraft", &WebChart::clearDraft)
       .function("coordAt", &WebChart::coordAt)

@@ -192,6 +192,53 @@ export type VWAPConfig = {
   width?: number;
 };
 
+/**
+ * A single resting-liquidity band: a price interval carrying a total order size
+ * on one side of the book. Consolidate raw L2 levels into these buckets before
+ * passing them. The vertical extent is defined in price space, so bands scale
+ * with the y-axis on zoom.
+ */
+export type LiquidityBand = {
+  /** Bottom of the price interval. */
+  minPrice: number;
+  /** Top of the price interval. A per-level order uses a thin interval. */
+  maxPrice: number;
+  /** Which side of the book — selects the buy vs sell color. */
+  side: 'buy' | 'sell';
+  /** Total resting size in this band; drives the band's opacity. */
+  volume: number;
+};
+
+/**
+ * Resting-order / order-book liquidity overlay. Each band is drawn as a
+ * horizontal rectangle anchored at the inner edge of the price axis, stretching
+ * left (~`widthPx`/`widthFrac` of the pane) and fading out with a gradient,
+ * colored by side and made more opaque with volume. Rendered behind the candles.
+ * Omit the prop (or pass no bands) to hide the overlay.
+ */
+export type LiquidityConfig = {
+  /** The bands to render. */
+  bands: LiquidityBand[];
+  /** Buy-side color (hex string or packed ARGB number). Default teal-green. */
+  buyColor?: VroomColor;
+  /** Sell-side color (hex string or packed ARGB number). Default red. */
+  sellColor?: VroomColor;
+  /**
+   * Volume mapped to the peak (`maxOpacity`) band. Omit to auto-scale to the
+   * largest band's volume each render.
+   */
+  maxVolume?: number;
+  /** Opacity floor for the smallest band. Default 0.05. */
+  minOpacity?: number;
+  /** Opacity at `maxVolume`. Default 0.8. */
+  maxOpacity?: number;
+  /** Leftward reach from the axis in px. Default 300. */
+  widthPx?: number;
+  /** Leftward reach as a fraction of pane width. Default 0.25. The smaller of
+   * `widthPx` and `widthFrac * paneWidth` is used. */
+  widthFrac?: number;
+};
+
 /** MACD indicator config. Rendered in its own pane below the candles. */
 export type MACDConfig = {
   enabled?: boolean;
@@ -237,6 +284,8 @@ export type VroomChartCoreProps = {
   movingAverages?: MovingAverageOverlay[];
   /** VWAP overlay (session anchor, configurable reset). */
   vwap?: VWAPConfig;
+  /** Resting-order / order-book liquidity bands drawn behind the candles. */
+  liquidity?: LiquidityConfig;
   /**
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the

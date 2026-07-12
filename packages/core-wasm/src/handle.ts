@@ -85,6 +85,32 @@ export type DrawingSpec = {
   width: number;
 };
 
+/** A single resting-liquidity band in the core's numeric encoding. */
+export type BandSpec = {
+  minPrice: number;
+  maxPrice: number;
+  /** 0 = buy, 1 = sell. */
+  side: number;
+  volume: number;
+};
+
+/** Liquidity overlay bands + shared style, in the core's numeric encoding. */
+export type LiquiditySpec = {
+  bands: BandSpec[];
+  /** Packed 0xAARRGGBB. */
+  buyColor: number;
+  /** Packed 0xAARRGGBB. */
+  sellColor: number;
+  /** Volume mapped to peak opacity; 0 = auto-scale to the largest band. */
+  maxVolume: number;
+  minOpacity: number;
+  maxOpacity: number;
+  /** Leftward reach from the axis in px. */
+  widthPx: number;
+  /** Leftward reach as a fraction of pane width. */
+  widthFrac: number;
+};
+
 /** A continuous data coordinate at a pixel position (no candle snapping). */
 export type Coord = {
   timeMs: number;
@@ -188,6 +214,11 @@ export interface VroomChartHandle {
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;
+  /**
+   * Replace the resting-liquidity overlay (bands + shared style). Pass a spec
+   * with an empty `bands` array to clear the overlay.
+   */
+  setLiquidity(liquidity: LiquiditySpec): void;
   /**
    * Set the transient in-progress draft shown while placing a line. Node A is
    * always shown; node B is shown when `hasB`. `guide` also draws the guideline

@@ -6,6 +6,8 @@ import {
   type ChartMode,
   type DrawTool,
   type Drawing,
+  type LiquidityBand,
+  type LiquidityConfig,
 } from '@vroomchart/react';
 import { StreamingRepro } from './StreamingRepro';
 import { SettingsModal, DEFAULT_THEME, type ThemeState } from './SettingsModal';
@@ -174,6 +176,52 @@ function punchGaps(c: Candle[]): Candle[] {
   return out;
 }
 
+// A simulated L2 order book around the latest close: buy bands stepping below
+// spot, sell bands above, each a thin price interval. Resting size tapers with
+// distance from spot (denser near the mid) plus a couple of prominent "walls"
+// (big resting orders) that drift over time, so the volume-driven opacity has
+// obvious variation. `tick` advances on an interval while the overlay is live,
+// animating the walls; the whole book re-anchors to `spot` as price streams.
+// Deterministic given (spot, tick) so React re-renders don't jitter it.
+// `heightFrac` scales each band's thickness relative to the level spacing:
+// <1 leaves gaps, 1 makes adjacent bands touch, >1 overlaps them into a wall.
+function makeBands(candles: Candle[], tick = 0, heightFrac = 0.85): LiquidityConfig {
+  const bands: LiquidityBand[] = [];
+  if (candles.length === 0) return { bands };
+  const spot = candles[candles.length - 1].close;
+  const step = spot * 0.0009;
+  const half = (step * heightFrac) / 2; // each band centered on its level line
+  const levels = 28;
+  const noise = (n: number) => {
+    const x = Math.sin(n) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  // Two walls per side that slowly walk toward/away from the mid as `tick` grows.
+  const wall = (seed: number) => 3 + Math.floor((tick * 0.5 + seed * 7) % (levels - 6));
+  const sellWalls = new Set([wall(1), wall(4)]);
+  const buyWalls = new Set([wall(2), wall(6)]);
+  for (let i = 1; i <= levels; i++) {
+    const taper = 1 - i / (levels + 4); // more resting size near spot
+    const shimmer = 0.4 + 0.6 * noise(i * 3.1 + tick * 0.7); // gentle live wobble
+    const sMid = spot + i * step;
+    bands.push({
+      minPrice: sMid - half,
+      maxPrice: sMid + half,
+      side: 'sell',
+      volume: Math.max(0.05, taper * shimmer * (sellWalls.has(i) ? 4 : 1)),
+    });
+    const bMid = spot - i * step;
+    const bShimmer = 0.4 + 0.6 * noise(i * 5.7 + tick * 0.7);
+    bands.push({
+      minPrice: bMid - half,
+      maxPrice: bMid + half,
+      side: 'buy',
+      volume: Math.max(0.05, taper * bShimmer * (buyWalls.has(i) ? 4 : 1)),
+    });
+  }
+  return { bands, buyColor: '#26a69a', sellColor: '#ef5350' };
+}
+
 // Shared toolbar button style.
 const toolBtn: CSSProperties = {
   background: 'transparent',
@@ -192,6 +240,7 @@ export function App() {
   const [tf, setTf] = useState<number>(MINUTE);
   const [useSeriesKey, setUseSeriesKey] = useState(true);
   const [gaps, setGaps] = useState(false);
+  const [showLiquidity, setShowLiquidity] = useState(false);
   // Demo candles are stateful so the Add/Update tools can stream into them; they
   // reset to the base series whenever the asset/timeframe (or Gaps) changes.
   const demoBase = useMemo(() => {
@@ -202,6 +251,19 @@ export function App() {
   useEffect(() => {
     setCandles(demoBase);
   }, [demoBase]);
+  // Simulated live order book. `liqTick` advances on an interval while the
+  // overlay is on, animating the walls; the book re-anchors to the latest close.
+  const [liqTick, setLiqTick] = useState(0);
+  const [bandHeight, setBandHeight] = useState(0.85);
+  useEffect(() => {
+    if (!showLiquidity) return;
+    const id = setInterval(() => setLiqTick((t) => t + 1), 700);
+    return () => clearInterval(id);
+  }, [showLiquidity]);
+  const demoLiquidity = useMemo(
+    () => makeBands(candles, liqTick, bandHeight),
+    [candles, liqTick, bandHeight],
+  );
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
   const [view, setView] = useState<'repro' | 'demo' | 'sync'>('repro');
 
@@ -419,6 +481,37 @@ export function App() {
               <input type="checkbox" checked={gaps} onChange={(e) => setGaps(e.target.checked)} />
               gaps
             </label>
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: 0.8, cursor: 'pointer' }}
+              title="Overlay sample resting-order liquidity bands (buy below / sell above spot); opacity scales with volume."
+            >
+              <input
+                type="checkbox"
+                checked={showLiquidity}
+                onChange={(e) => setShowLiquidity(e.target.checked)}
+              />
+              liquidity
+            </label>
+            {showLiquidity && (
+              <label
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: 0.8 }}
+                title="Band height as a fraction of the level spacing (<1 gaps, 1 touching, >1 overlapping)."
+              >
+                height
+                <input
+                  type="range"
+                  min={0.1}
+                  max={3}
+                  step={0.05}
+                  value={bandHeight}
+                  onChange={(e) => setBandHeight(Number(e.target.value))}
+                  style={{ width: 90 }}
+                />
+                <span style={{ fontFamily: 'ui-monospace, monospace', width: 30 }}>
+                  {bandHeight.toFixed(2)}
+                </span>
+              </label>
+            )}
             <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
           </>
         )}
@@ -526,6 +619,7 @@ export function App() {
             candles={candles}
             seriesKey={useSeriesKey ? asset : undefined}
             theme={theme}
+            liquidity={showLiquidity ? demoLiquidity : undefined}
             {...indicatorProps}
             {...drawProps}
             onCrosshair={onCrosshair}

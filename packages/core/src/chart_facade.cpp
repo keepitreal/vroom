@@ -716,6 +716,17 @@ extern "C" void vroom_chart_set_drawings(VroomChart* chart,
     chart->mark_dirty();
 }
 
+// ---- Liquidity bands (order-book depth overlay) ---------------------------
+
+extern "C" void vroom_chart_set_liquidity(VroomChart* chart,
+                                          const VroomBand* bands, size_t count,
+                                          const VroomLiquidityStyle* style) {
+    if (!chart) return;
+    chart->bands.assign(bands, bands + count);
+    if (style) chart->liquidity_style = *style;
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_set_draft(VroomChart* chart, int64_t a_time,
                                       double a_price, bool has_b, int64_t b_time,
                                       double b_price, bool guide, uint32_t color,

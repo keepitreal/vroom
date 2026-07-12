@@ -9,6 +9,7 @@ import type {
   CrosshairCandle,
   CrosshairInfo,
   DrawingSpec,
+  LiquiditySpec,
   OverlaySpec,
   VroomChartHandle,
   VroomModule,
@@ -42,6 +43,7 @@ interface WebChartInstance {
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(e: boolean, reset: number, color: number, width: number): void;
   setDrawings(drawings: DrawingSpec[]): void;
+  setLiquidity(liquidity: LiquiditySpec): void;
   setDraft(
     aTime: number,
     aPrice: number,
@@ -153,6 +155,13 @@ class WasmHandle implements VroomChartHandle {
     this.wc.setDrawings(
       drawings.map((d) => ({ ...d, color: d.color >>> 0 })),
     );
+  }
+  setLiquidity(liquidity: LiquiditySpec): void {
+    this.wc.setLiquidity({
+      ...liquidity,
+      buyColor: liquidity.buyColor >>> 0,
+      sellColor: liquidity.sellColor >>> 0,
+    });
   }
   setDraft(
     aTime: number,

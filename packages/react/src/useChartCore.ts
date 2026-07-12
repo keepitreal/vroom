@@ -13,6 +13,7 @@ import {
   type LoadVroomOptions,
   type OverlaySpec,
   type DrawingSpec,
+  type LiquiditySpec,
   type VroomChartHandle,
 } from '@vroomchart/core-wasm';
 import type { VroomChartCoreProps } from '@vroomchart/types';
@@ -52,6 +53,44 @@ function drawingToSpec(
   };
 }
 
+// Default buy/sell colors (teal-green / red), matching the accent palette.
+const DEFAULT_BUY_COLOR = 0xff26a69a;
+const DEFAULT_SELL_COLOR = 0xffef5350;
+
+function liquidityToSpec(
+  cfg: NonNullable<VroomChartCoreProps['liquidity']>,
+): LiquiditySpec {
+  return {
+    bands: cfg.bands.map((b) => ({
+      minPrice: b.minPrice,
+      maxPrice: b.maxPrice,
+      side: b.side === 'sell' ? 1 : 0,
+      volume: b.volume,
+    })),
+    buyColor: (cfg.buyColor != null ? parseColor(cfg.buyColor) : null) ?? DEFAULT_BUY_COLOR,
+    sellColor:
+      (cfg.sellColor != null ? parseColor(cfg.sellColor) : null) ?? DEFAULT_SELL_COLOR,
+    maxVolume: cfg.maxVolume ?? 0,
+    minOpacity: cfg.minOpacity ?? 0.05,
+    maxOpacity: cfg.maxOpacity ?? 0.8,
+    widthPx: cfg.widthPx ?? 300,
+    widthFrac: cfg.widthFrac ?? 0.25,
+  };
+}
+
+// Cleared overlay: an empty band set (style values are irrelevant when there are
+// no bands, but the spec shape requires them).
+const EMPTY_LIQUIDITY: LiquiditySpec = {
+  bands: [],
+  buyColor: DEFAULT_BUY_COLOR,
+  sellColor: DEFAULT_SELL_COLOR,
+  maxVolume: 0,
+  minOpacity: 0.05,
+  maxOpacity: 0.8,
+  widthPx: 300,
+  widthFrac: 0.25,
+};
+
 export type UseChartCore = {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -78,6 +117,7 @@ export function useChartCore(
     movingAverages,
     vwap,
     drawings,
+    liquidity,
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -155,6 +195,7 @@ export function useChartCore(
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const drawingsKey = drawings ? JSON.stringify(drawings) : '';
+  const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
   const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
@@ -230,10 +271,13 @@ export function useChartCore(
       vwap?.width ?? 1.5,
     );
     h.setDrawings((drawings ?? []).map(drawingToSpec));
+    h.setLiquidity(
+      liquidity?.bands?.length ? liquidityToSpec(liquidity) : EMPTY_LIQUIDITY,
+    );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/drawings tracked via their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/drawings/liquidity tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

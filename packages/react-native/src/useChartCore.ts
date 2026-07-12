@@ -126,6 +126,8 @@ export function useChartCore(
       (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
       vwap?.width ?? 1.5,
     );
+    // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
+    // the VroomBand structs in the JSI handle) — web-only for now.
     setPicture(h.render());
     // theme/rsi/macd/movingAverages/vwap are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
