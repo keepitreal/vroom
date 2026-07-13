@@ -11,14 +11,47 @@
 #include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
 #include "include/core/SkShader.h"
-#include "include/core/SkSpan.h"
 #include "include/core/SkTileMode.h"
-#include "include/effects/SkGradient.h"
+// Skia's linear-gradient API differs across the Skia versions we build against:
+// the WASM build uses a newer Skia (SkGradient.h + SkShaders::LinearGradient),
+// while react-native-skia bundles an older one (SkGradientShader::MakeLinear).
+// Neither ships both headers, so select whichever is present.
+#if __has_include("include/effects/SkGradient.h")
+#  include "include/core/SkSpan.h"
+#  include "include/effects/SkGradient.h"
+#  define VROOM_SK_MODERN_GRADIENT 1
+#else
+#  include "include/effects/SkGradientShader.h"
+#  define VROOM_SK_MODERN_GRADIENT 0
+#endif
 #pragma clang diagnostic pop
 
 #include "chart.h"
 
 namespace vroom::liquidity {
+namespace {
+
+// A horizontal shader fading from transparent at the left of `pts` to `base` at
+// opacity `alpha` on the right, keeping RGB constant so the faded edge doesn't
+// darken toward black. Abstracts over the two Skia gradient APIs above.
+sk_sp<SkShader> left_fade_shader(const SkPoint pts[2], SkColor base, float alpha) {
+#if VROOM_SK_MODERN_GRADIENT
+    const float r = SkColorGetR(base) / 255.f;
+    const float g = SkColorGetG(base) / 255.f;
+    const float b = SkColorGetB(base) / 255.f;
+    const SkColor4f colors[2] = {SkColor4f{r, g, b, 0.f}, SkColor4f{r, g, b, alpha}};
+    const SkGradient::Colors grad_colors(
+        SkSpan<const SkColor4f>(colors, 2), SkTileMode::kClamp);
+    const SkGradient grad(grad_colors, SkGradient::Interpolation{});
+    return SkShaders::LinearGradient(pts, grad);
+#else
+    const auto a = static_cast<U8CPU>(alpha * 255.f + 0.5f);
+    const SkColor colors[2] = {SkColorSetA(base, 0), SkColorSetA(base, a)};
+    return SkGradientShader::MakeLinear(pts, colors, nullptr, 2, SkTileMode::kClamp);
+#endif
+}
+
+}  // namespace
 
 void draw(SkCanvas* canvas,
           const VroomChart& chart,
@@ -67,23 +100,9 @@ void draw(SkCanvas* canvas,
             : 0.0;
         const float alpha = min_op + (max_op - min_op) * static_cast<float>(t);
 
-        // Fade left (transparent) -> right (opaque), keeping the same RGB. The
-        // gradient interpolates unpremultiplied (Interpolation default) so the
-        // faded edge doesn't darken toward black.
-        const float r = SkColorGetR(base) / 255.f;
-        const float g = SkColorGetG(base) / 255.f;
-        const float bl = SkColorGetB(base) / 255.f;
-        const SkColor4f colors[2] = {
-            SkColor4f{r, g, bl, 0.f},
-            SkColor4f{r, g, bl, alpha},
-        };
-        const SkGradient::Colors grad_colors(
-            SkSpan<const SkColor4f>(colors, 2), SkTileMode::kClamp);
-        const SkGradient grad(grad_colors, SkGradient::Interpolation{});
-
         SkPaint paint;
         paint.setAntiAlias(true);
-        paint.setShader(SkShaders::LinearGradient(pts, grad));
+        paint.setShader(left_fade_shader(pts, base, alpha));
         canvas->drawRect(SkRect::MakeLTRB(left_x, y_top, candle_right, y_bot), paint);
     }
 
