@@ -9,7 +9,7 @@ type VWAPConfig = {
 };
 ```
 
-Defined in: [types/src/index.ts:119](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L119)
+Defined in: [types/src/index.ts:185](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L185)
 
 VWAP overlay config (session anchor). Drawn as a single line on the price
 pane, resetting each session.
@@ -22,7 +22,7 @@ pane, resetting each session.
 optional color?: string | number;
 ```
 
-Defined in: [types/src/index.ts:124](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L124)
+Defined in: [types/src/index.ts:190](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L190)
 
 Line color (hex string or packed ARGB number).
 
@@ -34,7 +34,7 @@ Line color (hex string or packed ARGB number).
 optional enabled?: boolean;
 ```
 
-Defined in: [types/src/index.ts:120](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L120)
+Defined in: [types/src/index.ts:186](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L186)
 
 ***
 
@@ -44,7 +44,7 @@ Defined in: [types/src/index.ts:120](https://github.com/keepitreal/vroom/blob/d6
 optional resetMinutes?: number;
 ```
 
-Defined in: [types/src/index.ts:122](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L122)
+Defined in: [types/src/index.ts:188](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L188)
 
 Session reset offset from UTC midnight, in minutes (default 0).
 
@@ -56,6 +56,6 @@ Session reset offset from UTC midnight, in minutes (default 0).
 optional width?: number;
 ```
 
-Defined in: [types/src/index.ts:126](https://github.com/keepitreal/vroom/blob/d6db35e53e01a5fc4d6ab203602aed3c6f0338da/packages/types/src/index.ts#L126)
+Defined in: [types/src/index.ts:192](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L192)
 
 Stroke width in px. Default 1.5.

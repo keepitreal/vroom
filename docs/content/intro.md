@@ -6,48 +6,73 @@ sidebar_label: Introduction
 description: Lightning-fast, Skia-powered candlestick charts for React Native and the web.
 ---
 
-# Introduction
+# vroom 🏎️💨
 
-**vroom** is a candlestick charting library with a single C++ rendering core
+**vroom** is an open source candlestick charting library that runs on iOS and Android via React Native and web via WASM beneath a React wrapper. The mobile and web implementation share a single C++ rendering core
 built on [Skia](https://skia.org), so charts stay smooth under pans, pinches, and
-live updates. That one core powers two front-ends:
+live updates.
 
-- **`react-native-vroom-chart`** — native iOS/Android, exposed to React Native
-  through a thin JSI bridge.
-- **`@vroomchart/react`** — the web/DOM component, backed by
-  **`@vroomchart/core-wasm`** (the same core compiled to WebAssembly, painting a
-  `<canvas>`).
+|               Mobile (iOS)                |                 Web/Desktop                 |
+| :---------------------------------------: | :-----------------------------------------: |
+| ![vroom chart on mobile](/img/mobile.png) | ![vroom chart on desktop](/img/desktop.png) |
 
-Both expose the **same props and events**, so this site documents them together:
-platform-specific bits (install, imports, input idioms) are shown in **React
-Native / Web** tabs — pick your platform once and it sticks across every page.
+vroom currently supports 5 technical analysis indicators: RSI, VWAP, EMA, SMA, MACD and volume with more to come.
+
+NOTE: native iOS and Android wrappers are in progress. Building the chart core in C++/Skia means it can and will be truly cross-platform.
 
 ## Features
 
-- 📈 **Candlesticks + volume** rendered entirely in Skia.
-- 🤏 **Gestures** — pan to scroll, pinch to zoom, drag the price/time axes to
-  rescale, long-press for a snapping crosshair.
-- 🎨 **Theming** — every chart color is overridable.
-- 🧮 **Indicators** — RSI and MACD panes, SMA/EMA overlay ribbons, and session
-  VWAP.
-- 🔔 **Host events** — crosshair OHLCV and viewport changes are surfaced to your
-  app (drive your own haptics, tooltips, etc.).
+### Candles, Volume and Indicators
+
+Candlesticks and volume render by default. Chart colors, indicator visibility and parameters are all configurable. vroom does not (currently) offer chart chrome/toolbars to customize the chart and its indicators. This is done by the consuming app so you can have full control of the look feel of your product.
+
+<figure style={{textAlign: 'center'}}>
+  <img src="/img/desktop-2.png" alt="customizable chart" width="803" />
+  <figcaption style={{textAlign: 'center'}}><em>A customized, monochromatic vroom chart on web.</em></figcaption>
+</figure>
+
+## Gestures
+
+Navigating the chart feels natural and performs at 60+ FPS across all interactions.
+
+<figure style={{textAlign: 'center'}}>
+  <img src="/img/gestures.gif" alt="smooth gestures" width="360" />
+  <figcaption style={{textAlign: 'center'}}><em>Industry-standard gestures perform at 60+ FPS</em></figcaption>
+</figure>
+
+The chart crosshair surfaces chart level data so the host app can render OHLCV data and fire haptics.
+
+```tsx
+import { useRef } from "react";
+import * as Haptics from "expo-haptics";
+import { VroomChart, type CrosshairEvent } from "@vroomchart/react-native";
+
+function Chart({ candles }) {
+  // Dedupe on the snapped candle time so haptics fire once per candle, not per pixel.
+  const lastTick = useRef<number | null>(null);
+
+  return (
+    <VroomChart
+      candles={candles}
+      onCrosshair={(e: CrosshairEvent) => {
+        if (e.reason === "hide") {
+          lastTick.current = null;
+          return;
+        }
+        if (e.timeMs !== lastTick.current) {
+          lastTick.current = e.timeMs;
+          Haptics.selectionAsync(); // tick as the crosshair snaps to a new candle
+        }
+        // e.candle → { open, high, low, close, volume } for your OHLCV readout
+      }}
+    />
+  );
+}
+```
 
 ## Get started
 
 - [Installation](getting-started/installation.mdx) — packages and peer
   dependencies for each platform.
 - [Quickstart](getting-started/quickstart.mdx) — render your first chart.
-- [API reference](reference/index.md) — generated from the source types (see
-  [Platform differences](reference/platform-differences) for the per-platform props).
-
-## How these docs are maintained
-
-The **API reference** under `reference/` is generated from the package's
-TypeScript types with [TypeDoc](https://typedoc.org) (via
-`docusaurus-plugin-typedoc`) — it regenerates on every build, so it can't drift
-from the source. Everything else (this page, the guides) is hand-written.
-
-The site is built with [Docusaurus](https://docusaurus.io) and deploys as a
-static site (e.g. on Vercel). Run it locally from the repo root with
-`pnpm docs` (dev server) or `pnpm docs:build` (production build).
+- [API reference](reference/index.md)
