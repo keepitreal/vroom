@@ -9,7 +9,7 @@ import {
   type LiquidityBand,
   type LiquidityConfig,
 } from '@vroomchart/react';
-import { StreamingRepro } from './StreamingRepro';
+import { Sidebar } from './Sidebar';
 import { SettingsModal, DEFAULT_THEME, type ThemeState } from './SettingsModal';
 import {
   IndicatorsModal,
@@ -31,6 +31,17 @@ import {
 
 const THEME_STORAGE_KEY = 'vroom-theme';
 const CANDLE_WIDTH_KEY = 'vroom-candle-width';
+const SIDEBAR_KEY = 'vroom-sidebar';
+
+// Persisted sidebar expand/collapse state (default expanded).
+function loadSidebarOpen(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return window.localStorage.getItem(SIDEBAR_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 
 // Persisted default candle body width (px) driving the demo chart's initial
 // zoom. Falls back to a default on missing/corrupt data.
@@ -284,39 +295,50 @@ export function App() {
     [candles, liqTick, bandHeight],
   );
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
-  const [view, setView] = useState<'repro' | 'demo' | 'sync'>('repro');
 
-  // Sync view: two charts of the same asset (comparable price scale so the
-  // synced horizontal line stays on-screen) sharing one crosshair. Each chart
-  // both emits its crosshair (onCrosshair) and mirrors the shared one
-  // (crosshairOverride); the library ignores the override on whichever chart is
-  // actively hovered, so no host-side source tracking is needed.
-  const [syncTop, setSyncTop] = useState<Candle[]>(() => aggregate(baseSeries('BTC'), MINUTE));
-  const [syncBottom, setSyncBottom] = useState<Candle[]>(() => aggregate(baseSeries('BTC'), 15 * MINUTE));
+  // Layout: single chart, or two stacked crosshair-linked panes (replaces the
+  // old Sync view). Sidebar expand/collapse is persisted.
+  const [twoPane, setTwoPane] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(loadSidebarOpen);
+
+  // Live streaming (folded in from the old Repro view): auto-append/update the
+  // primary series on an interval, in addition to the manual buttons.
+  const [live, setLive] = useState(false);
+  const [intervalMs, setIntervalMs] = useState(1000);
+  const [streamMode, setStreamMode] = useState<'append' | 'update'>('append');
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(() => {
+      setCandles((p) => (streamMode === 'append' ? appendCandle(p, tf) : updateLast(p)));
+    }, Math.max(100, intervalMs));
+    return () => clearInterval(id);
+  }, [live, intervalMs, streamMode, tf]);
+
+  // Second pane = the same asset at the next-higher timeframe (or 4× when already
+  // at the top), so the two panes always differ. Crosshair is shared via `xhair`:
+  // each pane emits onCrosshair (updating xhair) and mirrors crosshairOverride;
+  // the library ignores the override on whichever pane is actively hovered.
+  const secondTf = useMemo(() => {
+    const idx = TIMEFRAMES.findIndex((t) => t.stepMs === tf);
+    const higher = TIMEFRAMES[Math.min(idx + 1, TIMEFRAMES.length - 1)];
+    return higher.stepMs === tf ? tf * 4 : higher.stepMs;
+  }, [tf]);
+  const secondCandles = useMemo(
+    () => aggregate(baseSeries(asset), secondTf),
+    [asset, secondTf],
+  );
   const [xhair, setXhair] = useState<{ timeMs: number; price: number } | null>(null);
-  const onSyncCrosshair = useCallback((e: CrosshairEvent) => {
+  const onSecondaryCrosshair = useCallback((e: CrosshairEvent) => {
     setXhair(e.active && e.timeMs != null && e.price != null ? { timeMs: e.timeMs, price: e.price } : null);
   }, []);
 
-  // Streaming tools shared by the demo and sync views. In sync, both charts get
-  // a bar on each click (each at its own timeframe step) to show streaming and
-  // crosshair sync coexisting; in demo, the single series streams at `tf`.
+  // Manual streaming tools operate on the primary series at its timeframe.
   const onAddCandle = useCallback(() => {
-    if (view === 'sync') {
-      setSyncTop((p) => appendCandle(p, MINUTE));
-      setSyncBottom((p) => appendCandle(p, 15 * MINUTE));
-    } else {
-      setCandles((p) => appendCandle(p, tf));
-    }
-  }, [view, tf]);
+    setCandles((p) => appendCandle(p, tf));
+  }, [tf]);
   const onUpdateLast = useCallback(() => {
-    if (view === 'sync') {
-      setSyncTop(updateLast);
-      setSyncBottom(updateLast);
-    } else {
-      setCandles(updateLast);
-    }
-  }, [view]);
+    setCandles(updateLast);
+  }, []);
   const [theme, setTheme] = useState<ThemeState>(loadTheme);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -362,6 +384,14 @@ export function App() {
       // best-effort
     }
   }, [candleWidth]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? '1' : '0');
+    } catch {
+      // best-effort
+    }
+  }, [sidebarOpen]);
 
   // Indicator enable/config state lives here so it drives both chart views.
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -418,261 +448,117 @@ export function App() {
   );
   const activeCount = enabledCount(indicators);
 
-  const onCrosshair = (e: CrosshairEvent) => {
+  const onPrimaryCrosshair = (e: CrosshairEvent) => {
     if (!e.active || !e.candle) {
       setReadout('hover / long-press for crosshair');
-      return;
+    } else {
+      const c = e.candle;
+      const d = new Date(c.timeMs).toISOString().slice(0, 10);
+      setReadout(`${d}  O ${c.open.toFixed(2)}  H ${c.high.toFixed(2)}  L ${c.low.toFixed(2)}  C ${c.close.toFixed(2)}`);
     }
-    const c = e.candle;
-    const d = new Date(c.timeMs).toISOString().slice(0, 10);
-    setReadout(`${d}  O ${c.open.toFixed(2)}  H ${c.high.toFixed(2)}  L ${c.low.toFixed(2)}  C ${c.close.toFixed(2)}`);
+    // Drive the linked crosshair only when the second pane is showing.
+    if (twoPane) {
+      setXhair(e.active && e.timeMs != null && e.price != null ? { timeMs: e.timeMs, price: e.price } : null);
+    }
   };
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', color: '#c9d1d9', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center' }}>
-        <strong style={{ fontSize: 16 }}>Vroom</strong>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {(['repro', 'demo', 'sync'] as const).map((v) => (
-            <button
-              key={v}
-              onClick={() => setView(v)}
-              style={{
-                background: view === v ? '#21262d' : 'transparent',
-                color: '#c9d1d9',
-                border: '1px solid #30363d',
-                borderRadius: 6,
-                padding: '4px 10px',
-                fontSize: 13,
-                cursor: 'pointer',
-              }}
-            >
-              {v === 'repro' ? 'Repro' : v === 'demo' ? 'Demo' : 'Sync'}
-            </button>
-          ))}
-        </div>
-        {view === 'demo' && (
-          <>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {(Object.keys(ASSETS) as Asset[]).map((a) => (
-                <button
-                  key={a}
-                  onClick={() => setAsset(a)}
-                  style={{
-                    background: asset === a ? '#21262d' : 'transparent',
-                    color: '#c9d1d9',
-                    border: '1px solid #30363d',
-                    borderRadius: 6,
-                    padding: '4px 10px',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 4 }}>
-              {TIMEFRAMES.map((t) => (
-                <button
-                  key={t.label}
-                  onClick={() => setTf(t.stepMs)}
-                  style={{
-                    background: tf === t.stepMs ? '#21262d' : 'transparent',
-                    color: '#c9d1d9',
-                    border: '1px solid #30363d',
-                    borderRadius: 6,
-                    padding: '4px 10px',
-                    fontSize: 13,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <label
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: 0.8, cursor: 'pointer' }}
-              title="Pass seriesKey={asset} so asset switches reset explicitly; uncheck to exercise pure data-heuristic detection"
-            >
-              <input
-                type="checkbox"
-                checked={useSeriesKey}
-                onChange={(e) => setUseSeriesKey(e.target.checked)}
-              />
-              seriesKey
-            </label>
-            <label
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: 0.8, cursor: 'pointer' }}
-              title="Punch interior holes into the series (non-uniform grid). Pan the chart, then Add/Update a candle — the pan must hold (regression test for gappy-series streaming)."
-            >
-              <input type="checkbox" checked={gaps} onChange={(e) => setGaps(e.target.checked)} />
-              gaps
-            </label>
-            <label
-              style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, opacity: 0.8, cursor: 'pointer' }}
-              title="Overlay sample resting-order liquidity bands (buy below / sell above spot); opacity scales with volume."
-            >
-              <input
-                type="checkbox"
-                checked={showLiquidity}
-                onChange={(e) => setShowLiquidity(e.target.checked)}
-              />
-              liquidity
-            </label>
-            {showLiquidity && (
-              <label
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: 0.8 }}
-                title="Band height as a fraction of the level spacing (<1 gaps, 1 touching, >1 overlapping)."
-              >
-                height
-                <input
-                  type="range"
-                  min={0.1}
-                  max={3}
-                  step={0.05}
-                  value={bandHeight}
-                  onChange={(e) => setBandHeight(Number(e.target.value))}
-                  style={{ width: 90 }}
-                />
-                <span style={{ fontFamily: 'ui-monospace, monospace', width: 30 }}>
-                  {bandHeight.toFixed(2)}
-                </span>
-              </label>
-            )}
-            <label
-              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: 0.8 }}
-              title="Default candle body width (px) for the initial zoom. Persisted to localStorage; larger = more zoomed in. Editing remounts the chart to re-frame."
-            >
-              candle&nbsp;px
-              <input
-                type="number"
-                min={2}
-                max={40}
-                step={1}
-                value={candleWidth}
-                onChange={(e) => setCandleWidth(Number(e.target.value))}
-                style={{ width: 56 }}
-              />
-            </label>
-            <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
-          </>
-        )}
-        {(view === 'demo' || view === 'sync') && (
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={onAddCandle} style={toolBtn}>
-              Add candle
-            </button>
-            <button onClick={onUpdateLast} style={toolBtn}>
-              Update last candle
-            </button>
-          </div>
-        )}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button
-            onClick={toggleLineTool}
-            style={{
-              background: drawMode === 'draw' ? '#1f6feb' : 'transparent',
-              color: drawMode === 'draw' ? '#f0f6fc' : '#c9d1d9',
-              border: '1px solid #30363d',
-              borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Line
-          </button>
-          <button
-            onClick={() => setIndicatorsOpen(true)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              background: 'transparent',
-              color: '#c9d1d9',
-              border: '1px solid #30363d',
-              borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Indicators
-            {activeCount > 0 && (
-              <span
-                style={{
-                  background: '#238636',
-                  color: '#f0f6fc',
-                  borderRadius: 10,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: '0 6px',
-                  lineHeight: '16px',
-                }}
-              >
-                {activeCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            style={{
-              background: 'transparent',
-              color: '#c9d1d9',
-              border: '1px solid #30363d',
-              borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Settings
-          </button>
-        </div>
+      <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center', borderBottom: '1px solid #21262d' }}>
+        <strong style={{ fontSize: 16 }}>Vroom 🏎️💨</strong>
+        <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
+        <button
+          onClick={() => setSidebarOpen((o) => !o)}
+          style={{ ...toolBtn, marginLeft: 'auto' }}
+          title={sidebarOpen ? 'Hide controls' : 'Show controls'}
+        >
+          {sidebarOpen ? '✕ Controls' : '☰ Controls'}
+        </button>
       </div>
-      {view === 'repro' ? (
-        <div style={{ flex: 1, minHeight: 0 }}>
-          <StreamingRepro theme={theme} indicators={indicatorProps} draw={drawProps} />
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row' }}>
+        <div style={{ flex: 1, minWidth: 0, minHeight: 0, padding: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {twoPane ? (
+            <>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <VroomChart
+                  key={candleWidth}
+                  candles={candles}
+                  seriesKey={useSeriesKey ? asset : undefined}
+                  theme={theme}
+                  defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
+                  liquidity={showLiquidity ? demoLiquidity : undefined}
+                  {...indicatorProps}
+                  {...drawProps}
+                  onCrosshair={onPrimaryCrosshair}
+                  crosshairOverride={xhair}
+                />
+              </div>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <VroomChart
+                  key={`second-${candleWidth}`}
+                  candles={secondCandles}
+                  seriesKey={`${asset}-2`}
+                  theme={theme}
+                  defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
+                  onCrosshair={onSecondaryCrosshair}
+                  crosshairOverride={xhair}
+                />
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <VroomChart
+                // Remount on width change so the new default framing applies (it
+                // only takes effect on a fresh handle — mirrors a real "first load").
+                key={candleWidth}
+                candles={candles}
+                seriesKey={useSeriesKey ? asset : undefined}
+                theme={theme}
+                defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
+                liquidity={showLiquidity ? demoLiquidity : undefined}
+                {...indicatorProps}
+                {...drawProps}
+                onCrosshair={onPrimaryCrosshair}
+              />
+            </div>
+          )}
         </div>
-      ) : view === 'sync' ? (
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'row', gap: 8, padding: '0 8px 8px' }}>
-          <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-            <VroomChart
-              candles={syncTop}
-              seriesKey="BTC-1m"
-              theme={theme}
-              onCrosshair={onSyncCrosshair}
-              crosshairOverride={xhair}
-            />
-          </div>
-          <div style={{ flex: 1, minWidth: 0, minHeight: 0 }}>
-            <VroomChart
-              candles={syncBottom}
-              seriesKey="BTC-15m"
-              theme={theme}
-              onCrosshair={onSyncCrosshair}
-              crosshairOverride={xhair}
-            />
-          </div>
-        </div>
-      ) : (
-        <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>
-          <VroomChart
-            // Remount on width change so the new default framing applies (it only
-            // takes effect on a fresh handle — mirrors a real "first load").
-            key={candleWidth}
-            candles={candles}
-            seriesKey={useSeriesKey ? asset : undefined}
-            theme={theme}
-            defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
-            liquidity={showLiquidity ? demoLiquidity : undefined}
-            {...indicatorProps}
-            {...drawProps}
-            onCrosshair={onCrosshair}
+        {sidebarOpen && (
+          <Sidebar
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth }}
+            data={{
+              assets: Object.keys(ASSETS),
+              asset,
+              setAsset: (a) => setAsset(a as Asset),
+              timeframes: TIMEFRAMES,
+              tf,
+              setTf,
+              useSeriesKey,
+              setUseSeriesKey,
+              gaps,
+              setGaps,
+            }}
+            streaming={{
+              onAddCandle,
+              onUpdateLast,
+              live,
+              setLive,
+              intervalMs,
+              setIntervalMs,
+              streamMode,
+              setStreamMode,
+              count: candles.length,
+            }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, toggleLineTool }}
+            panels={{
+              activeCount,
+              openIndicators: () => setIndicatorsOpen(true),
+              openColors: () => setSettingsOpen(true),
+            }}
+            onCollapse={() => setSidebarOpen(false)}
           />
-        </div>
-      )}
+        )}
+      </div>
       {settingsOpen && (
         <SettingsModal
           theme={theme}
