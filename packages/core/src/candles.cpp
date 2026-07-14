@@ -39,6 +39,15 @@ void draw(SkCanvas* canvas,
     const uint32_t fill_bull = theme.colors[VROOM_COLOR_BULL];
     const uint32_t fill_bear = theme.colors[VROOM_COLOR_BEAR];
 
+    constexpr float kBorderWidthPx = 1.f;
+    // Draw the border only when it differs from the fill; an inherited/transparent
+    // border color (the default, and the "hide" path) renders nothing — so a hidden
+    // border costs no pixels and never affects candle width.
+    const bool draw_border_bull =
+        resolve_color(theme.colors[VROOM_COLOR_BORDER_BULL], fill_bull) != fill_bull;
+    const bool draw_border_bear =
+        resolve_color(theme.colors[VROOM_COLOR_BORDER_BEAR], fill_bear) != fill_bear;
+
     SkPaint bull_paint;
     bull_paint.setAntiAlias(true);
     bull_paint.setColor(fill_bull);
@@ -58,12 +67,13 @@ void draw(SkCanvas* canvas,
     wick_bear.setColor(
         resolve_color(theme.colors[VROOM_COLOR_WICK_BEAR], fill_bear));
 
-    // 1px body outlines. Default sentinel resolves to the fill color, so the
-    // border is invisible until a consumer sets borderBull/borderBear.
+    // 1px body outlines, drawn *inside* the body (see the inset at draw time) so
+    // a contrasting border never widens the candle. Default sentinel resolves to
+    // the fill color; such borders are skipped entirely (draw_border_* above).
     SkPaint border_bull;
     border_bull.setAntiAlias(true);
     border_bull.setStyle(SkPaint::kStroke_Style);
-    border_bull.setStrokeWidth(1.f);
+    border_bull.setStrokeWidth(kBorderWidthPx);
     border_bull.setColor(
         resolve_color(theme.colors[VROOM_COLOR_BORDER_BULL], fill_bull));
 
@@ -93,7 +103,17 @@ void draw(SkCanvas* canvas,
         const float h = std::max(1.f, y_bot - y_top);
         const SkRect body = SkRect::MakeXYWH(cx - half_body, y_top, body_w, h);
         canvas->drawRect(body, bull ? bull_paint : bear_paint);
-        canvas->drawRect(body, bull ? border_bull : border_bear);
+
+        const bool draw_border = bull ? draw_border_bull : draw_border_bear;
+        // Inset by half the stroke so the centered stroke falls fully within the
+        // body: the border overlaps the fill's outer edge instead of straddling
+        // it, keeping the candle's footprint exactly body_w. Skip when the body is
+        // too small to hold it.
+        if (draw_border && body_w > kBorderWidthPx && h > kBorderWidthPx) {
+            const SkRect inner =
+                body.makeInset(kBorderWidthPx * 0.5f, kBorderWidthPx * 0.5f);
+            canvas->drawRect(inner, bull ? border_bull : border_bear);
+        }
     }
 }
 

@@ -74,9 +74,9 @@ export type VroomTheme = {
   accentBull?: VroomColor;
   /** Generic down color for the price indicator, volume bars, and MACD histogram. Defaults to red; independent of `bear`. */
   accentBear?: VroomColor;
-  /** Up candle body 1px border. Defaults to the bull fill color. */
+  /** Up candle body border (1px, drawn *inside* the body so it never changes candle width). Omit or set to the bull fill color to hide it. */
   borderBull?: VroomColor;
-  /** Down candle body 1px border. Defaults to the bear fill color. */
+  /** Down candle body border (1px, drawn *inside* the body so it never changes candle width). Omit or set to the bear fill color to hide it. */
   borderBear?: VroomColor;
   /** Up candle wick color. Defaults to the bull fill color. */
   wickBull?: VroomColor;
