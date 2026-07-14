@@ -10,7 +10,7 @@ import {
   type LiquidityConfig,
 } from '@vroomchart/react';
 import { Sidebar } from './Sidebar';
-import { SettingsModal, DEFAULT_THEME, type ThemeState } from './SettingsModal';
+import { SettingsModal, DEFAULT_THEME, type ThemeState, type NumericStyle } from './SettingsModal';
 import {
   IndicatorsModal,
   DEFAULT_INDICATOR_STATE,
@@ -31,7 +31,47 @@ import {
 
 const THEME_STORAGE_KEY = 'vroom-theme';
 const CANDLE_WIDTH_KEY = 'vroom-candle-width';
+const WICK_WIDTH_KEY = 'vroom-wick-width';
+const CANDLE_RADIUS_KEY = 'vroom-candle-radius';
+const WICK_CAP_KEY = 'vroom-wick-cap';
+const VOLUME_RADIUS_KEY = 'vroom-volume-radius';
 const SIDEBAR_KEY = 'vroom-sidebar';
+
+// Generic localStorage getters for the numeric/boolean style knobs.
+function loadNum(key: string, def: number): number {
+  if (typeof window === 'undefined') return def;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw == null) return def;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : def;
+  } catch {
+    return def;
+  }
+}
+function loadBool(key: string, def: boolean): boolean {
+  if (typeof window === 'undefined') return def;
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw == null ? def : raw === '1';
+  } catch {
+    return def;
+  }
+}
+
+// Persisted wick stroke width (px). Falls back to 1 on missing/corrupt data.
+function loadWickWidth(): number {
+  const DEFAULT = 1;
+  if (typeof window === 'undefined') return DEFAULT;
+  try {
+    const raw = window.localStorage.getItem(WICK_WIDTH_KEY);
+    if (!raw) return DEFAULT;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT;
+  } catch {
+    return DEFAULT;
+  }
+}
 
 // Persisted sidebar expand/collapse state (default expanded).
 function loadSidebarOpen(): boolean {
@@ -340,6 +380,10 @@ export function App() {
     setCandles(updateLast);
   }, []);
   const [theme, setTheme] = useState<ThemeState>(loadTheme);
+  const [wickWidth, setWickWidth] = useState(loadWickWidth);
+  const [candleRadius, setCandleRadius] = useState(() => loadNum(CANDLE_RADIUS_KEY, 0));
+  const [wickRoundCap, setWickRoundCap] = useState(() => loadBool(WICK_CAP_KEY, false));
+  const [volumeRadius, setVolumeRadius] = useState(() => loadNum(VOLUME_RADIUS_KEY, 0));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Drawing tool state. `drawMode`/`drawTool` drive the chart; `drawings` is the
@@ -392,6 +436,38 @@ export function App() {
       // best-effort
     }
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (!(wickWidth > 0)) return;
+    try {
+      window.localStorage.setItem(WICK_WIDTH_KEY, String(wickWidth));
+    } catch {
+      // best-effort
+    }
+  }, [wickWidth]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CANDLE_RADIUS_KEY, String(candleRadius));
+      window.localStorage.setItem(VOLUME_RADIUS_KEY, String(volumeRadius));
+      window.localStorage.setItem(WICK_CAP_KEY, wickRoundCap ? '1' : '0');
+    } catch {
+      // best-effort
+    }
+  }, [candleRadius, volumeRadius, wickRoundCap]);
+
+  // Color theme plus the numeric/boolean style knobs, as one VroomTheme for the charts.
+  const chartTheme = useMemo(
+    () => ({ ...theme, wickWidth, candleRadius, wickRoundCap, volumeRadius }),
+    [theme, wickWidth, candleRadius, wickRoundCap, volumeRadius],
+  );
+  const numericStyle: NumericStyle = { wickWidth, candleRadius, wickRoundCap, volumeRadius };
+  const onNumericStyleChange = (patch: Partial<NumericStyle>) => {
+    if (patch.wickWidth !== undefined) setWickWidth(patch.wickWidth);
+    if (patch.candleRadius !== undefined) setCandleRadius(patch.candleRadius);
+    if (patch.wickRoundCap !== undefined) setWickRoundCap(patch.wickRoundCap);
+    if (patch.volumeRadius !== undefined) setVolumeRadius(patch.volumeRadius);
+  };
 
   // Indicator enable/config state lives here so it drives both chart views.
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -484,7 +560,7 @@ export function App() {
                   key={candleWidth}
                   candles={candles}
                   seriesKey={useSeriesKey ? asset : undefined}
-                  theme={theme}
+                  theme={chartTheme}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...indicatorProps}
@@ -498,7 +574,7 @@ export function App() {
                   key={`second-${candleWidth}`}
                   candles={secondCandles}
                   seriesKey={`${asset}-2`}
-                  theme={theme}
+                  theme={chartTheme}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -513,7 +589,7 @@ export function App() {
                 key={candleWidth}
                 candles={candles}
                 seriesKey={useSeriesKey ? asset : undefined}
-                theme={theme}
+                theme={chartTheme}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...indicatorProps}
@@ -563,6 +639,8 @@ export function App() {
         <SettingsModal
           theme={theme}
           onChange={setTheme}
+          numericStyle={numericStyle}
+          onNumericStyleChange={onNumericStyleChange}
           onClose={() => setSettingsOpen(false)}
         />
       )}

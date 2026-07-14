@@ -1,9 +1,9 @@
 import type { VroomColor, VroomTheme } from '@vroomchart/types';
-import { ColorKey, type VroomChartHandle } from './handle';
+import { ColorKey, FloatKey, type VroomChartHandle } from './handle';
 
-// Maps each VroomTheme field to its ColorKey. Mirror of
+// Maps each color VroomTheme field to its ColorKey. Mirror of
 // packages/react-native/src/theme.ts (which keys off the same C enum).
-export const COLOR_KEYS: Record<keyof VroomTheme, ColorKey> = {
+export const COLOR_KEYS: Partial<Record<keyof VroomTheme, ColorKey>> = {
   background: ColorKey.Background,
   bull: ColorKey.Bull,
   bear: ColorKey.Bear,
@@ -17,6 +17,18 @@ export const COLOR_KEYS: Record<keyof VroomTheme, ColorKey> = {
   wickBear: ColorKey.WickBear,
   accentBull: ColorKey.AccentBull,
   accentBear: ColorKey.AccentBear,
+};
+
+// Maps each numeric VroomTheme field to its FloatKey.
+export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
+  wickWidth: FloatKey.WickWidth,
+  candleRadius: FloatKey.CandleRadius,
+  volumeRadius: FloatKey.VolumeRadius,
+};
+
+// Maps each boolean VroomTheme field to its FloatKey (pushed as 0/1).
+export const BOOL_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
+  wickRoundCap: FloatKey.WickRoundCap,
 };
 
 /**
@@ -37,14 +49,24 @@ export function parseColor(value: VroomColor): number | null {
   return parseInt(s, 16) >>> 0;
 }
 
-/** Push every provided theme color into the handle; skip unparseable ones. */
+/** Push every provided theme color + numeric float into the handle; skip bad ones. */
 export function applyTheme(handle: VroomChartHandle, theme: VroomTheme): void {
   (Object.keys(COLOR_KEYS) as (keyof VroomTheme)[]).forEach((field) => {
     const value = theme[field];
-    if (value == null) return;
+    if (typeof value !== 'string' && typeof value !== 'number') return;
     const argb = parseColor(value);
     if (argb == null) return;
-    handle.setColor(COLOR_KEYS[field], argb);
+    handle.setColor(COLOR_KEYS[field]!, argb);
+  });
+  (Object.keys(FLOAT_KEYS) as (keyof VroomTheme)[]).forEach((field) => {
+    const value = theme[field];
+    if (typeof value !== 'number' || !Number.isFinite(value)) return;
+    handle.setFloat(FLOAT_KEYS[field]!, value);
+  });
+  (Object.keys(BOOL_KEYS) as (keyof VroomTheme)[]).forEach((field) => {
+    const value = theme[field];
+    if (typeof value !== 'boolean') return;
+    handle.setFloat(BOOL_KEYS[field]!, value ? 1 : 0);
   });
 }
 

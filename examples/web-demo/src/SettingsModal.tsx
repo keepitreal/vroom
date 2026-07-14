@@ -4,7 +4,21 @@ import type { VroomTheme } from '@vroomchart/react';
 // A full, always-populated theme. Mirrors the core defaults in
 // packages/core/src/theme.cpp. The four border/wick fields default to the
 // transparent sentinel "#00000000", which the core resolves to the body fill.
-export type ThemeState = Record<keyof VroomTheme, string>;
+// Numeric/boolean theme fields (wick width, radii, wick caps) are held
+// separately by the demo, so the color state excludes them.
+type ColorField = Exclude<
+  keyof VroomTheme,
+  'wickWidth' | 'candleRadius' | 'wickRoundCap' | 'volumeRadius'
+>;
+export type ThemeState = Record<ColorField, string>;
+
+// Non-color candle/volume styling the demo bundles alongside the color theme.
+export type NumericStyle = {
+  wickWidth: number;
+  candleRadius: number;
+  wickRoundCap: boolean;
+  volumeRadius: number;
+};
 
 const INHERIT = '#00000000';
 
@@ -42,7 +56,7 @@ const INHERIT_FALLBACK: Partial<Record<keyof VroomTheme, string>> = {
   wickBear: '#ef5350',
 };
 
-const SECTIONS: { title: string; fields: (keyof VroomTheme)[] }[] = [
+const SECTIONS: { title: string; fields: ColorField[] }[] = [
   {
     title: 'Candles',
     fields: ['bull', 'bear', 'borderBull', 'borderBear', 'wickBull', 'wickBear'],
@@ -52,7 +66,7 @@ const SECTIONS: { title: string; fields: (keyof VroomTheme)[] }[] = [
   { title: 'Crosshair', fields: ['crosshair', 'crosshairTarget'] },
 ];
 
-const LABELS: Record<keyof VroomTheme, string> = {
+const LABELS: Record<ColorField, string> = {
   background: 'Background',
   bull: 'Bull body',
   bear: 'Bear body',
@@ -222,16 +236,81 @@ function ColorRow({
   );
 }
 
+function StyleSlider({
+  label,
+  title,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+}: {
+  label: string;
+  title: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <label
+      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 0 10px', fontSize: 13 }}
+      title={title}
+    >
+      <span style={{ flex: 1 }}>{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ width: 120 }}
+      />
+      <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12, width: 34, textAlign: 'right' }}>
+        {value.toFixed(1)}
+      </span>
+    </label>
+  );
+}
+
+function StyleToggle({
+  label,
+  title,
+  checked,
+  onChange,
+}: {
+  label: string;
+  title: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label
+      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 0 10px', fontSize: 13, cursor: 'pointer' }}
+      title={title}
+    >
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span style={{ fontWeight: 600 }}>{label}</span>
+    </label>
+  );
+}
+
 export function SettingsModal({
   theme,
   onChange,
+  numericStyle,
+  onNumericStyleChange,
   onClose,
 }: {
   theme: ThemeState;
   onChange: (next: ThemeState) => void;
+  numericStyle: NumericStyle;
+  onNumericStyleChange: (patch: Partial<NumericStyle>) => void;
   onClose: () => void;
 }) {
-  const setField = (field: keyof VroomTheme, value: string) => {
+  const setField = (field: ColorField, value: string) => {
     onChange({ ...theme, [field]: value });
   };
 
@@ -309,6 +388,45 @@ export function SettingsModal({
                     {bordersOn ? 'on' : 'off (inherit fill)'}
                   </span>
                 </label>
+              )}
+              {section.title === 'Candles' && (
+                <>
+                  <StyleSlider
+                    label="Wick width"
+                    title="Wick stroke width in px (both up and down wicks)."
+                    value={numericStyle.wickWidth}
+                    min={0.5}
+                    max={6}
+                    step={0.5}
+                    onChange={(v) => onNumericStyleChange({ wickWidth: v })}
+                  />
+                  <StyleSlider
+                    label="Candle radius"
+                    title="Corner radius (px) of the candle bodies."
+                    value={numericStyle.candleRadius}
+                    min={0}
+                    max={8}
+                    step={0.5}
+                    onChange={(v) => onNumericStyleChange({ candleRadius: v })}
+                  />
+                  <StyleToggle
+                    label="Round wick caps"
+                    title="Round the wick end caps."
+                    checked={numericStyle.wickRoundCap}
+                    onChange={(v) => onNumericStyleChange({ wickRoundCap: v })}
+                  />
+                </>
+              )}
+              {section.title === 'Price & volume' && (
+                <StyleSlider
+                  label="Volume radius"
+                  title="Corner radius (px) of the top of volume bars."
+                  value={numericStyle.volumeRadius}
+                  min={0}
+                  max={8}
+                  step={0.5}
+                  onChange={(v) => onNumericStyleChange({ volumeRadius: v })}
+                />
               )}
               {section.fields.map((field) => {
                 const canInherit = INHERIT_FIELDS.has(field);

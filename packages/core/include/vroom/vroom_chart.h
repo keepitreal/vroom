@@ -124,6 +124,9 @@ typedef enum {
     VROOM_FLOAT_X_AXIS_HEIGHT_PX,        // bottom strip reserved for time labels
     VROOM_FLOAT_VOLUME_OPACITY,          // volume bar opacity (1=opaque)
     VROOM_FLOAT_INDICATOR_HEIGHT_FRAC,   // below-chart indicator pane, fraction of height
+    VROOM_FLOAT_CANDLE_RADIUS_PX,        // candle body corner radius px (0 = square)
+    VROOM_FLOAT_WICK_ROUND_CAP,          // 0/1: round the wick end caps
+    VROOM_FLOAT_VOLUME_RADIUS_PX,        // volume bar top-corner radius px (0 = square)
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 

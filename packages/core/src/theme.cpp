@@ -33,6 +33,9 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     22.f,   // X_AXIS_HEIGHT_PX — bottom strip for time labels
     0.5f,   // VOLUME_OPACITY — candle color at 50% transparency
     0.20f,  // INDICATOR_HEIGHT_FRAC — below-chart indicator pane = 20% of height
+    0.f,    // CANDLE_RADIUS_PX — square by default
+    0.f,    // WICK_ROUND_CAP — butt caps by default
+    0.f,    // VOLUME_RADIUS_PX — square by default
 };
 
 }  // namespace

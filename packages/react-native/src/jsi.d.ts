@@ -10,6 +10,11 @@ export interface ChartHandle {
    * COLOR_KEYS in theme.ts); `argb` is a packed 0xAARRGGBB integer.
    */
   setColor(key: number, argb: number): void;
+  /**
+   * Overrides a single theme float. `key` is a VroomFloatKey index (see
+   * FLOAT_KEYS in theme.ts); e.g. wick width.
+   */
+  setFloat(key: number, value: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
   /**

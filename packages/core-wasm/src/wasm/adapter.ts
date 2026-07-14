@@ -21,6 +21,7 @@ interface WebChartInstance {
   setCandles(bytes: Uint8Array): void;
   setSize(width: number, height: number, dpr: number): void;
   setColor(key: number, argb: number): void;
+  setFloat(key: number, value: number): void;
   setVisibleRange(startMs: number, endMs: number): void;
   setDefaultCandleWidth(px: number): void;
   getVisibleRange(): { startMs: number; endMs: number };
@@ -81,6 +82,9 @@ class WasmHandle implements VroomChartHandle {
   }
   setColor(key: number, argb: number): void {
     this.wc.setColor(key, argb >>> 0);
+  }
+  setFloat(key: number, value: number): void {
+    this.wc.setFloat(key, value);
   }
   setVisibleRange(startMs: number, endMs: number): void {
     this.wc.setVisibleRange(startMs, endMs);

@@ -113,6 +113,10 @@ class WebChart {
   void setColor(int key, uint32_t argb) {
     vroom_chart_set_color(chart_, static_cast<VroomColorKey>(key), argb);
   }
+  void setFloat(int key, double value) {
+    vroom_chart_set_float(chart_, static_cast<VroomFloatKey>(key),
+                          static_cast<float>(value));
+  }
   void setVisibleRange(double start_ms, double end_ms) {
     vroom_chart_set_visible_range(chart_, static_cast<int64_t>(start_ms),
                                   static_cast<int64_t>(end_ms));
@@ -374,6 +378,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setCandles", &WebChart::setCandles)
       .function("setSize", &WebChart::setSize)
       .function("setColor", &WebChart::setColor)
+      .function("setFloat", &WebChart::setFloat)
       .function("setVisibleRange", &WebChart::setVisibleRange)
       .function("setDefaultCandleWidth", &WebChart::setDefaultCandleWidth)
       .function("getVisibleRange", &WebChart::getVisibleRange)

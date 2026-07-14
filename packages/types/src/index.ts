@@ -82,6 +82,14 @@ export type VroomTheme = {
   wickBull?: VroomColor;
   /** Down candle wick color. Defaults to the bear fill color. */
   wickBear?: VroomColor;
+  /** Wick stroke width in px (applies to both up and down wicks). Defaults to 1. */
+  wickWidth?: number;
+  /** Corner radius (px) of candle bodies. Defaults to 0 (square). */
+  candleRadius?: number;
+  /** Round the wick end caps. Defaults to false. */
+  wickRoundCap?: boolean;
+  /** Corner radius (px) of the *top* of volume bars. Defaults to 0 (square). */
+  volumeRadius?: number;
   /** Gridlines. */
   grid?: VroomColor;
   /** Axis label text (price + time). */

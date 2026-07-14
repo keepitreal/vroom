@@ -39,6 +39,9 @@ void draw(SkCanvas* canvas,
     const uint32_t fill_bull = theme.colors[VROOM_COLOR_BULL];
     const uint32_t fill_bear = theme.colors[VROOM_COLOR_BEAR];
 
+    const float body_r = theme.floats[VROOM_FLOAT_CANDLE_RADIUS_PX];
+    const bool wick_round = theme.floats[VROOM_FLOAT_WICK_ROUND_CAP] > 0.5f;
+
     constexpr float kBorderWidthPx = 1.f;
     // Draw the border only when it differs from the fill; an inherited/transparent
     // border color (the default, and the "hide" path) renders nothing — so a hidden
@@ -62,6 +65,7 @@ void draw(SkCanvas* canvas,
         resolve_color(theme.colors[VROOM_COLOR_WICK_BULL], fill_bull));
     wick_bull.setStrokeWidth(theme.floats[VROOM_FLOAT_WICK_WIDTH_PX]);
     wick_bull.setStyle(SkPaint::kStroke_Style);
+    wick_bull.setStrokeCap(wick_round ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
 
     SkPaint wick_bear = wick_bull;
     wick_bear.setColor(
@@ -102,7 +106,14 @@ void draw(SkCanvas* canvas,
         const float y_bot = std::max(y_open, y_close);
         const float h = std::max(1.f, y_bot - y_top);
         const SkRect body = SkRect::MakeXYWH(cx - half_body, y_top, body_w, h);
-        canvas->drawRect(body, bull ? bull_paint : bear_paint);
+        // Corner radius clamped so thin candles / short bodies don't over-round.
+        const float r = std::min({body_r, body_w * 0.5f, h * 0.5f});
+        const SkPaint& fill = bull ? bull_paint : bear_paint;
+        if (r > 0.f) {
+            canvas->drawRoundRect(body, r, r, fill);
+        } else {
+            canvas->drawRect(body, fill);
+        }
 
         const bool draw_border = bull ? draw_border_bull : draw_border_bear;
         // Inset by half the stroke so the centered stroke falls fully within the
@@ -112,7 +123,14 @@ void draw(SkCanvas* canvas,
         if (draw_border && body_w > kBorderWidthPx && h > kBorderWidthPx) {
             const SkRect inner =
                 body.makeInset(kBorderWidthPx * 0.5f, kBorderWidthPx * 0.5f);
-            canvas->drawRect(inner, bull ? border_bull : border_bear);
+            const SkPaint& bp = bull ? border_bull : border_bear;
+            // Concentric radius so the inside border follows the rounded body.
+            const float ir = std::max(0.f, r - kBorderWidthPx * 0.5f);
+            if (ir > 0.f) {
+                canvas->drawRoundRect(inner, ir, ir, bp);
+            } else {
+                canvas->drawRect(inner, bp);
+            }
         }
     }
 }

@@ -27,10 +27,11 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(20);
+  out.reserve(22);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setFloat"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
@@ -127,6 +128,25 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const uint32_t argb =
               static_cast<uint32_t>(args[1].asNumber());
           vroom_chart_set_color(chart_, static_cast<VroomColorKey>(key), argb);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setFloat") {
+    // setFloat(keyIndex, value) — keyIndex is a VroomFloatKey (e.g. wick width).
+    // The core bounds-checks the key and marks dirty.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setFloat"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          const int key = static_cast<int>(args[0].asNumber());
+          vroom_chart_set_float(chart_, static_cast<VroomFloatKey>(key),
+                                static_cast<float>(args[1].asNumber()));
           return jsi::Value::undefined();
         });
   }

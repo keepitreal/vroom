@@ -32,9 +32,9 @@ export type {
   LiquiditySpec,
   Coord,
 } from './handle';
-export { ColorKey } from './handle';
+export { ColorKey, FloatKey } from './handle';
 export { packCandles, unpackCandles, BYTES_PER_CANDLE } from './packCandles';
-export { parseColor, applyTheme, argbToCss, COLOR_KEYS } from './color';
+export { parseColor, applyTheme, argbToCss, COLOR_KEYS, FLOAT_KEYS, BOOL_KEYS } from './color';
 export type { WasmConfig } from './wasm/loadWasm';
 
 /** Options for loading the core. */

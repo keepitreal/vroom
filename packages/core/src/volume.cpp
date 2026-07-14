@@ -4,6 +4,7 @@
 #pragma clang diagnostic ignored "-Wdocumentation"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkPaint.h"
+#include "include/core/SkRRect.h"
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
 
@@ -41,6 +42,7 @@ void draw(SkCanvas* canvas,
     const float half_body = body_w * 0.5f;
 
     const float opacity = theme.floats[VROOM_FLOAT_VOLUME_OPACITY];
+    const float vol_r = theme.floats[VROOM_FLOAT_VOLUME_RADIUS_PX];
     SkPaint bull_paint;
     bull_paint.setAntiAlias(true);
     bull_paint.setColor(theme.colors[VROOM_COLOR_ACCENT_BULL]);
@@ -61,9 +63,19 @@ void draw(SkCanvas* canvas,
             visible_start_ms, window_ms);
         const float h = std::max(
             1.f, static_cast<float>(c.volume / max_vol) * region_h);
-        canvas->drawRect(
-            SkRect::MakeXYWH(cx - half_body, candle_area_h - h, body_w, h),
-            bull ? bull_paint : bear_paint);
+        const SkRect rect =
+            SkRect::MakeXYWH(cx - half_body, candle_area_h - h, body_w, h);
+        const SkPaint& paint = bull ? bull_paint : bear_paint;
+        // Round only the top corners; clamp so short/narrow bars don't over-round.
+        const float r = std::min({vol_r, body_w * 0.5f, h});
+        if (r > 0.f) {
+            SkRRect rr;
+            const SkVector radii[4] = {{r, r}, {r, r}, {0, 0}, {0, 0}};  // TL, TR, BR, BL
+            rr.setRectRadii(rect, radii);
+            canvas->drawRRect(rr, paint);
+        } else {
+            canvas->drawRect(rect, paint);
+        }
     }
 }
 

@@ -26,6 +26,21 @@ export enum ColorKey {
   AccentBear = 15,
 }
 
+/** Theme float slots — mirrors the `VroomFloatKey` enum in the C facade. */
+export enum FloatKey {
+  CandleWidthRatio = 0,
+  WickWidth = 1,
+  RightPadding = 2,
+  AxisFontSize = 3,
+  YAxisWidthRatio = 4,
+  XAxisHeight = 5,
+  VolumeOpacity = 6,
+  IndicatorHeightFrac = 7,
+  CandleRadius = 8,
+  WickRoundCap = 9,
+  VolumeRadius = 10,
+}
+
 /** OHLCV readout for the candle under the crosshair. */
 export type CrosshairCandle = {
   timeMs: number;
@@ -128,6 +143,8 @@ export interface VroomChartHandle {
   setSize(width: number, height: number, dpr: number): void;
   /** Override one theme color. `argb` is packed 0xAARRGGBB. */
   setColor(key: ColorKey | number, argb: number): void;
+  /** Override one theme float (e.g. wick width). */
+  setFloat(key: FloatKey | number, value: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
   /**
