@@ -1,5 +1,21 @@
 # @vroomchart/core-wasm
 
+## 0.2.0
+
+### Minor Changes
+
+- Candle styling + initial-zoom controls (web + React Native):
+
+  - `defaultCandleWidth` prop — drive the initial zoom from a target candle body width.
+  - Candle body border now draws **inside** the body (never changes candle width) and can be hidden.
+  - New `setFloat` theme-float bridge, exposing configurable numeric/boolean theme fields:
+    - `theme.wickWidth` — wick stroke width (px)
+    - `theme.candleRadius` — candle body corner radius (px)
+    - `theme.wickRoundCap` — rounded wick end caps
+    - `theme.volumeRadius` — rounded top corners on volume bars
+
+  All new styling defaults to off, so existing charts are visually unchanged.
+
 ## 0.1.5
 
 ### Patch Changes
