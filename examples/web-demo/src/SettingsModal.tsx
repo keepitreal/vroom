@@ -235,6 +235,26 @@ export function SettingsModal({
     onChange({ ...theme, [field]: value });
   };
 
+  // Quick on/off for both candle borders (tests the inside-border rendering).
+  // On: give each border a visible color (keep any custom one already set);
+  // off: inherit the fill, which the core skips entirely.
+  const bordersOn = theme.borderBull !== INHERIT || theme.borderBear !== INHERIT;
+  const setBorders = (on: boolean) => {
+    onChange({
+      ...theme,
+      borderBull: on
+        ? theme.borderBull !== INHERIT
+          ? theme.borderBull
+          : INHERIT_FALLBACK.borderBull!
+        : INHERIT,
+      borderBear: on
+        ? theme.borderBear !== INHERIT
+          ? theme.borderBear
+          : INHERIT_FALLBACK.borderBear!
+        : INHERIT,
+    });
+  };
+
   return (
     <div style={overlay} onClick={onClose}>
       <div style={panel} onClick={(e) => e.stopPropagation()}>
@@ -267,6 +287,29 @@ export function SettingsModal({
               >
                 {section.title}
               </div>
+              {section.title === 'Candles' && (
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '2px 0 8px',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                  title="Toggle both candle body borders. Off = inherit the fill (hidden); the border is drawn inside the body so it never changes candle width."
+                >
+                  <input
+                    type="checkbox"
+                    checked={bordersOn}
+                    onChange={(e) => setBorders(e.target.checked)}
+                  />
+                  <span style={{ fontWeight: 600 }}>Candle borders</span>
+                  <span style={{ opacity: 0.6, fontSize: 12 }}>
+                    {bordersOn ? 'on' : 'off (inherit fill)'}
+                  </span>
+                </label>
+              )}
               {section.fields.map((field) => {
                 const canInherit = INHERIT_FIELDS.has(field);
                 const inheriting = canInherit && theme[field] === INHERIT;
