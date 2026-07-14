@@ -10,15 +10,19 @@ type VroomTheme = {
   borderBear?: VroomColor;
   borderBull?: VroomColor;
   bull?: VroomColor;
+  candleRadius?: number;
   crosshair?: VroomColor;
   crosshairTarget?: VroomColor;
   grid?: VroomColor;
+  volumeRadius?: number;
   wickBear?: VroomColor;
   wickBull?: VroomColor;
+  wickRoundCap?: boolean;
+  wickWidth?: number;
 };
 ```
 
-Defined in: [types/src/index.ts:66](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L66)
+Defined in: [types/src/index.ts:66](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L66)
 
 Color overrides for the chart, passed via the `theme` prop.
 
@@ -30,7 +34,7 @@ Color overrides for the chart, passed via the `theme` prop.
 optional accentBear?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:76](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L76)
+Defined in: [types/src/index.ts:76](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L76)
 
 Generic down color for the price indicator, volume bars, and MACD histogram. Defaults to red; independent of `bear`.
 
@@ -42,7 +46,7 @@ Generic down color for the price indicator, volume bars, and MACD histogram. Def
 optional accentBull?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:74](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L74)
+Defined in: [types/src/index.ts:74](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L74)
 
 Generic up color for the price indicator, volume bars, and MACD histogram. Defaults to teal-green; independent of `bull`.
 
@@ -54,7 +58,7 @@ Generic up color for the price indicator, volume bars, and MACD histogram. Defau
 optional axisText?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:88](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L88)
+Defined in: [types/src/index.ts:96](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L96)
 
 Axis label text (price + time).
 
@@ -66,7 +70,7 @@ Axis label text (price + time).
 optional background?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:68](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L68)
+Defined in: [types/src/index.ts:68](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L68)
 
 Chart + axis-strip background.
 
@@ -78,7 +82,7 @@ Chart + axis-strip background.
 optional bear?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:72](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L72)
+Defined in: [types/src/index.ts:72](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L72)
 
 Down candle body fill. Wick and border default to this unless overridden.
 
@@ -90,9 +94,9 @@ Down candle body fill. Wick and border default to this unless overridden.
 optional borderBear?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:80](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L80)
+Defined in: [types/src/index.ts:80](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L80)
 
-Down candle body 1px border. Defaults to the bear fill color.
+Down candle body border (1px, drawn *inside* the body so it never changes candle width). Omit or set to the bear fill color to hide it.
 
 ***
 
@@ -102,9 +106,9 @@ Down candle body 1px border. Defaults to the bear fill color.
 optional borderBull?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:78](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L78)
+Defined in: [types/src/index.ts:78](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L78)
 
-Up candle body 1px border. Defaults to the bull fill color.
+Up candle body border (1px, drawn *inside* the body so it never changes candle width). Omit or set to the bull fill color to hide it.
 
 ***
 
@@ -114,9 +118,21 @@ Up candle body 1px border. Defaults to the bull fill color.
 optional bull?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:70](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L70)
+Defined in: [types/src/index.ts:70](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L70)
 
 Up candle body fill. Wick and border default to this unless overridden.
+
+***
+
+### candleRadius?
+
+```ts
+optional candleRadius?: number;
+```
+
+Defined in: [types/src/index.ts:88](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L88)
+
+Corner radius (px) of candle bodies. Defaults to 0 (square).
 
 ***
 
@@ -126,7 +142,7 @@ Up candle body fill. Wick and border default to this unless overridden.
 optional crosshair?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:90](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L90)
+Defined in: [types/src/index.ts:98](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L98)
 
 Crosshair dashed lines.
 
@@ -138,7 +154,7 @@ Crosshair dashed lines.
 optional crosshairTarget?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:92](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L92)
+Defined in: [types/src/index.ts:100](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L100)
 
 Crosshair target — the hollow ring/dot at the intersection.
 
@@ -150,9 +166,21 @@ Crosshair target — the hollow ring/dot at the intersection.
 optional grid?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:86](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L86)
+Defined in: [types/src/index.ts:94](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L94)
 
 Gridlines.
+
+***
+
+### volumeRadius?
+
+```ts
+optional volumeRadius?: number;
+```
+
+Defined in: [types/src/index.ts:92](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L92)
+
+Corner radius (px) of the *top* of volume bars. Defaults to 0 (square).
 
 ***
 
@@ -162,7 +190,7 @@ Gridlines.
 optional wickBear?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:84](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L84)
+Defined in: [types/src/index.ts:84](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L84)
 
 Down candle wick color. Defaults to the bear fill color.
 
@@ -174,6 +202,30 @@ Down candle wick color. Defaults to the bear fill color.
 optional wickBull?: VroomColor;
 ```
 
-Defined in: [types/src/index.ts:82](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L82)
+Defined in: [types/src/index.ts:82](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L82)
 
 Up candle wick color. Defaults to the bull fill color.
+
+***
+
+### wickRoundCap?
+
+```ts
+optional wickRoundCap?: boolean;
+```
+
+Defined in: [types/src/index.ts:90](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L90)
+
+Round the wick end caps. Defaults to false.
+
+***
+
+### wickWidth?
+
+```ts
+optional wickWidth?: number;
+```
+
+Defined in: [types/src/index.ts:86](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L86)
+
+Wick stroke width in px (applies to both up and down wicks). Defaults to 1.

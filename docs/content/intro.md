@@ -24,7 +24,7 @@ NOTE: native iOS and Android wrappers are in progress. Building the chart core i
 
 ### Candles, Volume and Indicators
 
-Candlesticks and volume render by default. Chart colors, indicator visibility and parameters are all configurable. vroom does not (currently) offer chart chrome/toolbars to customize the chart and its indicators. This is done by the consuming app so you can have full control of the look feel of your product.
+Candlesticks and volume render by default. Chart colors, candle styling (wick width, rounded bodies and wicks, rounded volume bars), the initial candle width, indicator visibility and parameters are all configurable through the `theme` and prop surface. vroom does not (currently) offer chart chrome/toolbars to customize the chart and its indicators. This is done by the consuming app so you can have full control of the look feel of your product.
 
 <figure style={{textAlign: 'center'}}>
   <img src="/img/desktop-2.png" alt="customizable chart" width="803" />

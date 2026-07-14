@@ -66,6 +66,19 @@ and two extra props are available:
 </TabItem>
 </Tabs>
 
-Everything else — `candles`, `visibleRange`, `theme`, `rsi`, `macd`,
-`movingAverages`, `vwap`, `crosshairOffset`, `width`/`height`, and both event
-callbacks — is shared (`VroomChartCoreProps`).
+Everything else — `candles`, `visibleRange`, `defaultCandleWidth`, `theme`, `rsi`,
+`macd`, `movingAverages`, `vwap`, `crosshairOffset`, `crosshairOverride`,
+`width`/`height`, and both event callbacks — is shared (`VroomChartCoreProps`) and
+behaves identically on both platforms. That includes the full `theme` surface, so
+the newer styling fields (`wickWidth`, `candleRadius`, `wickRoundCap`,
+`volumeRadius`) and `defaultCandleWidth` work the same way on web and React Native.
+
+## Web-only overlays
+
+Two props are declared on `VroomChartCoreProps` (so they type-check everywhere) but
+currently render on **web only** — React Native parity is planned:
+
+- **`liquidity`** — resting-order / L2 liquidity bands overlaid on the price pane.
+- **`drawings`** — trendline drawings.
+
+On React Native these props are accepted but have no visual effect yet.

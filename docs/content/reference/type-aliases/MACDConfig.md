@@ -9,7 +9,7 @@ type MACDConfig = {
 };
 ```
 
-Defined in: [types/src/index.ts:243](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L243)
+Defined in: [types/src/index.ts:251](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L251)
 
 MACD indicator config. Rendered in its own pane below the candles.
 
@@ -21,7 +21,7 @@ MACD indicator config. Rendered in its own pane below the candles.
 optional enabled?: boolean;
 ```
 
-Defined in: [types/src/index.ts:244](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L244)
+Defined in: [types/src/index.ts:252](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L252)
 
 ***
 
@@ -31,7 +31,7 @@ Defined in: [types/src/index.ts:244](https://github.com/keepitreal/vroom/blob/0a
 optional fast?: number;
 ```
 
-Defined in: [types/src/index.ts:246](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L246)
+Defined in: [types/src/index.ts:254](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L254)
 
 Fast EMA length. Default 12.
 
@@ -43,7 +43,7 @@ Fast EMA length. Default 12.
 optional signal?: number;
 ```
 
-Defined in: [types/src/index.ts:250](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L250)
+Defined in: [types/src/index.ts:258](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L258)
 
 Signal-line EMA length. Default 9.
 
@@ -55,6 +55,6 @@ Signal-line EMA length. Default 9.
 optional slow?: number;
 ```
 
-Defined in: [types/src/index.ts:248](https://github.com/keepitreal/vroom/blob/0a8d2ca5e13b0152b7f2240281e36ee9b18049fd/packages/types/src/index.ts#L248)
+Defined in: [types/src/index.ts:256](https://github.com/keepitreal/vroom/blob/586d03172d9049213a34e30dc7132f06811d41a4/packages/types/src/index.ts#L256)
 
 Slow EMA length (forced > fast). Default 26.

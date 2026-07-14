@@ -49,6 +49,21 @@ treat [`onViewportChange`](crosshair-and-events.mdx) as the source of truth for 
 current window after the user pans/zooms, and feed it back into state if you want
 a fully controlled chart.
 
+## Framing by candle width
+
+Instead of an explicit time window, you can frame the first view by candle **size**.
+Pass [`defaultCandleWidth`](../reference/index.md) (px) and the chart picks the
+initial zoom so each candle body renders about that wide:
+
+```tsx
+<VroomChart candles={candles} defaultCandleWidth={8} />
+```
+
+Larger values are more zoomed in (fewer, wider candles); smaller values are more
+zoomed out. This only affects the **initial** framing (and `reset`) — the user can
+still pan and zoom freely afterward, and an explicit `visibleRange` takes precedence.
+It's handy for keeping candles a consistent size across devices of different widths.
+
 ## Sizing
 
 The chart fills its parent, so prefer layout-driven sizing via `style` (flex,
