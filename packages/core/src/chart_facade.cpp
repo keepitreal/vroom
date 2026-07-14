@@ -54,10 +54,37 @@ int64_t damp_future_delta(int64_t delta_ms, int64_t cur_future,
     return static_cast<int64_t>(static_cast<double>(delta_ms) * resist);
 }
 
-// Frame the default view: the most recent ~80 candles — a narrower x-window
-// so candles read wider. No-op when there are no candles.
+// Frame the default view. When the consumer has set a target candle body width
+// (default_candle_px), size the window so each candle renders ~that wide with the
+// right edge pinned to the latest candle; otherwise fall back to the legacy
+// "most recent ~80 candles". No-op when there are no candles.
 void apply_default_framing(VroomChart* chart) {
     if (chart->candles.empty()) return;
+
+    // Px-driven framing. Reuses the inversion from vroom_chart_scale_time_axis:
+    // body_w = usable × (dur / window) × ratio  →  window = usable × dur × ratio / body_w.
+    // Needs a valid layout (width_px); until size is known it falls through to
+    // the candle-count default below.
+    if (chart->default_candle_px > 0.f) {
+        const auto lay = chart->layout();
+        const double usable =
+            lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
+        const double ratio = chart->theme.floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO];
+        const double dur = static_cast<double>(chart->candle_duration_ms);
+        const double body = std::clamp(static_cast<double>(chart->default_candle_px),
+                                       kMinCandleBodyPx, kMaxCandleBodyPx);
+        if (usable > 0.0 && ratio > 0.0 && dur > 0.0 && body > 0.0) {
+            int64_t window_ms = static_cast<int64_t>((usable * dur * ratio) / body);
+            const int64_t span =
+                chart->candles.back().time_ms - chart->candles.front().time_ms;
+            window_ms = std::clamp<int64_t>(window_ms, chart->candle_duration_ms,
+                                            span > 0 ? span : window_ms);
+            chart->visible_end_ms = chart->candles.back().time_ms;
+            chart->visible_start_ms = chart->visible_end_ms - window_ms;
+            return;
+        }
+    }
+
     constexpr size_t kDefaultVisible = 80;
     const size_t start_idx = chart->candles.size() > kDefaultVisible
         ? chart->candles.size() - kDefaultVisible
@@ -164,6 +191,16 @@ extern "C" void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_m
     if (chart->cb.on_viewport_changed) {
         chart->cb.on_viewport_changed(chart->user_ctx, start_ms, end_ms);
     }
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_default_candle_width(VroomChart* chart, float px) {
+    if (!chart) return;
+    chart->default_candle_px = px;
+    // Re-frame so a value that arrives after set_candles still drives the initial
+    // view. Intended for initial framing only — calling it after the user has
+    // panned would snap the view back to the default frame.
+    if (!chart->candles.empty()) apply_default_framing(chart);
     chart->mark_dirty();
 }
 

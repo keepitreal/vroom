@@ -50,6 +50,10 @@ struct VroomChart {
     int64_t visible_start_ms = 0;
     int64_t visible_end_ms = 0;
 
+    // >0: default/reset framing targets this candle *body* width in px (drives
+    // initial zoom). 0 = legacy "last ~80 candles" behavior.
+    float default_candle_px = 0.f;
+
     // Cached y-axis width in pixels, sized to fit the widest formatted price
     // label. 0 = uncomputed; layout() falls back to a width ratio.
     float axis_width_px = 0.f;

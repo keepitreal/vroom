@@ -111,6 +111,7 @@ export function useChartCore(
     width: widthProp,
     height: heightProp,
     visibleRange,
+    defaultCandleWidth,
     theme,
     rsi,
     macd,
@@ -231,6 +232,19 @@ export function useChartCore(
           }
         }
 
+        // Drive the initial zoom from a target candle width, but only on a
+        // fresh handle and only when the caller isn't explicitly controlling the
+        // range. Pushed before setCandles so the core's default framing (run
+        // inside setCandles while the window is still 0/0) picks it up.
+        if (
+          freshHandle &&
+          !explicit &&
+          defaultCandleWidth != null &&
+          defaultCandleWidth > 0
+        ) {
+          h.setDefaultCandleWidth(defaultCandleWidth);
+        }
+
         h.setCandles(packCandles(candles));
 
         if (transition === 'timeframe') {
@@ -277,7 +291,7 @@ export function useChartCore(
     scheduleRender();
     // theme/rsi/macd/movingAverages/vwap/drawings/liquidity tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

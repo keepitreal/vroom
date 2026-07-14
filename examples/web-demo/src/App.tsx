@@ -30,6 +30,22 @@ import {
 } from './IndicatorsModal';
 
 const THEME_STORAGE_KEY = 'vroom-theme';
+const CANDLE_WIDTH_KEY = 'vroom-candle-width';
+
+// Persisted default candle body width (px) driving the demo chart's initial
+// zoom. Falls back to a default on missing/corrupt data.
+function loadCandleWidth(): number {
+  const DEFAULT = 8;
+  if (typeof window === 'undefined') return DEFAULT;
+  try {
+    const raw = window.localStorage.getItem(CANDLE_WIDTH_KEY);
+    if (!raw) return DEFAULT;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT;
+  } catch {
+    return DEFAULT;
+  }
+}
 
 // Drawing-tool props shared by both chart views (the line tool toggled in the
 // top bar). Bundled so each view just spreads them onto its <VroomChart>.
@@ -255,6 +271,9 @@ export function App() {
   // overlay is on, animating the walls; the book re-anchors to the latest close.
   const [liqTick, setLiqTick] = useState(0);
   const [bandHeight, setBandHeight] = useState(0.85);
+  // Default candle body width (px) driving the demo chart's initial zoom,
+  // persisted to localStorage so it applies on first load.
+  const [candleWidth, setCandleWidth] = useState(loadCandleWidth);
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -334,6 +353,15 @@ export function App() {
       // Ignore quota / private-mode write failures; persistence is best-effort.
     }
   }, [theme]);
+
+  useEffect(() => {
+    if (!(candleWidth > 0)) return;
+    try {
+      window.localStorage.setItem(CANDLE_WIDTH_KEY, String(candleWidth));
+    } catch {
+      // best-effort
+    }
+  }, [candleWidth]);
 
   // Indicator enable/config state lives here so it drives both chart views.
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -512,6 +540,21 @@ export function App() {
                 </span>
               </label>
             )}
+            <label
+              style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, opacity: 0.8 }}
+              title="Default candle body width (px) for the initial zoom. Persisted to localStorage; larger = more zoomed in. Editing remounts the chart to re-frame."
+            >
+              candle&nbsp;px
+              <input
+                type="number"
+                min={2}
+                max={40}
+                step={1}
+                value={candleWidth}
+                onChange={(e) => setCandleWidth(Number(e.target.value))}
+                style={{ width: 56 }}
+              />
+            </label>
             <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
           </>
         )}
@@ -616,9 +659,13 @@ export function App() {
       ) : (
         <div style={{ flex: 1, minHeight: 0, padding: '0 8px 8px' }}>
           <VroomChart
+            // Remount on width change so the new default framing applies (it only
+            // takes effect on a fresh handle — mirrors a real "first load").
+            key={candleWidth}
             candles={candles}
             seriesKey={useSeriesKey ? asset : undefined}
             theme={theme}
+            defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
             liquidity={showLiquidity ? demoLiquidity : undefined}
             {...indicatorProps}
             {...drawProps}

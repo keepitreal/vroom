@@ -12,6 +12,12 @@ export interface ChartHandle {
   setColor(key: number, argb: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
+  /**
+   * Target candle body width in px for the initial/reset framing. Larger = more
+   * zoomed in; smaller = more zoomed out. 0 restores the default (~80 candles).
+   * Affects initial framing only; an explicit setVisibleRange takes precedence.
+   */
+  setDefaultCandleWidth(px: number): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
   pan(dx: number, dy: number): SkPicture | null;
   /**

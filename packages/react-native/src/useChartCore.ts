@@ -62,6 +62,7 @@ export function useChartCore(
   candles: Candle[],
   size: { width: number; height: number; pxRatio?: number },
   visibleRange?: VisibleRange,
+  defaultCandleWidth?: number,
   theme?: VroomTheme,
   rsi?: RSIConfig,
   macd?: MACDConfig,
@@ -69,6 +70,10 @@ export function useChartCore(
   vwap?: VWAPConfig,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
+  // Push setDefaultCandleWidth only once (first load): setCandles re-runs on
+  // every data change, and the core setter re-frames when candles are present,
+  // so re-pushing would snap the view away from the user's pan/zoom.
+  const defaultWidthAppliedRef = useRef(false);
   const [picture, setPicture] = useState<SkPicture | null>(null);
 
   if (!handleRef.current && size.width > 0 && size.height > 0) {
@@ -96,6 +101,18 @@ export function useChartCore(
     const h = handleRef.current;
     if (!h) return;
     h.setSize(size.width, size.height, size.pxRatio ?? 1);
+    // Drive the initial zoom from a target candle width. Pushed once, before the
+    // first setCandles (while the core window is still 0/0), and only when the
+    // caller isn't explicitly controlling the range.
+    if (
+      !defaultWidthAppliedRef.current &&
+      !explicit &&
+      defaultCandleWidth != null &&
+      defaultCandleWidth > 0
+    ) {
+      h.setDefaultCandleWidth(defaultCandleWidth);
+      defaultWidthAppliedRef.current = true;
+    }
     if (candles.length > 0) {
       h.setCandles(packCandles(candles));
     }
@@ -131,7 +148,7 @@ export function useChartCore(
     setPicture(h.render());
     // theme/rsi/macd/movingAverages/vwap are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, themeKey, rsiKey, macdKey, maKey, vwapKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey]);
 
   return { handle: handleRef.current, picture };
 }

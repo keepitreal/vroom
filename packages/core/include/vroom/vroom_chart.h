@@ -154,6 +154,12 @@ void vroom_chart_set_size(VroomChart* chart, float width_px, float height_px, fl
 
 void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t end_ms);
 
+// Target candle *body* width in px for the default/reset framing. Larger = more
+// zoomed in (fewer candles), smaller = more zoomed out. 0 restores the legacy
+// "most recent ~80 candles" default. Affects initial framing only; an explicit
+// set_visible_range still overrides it.
+void vroom_chart_set_default_candle_width(VroomChart* chart, float px);
+
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.
 void vroom_chart_get_visible_range(VroomChart* chart,

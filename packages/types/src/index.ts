@@ -275,6 +275,14 @@ export type VroomChartCoreProps = {
   height?: number;
   /** Time window to render. Omit (or both 0) to show every candle. */
   visibleRange?: VisibleRange;
+  /**
+   * Target candle *body* width in logical px for the INITIAL framing. Larger →
+   * more zoomed in (fewer candles); smaller → more zoomed out. Only affects
+   * first load / reset; an explicit `visibleRange` takes precedence. Omit for
+   * the default (~80 candles). Useful to keep candles a consistent size across
+   * devices of different widths.
+   */
+  defaultCandleWidth?: number;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

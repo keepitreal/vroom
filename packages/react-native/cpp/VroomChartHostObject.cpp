@@ -27,11 +27,12 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(19);
+  out.reserve(20);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
   out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
@@ -146,6 +147,23 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const int64_t s = static_cast<int64_t>(args[0].asNumber());
           const int64_t e = static_cast<int64_t>(args[1].asNumber());
           vroom_chart_set_visible_range(chart_, s, e);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setDefaultCandleWidth") {
+    // setDefaultCandleWidth(px) — target candle body width for initial framing.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_set_default_candle_width(
+              chart_, static_cast<float>(args[0].asNumber()));
           return jsi::Value::undefined();
         });
   }

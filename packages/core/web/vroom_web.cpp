@@ -117,6 +117,9 @@ class WebChart {
     vroom_chart_set_visible_range(chart_, static_cast<int64_t>(start_ms),
                                   static_cast<int64_t>(end_ms));
   }
+  void setDefaultCandleWidth(double px) {
+    vroom_chart_set_default_candle_width(chart_, static_cast<float>(px));
+  }
   em::val getVisibleRange() {
     int64_t start_ms = 0, end_ms = 0;
     vroom_chart_get_visible_range(chart_, &start_ms, &end_ms);
@@ -372,6 +375,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setSize", &WebChart::setSize)
       .function("setColor", &WebChart::setColor)
       .function("setVisibleRange", &WebChart::setVisibleRange)
+      .function("setDefaultCandleWidth", &WebChart::setDefaultCandleWidth)
       .function("getVisibleRange", &WebChart::getVisibleRange)
       .function("resetView", &WebChart::resetView)
       .function("resetPriceScale", &WebChart::resetPriceScale)

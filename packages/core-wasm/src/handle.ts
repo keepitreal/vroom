@@ -130,6 +130,12 @@ export interface VroomChartHandle {
   setColor(key: ColorKey | number, argb: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
+  /**
+   * Target candle body width in px for the initial/reset framing. Larger = more
+   * zoomed in; smaller = more zoomed out. 0 restores the default (~80 candles).
+   * Affects initial framing only; an explicit setVisibleRange takes precedence.
+   */
+  setDefaultCandleWidth(px: number): void;
   // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale on
   // the JSI handle — currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
