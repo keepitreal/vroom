@@ -21,6 +21,7 @@ const sidebars: SidebarsConfig = {
         'guides/indicators',
         'guides/crosshair-and-events',
         'guides/gestures-and-viewport',
+        'guides/drawing-tools',
       ],
     },
     {
