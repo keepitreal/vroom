@@ -304,6 +304,28 @@ void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
 void vroom_chart_set_drawings(VroomChart* chart, const VroomDrawing* drawings,
                               size_t count);
 
+// Hit-tests pixel (x_px, y_px) against the committed drawings. On a hit, fills
+// *out_index with the drawing index, *out_part with 0 (endpoint A), 1
+// (endpoint B), or 2 (line body), *out_t with the 0..1 grab position along the
+// segment (A→B; 0/1 for handle hits), and returns true. Endpoint hits are only
+// reported for the currently selected drawing (whose handles are visible).
+// Returns false on a miss (out params untouched). Any out pointer may be null.
+bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px, float y_px,
+                                  int32_t* out_index, int32_t* out_part,
+                                  float* out_t);
+
+// Selects a committed drawing (renders its endpoint handles). `index` -1 clears
+// the selection. `grabbed_endpoint` 0/1 renders that handle 50% larger while it's
+// being dragged; -1 for none. An out-of-range index clears the selection.
+void vroom_chart_set_selected_drawing(VroomChart* chart, int32_t index,
+                                      int32_t grabbed_endpoint);
+
+// Moves one endpoint of a committed drawing to a new data-space anchor (for live
+// handle dragging). `endpoint` is 0 (A) or 1 (B). No-op for an out-of-range index.
+void vroom_chart_move_drawing_endpoint(VroomChart* chart, int32_t index,
+                                       int32_t endpoint, int64_t time_ms,
+                                       double price);
+
 // ---- Liquidity bands (order-book depth overlay) ---------------------------
 
 // Replaces the full set of resting-liquidity bands and their shared style.
@@ -330,6 +352,13 @@ void vroom_chart_clear_draft(VroomChart* chart);
 // degenerate.
 bool vroom_chart_coord_at(VroomChart* chart, float x_px, float y_px,
                           VroomCoord* out);
+
+// Projects a data coordinate (time_ms, price) to its pixel position, filling
+// *out_x / *out_y (either may be null) with the free (non-snapped) mapping — the
+// inverse of vroom_chart_coord_at, matching the rendered drawing geometry.
+// Returns false (out params untouched) when there are no candles / degenerate.
+bool vroom_chart_project(VroomChart* chart, int64_t time_ms, double price,
+                         float* out_x, float* out_y);
 
 // ---- Rendering ------------------------------------------------------------
 

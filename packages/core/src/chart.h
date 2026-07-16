@@ -144,6 +144,13 @@ struct VroomChart {
     uint32_t       draft_color = 0xff2962ff;
     float          draft_width = 2.f;
 
+    // Selection/editing state for committed drawings. selected_drawing indexes
+    // `drawings` (or -1); its endpoints render as handles. grabbed_endpoint is
+    // 0 (A) or 1 (B) while that handle is being dragged (rendered 50% larger),
+    // else -1.
+    int32_t        selected_drawing = -1;
+    int32_t        grabbed_endpoint = -1;
+
     // --- liquidity bands (order-book depth overlay) ------------------------
     // Resting-order bands anchored in price space, drawn behind the candles and
     // fading left from the price axis. Empty when the overlay is off.

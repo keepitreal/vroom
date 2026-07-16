@@ -261,10 +261,30 @@ export interface VroomChartHandle {
   /** Clear the draft (hide in-progress node dots / guideline). */
   clearDraft(): void;
   /**
+   * Select a committed drawing (renders its endpoint handles). `index` -1
+   * clears the selection; `grabbedEndpoint` 0/1 renders that handle 50% larger
+   * while dragging (-1 for none).
+   */
+  setSelectedDrawing(index: number, grabbedEndpoint: number): void;
+  /** Move one endpoint (0=A, 1=B) of a committed drawing to a new data anchor. */
+  moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void;
+  /**
+   * Hit-test pixel (x, y) against the committed drawings. Returns the drawing
+   * `index`, `part` (0=endpoint A, 1=endpoint B, 2=line body), and `t` (0..1 grab
+   * position along the segment), or null on a miss. Endpoint hits are only
+   * reported for the selected drawing.
+   */
+  hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
+  /**
    * The continuous data coordinate at pixel (x, y) — not snapped to a candle
    * slot. Null when there are no candles or the viewport is degenerate.
    */
   coordAt(x: number, y: number): Coord | null;
+  /**
+   * Pixel position of a data coordinate — the inverse of coordAt. Null when
+   * there are no candles or the viewport is degenerate.
+   */
+  project(timeMs: number, price: number): { x: number; y: number } | null;
 
   /** True while any axis-label fade is in progress (drives the rAF loop). */
   isAnimating(): boolean;

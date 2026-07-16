@@ -144,6 +144,38 @@ export type Drawing = {
   width?: number;
 };
 
+/**
+ * Storage adapter for **managed** drawing persistence. Provide it via the
+ * `drawingStore` prop and the chart owns the drawings array itself — loading and
+ * saving through this adapter instead of you wiring the controlled `drawings`
+ * prop + `onDrawing*` callbacks.
+ *
+ * The adapter is an **opaque string key-value store** — the chart serializes
+ * drawings into a **versioned envelope** (`{ v, drawings }`) and hands you the
+ * string; you just persist bytes. Because the library owns the schema and
+ * migrates old payloads on load, adding drawing tools or persisted fields later
+ * never changes this interface — your adapter is written once.
+ *
+ * `marketId` is the chart's `seriesKey`, so drawings are bucketed per market:
+ * they persist across timeframe changes (same key) but not across markets. Both
+ * methods may be async (localStorage is sync; AsyncStorage / MMKV / a REST
+ * backend are async). The chart debounces `save`. Consumers that only handle a
+ * single market can ignore `marketId`.
+ */
+export type DrawingStore = {
+  /**
+   * Return the raw string previously handed to `save` for `marketId`, or
+   * `null`/`undefined`/`''` if nothing is stored. Sync or async.
+   */
+  load: (marketId: string) => string | null | undefined | Promise<string | null | undefined>;
+  /**
+   * Persist the opaque `data` string for `marketId`. Sync or async; the chart
+   * debounces calls. The string is a versioned envelope owned by the library —
+   * store it verbatim, don't parse or reshape it.
+   */
+  save: (marketId: string, data: string) => void | Promise<void>;
+};
+
 /** RSI indicator config. Rendered in a pane below the candles when enabled. */
 export type RSIConfig = {
   enabled?: boolean;
@@ -329,10 +361,30 @@ export type VroomChartCoreProps = {
    * Committed drawings to render, anchored to data so they track the candles on
    * pan/zoom. This is a controlled prop: append the value the chart hands you in
    * `onDrawingComplete` to persist it.
+   *
+   * Ignored when `drawingStore` is set (the chart then owns the array itself).
    */
   drawings?: Drawing[];
+  /**
+   * Opt into **managed** drawing persistence: the chart owns the drawings array
+   * internally and loads/saves it through this adapter, keyed by `seriesKey`.
+   * When set, `drawings` and the `onDrawing*` callbacks are ignored. Web only.
+   * Requires `seriesKey` — without one, drawings work in-session but aren't saved.
+   */
+  drawingStore?: DrawingStore;
   /** Fired with the finished drawing when the user completes one. */
   onDrawingComplete?: (drawing: Drawing) => void;
+  /**
+   * Fired after the user drags a selected line's endpoint handle. The payload is
+   * the same drawing (same `id`) with updated `points`; apply it to your
+   * controlled `drawings` state (replace by id). Web only.
+   */
+  onDrawingChange?: (drawing: Drawing) => void;
+  /**
+   * Fired when the user deletes the selected line (Backspace/Delete). Remove the
+   * drawing with this `id` from your controlled `drawings` state. Web only.
+   */
+  onDrawingDelete?: (id: string) => void;
   /**
    * Fired when the chart wants the mode changed — e.g. it requests `'pan'` after
    * the user clicks away from a just-drawn line. Since `mode` is controlled, the

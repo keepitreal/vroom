@@ -9,6 +9,9 @@
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
 
+#include <algorithm>
+#include <cmath>
+
 #include "chart.h"
 
 namespace vroom::drawings {
@@ -31,18 +34,38 @@ SkPoint to_px(const VroomChart& chart, const Layout& lay, const PriceBounds& bou
     return SkPoint{x, y};
 }
 
-void draw_node(SkCanvas* canvas, SkPoint pt) {
+void draw_node(SkCanvas* canvas, SkPoint pt, float scale = 1.f) {
     SkPaint fill;
     fill.setAntiAlias(true);
     fill.setColor(kNodeFill);
-    canvas->drawCircle(pt.fX, pt.fY, kNodeFillRadius, fill);
+    canvas->drawCircle(pt.fX, pt.fY, kNodeFillRadius * scale, fill);
 
     SkPaint border;
     border.setAntiAlias(true);
     border.setColor(kNodeBorder);
     border.setStyle(SkPaint::kStroke_Style);
     border.setStrokeWidth(kNodeBorderWidth);
-    canvas->drawCircle(pt.fX, pt.fY, kNodeRingRadius, border);
+    canvas->drawCircle(pt.fX, pt.fY, kNodeRingRadius * scale, border);
+}
+
+// Clamped projection parameter (0..1) of point (px,py) onto segment
+// (ax,ay)-(bx,by): 0 at A, 1 at B.
+float segment_t(float px, float py, float ax, float ay, float bx, float by) {
+    const float dx = bx - ax;
+    const float dy = by - ay;
+    const float len2 = dx * dx + dy * dy;
+    const float t = len2 > 0.f ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0.f;
+    return std::clamp(t, 0.f, 1.f);
+}
+
+// Shortest distance from point (px,py) to segment (ax,ay)-(bx,by), in px.
+float dist_to_segment(float px, float py, float ax, float ay, float bx, float by) {
+    const float t = segment_t(px, py, ax, ay, bx, by);
+    const float cx = ax + t * (bx - ax);
+    const float cy = ay + t * (by - ay);
+    const float ex = px - cx;
+    const float ey = py - cy;
+    return std::sqrt(ex * ex + ey * ey);
 }
 }  // namespace
 
@@ -75,6 +98,17 @@ void draw(SkCanvas* canvas,
         canvas->restore();
     }
 
+    // 1b. Handles on the selected committed drawing (unclipped, like the draft's
+    //     dots). The grabbed endpoint renders 50% larger.
+    if (chart.selected_drawing >= 0 &&
+        static_cast<size_t>(chart.selected_drawing) < chart.drawings.size()) {
+        const VroomDrawing& d = chart.drawings[chart.selected_drawing];
+        const SkPoint sa = to_px(chart, lay, bounds, window_ms, d.a);
+        const SkPoint sb = to_px(chart, lay, bounds, window_ms, d.b);
+        draw_node(canvas, sa, chart.grabbed_endpoint == 0 ? 1.5f : 1.f);
+        draw_node(canvas, sb, chart.grabbed_endpoint == 1 ? 1.5f : 1.f);
+    }
+
     if (!chart.draft_active) return;
 
     const SkPoint a = to_px(chart, lay, bounds, window_ms, chart.draft_a);
@@ -103,6 +137,47 @@ void draw(SkCanvas* canvas,
     //    endpoints show dots.
     draw_node(canvas, a);
     if (has_b && !chart.draft_guide) draw_node(canvas, b);
+}
+
+HitResult hit_test(const VroomChart& chart,
+                   const Layout& lay,
+                   const PriceBounds& bounds,
+                   int64_t window_ms,
+                   float x,
+                   float y) {
+    HitResult miss{-1, -1, 0.f};
+    if (window_ms <= 0 || chart.drawings.empty()) return miss;
+
+    // Grab-priority: if a drawing is selected, its (visible) handles win first.
+    constexpr float kHandleHit = kNodeRingRadius + 6.f;
+    if (chart.selected_drawing >= 0 &&
+        static_cast<size_t>(chart.selected_drawing) < chart.drawings.size()) {
+        const VroomDrawing& d = chart.drawings[chart.selected_drawing];
+        const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
+        const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
+        if (std::hypot(x - a.fX, y - a.fY) <= kHandleHit)
+            return HitResult{chart.selected_drawing, 0, 0.f};
+        if (std::hypot(x - b.fX, y - b.fY) <= kHandleHit)
+            return HitResult{chart.selected_drawing, 1, 1.f};
+    }
+
+    // Otherwise the nearest line body within tolerance (topmost = last drawn).
+    constexpr float kBodyHit = 6.f;
+    float best = kBodyHit;
+    int32_t best_i = -1;
+    float best_t = 0.f;
+    for (size_t i = 0; i < chart.drawings.size(); ++i) {
+        const VroomDrawing& d = chart.drawings[i];
+        const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
+        const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
+        const float dist = dist_to_segment(x, y, a.fX, a.fY, b.fX, b.fY);
+        if (dist <= best) {  // <= so later (topmost) drawings win ties
+            best = dist;
+            best_i = static_cast<int32_t>(i);
+            best_t = segment_t(x, y, a.fX, a.fY, b.fX, b.fY);
+        }
+    }
+    return best_i >= 0 ? HitResult{best_i, 2, best_t} : miss;
 }
 
 }  // namespace vroom::drawings

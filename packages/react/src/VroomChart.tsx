@@ -7,6 +7,7 @@ import type { CSSProperties } from 'react';
 
 import { useChartCore } from './useChartCore';
 import { useGestures } from './useGestures';
+import { useManagedDrawings } from './useManagedDrawings';
 import type { VroomChartProps } from './types';
 
 const FILL: CSSProperties = { position: 'relative', width: '100%', height: '100%' };
@@ -36,13 +37,26 @@ export function VroomChart(props: VroomChartProps) {
     crosshairOverride,
     mode,
     tool,
+    drawings,
     onCrosshair,
     onViewportChange,
     onDrawingComplete,
+    onDrawingChange,
+    onDrawingDelete,
     onModeChange,
+    drawingStore,
+    seriesKey,
   } = props;
+
+  // Managed persistence: when a `drawingStore` is provided the chart owns the
+  // drawings array itself (keyed by seriesKey) instead of the controlled props.
+  // The hook is always called (rules of hooks) but no-ops without a store.
+  const managed = useManagedDrawings(seriesKey, drawingStore);
+  const stored = drawingStore != null;
+  const effectiveDrawings = stored ? managed.drawings : drawings;
+
   const { containerRef, canvasRef, handleRef, scheduleRender } = useChartCore(
-    props,
+    stored ? { ...props, drawings: effectiveDrawings } : props,
     wasm ? { wasm } : undefined,
   );
 
@@ -51,9 +65,12 @@ export function VroomChart(props: VroomChartProps) {
     crosshairOverride,
     mode,
     tool,
+    drawings: effectiveDrawings,
     onCrosshair,
     onViewportChange,
-    onDrawingComplete,
+    onDrawingComplete: stored ? managed.onDrawingComplete : onDrawingComplete,
+    onDrawingChange: stored ? managed.onDrawingChange : onDrawingChange,
+    onDrawingDelete: stored ? managed.onDrawingDelete : onDrawingDelete,
     onRequestMode: onModeChange,
   });
 

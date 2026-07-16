@@ -12,6 +12,7 @@
 #include <limits>
 
 #include "chart.h"
+#include "drawings.h"
 #include "labels.h"
 #include "viewport.h"
 
@@ -750,6 +751,11 @@ extern "C" void vroom_chart_set_drawings(VroomChart* chart,
                                          size_t count) {
     if (!chart) return;
     chart->drawings.assign(drawings, drawings + count);
+    // Drop selection if the new set no longer contains that index.
+    if (chart->selected_drawing >= static_cast<int32_t>(count)) {
+        chart->selected_drawing = -1;
+        chart->grabbed_endpoint = -1;
+    }
     chart->mark_dirty();
 }
 
@@ -806,6 +812,76 @@ extern "C" bool vroom_chart_coord_at(VroomChart* chart, float x_px, float y_px,
         vroom::time_at_x(lay, chart->visible_start_ms, window_ms, x_px);
     out->price = vroom::y_to_price(lay, bounds, y_px);
     return true;
+}
+
+extern "C" bool vroom_chart_project(VroomChart* chart, int64_t time_ms,
+                                    double price, float* out_x, float* out_y) {
+    if (!chart || chart->candles.empty()) return false;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (window_ms <= 0) return false;
+    const auto lay = chart->layout();
+    // Same bounds as coord_at / draw_chart so the projection matches the render.
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+    if (out_x)
+        *out_x = vroom::x_at_time(lay, chart->visible_start_ms, window_ms, time_ms);
+    if (out_y) *out_y = vroom::price_to_y(lay, bounds, price);
+    return true;
+}
+
+extern "C" bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px,
+                                             float y_px, int32_t* out_index,
+                                             int32_t* out_part, float* out_t) {
+    if (!chart || chart->candles.empty()) return false;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (window_ms <= 0) return false;
+    const auto lay = chart->layout();
+    // Same bounds as coord_at / draw_chart so screen geometry matches the render.
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+    const auto hit = vroom::drawings::hit_test(*chart, lay, bounds, window_ms, x_px, y_px);
+    if (hit.index < 0) return false;
+    if (out_index) *out_index = hit.index;
+    if (out_part) *out_part = hit.part;
+    if (out_t) *out_t = hit.t;
+    return true;
+}
+
+extern "C" void vroom_chart_set_selected_drawing(VroomChart* chart,
+                                                 int32_t index,
+                                                 int32_t grabbed_endpoint) {
+    if (!chart) return;
+    if (index < 0 || index >= static_cast<int32_t>(chart->drawings.size())) {
+        index = -1;
+        grabbed_endpoint = -1;
+    }
+    chart->selected_drawing = index;
+    chart->grabbed_endpoint = grabbed_endpoint;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_move_drawing_endpoint(VroomChart* chart, int32_t index,
+                                                  int32_t endpoint, int64_t time_ms,
+                                                  double price) {
+    if (!chart) return;
+    if (index < 0 || index >= static_cast<int32_t>(chart->drawings.size())) return;
+    VroomDrawPoint& pt = endpoint == 0 ? chart->drawings[index].a
+                                       : chart->drawings[index].b;
+    pt.time_ms = time_ms;
+    pt.price = price;
+    chart->mark_dirty();
 }
 
 // ---- Indicators -----------------------------------------------------------

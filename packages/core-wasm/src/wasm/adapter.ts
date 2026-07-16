@@ -57,7 +57,11 @@ interface WebChartInstance {
     width: number,
   ): void;
   clearDraft(): void;
+  setSelectedDrawing(index: number, grabbedEndpoint: number): void;
+  moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void;
+  hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
   coordAt(x: number, y: number): Coord | null;
+  project(timeMs: number, price: number): { x: number; y: number } | null;
   setTypeface(bytes: Uint8Array): void;
   isAnimating(): boolean;
   present(): void;
@@ -186,8 +190,20 @@ class WasmHandle implements VroomChartHandle {
   clearDraft(): void {
     this.wc.clearDraft();
   }
+  setSelectedDrawing(index: number, grabbedEndpoint: number): void {
+    this.wc.setSelectedDrawing(index, grabbedEndpoint);
+  }
+  moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void {
+    this.wc.moveDrawingEndpoint(index, endpoint, timeMs, price);
+  }
+  hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null {
+    return this.wc.hitTestDrawing(x, y);
+  }
   coordAt(x: number, y: number): Coord | null {
     return this.wc.coordAt(x, y);
+  }
+  project(timeMs: number, price: number): { x: number; y: number } | null {
+    return this.wc.project(timeMs, price);
   }
   isAnimating(): boolean {
     return this.wc.isAnimating();

@@ -227,6 +227,26 @@ class WebChart {
   }
   void clearDraft() { vroom_chart_clear_draft(chart_); }
 
+  void setSelectedDrawing(int index, int grabbed) {
+    vroom_chart_set_selected_drawing(chart_, index, grabbed);
+  }
+  void moveDrawingEndpoint(int index, int endpoint, double time_ms, double price) {
+    vroom_chart_move_drawing_endpoint(chart_, index, endpoint,
+                                      static_cast<int64_t>(time_ms), price);
+  }
+  // Returns {index, part} of the drawing hit at pixel (x, y), or null.
+  em::val hitTestDrawing(float x, float y) {
+    int32_t index = -1, part = -1;
+    float t = 0.f;
+    if (!vroom_chart_hit_test_drawing(chart_, x, y, &index, &part, &t))
+      return em::val::null();
+    em::val o = em::val::object();
+    o.set("index", index);
+    o.set("part", part);
+    o.set("t", t);
+    return o;
+  }
+
   // --- reads ------------------------------------------------------------
   // Returns the continuous {timeMs, price} at pixel (x, y), or null.
   em::val coordAt(float x, float y) {
@@ -235,6 +255,16 @@ class WebChart {
     em::val o = em::val::object();
     o.set("timeMs", static_cast<double>(c.time_ms));
     o.set("price", c.price);
+    return o;
+  }
+  // Returns the {x, y} pixel position of data coord (timeMs, price), or null.
+  em::val project(double time_ms, double price) {
+    float x = 0.f, y = 0.f;
+    if (!vroom_chart_project(chart_, static_cast<int64_t>(time_ms), price, &x, &y))
+      return em::val::null();
+    em::val o = em::val::object();
+    o.set("x", x);
+    o.set("y", y);
     return o;
   }
 
@@ -405,7 +435,11 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setDraft", &WebChart::setDraft)
       .function("clearDraft", &WebChart::clearDraft)
+      .function("setSelectedDrawing", &WebChart::setSelectedDrawing)
+      .function("moveDrawingEndpoint", &WebChart::moveDrawingEndpoint)
+      .function("hitTestDrawing", &WebChart::hitTestDrawing)
       .function("coordAt", &WebChart::coordAt)
+      .function("project", &WebChart::project)
       .function("setTypeface", &WebChart::setTypeface)
       .function("isAnimating", &WebChart::isAnimating)
       .function("present", &WebChart::present);

@@ -4,8 +4,8 @@
 // platforms. Listeners are attached natively (not via React props) so wheel can
 // be non-passive and call preventDefault.
 
-import { useEffect, useRef } from 'react';
-import type { ChartMode, CrosshairEvent, Drawing, DrawTool } from '@vroomchart/types';
+import { useCallback, useEffect, useRef } from 'react';
+import type { ChartMode, CrosshairEvent, Drawing, DrawPoint, DrawTool } from '@vroomchart/types';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
 type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' | 'indicator-axis';
@@ -20,8 +20,14 @@ export type GestureOptions = {
   /** External crosshair to mirror (data space), or null. See VroomChartCoreProps. */
   crosshairOverride?: { timeMs: number; price: number } | null;
   onViewportChange?: (startMs: number, endMs: number) => void;
+  /** Committed drawings (controlled). Used to hit-test/select/drag/delete. */
+  drawings?: Drawing[];
   /** Fired with the finished line when the user places its second point. */
   onDrawingComplete?: (drawing: Drawing) => void;
+  /** Fired after a selected line's endpoint is dragged (same id, new points). */
+  onDrawingChange?: (drawing: Drawing) => void;
+  /** Fired when the selected line is deleted (Backspace/Delete). */
+  onDrawingDelete?: (id: string) => void;
   /** Fired when the chart wants the host to change mode (e.g. exit on click-away). */
   onRequestMode?: (mode: ChartMode) => void;
 };
@@ -37,7 +43,6 @@ const SEP_HIT = 4; // px band around the indicator separator for hit-testing
 // at 2px, matching the core's default and useChartCore's drawing color.
 const DRAW_COLOR = 0xff2962ff;
 const DRAW_WIDTH = 2;
-const DRAW_HIT = 6; // px tolerance for "clicked on the selected line" vs. away
 
 // Stable unique id for a freshly drawn line.
 function drawingId(): string {
@@ -45,23 +50,6 @@ function drawingId(): string {
     return crypto.randomUUID();
   }
   return `draw-${Math.random().toString(36).slice(2)}`;
-}
-
-// Distance in px from point (px,py) to the segment (ax,ay)-(bx,by).
-function distToSegment(
-  px: number,
-  py: number,
-  ax: number,
-  ay: number,
-  bx: number,
-  by: number,
-): number {
-  const dx = bx - ax;
-  const dy = by - ay;
-  const len2 = dx * dx + dy * dy;
-  let t = len2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
 
 export function useGestures(
@@ -74,20 +62,214 @@ export function useGestures(
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
-  // Drawing-tool state. Lives in refs (not effect-local) so the mode-change
-  // effect below can reset it when the host leaves draw mode, and so it survives
-  // the gesture effect's stable-listener lifecycle.
-  //   drawAnchor* — first point placed, awaiting the second (data + px coords).
-  //   drawSelectedPx — set once a line is committed: its px endpoints, used to
-  //                    hit-test "clicked on the line" vs. "clicked away to exit".
+  // Drawing-tool state (live in refs so the mode-change effect can reset it and
+  // it survives the gesture effect's stable-listener lifecycle).
+  //   drawAnchor — first point placed, awaiting the second (data coords).
   const drawAnchorRef = useRef<{ timeMs: number; price: number } | null>(null);
-  const drawAnchorPxRef = useRef<{ x: number; y: number } | null>(null);
-  const drawSelectedPxRef = useRef<{
-    ax: number;
-    ay: number;
-    bx: number;
-    by: number;
+
+  // Editing state for committed drawings (pan-mode select / drag / delete).
+  //   selectedId — the selected Drawing.id (data-space identity; survives
+  //                pan/zoom + list changes). The core is told the matching index.
+  //   grab — the endpoint being dragged { index, endpoint: 0|1 }, or null.
+  //   dragLine — the whole selected line being translated by its body, or null.
+  //   downHit — the hit under the last pointerdown, resolved to select/deselect
+  //             on a stationary release.
+  //   lastCoord — the last coordAt during a handle drag, for the release payload.
+  const selectedIdRef = useRef<string | null>(null);
+  const grabRef = useRef<{ index: number; endpoint: number; fixed: DrawPoint } | null>(null);
+  const dragLineRef = useRef<{
+    index: number;
+    startTime: number;
+    startPrice: number;
+    a0: DrawPoint;
+    b0: DrawPoint;
+    lastA: DrawPoint;
+    lastB: DrawPoint;
   } | null>(null);
+  const downHitRef = useRef<{ index: number; part: number; t: number } | null>(null);
+  const lastCoordRef = useRef<{ timeMs: number; price: number } | null>(null);
+  // Where along the selected line it was grabbed (0..1, A→B), and the in-memory
+  // clipboard for copy/paste (color/width + the grab t + the crosshair at copy).
+  const selectedTRef = useRef(0.5);
+  const clipboardRef = useRef<{
+    points: [DrawPoint, DrawPoint];
+    color?: Drawing['color'];
+    width?: number;
+    t: number;
+    crosshair: { timeMs: number; price: number } | null;
+  } | null>(null);
+
+  // Push the current selection (id → core index) and grabbed-handle state into
+  // the core. Reads live refs/opts so a captured instance is never stale. Runs
+  // after useChartCore's setDrawings (declared earlier in VroomChart) so the
+  // index is valid whenever the drawings list changes.
+  const applySelection = useCallback(() => {
+    const h = handleRef.current;
+    if (!h) return;
+    const id = selectedIdRef.current;
+    const list = optsRef.current.drawings ?? [];
+    let index = -1;
+    if (id != null) {
+      index = list.findIndex((d) => d.id === id);
+      if (index < 0) selectedIdRef.current = null;
+    }
+    h.setSelectedDrawing(index, index >= 0 ? (grabRef.current?.endpoint ?? -1) : -1);
+    scheduleRender();
+  }, [handleRef, scheduleRender]);
+
+  // Re-assert selection whenever the drawings list changes (add / delete / the
+  // just-dragged update), so the core index tracks the selected id.
+  useEffect(() => {
+    applySelection();
+  }, [opts.drawings, applySelection]);
+
+  // Keyboard: delete the selected line (Backspace/Delete) and copy/paste it
+  // (Cmd/Ctrl+C / +V). Skipped while focus is in a field / a real text selection.
+  useEffect(() => {
+    const isEditableTarget = () => {
+      const ae = document.activeElement as HTMLElement | null;
+      const tag = ae?.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || !!ae?.isContentEditable;
+    };
+    const findSelected = (): Drawing | null => {
+      const id = selectedIdRef.current;
+      if (id == null) return null;
+      return (optsRef.current.drawings ?? []).find((x) => x.id === id) ?? null;
+    };
+
+    // Endpoints for a pasted copy: under the crosshair (intersecting at the same
+    // grab t), else offset above/below the original, kept within the viewport.
+    const placePaste = (clip: NonNullable<typeof clipboardRef.current>): [DrawPoint, DrawPoint] | null => {
+      const h = handleRef.current;
+      if (!h) return null;
+      const [a, b] = clip.points;
+      const t = clip.t;
+      const pSel = {
+        timeMs: a.timeMs + t * (b.timeMs - a.timeMs),
+        price: a.price + t * (b.price - a.price),
+      };
+      const cur = h.getCrosshairInfo();
+      const moved =
+        cur != null &&
+        (clip.crosshair == null ||
+          cur.timeMs !== clip.crosshair.timeMs ||
+          cur.price !== clip.crosshair.price);
+      if (moved && cur) {
+        const dt = cur.timeMs - pSel.timeMs;
+        const dp = cur.price - pSel.price;
+        return [
+          { timeMs: a.timeMs + dt, price: a.price + dp },
+          { timeMs: b.timeMs + dt, price: b.price + dp },
+        ];
+      }
+      // Above/below the original. Derive the visible price range + px scale.
+      const el = containerRef.current;
+      const shift = (dp: number): [DrawPoint, DrawPoint] => [
+        { timeMs: a.timeMs, price: a.price + dp },
+        { timeMs: b.timeMs, price: b.price + dp },
+      ];
+      const span = Math.abs(a.price - b.price);
+      if (!el) return shift(-(span || 1));
+      const rect = el.getBoundingClientRect();
+      const m = h.getAxisMetrics();
+      const priceBottom = rect.height - m.xAxisHeight - m.indicatorHeight;
+      const top = h.coordAt(rect.width / 2, 0);
+      const bot = h.coordAt(rect.width / 2, priceBottom);
+      if (!top || !bot || priceBottom <= 0 || top.price <= bot.price) return shift(-(span || 1));
+      const vTop = top.price; // higher price = screen top
+      const vBot = bot.price; // lower price = screen bottom
+      const pricePerPx = (vTop - vBot) / priceBottom;
+      const GAP_PX = 30;
+      const offset = (span / pricePerPx + GAP_PX) * pricePerPx; // clear the original
+      const pMin = Math.min(a.price, b.price);
+      const pMax = Math.max(a.price, b.price);
+      const upFits = pMax + offset <= vTop;
+      const downFits = pMin - offset >= vBot;
+      let dir: 1 | -1;
+      if (upFits && !downFits) dir = 1;
+      else if (downFits && !upFits) dir = -1;
+      else if (upFits && downFits) {
+        dir = vTop - (pMax + offset) >= pMin - offset - vBot ? 1 : -1; // more edge margin
+      } else {
+        const upVis = Math.min(pMax + offset, vTop) - Math.max(pMin + offset, vBot);
+        const dnVis = Math.min(pMax - offset, vTop) - Math.max(pMin - offset, vBot);
+        dir = upVis >= dnVis ? 1 : -1; // larger visible portion
+      }
+      return shift(dir * offset);
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isEditableTarget()) return;
+
+      // Mid-draw (first anchor placed, awaiting the second): Escape/Delete/
+      // Backspace cancels the in-progress anchor but keeps draw mode active.
+      if (
+        drawAnchorRef.current &&
+        (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'Delete')
+      ) {
+        e.preventDefault();
+        drawAnchorRef.current = null;
+        const h = handleRef.current;
+        if (h) {
+          h.clearDraft();
+          scheduleRender();
+        }
+        return;
+      }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        const id = selectedIdRef.current;
+        if (id == null) return;
+        e.preventDefault();
+        optsRef.current.onDrawingDelete?.(id);
+        selectedIdRef.current = null;
+        grabRef.current = null;
+        dragLineRef.current = null;
+        const h = handleRef.current;
+        if (h) {
+          h.setSelectedDrawing(-1, -1);
+          scheduleRender();
+        }
+        return;
+      }
+
+      if (!(e.metaKey || e.ctrlKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === 'c') {
+        if (window.getSelection()?.toString()) return; // don't hijack a real text copy
+        const d = findSelected();
+        if (!d) return;
+        e.preventDefault();
+        const info = handleRef.current?.getCrosshairInfo() ?? null;
+        clipboardRef.current = {
+          points: [d.points[0], d.points[1]],
+          color: d.color,
+          width: d.width,
+          t: selectedTRef.current,
+          crosshair: info ? { timeMs: info.timeMs, price: info.price } : null,
+        };
+      } else if (key === 'v') {
+        const clip = clipboardRef.current;
+        if (!clip) return;
+        const pts = placePaste(clip);
+        if (!pts) return;
+        e.preventDefault();
+        const id = drawingId();
+        optsRef.current.onDrawingComplete?.({
+          id,
+          type: 'line',
+          points: pts,
+          ...(clip.color != null ? { color: clip.color } : {}),
+          ...(clip.width != null ? { width: clip.width } : {}),
+        });
+        // The drawings-change effect selects the new id once it's appended.
+        selectedIdRef.current = id;
+        selectedTRef.current = clip.t;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [containerRef, handleRef, scheduleRender]);
 
   // True while a local pointer (hover/press) owns the crosshair. Lets the
   // crosshair-override effect below know to stand down (local input wins).
@@ -99,8 +281,6 @@ export function useGestures(
     const active = opts.mode === 'draw' && opts.tool === 'line';
     if (active) return;
     drawAnchorRef.current = null;
-    drawAnchorPxRef.current = null;
-    drawSelectedPxRef.current = null;
     const h = handleRef.current;
     if (h) {
       h.clearDraft();
@@ -137,11 +317,40 @@ export function useGestures(
     let downX = 0;
     let downY = 0;
     let moved = false;
+    // Shift-constrain state: whether Shift is held, and the last cursor position
+    // (so a Shift press/release with the mouse still can re-snap live).
+    let shiftHeld = false;
+    let lastX = 0;
+    let lastY = 0;
     const pinch = { spanX: 1, spanY: 1, ratioX: 1, ratioY: 1, enableX: false, enableY: false, active: false };
 
     const rel = (e: PointerEvent | WheelEvent) => {
       const r = el.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+
+    // Data coord to use for a moving point at pixel (x,y) relative to `fixed`.
+    // With Shift held, snaps to the nearest 45° *screen* angle from `fixed`.
+    const snapToLine = (
+      fixed: DrawPoint,
+      x: number,
+      y: number,
+    ): { timeMs: number; price: number } | null => {
+      const h = handleRef.current;
+      if (!h) return null;
+      const free = h.coordAt(x, y);
+      if (!shiftHeld || !free) return free;
+      const f = h.project(fixed.timeMs, fixed.price);
+      if (!f) return free;
+      const dx = x - f.x;
+      const dy = y - f.y;
+      if (dx === 0 && dy === 0) return free;
+      const step = Math.PI / 4;
+      const ang = Math.round(Math.atan2(dy, dx) / step) * step; // nearest 45°
+      const ux = Math.cos(ang);
+      const uy = Math.sin(ang);
+      const len = dx * ux + dy * uy; // project the cursor onto the snapped ray
+      return h.coordAt(f.x + len * ux, f.y + len * uy) ?? free;
     };
 
     const regionAt = (x: number, y: number): Region => {
@@ -234,49 +443,33 @@ export function useGestures(
     const updateGuideline = (x: number, y: number) => {
       const h = handleRef.current;
       if (!h) return;
-      if (!drawAnchorRef.current || drawSelectedPxRef.current) return;
-      const c = h.coordAt(x, y);
-      if (!c) return;
       const a = drawAnchorRef.current;
+      if (!a) return;
+      const c = snapToLine(a, x, y);
+      if (!c) return;
       h.setDraft(a.timeMs, a.price, true, c.timeMs, c.price, true, DRAW_COLOR, DRAW_WIDTH);
       scheduleRender();
     };
 
-    // A tap in the chart area: place the next point, or exit on click-away.
+    // Line tool tap: place the first point, then commit on the second.
     const handleDrawClick = (x: number, y: number) => {
       const h = handleRef.current;
       if (!h) return;
-      const o = optsRef.current;
-
-      // A committed line is selected: clicking on it keeps it; clicking away
-      // hides the nodes and asks the host to return to pan mode.
-      const sel = drawSelectedPxRef.current;
-      if (sel) {
-        if (distToSegment(x, y, sel.ax, sel.ay, sel.bx, sel.by) <= DRAW_HIT) return;
-        drawAnchorRef.current = null;
-        drawAnchorPxRef.current = null;
-        drawSelectedPxRef.current = null;
-        h.clearDraft();
-        scheduleRender();
-        el.style.cursor = '';
-        o.onRequestMode?.('pan');
-        return;
-      }
-
-      const coord = h.coordAt(x, y);
-      if (!coord) return;
 
       if (!drawAnchorRef.current) {
         // First point: show node A; the guideline follows on the next move.
+        const coord = h.coordAt(x, y);
+        if (!coord) return;
         drawAnchorRef.current = coord;
-        drawAnchorPxRef.current = { x, y };
         h.setDraft(coord.timeMs, coord.price, false, 0, 0, true, DRAW_COLOR, DRAW_WIDTH);
         scheduleRender();
       } else {
-        // Second point: commit the line and keep both nodes shown (selected).
+        // Second point: commit the line (Shift-snapped to match the guideline)
+        // and clear the draft. Editing happens in pan mode via the committed line.
         const a = drawAnchorRef.current;
-        const apx = drawAnchorPxRef.current!;
-        o.onDrawingComplete?.({
+        const coord = snapToLine(a, x, y);
+        if (!coord) return;
+        optsRef.current.onDrawingComplete?.({
           id: drawingId(),
           type: 'line',
           points: [
@@ -284,10 +477,23 @@ export function useGestures(
             { timeMs: coord.timeMs, price: coord.price },
           ],
         });
-        drawSelectedPxRef.current = { ax: apx.x, ay: apx.y, bx: x, by: y };
-        h.setDraft(a.timeMs, a.price, true, coord.timeMs, coord.price, false, DRAW_COLOR, DRAW_WIDTH);
+        drawAnchorRef.current = null;
+        h.clearDraft();
         scheduleRender();
       }
+    };
+
+    // Reposition the grabbed endpoint at pixel (x,y), Shift-snapping to 45°
+    // relative to the fixed (other) endpoint.
+    const moveGrab = (x: number, y: number) => {
+      const h = handleRef.current;
+      const g = grabRef.current;
+      if (!h || !g) return;
+      const c = snapToLine(g.fixed, x, y);
+      if (!c) return;
+      lastCoordRef.current = c;
+      h.moveDrawingEndpoint(g.index, g.endpoint, c.timeMs, c.price);
+      scheduleRender();
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -295,6 +501,9 @@ export function useGestures(
       if (!h) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return; // left button only
       const { x, y } = rel(e);
+      shiftHeld = e.shiftKey;
+      lastX = x;
+      lastY = y;
       el.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x, y });
 
@@ -319,6 +528,52 @@ export function useGestures(
       downY = y;
       moved = false;
       panMode = regionAt(x, y);
+
+      // Editing (pan mode, chart area): grab a handle to drag it now; otherwise
+      // record the hit so a stationary release can select a body / deselect.
+      downHitRef.current = null;
+      if (!drawActive() && panMode === 'chart') {
+        const hit = h.hitTestDrawing(x, y);
+        if (hit && (hit.part === 0 || hit.part === 1)) {
+          const gd = (optsRef.current.drawings ?? [])[hit.index];
+          if (gd) {
+            grabRef.current = {
+              index: hit.index,
+              endpoint: hit.part,
+              fixed: gd.points[hit.part === 0 ? 1 : 0], // the other end stays put
+            };
+            lastCoordRef.current = null;
+            applySelection(); // enlarge the grabbed handle
+            return; // the handle drag owns this pointer — no pan / long-press
+          }
+        }
+        // Body of the already-selected line → translate the whole line on drag.
+        if (hit && hit.part === 2) {
+          const list = optsRef.current.drawings ?? [];
+          const selIdx = selectedIdRef.current
+            ? list.findIndex((d) => d.id === selectedIdRef.current)
+            : -1;
+          if (hit.index === selIdx && selIdx >= 0) {
+            const start = h.coordAt(x, y);
+            const d = list[selIdx];
+            if (start && d) {
+              dragLineRef.current = {
+                index: selIdx,
+                startTime: start.timeMs,
+                startPrice: start.price,
+                a0: d.points[0],
+                b0: d.points[1],
+                lastA: d.points[0],
+                lastB: d.points[1],
+              };
+              el.style.cursor = 'move';
+              return; // the line drag owns this pointer — no pan / long-press
+            }
+          }
+        }
+        downHitRef.current = hit; // non-selected body or miss → resolved on release
+      }
+
       if (e.pointerType !== 'mouse' && panMode === 'chart' && !drawActive()) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;
@@ -331,6 +586,9 @@ export function useGestures(
       const h = handleRef.current;
       if (!h) return;
       const { x, y } = rel(e);
+      shiftHeld = e.shiftKey;
+      lastX = x;
+      lastY = y;
 
       // Hover (mouse, no button) → crosshair follows the cursor on the chart.
       if (!pointers.has(e.pointerId)) {
@@ -361,6 +619,31 @@ export function useGestures(
       const dx = x - prev.x;
       const dy = y - prev.y;
       pointers.set(e.pointerId, { x, y });
+
+      // Handle drag (pan-mode editing): reposition the grabbed endpoint live,
+      // with no move threshold, and never pan.
+      if (grabRef.current) {
+        moveGrab(x, y);
+        return;
+      }
+
+      // Line translate (pan-mode editing): shift both endpoints by the pointer's
+      // data-space delta, live, no threshold, never pan.
+      if (dragLineRef.current) {
+        const g = dragLineRef.current;
+        const c = h.coordAt(x, y);
+        if (c) {
+          const dT = c.timeMs - g.startTime;
+          const dP = c.price - g.startPrice;
+          g.lastA = { timeMs: g.a0.timeMs + dT, price: g.a0.price + dP };
+          g.lastB = { timeMs: g.b0.timeMs + dT, price: g.b0.price + dP };
+          h.moveDrawingEndpoint(g.index, 0, g.lastA.timeMs, g.lastA.price);
+          h.moveDrawingEndpoint(g.index, 1, g.lastB.timeMs, g.lastB.price);
+          if (!moved && Math.hypot(x - downX, y - downY) > MOVE_THRESH) moved = true;
+          scheduleRender();
+        }
+        return;
+      }
 
       // Two-finger directional pinch (disabled while drawing).
       if (pointers.size >= 2 && pinch.active && !drawActive()) {
@@ -422,10 +705,43 @@ export function useGestures(
     };
 
     const endPointer = (e: PointerEvent) => {
+      shiftHeld = e.shiftKey; // so a Shift-held draw commit matches the guideline
       const had = pointers.delete(e.pointerId);
       clearLongPress();
       if (pointers.size < 2) pinch.active = false;
       if (!had) return;
+
+      // Handle-drag release (editing): persist the moved endpoint, keep it
+      // selected, and un-grab (drops the 50% enlarge).
+      if (grabRef.current && pointers.size === 0) {
+        const g = grabRef.current;
+        grabRef.current = null;
+        const list = optsRef.current.drawings ?? [];
+        const d = list[g.index];
+        const c = lastCoordRef.current;
+        if (d && c) {
+          const pts: [DrawPoint, DrawPoint] = [d.points[0], d.points[1]];
+          pts[g.endpoint] = { timeMs: c.timeMs, price: c.price };
+          optsRef.current.onDrawingChange?.({ ...d, points: pts });
+        }
+        applySelection();
+        el.style.cursor = '';
+        return;
+      }
+
+      // Line-translate release: persist the moved line, keep it selected.
+      if (dragLineRef.current && pointers.size === 0) {
+        const g = dragLineRef.current;
+        dragLineRef.current = null;
+        if (moved) {
+          const list = optsRef.current.drawings ?? [];
+          const d = list[g.index];
+          if (d) optsRef.current.onDrawingChange?.({ ...d, points: [g.lastA, g.lastB] });
+        }
+        applySelection();
+        el.style.cursor = '';
+        return;
+      }
 
       // Draw mode: a stationary tap in the chart places a point (or exits on
       // click-away). Drags are ignored (no pan). Crosshair logic is skipped.
@@ -433,6 +749,23 @@ export function useGestures(
         if (!moved && panMode === 'chart') handleDrawClick(downX, downY);
         else el.style.cursor = 'crosshair';
         return;
+      }
+
+      // Editing tap (pan mode): a stationary click on a line body selects it;
+      // on empty space it deselects. (Skip a long-press, which owns the crosshair.)
+      if (pointers.size === 0 && !moved && panMode === 'chart' && crosshairSource !== 'press') {
+        const hit = downHitRef.current;
+        const list = optsRef.current.drawings ?? [];
+        if (hit && hit.part === 2 && list[hit.index]) {
+          selectedTRef.current = hit.t; // remember where along the line it was grabbed
+          if (selectedIdRef.current !== list[hit.index].id) {
+            selectedIdRef.current = list[hit.index].id;
+            applySelection();
+          }
+        } else if (!hit && selectedIdRef.current != null) {
+          selectedIdRef.current = null;
+          applySelection();
+        }
       }
 
       // Press crosshair is active only while held — release dismisses it.
@@ -474,12 +807,25 @@ export function useGestures(
       scheduleRender();
     };
 
+    // Shift press/release re-applies the 45° constraint live at the last cursor
+    // position — even with the mouse still — while drawing or dragging a handle.
+    const onShiftKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Shift') return;
+      const held = e.type === 'keydown';
+      if (held === shiftHeld) return;
+      shiftHeld = held;
+      if (drawAnchorRef.current) updateGuideline(lastX, lastY);
+      else if (grabRef.current) moveGrab(lastX, lastY);
+    };
+
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', endPointer);
     el.addEventListener('pointercancel', endPointer);
     el.addEventListener('pointerleave', onPointerLeave);
     el.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onShiftKey);
+    window.addEventListener('keyup', onShiftKey);
 
     return () => {
       clearLongPress();
@@ -489,6 +835,8 @@ export function useGestures(
       el.removeEventListener('pointercancel', endPointer);
       el.removeEventListener('pointerleave', onPointerLeave);
       el.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onShiftKey);
+      window.removeEventListener('keyup', onShiftKey);
     };
   }, [containerRef, handleRef, scheduleRender]);
 }

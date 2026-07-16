@@ -31,4 +31,21 @@ void draw(SkCanvas* canvas,
           float candle_right,
           float candle_area_h);
 
+// Result of a hit-test against the committed drawings. `index` is the drawing
+// index (or -1 for a miss); `part` is 0 (endpoint A), 1 (endpoint B), or 2 (line
+// body). Endpoint hits are only reported for the currently selected drawing
+// (whose handles are visible).
+struct HitResult {
+    int32_t index;
+    int32_t part;
+    float   t;  // 0..1 grab position along the segment (A→B); 0/1 for handle hits
+};
+
+HitResult hit_test(const VroomChart& chart,
+                   const vroom::Layout& lay,
+                   const vroom::PriceBounds& bounds,
+                   int64_t window_ms,
+                   float x,
+                   float y);
+
 }  // namespace vroom::drawings
