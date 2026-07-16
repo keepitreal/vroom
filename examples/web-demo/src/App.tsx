@@ -5,7 +5,7 @@ import {
   type CrosshairEvent,
   type ChartMode,
   type DrawTool,
-  type Drawing,
+  type DrawingStore,
   type LiquidityBand,
   type LiquidityConfig,
 } from '@vroomchart/react';
@@ -103,8 +103,9 @@ function loadCandleWidth(): number {
 export type DrawProps = {
   mode: ChartMode;
   tool: DrawTool;
-  drawings: Drawing[];
-  onDrawingComplete: (d: Drawing) => void;
+  // Managed persistence: the chart owns the drawings array and loads/saves it
+  // through this adapter, keyed by the market (seriesKey).
+  drawingStore: DrawingStore;
   onModeChange: (m: ChartMode) => void;
 };
 
@@ -386,11 +387,33 @@ export function App() {
   const [volumeRadius, setVolumeRadius] = useState(() => loadNum(VOLUME_RADIUS_KEY, 0));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Drawing tool state. `drawMode`/`drawTool` drive the chart; `drawings` is the
-  // controlled list the chart appends to via onDrawingComplete.
+  // Drawing tool state. `drawMode`/`drawTool` drive the chart. Drawings are
+  // persisted by the chart itself via `drawingStore` (managed mode), keyed by the
+  // asset — so lines survive timeframe switches and reloads, but not asset
+  // switches. localStorage here; a real app might use a backend.
   const [drawMode, setDrawMode] = useState<ChartMode>('pan');
   const [drawTool, setDrawTool] = useState<DrawTool>(null);
-  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const drawingStore = useMemo<DrawingStore>(
+    () => ({
+      // Opaque string in / out — the chart owns the versioned envelope, so the
+      // adapter is just a byte store keyed by market.
+      load: (marketId) => {
+        try {
+          return window.localStorage.getItem(`vroom:drawings:${marketId}`);
+        } catch {
+          return null;
+        }
+      },
+      save: (marketId, data) => {
+        try {
+          window.localStorage.setItem(`vroom:drawings:${marketId}`, data);
+        } catch {
+          /* best-effort */
+        }
+      },
+    }),
+    [],
+  );
 
   const toggleLineTool = useCallback(() => {
     setDrawMode((m) => {
@@ -400,11 +423,26 @@ export function App() {
     });
   }, []);
 
+  // "L" toggles the line tool (Figma/Excalidraw style). This lives in the demo,
+  // not the library — the hotkey is the consuming app's choice, so vroom doesn't
+  // enshrine one. Ignore it while typing in a field or with a modifier held.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'l' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const ae = document.activeElement as HTMLElement | null;
+      const tag = ae?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || ae?.isContentEditable) return;
+      e.preventDefault();
+      toggleLineTool();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleLineTool]);
+
   const drawProps: DrawProps = {
     mode: drawMode,
     tool: drawTool,
-    drawings,
-    onDrawingComplete: (d) => setDrawings((p) => [...p, d]),
+    drawingStore,
     // The chart asks to return to pan after the user clicks away from a line.
     onModeChange: (m) => {
       setDrawMode(m);
