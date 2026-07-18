@@ -205,6 +205,12 @@ extern "C" void vroom_chart_set_default_candle_width(VroomChart* chart, float px
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
+    if (!chart) return;
+    chart->chart_type = mode;
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_get_visible_range(VroomChart* chart,
                                               int64_t* out_start_ms,
                                               int64_t* out_end_ms) {

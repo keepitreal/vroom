@@ -4,6 +4,7 @@ import {
   type Candle,
   type CrosshairEvent,
   type ChartMode,
+  type ChartType,
   type DrawTool,
   type DrawingStore,
   type LiquidityBand,
@@ -35,6 +36,7 @@ const WICK_WIDTH_KEY = 'vroom-wick-width';
 const CANDLE_RADIUS_KEY = 'vroom-candle-radius';
 const WICK_CAP_KEY = 'vroom-wick-cap';
 const VOLUME_RADIUS_KEY = 'vroom-volume-radius';
+const CHART_TYPE_KEY = 'vroom-chart-type';
 const SIDEBAR_KEY = 'vroom-sidebar';
 
 // Generic localStorage getters for the numeric/boolean style knobs.
@@ -326,6 +328,12 @@ export function App() {
   // Default candle body width (px) driving the demo chart's initial zoom,
   // persisted to localStorage so it applies on first load.
   const [candleWidth, setCandleWidth] = useState(loadCandleWidth);
+  // Price-series render style (candles vs line), persisted.
+  const [chartType, setChartType] = useState<ChartType>(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(CHART_TYPE_KEY) === 'line'
+      ? 'line'
+      : 'candles',
+  );
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -469,6 +477,14 @@ export function App() {
 
   useEffect(() => {
     try {
+      window.localStorage.setItem(CHART_TYPE_KEY, chartType);
+    } catch {
+      // best-effort
+    }
+  }, [chartType]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? '1' : '0');
     } catch {
       // best-effort
@@ -599,6 +615,7 @@ export function App() {
                   candles={candles}
                   seriesKey={useSeriesKey ? asset : undefined}
                   theme={chartTheme}
+                  chartType={chartType}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...indicatorProps}
@@ -613,6 +630,7 @@ export function App() {
                   candles={secondCandles}
                   seriesKey={`${asset}-2`}
                   theme={chartTheme}
+                  chartType={chartType}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -628,6 +646,7 @@ export function App() {
                 candles={candles}
                 seriesKey={useSeriesKey ? asset : undefined}
                 theme={chartTheme}
+                chartType={chartType}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...indicatorProps}
@@ -639,7 +658,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType }}
             data={{
               assets: Object.keys(ASSETS),
               asset,

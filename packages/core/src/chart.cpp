@@ -149,9 +149,20 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
                            candle_area_h);
 
-    // 5. Candles (wicks + bodies)
-    vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
-                         window_ms, visible_start_ms, candle_duration_ms);
+    // 5. Price series — candles (wicks + bodies), or a close-price line in line
+    //    mode. Line mode reuses the MA-overlay polyline routine, fed the visible
+    //    closes and styled by theme.LINE color / LINE_WIDTH_PX.
+    if (chart_type == 1) {
+        std::vector<double> closes(n);
+        for (std::size_t i = 0; i < n; ++i) closes[i] = visible[i].close;
+        vroom::ma_overlay::draw(
+            canvas, lay, bounds, visible, n, closes.data(), window_ms,
+            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
+            theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX]);
+    } else {
+        vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
+                             window_ms, visible_start_ms, candle_duration_ms);
+    }
 
     // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the
     //      candles. They share the candle price scale and don't reserve a pane.

@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useState } from 'react';
-import type { ChartMode } from '@vroomchart/react';
+import type { ChartMode, ChartType } from '@vroomchart/react';
 
 // GitHub-dark palette (matches the rest of the demo's inline styling).
 const PANEL = '#161b22';
@@ -168,6 +168,8 @@ export type SidebarProps = {
     setTwoPane: (v: boolean) => void;
     candleWidth: number;
     setCandleWidth: (v: number) => void;
+    chartType: ChartType;
+    setChartType: (v: ChartType) => void;
   };
   data: {
     assets: readonly string[];
@@ -242,6 +244,16 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
       </div>
 
       <Section title="Layout">
+        <Field label="Chart type">
+          <Segmented
+            options={[
+              { label: 'Candles', value: 'candles' as ChartType },
+              { label: 'Line', value: 'line' as ChartType },
+            ]}
+            value={layout.chartType}
+            onChange={layout.setChartType}
+          />
+        </Field>
         <ToggleRow
           label="Two panes"
           checked={layout.twoPane}

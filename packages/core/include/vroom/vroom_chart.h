@@ -112,6 +112,7 @@ typedef enum {
     VROOM_COLOR_WICK_BEAR,         // bear wick; 0 alpha => inherit BEAR fill
     VROOM_COLOR_ACCENT_BULL,       // generic up color: price indicator, volume, MACD
     VROOM_COLOR_ACCENT_BEAR,       // generic down color
+    VROOM_COLOR_LINE,              // line-chart-mode close-price polyline
     VROOM_COLOR_COUNT_
 } VroomColorKey;
 
@@ -127,6 +128,7 @@ typedef enum {
     VROOM_FLOAT_CANDLE_RADIUS_PX,        // candle body corner radius px (0 = square)
     VROOM_FLOAT_WICK_ROUND_CAP,          // 0/1: round the wick end caps
     VROOM_FLOAT_VOLUME_RADIUS_PX,        // volume bar top-corner radius px (0 = square)
+    VROOM_FLOAT_LINE_WIDTH_PX,           // line-chart-mode polyline stroke width px
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
@@ -162,6 +164,11 @@ void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t 
 // "most recent ~80 candles" default. Affects initial framing only; an explicit
 // set_visible_range still overrides it.
 void vroom_chart_set_default_candle_width(VroomChart* chart, float px);
+
+// Chart render mode: 0 = candlesticks (default), 1 = line chart (a polyline
+// through each candle's close). Other layers (volume, indicators, overlays,
+// crosshair, drawings) are unaffected.
+void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode);
 
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.

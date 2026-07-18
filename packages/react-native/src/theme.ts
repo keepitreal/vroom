@@ -18,6 +18,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   wickBear: 13, // VROOM_COLOR_WICK_BEAR
   accentBull: 14, // VROOM_COLOR_ACCENT_BULL
   accentBear: 15, // VROOM_COLOR_ACCENT_BEAR
+  lineColor: 16, // VROOM_COLOR_LINE
 };
 
 // Maps each numeric VroomTheme field to its VroomFloatKey index.
@@ -25,6 +26,7 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   wickWidth: 1, // VROOM_FLOAT_WICK_WIDTH_PX
   candleRadius: 8, // VROOM_FLOAT_CANDLE_RADIUS_PX
   volumeRadius: 10, // VROOM_FLOAT_VOLUME_RADIUS_PX
+  lineWidth: 11, // VROOM_FLOAT_LINE_WIDTH_PX
 };
 
 // Maps each boolean VroomTheme field to its VroomFloatKey index (pushed as 0/1).

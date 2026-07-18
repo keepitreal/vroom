@@ -17,6 +17,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, ColorKey>> = {
   wickBear: ColorKey.WickBear,
   accentBull: ColorKey.AccentBull,
   accentBear: ColorKey.AccentBear,
+  lineColor: ColorKey.Line,
 };
 
 // Maps each numeric VroomTheme field to its FloatKey.
@@ -24,6 +25,7 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   wickWidth: FloatKey.WickWidth,
   candleRadius: FloatKey.CandleRadius,
   volumeRadius: FloatKey.VolumeRadius,
+  lineWidth: FloatKey.LineWidth,
 };
 
 // Maps each boolean VroomTheme field to its FloatKey (pushed as 0/1).

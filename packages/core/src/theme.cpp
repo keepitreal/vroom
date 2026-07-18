@@ -22,6 +22,7 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     0x00000000,  // WICK_BEAR   — transparent sentinel: inherit BEAR fill
     0xff26a69a,  // ACCENT_BULL — classic teal-green (price indicator, volume, MACD)
     0xffef5350,  // ACCENT_BEAR — classic red
+    0xffc9d1d9,  // LINE — line-chart close polyline; neutral foreground (AXIS_TEXT tone)
 };
 
 constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
@@ -36,6 +37,7 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     0.f,    // CANDLE_RADIUS_PX — square by default
     0.f,    // WICK_ROUND_CAP — butt caps by default
     0.f,    // VOLUME_RADIUS_PX — square by default
+    1.5f,   // LINE_WIDTH_PX — line-chart polyline stroke width
 };
 
 }  // namespace

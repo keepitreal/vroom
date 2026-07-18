@@ -15,6 +15,7 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   MACDConfig,
+  ChartType,
 } from '@vroomchart/types';
 
 /**

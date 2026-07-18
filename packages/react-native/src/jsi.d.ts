@@ -23,6 +23,8 @@ export interface ChartHandle {
    * Affects initial framing only; an explicit setVisibleRange takes precedence.
    */
   setDefaultCandleWidth(px: number): void;
+  /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
+  setChartType(mode: number): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
   pan(dx: number, dy: number): SkPicture | null;
   /**

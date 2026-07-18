@@ -112,6 +112,7 @@ export function useChartCore(
     height: heightProp,
     visibleRange,
     defaultCandleWidth,
+    chartType,
     theme,
     rsi,
     macd,
@@ -267,6 +268,7 @@ export function useChartCore(
       }
     }
     if (explicit) h.setVisibleRange(startMs, endMs);
+    h.setChartType(chartType === 'line' ? 1 : 0);
     if (theme) applyTheme(h, theme);
     h.setRSI(
       rsi?.enabled ?? false,
@@ -291,7 +293,7 @@ export function useChartCore(
     scheduleRender();
     // theme/rsi/macd/movingAverages/vwap/drawings/liquidity tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, chartType, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

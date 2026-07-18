@@ -7,6 +7,7 @@ import { packCandles } from './packCandles';
 import { applyTheme, parseColor } from './theme';
 import type {
   Candle,
+  ChartType,
   MACDConfig,
   MovingAverageOverlay,
   RSIConfig,
@@ -63,6 +64,7 @@ export function useChartCore(
   size: { width: number; height: number; pxRatio?: number },
   visibleRange?: VisibleRange,
   defaultCandleWidth?: number,
+  chartType?: ChartType,
   theme?: VroomTheme,
   rsi?: RSIConfig,
   macd?: MACDConfig,
@@ -119,6 +121,7 @@ export function useChartCore(
     if (explicit) {
       h.setVisibleRange(startMs, endMs);
     }
+    h.setChartType(chartType === 'line' ? 1 : 0);
     if (theme) {
       applyTheme(h, theme);
     }
@@ -148,7 +151,7 @@ export function useChartCore(
     setPicture(h.render());
     // theme/rsi/macd/movingAverages/vwap are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, chartType, themeKey, rsiKey, macdKey, maKey, vwapKey]);
 
   return { handle: handleRef.current, picture };
 }

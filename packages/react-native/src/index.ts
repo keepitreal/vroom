@@ -11,4 +11,5 @@ export type {
   MASource,
   MovingAverageOverlay,
   VWAPConfig,
+  ChartType,
 } from './types';

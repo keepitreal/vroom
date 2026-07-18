@@ -98,6 +98,10 @@ export type VroomTheme = {
   crosshair?: VroomColor;
   /** Crosshair target — the hollow ring/dot at the intersection. */
   crosshairTarget?: VroomColor;
+  /** Line-chart-mode close polyline color. Defaults to a neutral foreground. */
+  lineColor?: VroomColor;
+  /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
+  lineWidth?: number;
 };
 
 /** A time window over the candle data, as Unix epoch milliseconds. */
@@ -114,6 +118,14 @@ export type VisibleRange = {
  *   'draw' — left-clicks place drawing points; panning/zooming are suppressed.
  */
 export type ChartMode = 'pan' | 'draw';
+
+/**
+ * How the price series is drawn.
+ *   'candles' — default: candlestick bodies + wicks.
+ *   'line'    — a single polyline through each candle's close. Volume, indicators,
+ *               overlays, crosshair, and drawings still render.
+ */
+export type ChartType = 'candles' | 'line';
 
 /** Active drawing tool while in `draw` mode. `null` draws nothing. */
 export type DrawTool = null | 'line';
@@ -323,6 +335,12 @@ export type VroomChartCoreProps = {
    * devices of different widths.
    */
   defaultCandleWidth?: number;
+  /**
+   * Price-series render style. `'candles'` (default) draws candlesticks;
+   * `'line'` draws a polyline through each candle's close (style it with
+   * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
+   */
+  chartType?: ChartType;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

@@ -54,6 +54,9 @@ struct VroomChart {
     // initial zoom). 0 = legacy "last ~80 candles" behavior.
     float default_candle_px = 0.f;
 
+    // Render mode: 0 = candlesticks (default), 1 = line chart (close polyline).
+    int chart_type = 0;
+
     // Cached y-axis width in pixels, sized to fit the widest formatted price
     // label. 0 = uncomputed; layout() falls back to a width ratio.
     float axis_width_px = 0.f;

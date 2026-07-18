@@ -27,13 +27,14 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(22);
+  out.reserve(23);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFloat"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
   out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
@@ -184,6 +185,23 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::undefined();
           vroom_chart_set_default_candle_width(
               chart_, static_cast<float>(args[0].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setChartType") {
+    // setChartType(mode) — 0 = candlesticks (default), 1 = line chart.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setChartType"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_set_chart_type(
+              chart_, static_cast<int32_t>(args[0].asNumber()));
           return jsi::Value::undefined();
         });
   }

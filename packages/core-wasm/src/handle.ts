@@ -24,6 +24,7 @@ export enum ColorKey {
   WickBear = 13,
   AccentBull = 14,
   AccentBear = 15,
+  Line = 16,
 }
 
 /** Theme float slots — mirrors the `VroomFloatKey` enum in the C facade. */
@@ -39,6 +40,7 @@ export enum FloatKey {
   CandleRadius = 8,
   WickRoundCap = 9,
   VolumeRadius = 10,
+  LineWidth = 11,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
@@ -153,6 +155,8 @@ export interface VroomChartHandle {
    * Affects initial framing only; an explicit setVisibleRange takes precedence.
    */
   setDefaultCandleWidth(px: number): void;
+  /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
+  setChartType(mode: number): void;
   // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale on
   // the JSI handle — currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */

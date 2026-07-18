@@ -27,6 +27,7 @@ export type {
   LiquidityBand,
   LiquidityConfig,
   ChartMode,
+  ChartType,
   DrawTool,
   DrawPoint,
   Drawing,
