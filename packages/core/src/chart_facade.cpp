@@ -208,6 +208,20 @@ extern "C" void vroom_chart_set_default_candle_width(VroomChart* chart, float px
 extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
     if (!chart) return;
     chart->chart_type = mode;
+    // Snap the morph blend to the target so a direct set (no animation) renders
+    // the requested mode immediately. The JS animation loop uses set_morph for
+    // the in-between frames and then calls this to lock the final state.
+    const float t = mode == 1 ? 1.f : 0.f;
+    chart->morph_collapse = t;
+    chart->morph_fade = t;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_morph(VroomChart* chart, float collapse,
+                                      float fade) {
+    if (!chart) return;
+    chart->morph_collapse = collapse;
+    chart->morph_fade = fade;
     chart->mark_dirty();
 }
 

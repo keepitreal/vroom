@@ -157,6 +157,12 @@ export interface VroomChartHandle {
   setDefaultCandleWidth(px: number): void;
   /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
   setChartType(mode: number): void;
+  /**
+   * Candle↔line morph blend for animated transitions. `collapse` folds candles
+   * toward their close; `fade` crossfades candles→line. Both 0 = candles,
+   * 1 = line. Driven per-frame by the host; setChartType snaps both.
+   */
+  setMorph(collapse: number, fade: number): void;
   // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale on
   // the JSI handle — currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */

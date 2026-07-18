@@ -42,6 +42,7 @@ export function VroomChart(props: VroomChartProps) {
     visibleRange,
     defaultCandleWidth,
     chartType,
+    transitionMs,
     theme,
     rsi,
     macd,
@@ -148,6 +149,72 @@ export function VroomChart(props: VroomChartProps) {
       }
     };
   }, []);
+
+  // Candle↔line morph. When `chartType` changes we drive the core per-frame with
+  // a (collapse, fade) blend and push a fresh picture into the SV each frame — the
+  // JS side owns the eased clock (see plan). A fresh handle snaps to the target;
+  // transitionMs=0 snaps. Mirrors the web driver in react/src/useChartCore.ts.
+  const morphRaf = useRef<number | null>(null);
+  const morphFade = useRef<number | null>(null);
+  const morphHandle = useRef<typeof handle>(null);
+  useEffect(() => {
+    if (!handle) return undefined;
+    const target = chartType === 'line' ? 1 : 0;
+
+    // Fresh handle (first load / recreate): snap, don't animate.
+    if (morphHandle.current !== handle || morphFade.current == null) {
+      morphHandle.current = handle;
+      morphFade.current = target;
+      handle.setChartType(target);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      return undefined;
+    }
+    if (morphFade.current === target) return undefined;
+
+    if (morphRaf.current != null) {
+      cancelAnimationFrame(morphRaf.current);
+      morphRaf.current = null;
+    }
+    const dur = Math.max(0, transitionMs ?? 300);
+    if (dur === 0) {
+      morphFade.current = target;
+      handle.setChartType(target);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      return undefined;
+    }
+
+    const from = morphFade.current;
+    let startTs: number | null = null;
+    const step = (now: number) => {
+      if (startTs == null) startTs = now;
+      const prog = Math.min(1, (now - startTs) / dur);
+      const e = prog * prog * (3 - 2 * prog); // smoothstep ease-in-out
+      const fade = from + (target - from) * e;
+      morphFade.current = fade;
+      handle.setMorph(fade, fade);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      if (prog < 1) {
+        morphRaf.current = requestAnimationFrame(step);
+      } else {
+        morphRaf.current = null;
+        morphFade.current = target;
+        handle.setChartType(target); // lock the exact endpoint
+        const q = handle.render();
+        if (q) pictureSV.value = q;
+      }
+    };
+    morphRaf.current = requestAnimationFrame(step);
+
+    return () => {
+      if (morphRaf.current != null) {
+        cancelAnimationFrame(morphRaf.current);
+        morphRaf.current = null;
+      }
+    };
+  }, [handle, chartType, transitionMs, pictureSV]);
 
   // Classifies a touch point into the candle area vs. an axis strip. Axis
   // strips always own their gesture (scale price/time) and take priority over

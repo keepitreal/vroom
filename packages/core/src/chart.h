@@ -57,6 +57,12 @@ struct VroomChart {
     // Render mode: 0 = candlesticks (default), 1 = line chart (close polyline).
     int chart_type = 0;
 
+    // Candle↔line morph blend, driven per-frame by the JS animation loop.
+    // `morph_collapse` folds candles toward their close; `morph_fade` crossfades
+    // candles→line. Both 0 = candles, both 1 = line. set_chart_type snaps them.
+    float morph_collapse = 0.f;
+    float morph_fade = 0.f;
+
     // Cached y-axis width in pixels, sized to fit the widest formatted price
     // label. 0 = uncomputed; layout() falls back to a width ratio.
     float axis_width_px = 0.f;

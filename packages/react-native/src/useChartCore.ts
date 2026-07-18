@@ -121,7 +121,8 @@ export function useChartCore(
     if (explicit) {
       h.setVisibleRange(startMs, endMs);
     }
-    h.setChartType(chartType === 'line' ? 1 : 0);
+    // chartType / the candle↔line morph is driven separately (VroomChart owns the
+    // per-frame animation loop so it can update the picture SharedValue directly).
     if (theme) {
       applyTheme(h, theme);
     }
@@ -151,7 +152,7 @@ export function useChartCore(
     setPicture(h.render());
     // theme/rsi/macd/movingAverages/vwap are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, chartType, themeKey, rsiKey, macdKey, maKey, vwapKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey]);
 
   return { handle: handleRef.current, picture };
 }

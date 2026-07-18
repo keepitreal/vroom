@@ -341,6 +341,12 @@ export type VroomChartCoreProps = {
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
    */
   chartType?: ChartType;
+  /**
+   * Duration (ms) of the animated candle↔line transition when `chartType`
+   * changes. Default ~300. `0` snaps instantly. Ignored (snaps) when the OS
+   * requests reduced motion, which instead uses a plain cross-fade.
+   */
+  transitionMs?: number;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

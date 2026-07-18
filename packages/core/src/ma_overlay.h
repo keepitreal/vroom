@@ -37,6 +37,7 @@ void draw(SkCanvas* canvas,
           float candle_area_h,
           uint32_t color,
           float width,
-          const unsigned char* break_before = nullptr);
+          const unsigned char* break_before = nullptr,
+          float opacity = 1.f);
 
 }  // namespace vroom::ma_overlay

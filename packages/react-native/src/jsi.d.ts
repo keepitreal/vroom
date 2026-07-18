@@ -25,6 +25,8 @@ export interface ChartHandle {
   setDefaultCandleWidth(px: number): void;
   /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
   setChartType(mode: number): void;
+  /** Candle↔line morph blend: collapse folds candles to close, fade crossfades. */
+  setMorph(collapse: number, fade: number): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
   pan(dx: number, dy: number): SkPicture | null;
   /**

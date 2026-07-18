@@ -149,19 +149,26 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
                            candle_area_h);
 
-    // 5. Price series — candles (wicks + bodies), or a close-price line in line
-    //    mode. Line mode reuses the MA-overlay polyline routine, fed the visible
-    //    closes and styled by theme.LINE color / LINE_WIDTH_PX.
-    if (chart_type == 1) {
+    // 5. Price series — candles, a close-price line, or a blend of the two during
+    //    the candle↔line morph. `morph_fade` crossfades candles→line and
+    //    `morph_collapse` folds each candle toward its close (the line vertex).
+    //    fade 0 = pure candles, fade 1 = pure line. The line reuses the MA-overlay
+    //    polyline routine, fed the visible closes and styled by theme.LINE.
+    const float fade = morph_fade;
+    const float collapse = morph_collapse;
+    if (fade < 1.f) {
+        vroom::candles::draw(canvas, visible, n, lay, theme, bounds, window_ms,
+                             visible_start_ms, candle_duration_ms, collapse,
+                             1.f - fade);
+    }
+    if (fade > 0.f) {
         std::vector<double> closes(n);
         for (std::size_t i = 0; i < n; ++i) closes[i] = visible[i].close;
         vroom::ma_overlay::draw(
             canvas, lay, bounds, visible, n, closes.data(), window_ms,
             visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
-            theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX]);
-    } else {
-        vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
-                             window_ms, visible_start_ms, candle_duration_ms);
+            theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
+            nullptr, fade);
     }
 
     // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the

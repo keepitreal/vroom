@@ -30,11 +30,28 @@ void draw(SkCanvas* canvas,
           const PriceBounds& bounds,
           int64_t window_ms,
           int64_t visible_start_ms,
-          int64_t candle_duration_ms) {
+          int64_t candle_duration_ms,
+          float collapse,
+          float opacity) {
     if (!canvas || n == 0) return;
 
-    const float body_w = vroom::candle_body_width(
+    collapse = std::clamp(collapse, 0.f, 1.f);
+    opacity = std::clamp(opacity, 0.f, 1.f);
+    if (opacity <= 0.f) return;
+
+    // During the candle→line morph, fade the entire candle layer as one unit so
+    // overlapping bars/wicks composite cleanly instead of stacking alpha.
+    const bool fade_layer = opacity < 0.999f;
+    if (fade_layer) {
+        canvas->saveLayerAlpha(nullptr,
+                               static_cast<U8CPU>(opacity * 255.f + 0.5f));
+    }
+
+    const float full_body_w = vroom::candle_body_width(
         lay, window_ms, candle_duration_ms);
+    // Thin the body toward the line stroke width as candles collapse to the line.
+    const float line_w = theme.floats[VROOM_FLOAT_LINE_WIDTH_PX];
+    const float body_w = full_body_w + (line_w - full_body_w) * collapse;
 
     const uint32_t fill_bull = theme.colors[VROOM_COLOR_BULL];
     const uint32_t fill_bear = theme.colors[VROOM_COLOR_BEAR];
@@ -94,10 +111,18 @@ void draw(SkCanvas* canvas,
         const float cx = vroom::candle_center_x(
             lay, c.time_ms, candle_duration_ms,
             visible_start_ms, window_ms);
-        const float y_high = vroom::price_to_y(lay, bounds, c.high);
-        const float y_low = vroom::price_to_y(lay, bounds, c.low);
-        const float y_open = vroom::price_to_y(lay, bounds, c.open);
         const float y_close = vroom::price_to_y(lay, bounds, c.close);
+        // Collapse high/low/open toward the close so the candle folds into its
+        // close point (the line vertex) as `collapse` → 1.
+        const float y_high =
+            vroom::price_to_y(lay, bounds, c.high) * (1.f - collapse) +
+            y_close * collapse;
+        const float y_low =
+            vroom::price_to_y(lay, bounds, c.low) * (1.f - collapse) +
+            y_close * collapse;
+        const float y_open =
+            vroom::price_to_y(lay, bounds, c.open) * (1.f - collapse) +
+            y_close * collapse;
 
         canvas->drawLine(cx, y_high, cx, y_low,
                          bull ? wick_bull : wick_bear);
@@ -133,6 +158,8 @@ void draw(SkCanvas* canvas,
             }
         }
     }
+
+    if (fade_layer) canvas->restore();
 }
 
 }  // namespace vroom::candles

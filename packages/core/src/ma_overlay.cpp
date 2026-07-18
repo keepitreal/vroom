@@ -10,6 +10,7 @@
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
 
+#include <algorithm>
 #include <cmath>
 
 #include "viewport.h"
@@ -29,11 +30,14 @@ void draw(SkCanvas* canvas,
           float candle_area_h,
           uint32_t color,
           float width,
-          const unsigned char* break_before) {
+          const unsigned char* break_before,
+          float opacity) {
     if (!canvas || !values_visible || n == 0 || candle_right <= 0.f ||
         candle_area_h <= 0.f) {
         return;
     }
+    opacity = std::clamp(opacity, 0.f, 1.f);
+    if (opacity <= 0.f) return;
 
     // SkPathBuilder (not SkPath's edit methods, removed in newer Skia tips).
     SkPathBuilder path;
@@ -59,6 +63,10 @@ void draw(SkCanvas* canvas,
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(static_cast<SkColor>(color));
+    // Fade the line in during the candle→line morph (multiplies the color alpha).
+    if (opacity < 1.f) {
+        line.setAlphaf(line.getAlphaf() * opacity);
+    }
     line.setStyle(SkPaint::kStroke_Style);
     line.setStrokeWidth(width > 0.f ? width : 1.5f);
 

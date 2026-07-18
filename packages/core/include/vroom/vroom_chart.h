@@ -170,6 +170,12 @@ void vroom_chart_set_default_candle_width(VroomChart* chart, float px);
 // crosshair, drawings) are unaffected.
 void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode);
 
+// Candle↔line morph blend for animated transitions. `collapse` folds candles
+// toward their close price; `fade` crossfades candles→line. Both 0 = candles,
+// both 1 = line. Driven per-frame by the host animation loop; set_chart_type
+// snaps both to the target.
+void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
+
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.
 void vroom_chart_get_visible_range(VroomChart* chart,

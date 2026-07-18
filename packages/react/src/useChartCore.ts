@@ -113,6 +113,7 @@ export function useChartCore(
     visibleRange,
     defaultCandleWidth,
     chartType,
+    transitionMs,
     theme,
     rsi,
     macd,
@@ -268,7 +269,6 @@ export function useChartCore(
       }
     }
     if (explicit) h.setVisibleRange(startMs, endMs);
-    h.setChartType(chartType === 'line' ? 1 : 0);
     if (theme) applyTheme(h, theme);
     h.setRSI(
       rsi?.enabled ?? false,
@@ -293,7 +293,77 @@ export function useChartCore(
     scheduleRender();
     // theme/rsi/macd/movingAverages/vwap/drawings/liquidity tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, chartType, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
+
+  // Animate the candle↔line transition when `chartType` changes. The core is
+  // driven per-frame with a (collapse, fade) blend; we own the eased clock here
+  // in JS (see plan) so it works identically on the web direct-draw path. A new
+  // handle applies the target instantly; reduced motion / transitionMs=0 snaps
+  // (reduced motion still cross-fades opacity but skips the vertical collapse).
+  const morphRafRef = useRef<number | null>(null);
+  const morphFadeRef = useRef<number | null>(null);
+  const morphHandleRef = useRef<VroomChartHandle | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    const target = chartType === 'line' ? 1 : 0;
+
+    // Fresh handle (first load or remount): snap, don't animate.
+    if (morphHandleRef.current !== h || morphFadeRef.current == null) {
+      morphHandleRef.current = h;
+      morphFadeRef.current = target;
+      h.setChartType(target);
+      scheduleRender();
+      return;
+    }
+    if (morphFadeRef.current === target) return;
+
+    const reduce = !!(
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+    const dur = Math.max(0, transitionMs ?? 300);
+
+    if (morphRafRef.current != null) {
+      cancelAnimationFrame(morphRafRef.current);
+      morphRafRef.current = null;
+    }
+    if (dur === 0) {
+      morphFadeRef.current = target;
+      h.setChartType(target);
+      scheduleRender();
+      return;
+    }
+
+    const from = morphFadeRef.current;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const e = p * p * (3 - 2 * p); // smoothstep ease-in-out
+      const fade = from + (target - from) * e;
+      morphFadeRef.current = fade;
+      h.setMorph(reduce ? 0 : fade, fade);
+      h.present();
+      if (p < 1) {
+        morphRafRef.current = requestAnimationFrame(step);
+      } else {
+        morphRafRef.current = null;
+        morphFadeRef.current = target;
+        h.setChartType(target); // lock the exact endpoint
+        h.present();
+      }
+    };
+    morphRafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (morphRafRef.current != null) {
+        cancelAnimationFrame(morphRafRef.current);
+        morphRafRef.current = null;
+      }
+    };
+  }, [ready, chartType, transitionMs, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

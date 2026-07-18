@@ -170,6 +170,8 @@ export type SidebarProps = {
     setCandleWidth: (v: number) => void;
     chartType: ChartType;
     setChartType: (v: ChartType) => void;
+    transitionMs: number;
+    setTransitionMs: (v: number) => void;
   };
   data: {
     assets: readonly string[];
@@ -254,6 +256,17 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             onChange={layout.setChartType}
           />
         </Field>
+        <Row label={`Transition ${layout.transitionMs}ms`}>
+          <input
+            type="range"
+            min={0}
+            max={1000}
+            step={50}
+            value={layout.transitionMs}
+            onChange={(e) => layout.setTransitionMs(Number(e.target.value))}
+            style={{ width: 120 }}
+          />
+        </Row>
         <ToggleRow
           label="Two panes"
           checked={layout.twoPane}

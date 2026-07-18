@@ -37,6 +37,7 @@ const CANDLE_RADIUS_KEY = 'vroom-candle-radius';
 const WICK_CAP_KEY = 'vroom-wick-cap';
 const VOLUME_RADIUS_KEY = 'vroom-volume-radius';
 const CHART_TYPE_KEY = 'vroom-chart-type';
+const TRANSITION_MS_KEY = 'vroom-transition-ms';
 const SIDEBAR_KEY = 'vroom-sidebar';
 
 // Generic localStorage getters for the numeric/boolean style knobs.
@@ -334,6 +335,8 @@ export function App() {
       ? 'line'
       : 'candles',
   );
+  // Candle↔line transition duration (ms). 0 = instant snap.
+  const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -485,6 +488,14 @@ export function App() {
 
   useEffect(() => {
     try {
+      window.localStorage.setItem(TRANSITION_MS_KEY, String(transitionMs));
+    } catch {
+      // best-effort
+    }
+  }, [transitionMs]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? '1' : '0');
     } catch {
       // best-effort
@@ -616,6 +627,7 @@ export function App() {
                   seriesKey={useSeriesKey ? asset : undefined}
                   theme={chartTheme}
                   chartType={chartType}
+                  transitionMs={transitionMs}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...indicatorProps}
@@ -631,6 +643,7 @@ export function App() {
                   seriesKey={`${asset}-2`}
                   theme={chartTheme}
                   chartType={chartType}
+                  transitionMs={transitionMs}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -647,6 +660,7 @@ export function App() {
                 seriesKey={useSeriesKey ? asset : undefined}
                 theme={chartTheme}
                 chartType={chartType}
+                transitionMs={transitionMs}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...indicatorProps}
@@ -658,7 +672,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, transitionMs, setTransitionMs }}
             data={{
               assets: Object.keys(ASSETS),
               asset,
