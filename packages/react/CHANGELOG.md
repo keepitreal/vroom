@@ -1,5 +1,59 @@
 # @vroomchart/react
 
+## 0.5.0
+
+### Minor Changes
+
+- c2f1d1a: New **box** drawing tool (web) — an axis-aligned rectangle annotation, alongside the
+  existing line:
+
+  - **`tool="box"`** — in `draw` mode, click to place one corner and click again to
+    commit. A live preview rectangle tracks the cursor between the two clicks; hold
+    **Shift** to constrain it to a perfect square.
+  - **4 corner anchors** — selecting a box shows a handle on each corner. Dragging one
+    resizes the box from that corner while the diagonally opposite corner stays fixed,
+    so all four corners always stay at 90°. Shift snaps to a square here too.
+  - **Move / edit** — the faint interior fill is grabbable to drag the whole box; delete
+    and copy/paste work exactly as they do for lines.
+  - **Persistence** — boxes serialize through the same `drawingStore` envelope as lines.
+    The `Drawing` type's `type` field widens to `'line' | 'box'`, with `points` holding
+    the two opposite corners; `DrawTool` widens to `'line' | 'box'`.
+
+  Additive — existing line drawings and their behavior are unchanged.
+
+- b705ea8: New **pencil** drawing tool (web) — freehand strokes, alongside the existing line
+  and box:
+
+  - **`tool="pencil"`** — press and drag to draw for as long as the button is held;
+    releasing commits the stroke (`onDrawingComplete`). The tool stays active so you
+    can draw several strokes in a row. The path is rendered as a smoothed,
+    constant-width stroke with round caps.
+  - **Translate-only editing** — a committed stroke is never reshaped. Selecting it
+    shows anchors on its first and last point as a visual cue that it can be moved;
+    dragging an anchor translates the whole path exactly like dragging any other
+    part of it. Delete and copy/paste work as they do for the other tools.
+  - **Automatic thinning** — a drag generates hundreds of samples, so strokes are
+    simplified before being committed and persisted (typically a few dozen points),
+    keeping `drawingStore` payloads reasonable.
+
+  **`Drawing` is now a discriminated union.** `'line'` and `'box'` keep their exact
+  `[DrawPoint, DrawPoint]` tuple; `'pencil'` carries a variable-length
+  `DrawPoint[]`. Code that reads `points[1]` on a general `Drawing` now needs to
+  narrow on `type` first — existing code that already works with a known line or
+  box is unaffected. `LineDrawing`, `BoxDrawing` and `PencilDrawing` are exported.
+
+  Persisted payloads are unchanged in shape (no envelope version bump); a build
+  without the pencil tool drops unknown strokes on load as before. Deserialization
+  now also validates each drawing's `points`, so a corrupt entry from a store is
+  dropped instead of reaching the renderer.
+
+### Patch Changes
+
+- Updated dependencies [c2f1d1a]
+- Updated dependencies [a947d48]
+- Updated dependencies [b705ea8]
+  - @vroomchart/core-wasm@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
