@@ -110,9 +110,19 @@ if(VROOM_WASM)
         OUTPUT_NAME "vroom_core"
         SUFFIX ".mjs")
     # embind needs RTTI; Skia-WASM disables C++ exception *catching*. WebGL2 on.
+    #
+    # DYNAMIC_EXECUTION=0 is a hard requirement, not a nicety: by default embind
+    # and emval build their JS invoker functions with `new Function(...)` at
+    # startup, which a production CSP without `script-src 'unsafe-eval'` blocks —
+    # the module then fails to initialize at all. This flag selects emscripten's
+    # closure-based invoker path instead (slightly slower per JS→C++ call, and
+    # our per-frame work is all inside one draw call, so it doesn't show up).
+    # Verify after any toolchain bump: `grep -c 'new Function' vroom_core.mjs`
+    # must print 0.
     target_link_options(vroom_web PRIVATE
         "-O3"
         "-lembind"
+        "-sDYNAMIC_EXECUTION=0"
         "-sWASM=1"
         "-sMODULARIZE=1"
         "-sEXPORT_ES6=1"
