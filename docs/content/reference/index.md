@@ -5,6 +5,7 @@
 | Type Alias | Description |
 | ------ | ------ |
 | [Candle](type-aliases/Candle.md) | A single OHLCV bar. `candles` is an array of these. |
+| [ChartType](type-aliases/ChartType.md) | How the price series is drawn. 'candles' — default: candlestick bodies + wicks. 'line' — a single polyline through each candle's close. Volume, indicators, overlays, crosshair, and drawings still render. |
 | [CrosshairEvent](type-aliases/CrosshairEvent.md) | Payload passed to `onCrosshair` as the crosshair shows, moves, or hides. |
 | [MACDConfig](type-aliases/MACDConfig.md) | MACD indicator config. Rendered in its own pane below the candles. |
 | [MASource](type-aliases/MASource.md) | Price source for a moving average. |

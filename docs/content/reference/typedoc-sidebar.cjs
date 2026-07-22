@@ -13,6 +13,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/ChartType",
+          label: "ChartType"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/CrosshairEvent",
           label: "CrosshairEvent"
         },
