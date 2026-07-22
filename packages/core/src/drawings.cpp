@@ -5,6 +5,8 @@
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
+#include "include/core/SkPath.h"
+#include "include/core/SkPathBuilder.h"
 #include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
@@ -70,6 +72,49 @@ void draw_box(SkCanvas* canvas, SkPoint a, SkPoint b, SkColor color, float width
     canvas->drawRect(r, border);
 }
 
+// Strokes a freehand path through `pts` (data space). The polyline is smoothed
+// with quadratic curves through segment midpoints — each captured point becomes
+// a control point, so the stroke reads as one organic curve instead of a chain
+// of visible corners. Round caps/joins give it a pen-like feel.
+void draw_path(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
+               const PriceBounds& bounds, int64_t window_ms,
+               const std::vector<VroomDrawPoint>& pts, SkColor color,
+               float width) {
+    if (pts.empty()) return;
+    const float w = width > 0.f ? width : 2.f;
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(color);
+
+    // A stroke that's still a single sample renders as a dot, so pressing down
+    // gives immediate feedback before the pointer moves.
+    if (pts.size() == 1) {
+        const SkPoint p = to_px(chart, lay, bounds, window_ms, pts[0]);
+        paint.setStyle(SkPaint::kFill_Style);
+        canvas->drawCircle(p.fX, p.fY, w * 0.5f, paint);
+        return;
+    }
+
+    SkPathBuilder builder;
+    builder.moveTo(to_px(chart, lay, bounds, window_ms, pts[0]));
+    // Curve through every interior point, ending each quad at the midpoint of
+    // the next segment; finish with a straight run to the final sample.
+    for (size_t i = 1; i + 1 < pts.size(); ++i) {
+        const SkPoint cur = to_px(chart, lay, bounds, window_ms, pts[i]);
+        const SkPoint next = to_px(chart, lay, bounds, window_ms, pts[i + 1]);
+        builder.quadTo(cur, SkPoint{(cur.fX + next.fX) * 0.5f,
+                                    (cur.fY + next.fY) * 0.5f});
+    }
+    builder.lineTo(to_px(chart, lay, bounds, window_ms, pts.back()));
+
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(w);
+    paint.setStrokeCap(SkPaint::kRound_Cap);
+    paint.setStrokeJoin(SkPaint::kRound_Join);
+    canvas->drawPath(builder.detach(), paint);
+}
+
 void draw_node(SkCanvas* canvas, SkPoint pt, float scale = 1.f) {
     SkPaint fill;
     fill.setAntiAlias(true);
@@ -110,6 +155,46 @@ bool point_in_rect(float px, float py, SkPoint a, SkPoint b) {
     return px >= r.fLeft && px <= r.fRight && py >= r.fTop && py <= r.fBottom;
 }
 
+// Shortest distance from (px,py) to the freehand polyline through `pts`, in px.
+// Cheap bounding-box reject first (a stroke can hold many points and most
+// hit-tests miss), then distance-to-segment across consecutive samples — the
+// same two-stage approach Excalidraw uses for its freedraw elements. Returns a
+// value greater than `tol` on a clear miss.
+float dist_to_path(float px, float py, const VroomChart& chart, const Layout& lay,
+                   const PriceBounds& bounds, int64_t window_ms,
+                   const std::vector<VroomDrawPoint>& pts, float tol) {
+    const float kMiss = tol + 1.f;
+    if (pts.size() < 2) return kMiss;
+
+    float min_x = 0.f, max_x = 0.f, min_y = 0.f, max_y = 0.f;
+    for (size_t i = 0; i < pts.size(); ++i) {
+        const SkPoint p = to_px(chart, lay, bounds, window_ms, pts[i]);
+        if (i == 0) {
+            min_x = max_x = p.fX;
+            min_y = max_y = p.fY;
+        } else {
+            min_x = std::min(min_x, p.fX);
+            max_x = std::max(max_x, p.fX);
+            min_y = std::min(min_y, p.fY);
+            max_y = std::max(max_y, p.fY);
+        }
+    }
+    if (px < min_x - tol || px > max_x + tol || py < min_y - tol ||
+        py > max_y + tol) {
+        return kMiss;
+    }
+
+    float best = kMiss;
+    SkPoint prev = to_px(chart, lay, bounds, window_ms, pts[0]);
+    for (size_t i = 1; i < pts.size(); ++i) {
+        const SkPoint cur = to_px(chart, lay, bounds, window_ms, pts[i]);
+        best = std::min(best,
+                        dist_to_segment(px, py, prev.fX, prev.fY, cur.fX, cur.fY));
+        prev = cur;
+    }
+    return best;
+}
+
 // Shortest distance from (px,py) to the box's four edges, in px (0 when on an
 // edge). Used so the border is grabbable even outside the fill's tolerance.
 float dist_to_rect_edges(float px, float py, SkPoint a, SkPoint b) {
@@ -141,7 +226,12 @@ void draw(SkCanvas* canvas,
     if (!chart.drawings.empty()) {
         canvas->save();
         canvas->clipRect(clip);
-        for (const VroomDrawing& d : chart.drawings) {
+        for (const auto& d : chart.drawings) {
+            if (d.kind == 2) {
+                draw_path(canvas, chart, lay, bounds, window_ms, d.points,
+                          static_cast<SkColor>(d.color), d.width);
+                continue;
+            }
             const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
             const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
             if (d.kind == 1) {
@@ -162,10 +252,15 @@ void draw(SkCanvas* canvas,
     //     dots). The grabbed endpoint renders 50% larger.
     if (chart.selected_drawing >= 0 &&
         static_cast<size_t>(chart.selected_drawing) < chart.drawings.size()) {
-        const VroomDrawing& d = chart.drawings[chart.selected_drawing];
+        const auto& d = chart.drawings[chart.selected_drawing];
         const SkPoint sa = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint sb = to_px(chart, lay, bounds, window_ms, d.b);
-        if (d.kind == 1) {
+        if (d.kind == 2) {
+            // Pencil: anchors on the first/last point are a visual cue that the
+            // stroke is movable — they aren't grab handles, so never enlarged.
+            draw_node(canvas, sa);
+            draw_node(canvas, sb);
+        } else if (d.kind == 1) {
             // Four corner handles. The gesture layer stores the grabbed corner
             // as endpoint `a` (its diagonal as `b`), so corner 0 is the active
             // one while dragging.
@@ -181,6 +276,18 @@ void draw(SkCanvas* canvas,
     }
 
     if (!chart.draft_active) return;
+
+    // 1c. Freehand stroke in progress: draw the live path, clipped like the
+    //     committed shapes. It grows a point at a time via append_draft_point.
+    if (chart.draft_kind == 2) {
+        if (chart.draft_points.empty()) return;
+        canvas->save();
+        canvas->clipRect(clip);
+        draw_path(canvas, chart, lay, bounds, window_ms, chart.draft_points,
+                  static_cast<SkColor>(chart.draft_color), chart.draft_width);
+        canvas->restore();
+        return;
+    }
 
     const SkPoint a = to_px(chart, lay, bounds, window_ms, chart.draft_a);
     const bool has_b = chart.draft_has_b;
@@ -229,10 +336,13 @@ HitResult hit_test(const VroomChart& chart,
     constexpr float kHandleHit = kNodeRingRadius + 6.f;
     if (chart.selected_drawing >= 0 &&
         static_cast<size_t>(chart.selected_drawing) < chart.drawings.size()) {
-        const VroomDrawing& d = chart.drawings[chart.selected_drawing];
+        const auto& d = chart.drawings[chart.selected_drawing];
         const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
-        if (d.kind == 1) {
+        if (d.kind == 2) {
+            // Pencil has no grab handles — its anchors translate like any other
+            // part of the stroke, so fall through to the body pass.
+        } else if (d.kind == 1) {
             // Box: four corner handles (part 0..3).
             const auto corners = box_corners(a, b);
             for (int c = 0; c < 4; ++c) {
@@ -256,7 +366,18 @@ HitResult hit_test(const VroomChart& chart,
     int32_t best_part = 2;
     float best_t = 0.f;
     for (size_t i = 0; i < chart.drawings.size(); ++i) {
-        const VroomDrawing& d = chart.drawings[i];
+        const auto& d = chart.drawings[i];
+        if (d.kind == 2) {
+            const float dist = dist_to_path(x, y, chart, lay, bounds, window_ms,
+                                            d.points, kBodyHit);
+            if (dist <= best) {  // <= so later (topmost) drawings win ties
+                best = dist;
+                best_i = static_cast<int32_t>(i);
+                best_part = 5;
+                best_t = 0.f;
+            }
+            continue;
+        }
         const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
         if (d.kind == 1) {

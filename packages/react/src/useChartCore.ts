@@ -43,14 +43,22 @@ function overlayToNumeric(
 function drawingToSpec(
   d: NonNullable<VroomChartCoreProps['drawings']>[number],
 ): DrawingSpec {
+  // a/b are the first and last anchor — the two endpoints of a line, the two
+  // opposite corners of a box, or the ends of a pencil path (whose full point
+  // list rides along in `points`).
+  const first = d.points[0];
+  const last = d.points[d.points.length - 1];
   return {
-    aTime: d.points[0].timeMs,
-    aPrice: d.points[0].price,
-    bTime: d.points[1].timeMs,
-    bPrice: d.points[1].price,
+    aTime: first.timeMs,
+    aPrice: first.price,
+    bTime: last.timeMs,
+    bPrice: last.price,
     color: (d.color != null ? parseColor(d.color) : null) ?? 0xff2962ff,
     width: d.width ?? 2,
-    kind: d.type === 'box' ? 1 : 0,
+    kind: d.type === 'box' ? 1 : d.type === 'pencil' ? 2 : 0,
+    ...(d.type === 'pencil'
+      ? { points: d.points.map((p) => ({ timeMs: p.timeMs, price: p.price })) }
+      : {}),
   };
 }
 

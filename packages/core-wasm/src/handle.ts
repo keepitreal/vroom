@@ -100,8 +100,16 @@ export type DrawingSpec = {
   color: number;
   /** Stroke width in px. */
   width: number;
-  /** Geometry: 0 = line (a→b), 1 = box (a and b are opposite corners). */
+  /**
+   * Geometry: 0 = line (a→b), 1 = box (a and b are opposite corners),
+   * 2 = pencil (a freehand path — see `points`).
+   */
   kind: number;
+  /**
+   * The full path for a pencil stroke (kind 2), in draw order. Ignored for line
+   * and box, which are fully described by the a/b anchors.
+   */
+  points?: { timeMs: number; price: number }[];
 };
 
 /** A single resting-liquidity band in the core's numeric encoding. */
@@ -273,8 +281,23 @@ export interface VroomChartHandle {
     width: number,
     kind: number,
   ): void;
-  /** Clear the draft (hide in-progress node dots / guideline). */
+  /**
+   * Begin a freehand (pencil) draft stroke, clearing any previous draft. Follow
+   * with `appendDraftPoint` per captured sample; the growing path renders live.
+   */
+  startDraftStroke(color: number, width: number): void;
+  /**
+   * Append one point to the in-progress freehand draft. Cheap enough to call on
+   * every pointer move — the whole path is never restated.
+   */
+  appendDraftPoint(timeMs: number, price: number): void;
+  /** Clear the draft (hide in-progress node dots / guideline / stroke). */
   clearDraft(): void;
+  /**
+   * Shift a whole committed drawing by a *relative* data-space delta — both
+   * anchors and, for a pencil, every path point. Used for live body dragging.
+   */
+  translateDrawing(index: number, dTimeMs: number, dPrice: number): void;
   /**
    * Select a committed drawing (renders its endpoint handles). `index` -1
    * clears the selection; `grabbedEndpoint` 0/1 renders that handle 50% larger

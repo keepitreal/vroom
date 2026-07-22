@@ -6,9 +6,10 @@
 //   bytes ──store.load──▶ string  ──deserialize (+migrate)──▶ drawings
 //
 // Evolving the schema without breaking clients:
-//   • New drawing tool  → add its `type` to KNOWN_TYPES + the Drawing union.
-//     Old payloads still parse; payloads carrying an unknown tool (e.g. written
-//     by a newer version, then read by an older one) are dropped, not crashed.
+//   • New drawing tool  → add its `type` to KNOWN_TYPES + the Drawing union (and
+//     to FIXED_POINT_TYPES if it has exactly two anchors). Old payloads still
+//     parse; payloads carrying an unknown tool (e.g. written by a newer version,
+//     then read by an older one) are dropped, not crashed.
 //   • New persisted field → add it to the envelope, bump DRAWINGS_VERSION, and
 //     register a MIGRATIONS[oldVersion] that upgrades an old envelope to the new
 //     shape. Old stored strings migrate transparently on the next load.
@@ -20,7 +21,41 @@ import type { Drawing } from '@vroomchart/types';
 export const DRAWINGS_VERSION = 1;
 
 /** Drawing `type`s this build understands. Extend as tools are added. */
-const KNOWN_TYPES = new Set<Drawing['type']>(['line', 'box']);
+const KNOWN_TYPES = new Set<Drawing['type']>(['line', 'box', 'pencil']);
+
+/** How many points each type must carry; pencil is variable (2 or more). */
+const FIXED_POINT_TYPES = new Set(['line', 'box']);
+
+function isPoint(p: unknown): boolean {
+  if (p == null || typeof p !== 'object') return false;
+  const { timeMs, price } = p as { timeMs?: unknown; price?: unknown };
+  return (
+    typeof timeMs === 'number' &&
+    Number.isFinite(timeMs) &&
+    typeof price === 'number' &&
+    Number.isFinite(price)
+  );
+}
+
+/**
+ * Whether a parsed entry is a drawing this build can actually render. Checks the
+ * `type` *and* the shape of `points` — the store is an opaque, consumer-supplied
+ * blob, and since a pencil stroke is a variable-length array we can no longer
+ * assume two well-formed anchors. Anything malformed is dropped exactly like an
+ * unknown type, rather than reaching the renderer as garbage.
+ */
+function isValidDrawing(d: unknown): d is Drawing {
+  if (d == null || typeof d !== 'object') return false;
+  const { type, points } = d as { type?: unknown; points?: unknown };
+  if (typeof type !== 'string' || !KNOWN_TYPES.has(type as Drawing['type'])) {
+    return false;
+  }
+  if (!Array.isArray(points)) return false;
+  if (FIXED_POINT_TYPES.has(type) ? points.length !== 2 : points.length < 2) {
+    return false;
+  }
+  return points.every(isPoint);
+}
 
 type Envelope = { v: number; drawings: Drawing[] };
 
@@ -80,11 +115,9 @@ export function deserializeDrawings(raw: string | null | undefined): Drawing[] {
     env = up(env);
   }
 
-  // Forward-compat: keep only drawings whose `type` this build renders. A newer
-  // file with an unknown tool loads cleanly minus that tool, rather than
-  // throwing or drawing garbage.
-  return (Array.isArray(env.drawings) ? env.drawings : []).filter(
-    (d): d is Drawing =>
-      d != null && typeof d === 'object' && KNOWN_TYPES.has((d as Drawing).type),
-  );
+  // Forward-compat: keep only drawings this build can render — a known `type`
+  // carrying a well-formed `points` array. A newer file with an unknown tool (or
+  // a corrupt entry) loads cleanly minus that entry, rather than throwing or
+  // drawing garbage.
+  return (Array.isArray(env.drawings) ? env.drawings : []).filter(isValidDrawing);
 }

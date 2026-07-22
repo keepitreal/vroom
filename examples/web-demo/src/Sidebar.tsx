@@ -205,6 +205,7 @@ export type SidebarProps = {
     drawTool: DrawTool;
     toggleLineTool: () => void;
     toggleBoxTool: () => void;
+    togglePencilTool: () => void;
   };
   panels: {
     activeCount: number;
@@ -404,6 +405,18 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             }}
           >
             Box (R)
+          </button>
+          <button
+            onClick={overlays.togglePencilTool}
+            style={{
+              ...btn,
+              flex: 1,
+              ...(drawing && overlays.drawTool === 'pencil'
+                ? { background: '#1f6feb', color: '#f0f6fc', border: '1px solid #1f6feb' }
+                : {}),
+            }}
+          >
+            Pencil (P)
           </button>
         </div>
       </Section>

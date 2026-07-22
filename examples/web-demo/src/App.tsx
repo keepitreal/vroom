@@ -441,26 +441,28 @@ export function App() {
   }, []);
   const toggleLineTool = useCallback(() => selectTool('line'), [selectTool]);
   const toggleBoxTool = useCallback(() => selectTool('box'), [selectTool]);
+  const togglePencilTool = useCallback(() => selectTool('pencil'), [selectTool]);
 
-  // "L" toggles the line tool, "R" the box (rectangle) tool — Figma/Excalidraw
-  // style. This lives in the demo, not the library — the hotkey is the consuming
-  // app's choice, so vroom doesn't enshrine one. Ignore it while typing in a
-  // field or with a modifier held.
+  // "L" toggles the line tool, "R" the box (rectangle), "P" the pencil —
+  // Figma/Excalidraw style. This lives in the demo, not the library — the hotkey
+  // is the consuming app's choice, so vroom doesn't enshrine one. Ignore it while
+  // typing in a field or with a modifier held.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k !== 'l' && k !== 'r') return;
+      if (k !== 'l' && k !== 'r' && k !== 'p') return;
       const ae = document.activeElement as HTMLElement | null;
       const tag = ae?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || ae?.isContentEditable) return;
       e.preventDefault();
       if (k === 'l') toggleLineTool();
-      else toggleBoxTool();
+      else if (k === 'r') toggleBoxTool();
+      else togglePencilTool();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleLineTool, toggleBoxTool]);
+  }, [toggleLineTool, toggleBoxTool, togglePencilTool]);
 
   const drawProps: DrawProps = {
     mode: drawMode,
@@ -708,7 +710,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, drawTool, toggleLineTool, toggleBoxTool }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

@@ -135,10 +135,22 @@ struct VroomChart {
     std::vector<unsigned char> vwap_breaks;
     bool vwap_dirty = true;
 
-    // --- drawings (line annotations) ---------------------------------------
-    // Committed two-point lines, anchored in data space so they track the
-    // candles on pan/zoom. Drawn on the price pane above candles/overlays.
-    std::vector<VroomDrawing> drawings;
+    // --- drawings (annotations) --------------------------------------------
+    // Committed drawings, anchored in data space so they track the candles on
+    // pan/zoom. Drawn on the price pane above candles/overlays.
+    //
+    // Mirrors the public VroomDrawing but *owns* its points, so a pencil path
+    // (kind 2) can carry a variable number of them. For line/box `points` is
+    // empty and only a/b are used; for pencil a/b mirror the first/last point.
+    struct StoredDrawing {
+        VroomDrawPoint              a{};
+        VroomDrawPoint              b{};
+        uint32_t                    color = 0xff2962ff;
+        float                       width = 2.f;
+        int32_t                     kind = 0;
+        std::vector<VroomDrawPoint> points;  // pencil path (kind 2)
+    };
+    std::vector<StoredDrawing> drawings;
 
     // Transient in-progress "draft" the drawing tool shows while placing points.
     // draft_a is always drawn (node dot); draft_b is drawn when draft_has_b.
@@ -152,7 +164,9 @@ struct VroomChart {
     bool           draft_guide = false;
     uint32_t       draft_color = 0xff2962ff;
     float          draft_width = 2.f;
-    int32_t        draft_kind = 0;  // 0 = line, 1 = box (matches VroomDrawing)
+    int32_t        draft_kind = 0;  // 0 = line, 1 = box, 2 = pencil (VroomDrawing)
+    // Freehand stroke in progress (draft_kind 2), grown one point at a time.
+    std::vector<VroomDrawPoint> draft_points;
 
     // Selection/editing state for committed drawings. selected_drawing indexes
     // `drawings` (or -1); its endpoints render as handles. grabbed_endpoint is

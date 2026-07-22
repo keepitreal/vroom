@@ -8,6 +8,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { ChartMode, CrosshairEvent, Drawing, DrawPoint, DrawTool } from '@vroomchart/types';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
+import { simplifyIndices } from './simplify';
+
 type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' | 'indicator-axis';
 
 export type GestureOptions = {
@@ -44,12 +46,43 @@ const SEP_HIT = 4; // px band around the indicator separator for hit-testing
 const DRAW_COLOR = 0xff2962ff;
 const DRAW_WIDTH = 2;
 
+// Freehand capture tuning. PENCIL_MIN_DIST drops samples the pointer barely
+// moved between (browsers fire moves far faster than the stroke changes);
+// PENCIL_EPSILON is the RDP tolerance applied on commit, in px — roughly "no
+// point may pull the rendered stroke more than a pixel off".
+const PENCIL_MIN_DIST = 2;
+const PENCIL_EPSILON = 1;
+
 // Stable unique id for a freshly drawn line.
 function drawingId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
   return `draw-${Math.random().toString(36).slice(2)}`;
+}
+
+// The core's hit-test `part` that means "the body of this shape" (as opposed to
+// a grab handle). See packages/core/src/drawings.h for the full part encoding.
+function bodyPart(type: Drawing['type']): number {
+  return type === 'box' ? 4 : type === 'pencil' ? 5 : 2;
+}
+
+// Rebuilds a drawing of `type` from a point array. `Drawing` is a discriminated
+// union where line/box carry an exact two-point tuple and only pencil is
+// variable-length, so this is where an array is narrowed back to the right
+// variant. Returns null for a degenerate (< 2 point) shape.
+function makeDrawing(
+  base: { id: string; color?: Drawing['color']; width?: number },
+  type: Drawing['type'],
+  pts: DrawPoint[],
+): Drawing | null {
+  if (pts.length < 2) return null;
+  const style = {
+    ...(base.color != null ? { color: base.color } : {}),
+    ...(base.width != null ? { width: base.width } : {}),
+  };
+  if (type === 'pencil') return { id: base.id, type, points: pts, ...style };
+  return { id: base.id, type, points: [pts[0]!, pts[pts.length - 1]!], ...style };
 }
 
 // The four corners of a box (given its two opposite-corner `points`), in the
@@ -101,6 +134,9 @@ export function useGestures(
     fixed: DrawPoint;
     isBox: boolean;
   } | null>(null);
+  // A whole shape being translated by its body. Line/box restate both anchors
+  // absolutely from a0/b0; a pencil can't (hundreds of points), so it carries
+  // `points0` and is driven by relative translateDrawing calls instead.
   const dragLineRef = useRef<{
     index: number;
     startTime: number;
@@ -109,7 +145,16 @@ export function useGestures(
     b0: DrawPoint;
     lastA: DrawPoint;
     lastB: DrawPoint;
+    points0?: DrawPoint[];
+    /** Total delta applied to the core so far, for the incremental translate. */
+    appliedTime?: number;
+    appliedPrice?: number;
   } | null>(null);
+  // An in-progress freehand stroke: the captured data-space points plus their
+  // pixel positions, which drive the min-distance sampling and the RDP pass.
+  const pencilRef = useRef<{ pts: DrawPoint[]; px: { x: number; y: number }[] } | null>(
+    null,
+  );
   const downHitRef = useRef<{ index: number; part: number; t: number } | null>(null);
   const lastCoordRef = useRef<{ timeMs: number; price: number } | null>(null);
   // Where along the selected line it was grabbed (0..1, A→B), and the in-memory
@@ -117,7 +162,7 @@ export function useGestures(
   const selectedTRef = useRef(0.5);
   const clipboardRef = useRef<{
     type: Drawing['type'];
-    points: [DrawPoint, DrawPoint];
+    points: DrawPoint[];
     color?: Drawing['color'];
     width?: number;
     t: number;
@@ -162,13 +207,19 @@ export function useGestures(
       return (optsRef.current.drawings ?? []).find((x) => x.id === id) ?? null;
     };
 
-    // Endpoints for a pasted copy: under the crosshair (intersecting at the same
+    // Points for a pasted copy: under the crosshair (intersecting at the same
     // grab t), else offset above/below the original, kept within the viewport.
-    const placePaste = (clip: NonNullable<typeof clipboardRef.current>): [DrawPoint, DrawPoint] | null => {
+    // Works for any point count — a line/box's two anchors or a whole pencil path.
+    const placePaste = (clip: NonNullable<typeof clipboardRef.current>): DrawPoint[] | null => {
       const h = handleRef.current;
       if (!h) return null;
-      const [a, b] = clip.points;
+      const pts = clip.points;
+      if (pts.length < 2) return null;
+      const a = pts[0]!;
+      const b = pts[pts.length - 1]!;
       const t = clip.t;
+      // Reference point that lands under the cursor: where the shape was grabbed
+      // along first→last (t is 0 for a pencil, i.e. its starting point).
       const pSel = {
         timeMs: a.timeMs + t * (b.timeMs - a.timeMs),
         price: a.price + t * (b.price - a.price),
@@ -182,18 +233,15 @@ export function useGestures(
       if (moved && cur) {
         const dt = cur.timeMs - pSel.timeMs;
         const dp = cur.price - pSel.price;
-        return [
-          { timeMs: a.timeMs + dt, price: a.price + dp },
-          { timeMs: b.timeMs + dt, price: b.price + dp },
-        ];
+        return pts.map((q) => ({ timeMs: q.timeMs + dt, price: q.price + dp }));
       }
       // Above/below the original. Derive the visible price range + px scale.
       const el = containerRef.current;
-      const shift = (dp: number): [DrawPoint, DrawPoint] => [
-        { timeMs: a.timeMs, price: a.price + dp },
-        { timeMs: b.timeMs, price: b.price + dp },
-      ];
-      const span = Math.abs(a.price - b.price);
+      const shift = (dp: number): DrawPoint[] =>
+        pts.map((q) => ({ timeMs: q.timeMs, price: q.price + dp }));
+      // Full price extent of the shape, so the copy clears the original.
+      const prices = pts.map((q) => q.price);
+      const span = Math.max(...prices) - Math.min(...prices);
       if (!el) return shift(-(span || 1));
       const rect = el.getBoundingClientRect();
       const m = h.getAxisMetrics();
@@ -206,8 +254,8 @@ export function useGestures(
       const pricePerPx = (vTop - vBot) / priceBottom;
       const GAP_PX = 30;
       const offset = (span / pricePerPx + GAP_PX) * pricePerPx; // clear the original
-      const pMin = Math.min(a.price, b.price);
-      const pMax = Math.max(a.price, b.price);
+      const pMin = Math.min(...prices);
+      const pMax = Math.max(...prices);
       const upFits = pMax + offset <= vTop;
       const downFits = pMin - offset >= vBot;
       let dir: 1 | -1;
@@ -268,7 +316,7 @@ export function useGestures(
         const info = handleRef.current?.getCrosshairInfo() ?? null;
         clipboardRef.current = {
           type: d.type,
-          points: [d.points[0], d.points[1]],
+          points: d.points.map((q) => ({ timeMs: q.timeMs, price: q.price })),
           color: d.color,
           width: d.width,
           t: selectedTRef.current,
@@ -279,15 +327,15 @@ export function useGestures(
         if (!clip) return;
         const pts = placePaste(clip);
         if (!pts) return;
-        e.preventDefault();
         const id = drawingId();
-        optsRef.current.onDrawingComplete?.({
-          id,
-          type: clip.type,
-          points: pts,
-          ...(clip.color != null ? { color: clip.color } : {}),
-          ...(clip.width != null ? { width: clip.width } : {}),
-        });
+        const copy = makeDrawing(
+          { id, color: clip.color, width: clip.width },
+          clip.type,
+          pts,
+        );
+        if (!copy) return;
+        e.preventDefault();
+        optsRef.current.onDrawingComplete?.(copy);
         // The drawings-change effect selects the new id once it's appended.
         selectedIdRef.current = id;
         selectedTRef.current = clip.t;
@@ -305,9 +353,12 @@ export function useGestures(
   // toggled the tool off, or switched tools, mid-draw), so re-entering draw mode
   // starts clean.
   useEffect(() => {
-    const active = opts.mode === 'draw' && (opts.tool === 'line' || opts.tool === 'box');
+    const active =
+      opts.mode === 'draw' &&
+      (opts.tool === 'line' || opts.tool === 'box' || opts.tool === 'pencil');
     if (active) return;
     drawAnchorRef.current = null;
+    pencilRef.current = null;
     const h = handleRef.current;
     if (h) {
       h.clearDraft();
@@ -488,11 +539,17 @@ export function useGestures(
     // True while a drawing tool should own input (suppress pan/zoom/crosshair).
     const drawActive = () =>
       optsRef.current.mode === 'draw' &&
-      (optsRef.current.tool === 'line' || optsRef.current.tool === 'box');
+      (optsRef.current.tool === 'line' ||
+        optsRef.current.tool === 'box' ||
+        optsRef.current.tool === 'pencil');
 
     // Whether the active draw tool is the box (vs the line). `1`/`0` maps to the
     // core's draft/drawing `kind`.
     const drawIsBox = () => optsRef.current.tool === 'box';
+
+    // The pencil is drag-driven rather than click-click, so it takes its own
+    // path through pointerdown/move/up instead of the two-click draft flow.
+    const drawIsPencil = () => optsRef.current.tool === 'pencil';
 
     // Snap the moving anchor relative to `fixed`, using the constraint that fits
     // the shape: square for a box, 45° for a line.
@@ -546,6 +603,91 @@ export function useGestures(
       }
     };
 
+    // --- Pencil (freehand) capture ---------------------------------------
+    // The stroke is captured in two parallel arrays: data-space points (what
+    // gets committed, so the stroke tracks the candles) and their pixel
+    // positions (what drives min-distance sampling and the RDP pass, so both
+    // tolerances mean "on screen" regardless of zoom or price scale).
+
+    const pencilStart = (x: number, y: number) => {
+      const h = handleRef.current;
+      if (!h) return;
+      const c = h.coordAt(x, y);
+      if (!c) return;
+      pencilRef.current = { pts: [c], px: [{ x, y }] };
+      h.startDraftStroke(DRAW_COLOR, DRAW_WIDTH);
+      h.appendDraftPoint(c.timeMs, c.price);
+      scheduleRender();
+    };
+
+    const pencilMove = (x: number, y: number) => {
+      const h = handleRef.current;
+      const s = pencilRef.current;
+      if (!h || !s) return;
+      // Skip samples the pointer barely moved between — pointermove fires far
+      // faster than the stroke actually changes shape.
+      const last = s.px[s.px.length - 1]!;
+      if (Math.hypot(x - last.x, y - last.y) < PENCIL_MIN_DIST) return;
+      const c = h.coordAt(x, y);
+      if (!c) return;
+      s.pts.push(c);
+      s.px.push({ x, y });
+      h.appendDraftPoint(c.timeMs, c.price);
+      scheduleRender();
+    };
+
+    // Price precision at which the rounding error stays well under a pixel, so
+    // the persisted stroke renders identically to the drawn one while shedding
+    // float noise (54812.34567890123 → 54812.345679) from the stored payload.
+    const priceDecimals = (): number => {
+      const h = handleRef.current;
+      const el = containerRef.current;
+      if (!h || !el) return 6;
+      const rect = el.getBoundingClientRect();
+      const m = h.getAxisMetrics();
+      const priceBottom = rect.height - m.xAxisHeight - m.indicatorHeight;
+      if (priceBottom <= 0) return 6;
+      const top = h.coordAt(rect.width / 2, 0);
+      const bot = h.coordAt(rect.width / 2, priceBottom);
+      if (!top || !bot || top.price <= bot.price) return 6;
+      const pricePerPx = (top.price - bot.price) / priceBottom;
+      const d = Math.ceil(-Math.log10(pricePerPx / 100));
+      return Math.max(0, Math.min(12, Number.isFinite(d) ? d : 6));
+    };
+
+    // Quantize a stroke's points so the persisted payload stays compact. Applied
+    // wherever a stroke is emitted (commit and translate) so stored coordinates
+    // never re-accumulate float noise.
+    const roundPoints = (pts: DrawPoint[]): DrawPoint[] => {
+      const dp = priceDecimals();
+      return pts.map((p) => ({
+        timeMs: Math.round(p.timeMs),
+        price: Number(p.price.toFixed(dp)),
+      }));
+    };
+
+    // Commit the stroke: thin it with RDP, round the coordinates, and hand it to
+    // the host. Sub-threshold strokes (a stray click) are dropped, not committed
+    // as a speck.
+    const pencilEnd = () => {
+      const h = handleRef.current;
+      const s = pencilRef.current;
+      pencilRef.current = null;
+      if (!h) return;
+      h.clearDraft();
+      scheduleRender();
+      if (!s || s.pts.length < 2) return;
+
+      const keep = simplifyIndices(s.px, PENCIL_EPSILON);
+      if (keep.length < 2) return;
+      const stroke = makeDrawing(
+        { id: drawingId() },
+        'pencil',
+        roundPoints(keep.map((i) => s.pts[i]!)),
+      );
+      if (stroke) optsRef.current.onDrawingComplete?.(stroke);
+    };
+
     // Reposition the grabbed endpoint at pixel (x,y), Shift-snapping to 45°
     // relative to the fixed (other) endpoint.
     const moveGrab = (x: number, y: number) => {
@@ -592,42 +734,50 @@ export function useGestures(
       moved = false;
       panMode = regionAt(x, y);
 
+      // Pencil: the press itself starts the stroke and owns the pointer for its
+      // whole duration — no long-press crosshair, no pan.
+      if (drawIsPencil() && drawActive() && panMode === 'chart') {
+        pencilStart(x, y);
+        return;
+      }
+
       // Editing (pan mode, chart area): grab a handle to drag it now; otherwise
       // record the hit so a stationary release can select a body / deselect.
       downHitRef.current = null;
       if (!drawActive() && panMode === 'chart') {
         const hit = h.hitTestDrawing(x, y);
         const gd = hit ? (optsRef.current.drawings ?? [])[hit.index] : undefined;
-        const isBox = gd?.type === 'box';
-        // Handle/corner grab: line endpoints (part 0/1) or box corners (part 0..3).
-        const isHandle = hit != null && (isBox ? hit.part <= 3 : hit.part <= 1);
-        if (hit && gd && isHandle) {
-          if (isBox) {
-            // A box corner: the diagonally opposite corner stays fixed. Normalize
-            // the core so endpoint 0 = grabbed corner, endpoint 1 = diagonal, then
-            // the line's endpoint-drag path resizes it (all corners stay 90°).
-            const corners = boxCorners(gd.points);
-            const grabbed = corners[hit.part];
-            const diagonal = corners[(hit.part + 2) % 4];
-            h.moveDrawingEndpoint(hit.index, 0, grabbed.timeMs, grabbed.price);
-            h.moveDrawingEndpoint(hit.index, 1, diagonal.timeMs, diagonal.price);
-            grabRef.current = { index: hit.index, endpoint: 0, fixed: diagonal, isBox: true };
-            lastCoordRef.current = grabbed;
-          } else {
-            grabRef.current = {
-              index: hit.index,
-              endpoint: hit.part,
-              fixed: gd.points[hit.part === 0 ? 1 : 0], // the other end stays put
-              isBox: false,
-            };
-            lastCoordRef.current = null;
-          }
+        // Handle/corner grab: line endpoints (part 0/1) or box corners (part
+        // 0..3). A pencil has no handles at all — its end anchors translate the
+        // stroke like any other part of it — so it never takes this path.
+        if (hit && gd && gd.type === 'box' && hit.part <= 3) {
+          // A box corner: the diagonally opposite corner stays fixed. Normalize
+          // the core so endpoint 0 = grabbed corner, endpoint 1 = diagonal, then
+          // the line's endpoint-drag path resizes it (all corners stay 90°).
+          const corners = boxCorners(gd.points);
+          const grabbed = corners[hit.part];
+          const diagonal = corners[(hit.part + 2) % 4];
+          h.moveDrawingEndpoint(hit.index, 0, grabbed.timeMs, grabbed.price);
+          h.moveDrawingEndpoint(hit.index, 1, diagonal.timeMs, diagonal.price);
+          grabRef.current = { index: hit.index, endpoint: 0, fixed: diagonal, isBox: true };
+          lastCoordRef.current = grabbed;
+          applySelection(); // enlarge the grabbed handle
+          return; // the handle drag owns this pointer — no pan / long-press
+        }
+        if (hit && gd && gd.type === 'line' && hit.part <= 1) {
+          grabRef.current = {
+            index: hit.index,
+            endpoint: hit.part,
+            fixed: gd.points[hit.part === 0 ? 1 : 0], // the other end stays put
+            isBox: false,
+          };
+          lastCoordRef.current = null;
           applySelection(); // enlarge the grabbed handle
           return; // the handle drag owns this pointer — no pan / long-press
         }
         // Body of the already-selected shape → translate the whole shape on drag.
-        // Line body is part 2; box body (interior/edge) is part 4.
-        const isBody = hit != null && (isBox ? hit.part === 4 : hit.part === 2);
+        // Line body is part 2, box body (interior/edge) part 4, pencil stroke 5.
+        const isBody = hit != null && gd != null && hit.part === bodyPart(gd.type);
         if (hit && isBody) {
           const list = optsRef.current.drawings ?? [];
           const selIdx = selectedIdRef.current
@@ -637,14 +787,21 @@ export function useGestures(
             const start = h.coordAt(x, y);
             const d = list[selIdx];
             if (start && d) {
+              const first = d.points[0]!;
+              const last = d.points[d.points.length - 1]!;
               dragLineRef.current = {
                 index: selIdx,
                 startTime: start.timeMs,
                 startPrice: start.price,
-                a0: d.points[0],
-                b0: d.points[1],
-                lastA: d.points[0],
-                lastB: d.points[1],
+                a0: first,
+                b0: last,
+                lastA: first,
+                lastB: last,
+                // A stroke can't be restated cheaply each frame, so it keeps its
+                // original points and is nudged with relative translate calls.
+                ...(d.type === 'pencil'
+                  ? { points0: d.points, appliedTime: 0, appliedPrice: 0 }
+                  : {}),
               };
               el.style.cursor = 'move';
               return; // the shape drag owns this pointer — no pan / long-press
@@ -700,6 +857,15 @@ export function useGestures(
       const dy = y - prev.y;
       pointers.set(e.pointerId, { x, y });
 
+      // Freehand stroke in progress: extend it. Deliberately ahead of the
+      // MOVE_THRESH gate below — a pencil records from the very first pixel, so
+      // waiting for a 6px "is this a drag?" threshold would clip every stroke's
+      // start.
+      if (pencilRef.current) {
+        pencilMove(x, y);
+        return;
+      }
+
       // Handle drag (pan-mode editing): reposition the grabbed endpoint live,
       // with no move threshold, and never pan.
       if (grabRef.current) {
@@ -707,18 +873,28 @@ export function useGestures(
         return;
       }
 
-      // Line translate (pan-mode editing): shift both endpoints by the pointer's
-      // data-space delta, live, no threshold, never pan.
+      // Shape translate (pan-mode editing): shift the whole drawing by the
+      // pointer's data-space delta, live, no threshold, never pan.
       if (dragLineRef.current) {
         const g = dragLineRef.current;
         const c = h.coordAt(x, y);
         if (c) {
           const dT = c.timeMs - g.startTime;
           const dP = c.price - g.startPrice;
-          g.lastA = { timeMs: g.a0.timeMs + dT, price: g.a0.price + dP };
-          g.lastB = { timeMs: g.b0.timeMs + dT, price: g.b0.price + dP };
-          h.moveDrawingEndpoint(g.index, 0, g.lastA.timeMs, g.lastA.price);
-          h.moveDrawingEndpoint(g.index, 1, g.lastB.timeMs, g.lastB.price);
+          if (g.points0) {
+            // Pencil: nudge the core by the change since the last move, since
+            // restating a whole path every frame would be wasteful. Only the
+            // live preview accumulates; the committed payload below is computed
+            // from the originals, so no float drift is persisted.
+            h.translateDrawing(g.index, dT - (g.appliedTime ?? 0), dP - (g.appliedPrice ?? 0));
+            g.appliedTime = dT;
+            g.appliedPrice = dP;
+          } else {
+            g.lastA = { timeMs: g.a0.timeMs + dT, price: g.a0.price + dP };
+            g.lastB = { timeMs: g.b0.timeMs + dT, price: g.b0.price + dP };
+            h.moveDrawingEndpoint(g.index, 0, g.lastA.timeMs, g.lastA.price);
+            h.moveDrawingEndpoint(g.index, 1, g.lastB.timeMs, g.lastB.price);
+          }
           if (!moved && Math.hypot(x - downX, y - downY) > MOVE_THRESH) moved = true;
           scheduleRender();
         }
@@ -791,6 +967,14 @@ export function useGestures(
       if (pointers.size < 2) pinch.active = false;
       if (!had) return;
 
+      // Pencil release: commit the stroke (simplified + rounded). The tool stays
+      // active so the next press starts another stroke.
+      if (pencilRef.current && pointers.size === 0) {
+        pencilEnd();
+        el.style.cursor = 'crosshair';
+        return;
+      }
+
       // Handle-drag release (editing): persist the moved endpoint, keep it
       // selected, and un-grab (drops the 50% enlarge).
       if (grabRef.current && pointers.size === 0) {
@@ -803,25 +987,41 @@ export function useGestures(
           // Box: the two opposite corners are the dragged corner + its fixed
           // diagonal (order-independent). Line: replace the grabbed endpoint,
           // keeping the other in place.
-          const pts: [DrawPoint, DrawPoint] = g.isBox
-            ? [{ timeMs: c.timeMs, price: c.price }, g.fixed]
-            : [d.points[0], d.points[1]];
-          if (!g.isBox) pts[g.endpoint] = { timeMs: c.timeMs, price: c.price };
-          optsRef.current.onDrawingChange?.({ ...d, points: pts });
+          const movedPt = { timeMs: c.timeMs, price: c.price };
+          const pts: DrawPoint[] = g.isBox
+            ? [movedPt, g.fixed]
+            : [d.points[0]!, d.points[1]!];
+          if (!g.isBox) pts[g.endpoint] = movedPt;
+          const next = makeDrawing({ id: d.id, color: d.color, width: d.width }, d.type, pts);
+          if (next) optsRef.current.onDrawingChange?.(next);
         }
         applySelection();
         el.style.cursor = '';
         return;
       }
 
-      // Line-translate release: persist the moved line, keep it selected.
+      // Shape-translate release: persist the moved drawing, keep it selected.
       if (dragLineRef.current && pointers.size === 0) {
         const g = dragLineRef.current;
         dragLineRef.current = null;
         if (moved) {
           const list = optsRef.current.drawings ?? [];
           const d = list[g.index];
-          if (d) optsRef.current.onDrawingChange?.({ ...d, points: [g.lastA, g.lastB] });
+          if (d) {
+            // Pencil: recompute every point from the originals + the total
+            // delta, so what's persisted carries none of the live preview's
+            // accumulated float error.
+            const pts = g.points0
+              ? roundPoints(
+                  g.points0.map((p) => ({
+                    timeMs: p.timeMs + (g.appliedTime ?? 0),
+                    price: p.price + (g.appliedPrice ?? 0),
+                  })),
+                )
+              : [g.lastA, g.lastB];
+            const next = makeDrawing({ id: d.id, color: d.color, width: d.width }, d.type, pts);
+            if (next) optsRef.current.onDrawingChange?.(next);
+          }
         }
         applySelection();
         el.style.cursor = '';
@@ -842,11 +1042,9 @@ export function useGestures(
         const hit = downHitRef.current;
         const list = optsRef.current.drawings ?? [];
         const hitDrawing = hit ? list[hit.index] : undefined;
-        // Body hit: line body is part 2, box body is part 4.
+        // Body hit: line 2, box 4, pencil 5.
         const isBodyHit =
-          hit != null &&
-          hitDrawing != null &&
-          (hitDrawing.type === 'box' ? hit.part === 4 : hit.part === 2);
+          hit != null && hitDrawing != null && hit.part === bodyPart(hitDrawing.type);
         if (hit && isBodyHit && hitDrawing) {
           selectedTRef.current = hit.t; // remember where along the line it was grabbed
           if (selectedIdRef.current !== hitDrawing.id) {

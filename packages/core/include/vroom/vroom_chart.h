@@ -56,15 +56,23 @@ typedef struct VroomDrawPoint {
 } VroomDrawPoint;
 
 // A committed drawing on the price pane. `kind` selects the geometry:
-//   0 = line — a two-point trendline from `a` to `b`.
-//   1 = box  — an axis-aligned rectangle whose two opposite corners are `a` and
-//              `b`; the other two corners (a.x,b.y) and (b.x,a.y) are derived.
+//   0 = line   — a two-point trendline from `a` to `b`.
+//   1 = box    — an axis-aligned rectangle whose two opposite corners are `a`
+//                and `b`; the other two corners (a.x,b.y) and (b.x,a.y) derive.
+//   2 = pencil — a freehand path through `points` (in draw order). `a`/`b` mirror
+//                the first/last point so bounds and handle code stay uniform.
+//
+// `points`/`point_count` are only read for kind 2; line and box leave them
+// null/0. Like the rest of this API the points are copied internally, so the
+// caller may free them as soon as the call returns.
 typedef struct VroomDrawing {
-    VroomDrawPoint a;
-    VroomDrawPoint b;
-    uint32_t       color;  // 0xAARRGGBB
-    float          width;  // stroke width in px
-    int32_t        kind;   // 0 = line, 1 = box
+    VroomDrawPoint        a;
+    VroomDrawPoint        b;
+    uint32_t              color;        // 0xAARRGGBB
+    float                 width;        // stroke width in px
+    int32_t               kind;         // 0 = line, 1 = box, 2 = pencil
+    const VroomDrawPoint* points;       // pencil path (kind 2), else null
+    int32_t               point_count;  // number of `points`, else 0
 } VroomDrawing;
 
 // A resting-liquidity band: a price interval carrying a total order size on one
@@ -343,6 +351,12 @@ void vroom_chart_move_drawing_endpoint(VroomChart* chart, int32_t index,
                                        int32_t endpoint, int64_t time_ms,
                                        double price);
 
+// Shifts a whole committed drawing by a *relative* data-space delta — `a`, `b`,
+// and (for a pencil) every path point. Used for live body dragging of shapes
+// whose points can't be restated cheaply. No-op for an out-of-range index.
+void vroom_chart_translate_drawing(VroomChart* chart, int32_t index,
+                                   int64_t d_time_ms, double d_price);
+
 // ---- Liquidity bands (order-book depth overlay) ---------------------------
 
 // Replaces the full set of resting-liquidity bands and their shared style.
@@ -363,7 +377,19 @@ void vroom_chart_set_draft(VroomChart* chart, int64_t a_time, double a_price,
                            bool guide, uint32_t color, float width,
                            int32_t kind);
 
-// Clears the draft (hides the in-progress node dots / guideline).
+// Begins a freehand (pencil) draft stroke, clearing any previous draft points.
+// Follow with vroom_chart_append_draft_point per captured sample; the growing
+// path renders live. `color`/`width` style it to match the eventual stroke.
+void vroom_chart_start_draft_stroke(VroomChart* chart, uint32_t color,
+                                    float width);
+
+// Appends one point to the in-progress freehand draft. Cheap (O(1) amortized) so
+// it can be called on every pointer move without restating the whole path.
+// No-op unless a draft stroke was started.
+void vroom_chart_append_draft_point(VroomChart* chart, int64_t time_ms,
+                                    double price);
+
+// Clears the draft (hides the in-progress node dots / guideline / stroke).
 void vroom_chart_clear_draft(VroomChart* chart);
 
 // Fills *out with the continuous data coordinate (time_ms, price) at pixel

@@ -4,9 +4,10 @@ vroom ships interactive drawing tools for annotating the chart. Drawings are
 anchored in **data space** (time + price), so they stay glued to the candles as
 the user pans and zooms — and survive reloads if you persist them.
 
-Drawing is **web only** today (React Native support is planned). Two tools are
-available: the **line** (a two-point trendline) and the **box** (an axis-aligned
-rectangle defined by two opposite corners).
+Drawing is **web only** today (React Native support is planned). Three tools are
+available: the **line** (a two-point trendline), the **box** (an axis-aligned
+rectangle defined by two opposite corners), and the **pencil** (a freehand
+stroke you draw by dragging).
 
 There are two ways to manage the drawings themselves:
 
@@ -132,12 +133,12 @@ If you need to pre-seed a store, or build an import/export feature, use the
 
 ## Activating a drawing tool
 
-To start drawing, put the chart in draw mode and pick a tool — `'line'` or
-`'box'`:
+To start drawing, put the chart in draw mode and pick a tool — `'line'`, `'box'`
+or `'pencil'`:
 
 ```tsx
 setMode('draw');
-setTool('line'); // or 'box'
+setTool('line'); // or 'box' | 'pencil'
 ```
 
 **How you trigger that is up to you** — a toolbar button, a menu, or a keyboard
@@ -171,7 +172,8 @@ Once the tool is active, all of the interaction and keyboard handling below is
 
 | Action | Effect |
 | --- | --- |
-| Click, then click again | Places the two anchors — a line's endpoints, or a box's two opposite corners; the shape commits (`onDrawingComplete`) |
+| Click, then click again (line, box) | Places the two anchors — a line's endpoints, or a box's two opposite corners; the shape commits (`onDrawingComplete`) |
+| Press and drag (pencil) | Draws freehand for as long as the button is held; releasing commits the stroke (`onDrawingComplete`). The tool stays active, so you can draw several strokes in a row |
 | Hold **Shift** while placing the 2nd point | **Line**: snaps to the nearest 45° (0° / 45° / 90° …). **Box**: constrains to a perfect square (equal side lengths) |
 | **Esc** / **Delete** / **Backspace** after the first point | Cancels the in-progress shape (stays in draw mode) |
 
@@ -179,12 +181,34 @@ Once the tool is active, all of the interaction and keyboard handling below is
 
 | Action | Effect |
 | --- | --- |
-| Click a shape | Selects it; a line shows its 2 endpoint handles, a box its 4 corner handles |
-| Drag a handle | **Line**: moves that endpoint. **Box**: resizes from that corner, keeping the diagonally opposite corner fixed and all corners at 90° (`onDrawingChange`). Hold **Shift** to snap to 45° / a square |
+| Click a shape | Selects it; a line shows its 2 endpoint handles, a box its 4 corner handles, a pencil stroke anchors on its first and last point |
+| Drag a handle | **Line**: moves that endpoint. **Box**: resizes from that corner, keeping the diagonally opposite corner fixed and all corners at 90° (`onDrawingChange`). Hold **Shift** to snap to 45° / a square. **Pencil**: its anchors are a visual cue only — see below |
 | Drag the body | Moves the whole shape (`onDrawingChange`). A box's faint interior fill is grabbable |
+| Drag a pencil stroke (anywhere, anchors included) | Translates the whole path. A committed stroke is never reshaped or resized — dragging an anchor moves it exactly like dragging the middle of the stroke does |
 | **Delete** / **Backspace** (with a shape selected) | Deletes it (`onDrawingDelete`) |
 | **Cmd/Ctrl + C**, then **Cmd/Ctrl + V** | Copies the selected shape and pastes a copy (`onDrawingComplete`) — under the crosshair, or above/below the original when the pointer hasn't moved |
 | Click empty space | Deselects |
+
+## About pencil strokes
+
+A pencil `Drawing` differs from the other two in shape: `points` is a
+**variable-length array** of the path's points in draw order, rather than the
+exact two-anchor tuple a `'line'` or `'box'` carries. `Drawing` is a
+discriminated union, so narrow on `type` before indexing:
+
+```tsx
+if (d.type === 'pencil') {
+  console.log(d.points.length); // the whole path
+} else {
+  const [a, b] = d.points;      // always exactly two anchors
+}
+```
+
+The chart thins each stroke before committing it (dropping points that don't
+change the rendered shape), so a stroke typically persists as a few dozen points
+rather than the hundreds a drag generates. They still serialize to noticeably
+more than a line or box — worth keeping in mind if your `drawingStore` writes to
+a size-limited backend such as `localStorage`.
 
 ## Platform support
 

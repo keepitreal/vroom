@@ -33,9 +33,12 @@ void draw(SkCanvas* canvas,
 
 // Result of a hit-test against the committed drawings. `index` is the drawing
 // index (or -1 for a miss). `part` depends on the drawing kind:
-//   * line — 0 (endpoint A), 1 (endpoint B), or 2 (line body).
-//   * box  — 0..3 (the four corners, in the order returned by box_corners:
-//            a, (b.x,a.y), b, (a.x,b.y)) or 4 (box body: interior or edges).
+//   * line   — 0 (endpoint A), 1 (endpoint B), or 2 (line body).
+//   * box    — 0..3 (the four corners, in the order returned by box_corners:
+//              a, (b.x,a.y), b, (a.x,b.y)) or 4 (box body: interior or edges).
+//   * pencil — always 5 (stroke body). A freehand stroke has no grab handles:
+//              its end anchors are a visual cue only and translate the whole
+//              path like any other part of it.
 // Corner/endpoint hits are only reported for the currently selected drawing
 // (whose handles are visible).
 struct HitResult {

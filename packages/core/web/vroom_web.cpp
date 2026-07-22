@@ -186,10 +186,14 @@ class WebChart {
     vroom_chart_set_overlays(chart_, out.data(), n);
   }
 
-  // `drawings` is a JS array of {aTime, aPrice, bTime, bPrice, color, width}.
+  // `drawings` is a JS array of {aTime, aPrice, bTime, bPrice, color, width,
+  // kind}. A pencil (kind 2) also carries `points`: an array of {timeMs, price}
+  // holding the whole path.
   void setDrawings(const em::val& drawings) {
     const size_t n = drawings["length"].as<size_t>();
     std::vector<VroomDrawing> out(n);
+    // Per-drawing point storage, kept alive until set_drawings has copied it.
+    std::vector<std::vector<VroomDrawPoint>> paths(n);
     for (size_t i = 0; i < n; ++i) {
       em::val d = drawings[i];
       out[i].a.time_ms = static_cast<int64_t>(d["aTime"].as<double>());
@@ -199,6 +203,20 @@ class WebChart {
       out[i].color = d["color"].as<uint32_t>();
       out[i].width = d["width"].as<float>();
       out[i].kind = d["kind"].as<int32_t>();
+      out[i].points = nullptr;
+      out[i].point_count = 0;
+      em::val pts = d["points"];
+      if (out[i].kind == 2 && !pts.isUndefined() && !pts.isNull()) {
+        const size_t m = pts["length"].as<size_t>();
+        paths[i].resize(m);
+        for (size_t j = 0; j < m; ++j) {
+          em::val p = pts[j];
+          paths[i][j].time_ms = static_cast<int64_t>(p["timeMs"].as<double>());
+          paths[i][j].price = p["price"].as<double>();
+        }
+        out[i].points = paths[i].data();
+        out[i].point_count = static_cast<int32_t>(m);
+      }
     }
     vroom_chart_set_drawings(chart_, out.data(), n);
   }
@@ -232,7 +250,18 @@ class WebChart {
                           static_cast<int64_t>(b_time), b_price, guide, color,
                           width, kind);
   }
+  void startDraftStroke(uint32_t color, float width) {
+    vroom_chart_start_draft_stroke(chart_, color, width);
+  }
+  void appendDraftPoint(double time_ms, double price) {
+    vroom_chart_append_draft_point(chart_, static_cast<int64_t>(time_ms), price);
+  }
   void clearDraft() { vroom_chart_clear_draft(chart_); }
+
+  void translateDrawing(int index, double d_time_ms, double d_price) {
+    vroom_chart_translate_drawing(chart_, index, static_cast<int64_t>(d_time_ms),
+                                  d_price);
+  }
 
   void setSelectedDrawing(int index, int grabbed) {
     vroom_chart_set_selected_drawing(chart_, index, grabbed);
@@ -443,7 +472,10 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setDraft", &WebChart::setDraft)
+      .function("startDraftStroke", &WebChart::startDraftStroke)
+      .function("appendDraftPoint", &WebChart::appendDraftPoint)
       .function("clearDraft", &WebChart::clearDraft)
+      .function("translateDrawing", &WebChart::translateDrawing)
       .function("setSelectedDrawing", &WebChart::setSelectedDrawing)
       .function("moveDrawingEndpoint", &WebChart::moveDrawingEndpoint)
       .function("hitTestDrawing", &WebChart::hitTestDrawing)
