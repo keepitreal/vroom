@@ -50,6 +50,7 @@ function drawingToSpec(
     bPrice: d.points[1].price,
     color: (d.color != null ? parseColor(d.color) : null) ?? 0xff2962ff,
     width: d.width ?? 2,
+    kind: d.type === 'box' ? 1 : 0,
   };
 }
 

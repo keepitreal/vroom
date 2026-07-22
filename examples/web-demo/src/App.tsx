@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useMemo, useState } from 'react';
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   VroomChart,
   type Candle,
@@ -426,29 +426,41 @@ export function App() {
     [],
   );
 
-  const toggleLineTool = useCallback(() => {
+  // Toggle a draw tool: pressing the active tool again returns to pan mode;
+  // pressing another switches to it while staying in draw mode. `drawToolRef`
+  // lets these stable callbacks read the current tool without re-subscribing.
+  const drawToolRef = useRef<DrawTool>(null);
+  drawToolRef.current = drawTool;
+  const selectTool = useCallback((t: Exclude<DrawTool, null>) => {
     setDrawMode((m) => {
-      const next = m === 'draw' ? 'pan' : 'draw';
-      setDrawTool(next === 'draw' ? 'line' : null);
+      const turnOff = m === 'draw' && drawToolRef.current === t;
+      const next = turnOff ? 'pan' : 'draw';
+      setDrawTool(next === 'draw' ? t : null);
       return next;
     });
   }, []);
+  const toggleLineTool = useCallback(() => selectTool('line'), [selectTool]);
+  const toggleBoxTool = useCallback(() => selectTool('box'), [selectTool]);
 
-  // "L" toggles the line tool (Figma/Excalidraw style). This lives in the demo,
-  // not the library — the hotkey is the consuming app's choice, so vroom doesn't
-  // enshrine one. Ignore it while typing in a field or with a modifier held.
+  // "L" toggles the line tool, "R" the box (rectangle) tool — Figma/Excalidraw
+  // style. This lives in the demo, not the library — the hotkey is the consuming
+  // app's choice, so vroom doesn't enshrine one. Ignore it while typing in a
+  // field or with a modifier held.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'l' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k !== 'l' && k !== 'r') return;
       const ae = document.activeElement as HTMLElement | null;
       const tag = ae?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || ae?.isContentEditable) return;
       e.preventDefault();
-      toggleLineTool();
+      if (k === 'l') toggleLineTool();
+      else toggleBoxTool();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleLineTool]);
+  }, [toggleLineTool, toggleBoxTool]);
 
   const drawProps: DrawProps = {
     mode: drawMode,
@@ -696,7 +708,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, toggleLineTool }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, drawTool, toggleLineTool, toggleBoxTool }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

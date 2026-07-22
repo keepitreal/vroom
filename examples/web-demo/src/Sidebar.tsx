@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useState } from 'react';
-import type { ChartMode, ChartType } from '@vroomchart/react';
+import type { ChartMode, ChartType, DrawTool } from '@vroomchart/react';
 
 // GitHub-dark palette (matches the rest of the demo's inline styling).
 const PANEL = '#161b22';
@@ -202,7 +202,9 @@ export type SidebarProps = {
     bandHeight: number;
     setBandHeight: (v: number) => void;
     drawMode: ChartMode;
+    drawTool: DrawTool;
     toggleLineTool: () => void;
+    toggleBoxTool: () => void;
   };
   panels: {
     activeCount: number;
@@ -378,16 +380,32 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             </span>
           </Row>
         )}
-        <button
-          onClick={overlays.toggleLineTool}
-          style={{
-            ...btn,
-            textAlign: 'left',
-            ...(drawing ? { background: '#1f6feb', color: '#f0f6fc', borderColor: '#1f6feb' } : {}),
-          }}
-        >
-          Line tool{drawing ? ' (on)' : ''}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={overlays.toggleLineTool}
+            style={{
+              ...btn,
+              flex: 1,
+              ...(drawing && overlays.drawTool === 'line'
+                ? { background: '#1f6feb', color: '#f0f6fc', border: '1px solid #1f6feb' }
+                : {}),
+            }}
+          >
+            Line (L)
+          </button>
+          <button
+            onClick={overlays.toggleBoxTool}
+            style={{
+              ...btn,
+              flex: 1,
+              ...(drawing && overlays.drawTool === 'box'
+                ? { background: '#1f6feb', color: '#f0f6fc', border: '1px solid #1f6feb' }
+                : {}),
+            }}
+          >
+            Box (R)
+          </button>
+        </div>
       </Section>
 
       <Section title="Indicators & colors">

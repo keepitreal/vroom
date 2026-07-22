@@ -793,7 +793,7 @@ extern "C" void vroom_chart_set_liquidity(VroomChart* chart,
 extern "C" void vroom_chart_set_draft(VroomChart* chart, int64_t a_time,
                                       double a_price, bool has_b, int64_t b_time,
                                       double b_price, bool guide, uint32_t color,
-                                      float width) {
+                                      float width, int32_t kind) {
     if (!chart) return;
     chart->draft_active = true;
     chart->draft_a = VroomDrawPoint{a_time, a_price};
@@ -802,6 +802,7 @@ extern "C" void vroom_chart_set_draft(VroomChart* chart, int64_t a_time,
     chart->draft_guide = guide;
     chart->draft_color = color;
     chart->draft_width = width;
+    chart->draft_kind = kind;
     chart->mark_dirty();
 }
 

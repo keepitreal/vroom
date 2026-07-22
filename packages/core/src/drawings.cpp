@@ -10,6 +10,7 @@
 #pragma clang diagnostic pop
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 #include "chart.h"
@@ -32,6 +33,41 @@ SkPoint to_px(const VroomChart& chart, const Layout& lay, const PriceBounds& bou
     const float x = vroom::x_at_time(lay, chart.visible_start_ms, window_ms, p.time_ms);
     const float y = vroom::price_to_y(lay, bounds, p.price);
     return SkPoint{x, y};
+}
+
+// The four corners of the box with opposite corners `a` and `b`, in the fixed
+// order used by hit-test `part` indices: a, (b.x,a.y), b, (a.x,b.y). Corner k's
+// diagonal is corner (k+2)%4.
+std::array<SkPoint, 4> box_corners(SkPoint a, SkPoint b) {
+    return {SkPoint{a.fX, a.fY}, SkPoint{b.fX, a.fY}, SkPoint{b.fX, b.fY},
+            SkPoint{a.fX, b.fY}};
+}
+
+// The normalized (L,T,R,B) rectangle spanning opposite corners `a` and `b`.
+SkRect box_rect(SkPoint a, SkPoint b) {
+    return SkRect::MakeLTRB(std::min(a.fX, b.fX), std::min(a.fY, b.fY),
+                            std::max(a.fX, b.fX), std::max(a.fY, b.fY));
+}
+
+// Strokes the box outline and paints a faint fill (~10% of the border alpha) of
+// the same color, spanning opposite corners `a` and `b`.
+void draw_box(SkCanvas* canvas, SkPoint a, SkPoint b, SkColor color, float width) {
+    const SkRect r = box_rect(a, b);
+
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setStyle(SkPaint::kFill_Style);
+    // Faint fill: 10% of the border's alpha, same RGB.
+    const U8CPU fill_alpha = static_cast<U8CPU>(SkColorGetA(color) * 0.1f);
+    fill.setColor(SkColorSetA(color, fill_alpha));
+    canvas->drawRect(r, fill);
+
+    SkPaint border;
+    border.setAntiAlias(true);
+    border.setColor(color);
+    border.setStyle(SkPaint::kStroke_Style);
+    border.setStrokeWidth(width > 0.f ? width : 2.f);
+    canvas->drawRect(r, border);
 }
 
 void draw_node(SkCanvas* canvas, SkPoint pt, float scale = 1.f) {
@@ -67,6 +103,26 @@ float dist_to_segment(float px, float py, float ax, float ay, float bx, float by
     const float ey = py - cy;
     return std::sqrt(ex * ex + ey * ey);
 }
+
+// True when (px,py) is inside the box (the grabbable fill area).
+bool point_in_rect(float px, float py, SkPoint a, SkPoint b) {
+    const SkRect r = box_rect(a, b);
+    return px >= r.fLeft && px <= r.fRight && py >= r.fTop && py <= r.fBottom;
+}
+
+// Shortest distance from (px,py) to the box's four edges, in px (0 when on an
+// edge). Used so the border is grabbable even outside the fill's tolerance.
+float dist_to_rect_edges(float px, float py, SkPoint a, SkPoint b) {
+    const auto c = box_corners(a, b);
+    float best = dist_to_segment(px, py, c[0].fX, c[0].fY, c[1].fX, c[1].fY);
+    for (int i = 1; i < 4; ++i) {
+        const SkPoint& p0 = c[i];
+        const SkPoint& p1 = c[(i + 1) % 4];
+        best = std::min(best,
+                        dist_to_segment(px, py, p0.fX, p0.fY, p1.fX, p1.fY));
+    }
+    return best;
+}
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -88,6 +144,10 @@ void draw(SkCanvas* canvas,
         for (const VroomDrawing& d : chart.drawings) {
             const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
             const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
+            if (d.kind == 1) {
+                draw_box(canvas, a, b, static_cast<SkColor>(d.color), d.width);
+                continue;
+            }
             SkPaint line;
             line.setAntiAlias(true);
             line.setColor(static_cast<SkColor>(d.color));
@@ -105,8 +165,19 @@ void draw(SkCanvas* canvas,
         const VroomDrawing& d = chart.drawings[chart.selected_drawing];
         const SkPoint sa = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint sb = to_px(chart, lay, bounds, window_ms, d.b);
-        draw_node(canvas, sa, chart.grabbed_endpoint == 0 ? 1.5f : 1.f);
-        draw_node(canvas, sb, chart.grabbed_endpoint == 1 ? 1.5f : 1.f);
+        if (d.kind == 1) {
+            // Four corner handles. The gesture layer stores the grabbed corner
+            // as endpoint `a` (its diagonal as `b`), so corner 0 is the active
+            // one while dragging.
+            const auto corners = box_corners(sa, sb);
+            for (int i = 0; i < 4; ++i) {
+                draw_node(canvas, corners[i],
+                          (chart.grabbed_endpoint == 0 && i == 0) ? 1.5f : 1.f);
+            }
+        } else {
+            draw_node(canvas, sa, chart.grabbed_endpoint == 0 ? 1.5f : 1.f);
+            draw_node(canvas, sb, chart.grabbed_endpoint == 1 ? 1.5f : 1.f);
+        }
     }
 
     if (!chart.draft_active) return;
@@ -116,25 +187,31 @@ void draw(SkCanvas* canvas,
     const SkPoint b =
         has_b ? to_px(chart, lay, bounds, window_ms, chart.draft_b) : a;
 
-    // 2. Guideline preview (A->B), clipped to the candle area. Only while the
-    //    second point is still being placed (draft_guide); once committed, the
-    //    solid segment comes from chart.drawings instead.
+    // 2. Live preview (A->B), clipped to the candle area. Only while the second
+    //    point is still being placed (draft_guide); once committed, the solid
+    //    shape comes from chart.drawings instead. A box previews as a rectangle;
+    //    a line as a guideline.
     if (chart.draft_guide && has_b) {
         canvas->save();
         canvas->clipRect(clip);
-        SkPaint guide;
-        guide.setAntiAlias(true);
-        guide.setColor(static_cast<SkColor>(chart.draft_color));
-        guide.setStyle(SkPaint::kStroke_Style);
-        guide.setStrokeWidth(chart.draft_width > 0.f ? chart.draft_width : 2.f);
-        canvas->drawLine(a, b, guide);
+        if (chart.draft_kind == 1) {
+            draw_box(canvas, a, b, static_cast<SkColor>(chart.draft_color),
+                     chart.draft_width);
+        } else {
+            SkPaint guide;
+            guide.setAntiAlias(true);
+            guide.setColor(static_cast<SkColor>(chart.draft_color));
+            guide.setStyle(SkPaint::kStroke_Style);
+            guide.setStrokeWidth(chart.draft_width > 0.f ? chart.draft_width : 2.f);
+            canvas->drawLine(a, b, guide);
+        }
         canvas->restore();
     }
 
     // 3. Node dots on top (not clipped, so an edge dot still renders fully).
     //    While guiding (placing the second point) only the anchor dot shows; the
-    //    moving end is conveyed by the guideline. Once selected (committed) both
-    //    endpoints show dots.
+    //    moving end is conveyed by the preview shape. Once selected (committed)
+    //    both endpoints show dots.
     draw_node(canvas, a);
     if (has_b && !chart.draft_guide) draw_node(canvas, b);
 }
@@ -155,29 +232,54 @@ HitResult hit_test(const VroomChart& chart,
         const VroomDrawing& d = chart.drawings[chart.selected_drawing];
         const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
-        if (std::hypot(x - a.fX, y - a.fY) <= kHandleHit)
-            return HitResult{chart.selected_drawing, 0, 0.f};
-        if (std::hypot(x - b.fX, y - b.fY) <= kHandleHit)
-            return HitResult{chart.selected_drawing, 1, 1.f};
+        if (d.kind == 1) {
+            // Box: four corner handles (part 0..3).
+            const auto corners = box_corners(a, b);
+            for (int c = 0; c < 4; ++c) {
+                if (std::hypot(x - corners[c].fX, y - corners[c].fY) <= kHandleHit)
+                    return HitResult{chart.selected_drawing, c, 0.f};
+            }
+        } else {
+            if (std::hypot(x - a.fX, y - a.fY) <= kHandleHit)
+                return HitResult{chart.selected_drawing, 0, 0.f};
+            if (std::hypot(x - b.fX, y - b.fY) <= kHandleHit)
+                return HitResult{chart.selected_drawing, 1, 1.f};
+        }
     }
 
-    // Otherwise the nearest line body within tolerance (topmost = last drawn).
+    // Otherwise the nearest drawing body within tolerance (topmost = last drawn).
+    // Line body is distance-to-segment (part 2); box body is the interior (dist
+    // 0) or a nearby edge (part 4).
     constexpr float kBodyHit = 6.f;
     float best = kBodyHit;
     int32_t best_i = -1;
+    int32_t best_part = 2;
     float best_t = 0.f;
     for (size_t i = 0; i < chart.drawings.size(); ++i) {
         const VroomDrawing& d = chart.drawings[i];
         const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
-        const float dist = dist_to_segment(x, y, a.fX, a.fY, b.fX, b.fY);
-        if (dist <= best) {  // <= so later (topmost) drawings win ties
-            best = dist;
-            best_i = static_cast<int32_t>(i);
-            best_t = segment_t(x, y, a.fX, a.fY, b.fX, b.fY);
+        if (d.kind == 1) {
+            const float dist = point_in_rect(x, y, a, b)
+                                   ? 0.f
+                                   : dist_to_rect_edges(x, y, a, b);
+            if (dist <= best) {  // <= so later (topmost) drawings win ties
+                best = dist;
+                best_i = static_cast<int32_t>(i);
+                best_part = 4;
+                best_t = 0.f;
+            }
+        } else {
+            const float dist = dist_to_segment(x, y, a.fX, a.fY, b.fX, b.fY);
+            if (dist <= best) {  // <= so later (topmost) drawings win ties
+                best = dist;
+                best_i = static_cast<int32_t>(i);
+                best_part = 2;
+                best_t = segment_t(x, y, a.fX, a.fY, b.fX, b.fY);
+            }
         }
     }
-    return best_i >= 0 ? HitResult{best_i, 2, best_t} : miss;
+    return best_i >= 0 ? HitResult{best_i, best_part, best_t} : miss;
 }
 
 }  // namespace vroom::drawings

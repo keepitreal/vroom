@@ -100,6 +100,8 @@ export type DrawingSpec = {
   color: number;
   /** Stroke width in px. */
   width: number;
+  /** Geometry: 0 = line (a→b), 1 = box (a and b are opposite corners). */
+  kind: number;
 };
 
 /** A single resting-liquidity band in the core's numeric encoding. */
@@ -253,10 +255,12 @@ export interface VroomChartHandle {
    */
   setLiquidity(liquidity: LiquiditySpec): void;
   /**
-   * Set the transient in-progress draft shown while placing a line. Node A is
-   * always shown; node B is shown when `hasB`. `guide` also draws the guideline
-   * A→B (the live preview); when false only the node dots show (the committed
-   * segment renders via setDrawings). `color`/`width` style the guideline.
+   * Set the transient in-progress draft shown while placing a drawing. Node A is
+   * always shown; node B is shown when `hasB`. `guide` also draws the live
+   * preview (a guideline for a line, a preview rectangle for a box); when false
+   * only the node dots show (the committed shape renders via setDrawings).
+   * `kind` (0 = line, 1 = box) selects the preview geometry. `color`/`width`
+   * style the preview.
    */
   setDraft(
     aTime: number,
@@ -267,6 +271,7 @@ export interface VroomChartHandle {
     guide: boolean,
     color: number,
     width: number,
+    kind: number,
   ): void;
   /** Clear the draft (hide in-progress node dots / guideline). */
   clearDraft(): void;
@@ -280,9 +285,11 @@ export interface VroomChartHandle {
   moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void;
   /**
    * Hit-test pixel (x, y) against the committed drawings. Returns the drawing
-   * `index`, `part` (0=endpoint A, 1=endpoint B, 2=line body), and `t` (0..1 grab
-   * position along the segment), or null on a miss. Endpoint hits are only
-   * reported for the selected drawing.
+   * `index`, `part`, and `t`, or null on a miss. For a line, `part` is 0
+   * (endpoint A), 1 (endpoint B), or 2 (body) and `t` is the 0..1 grab position
+   * along the segment. For a box, `part` is 0..3 (the four corners) or 4 (body)
+   * and `t` is 0. Corner/endpoint hits are only reported for the selected
+   * drawing.
    */
   hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
   /**

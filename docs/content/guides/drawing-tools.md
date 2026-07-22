@@ -4,8 +4,9 @@ vroom ships interactive drawing tools for annotating the chart. Drawings are
 anchored in **data space** (time + price), so they stay glued to the candles as
 the user pans and zooms — and survive reloads if you persist them.
 
-Drawing is **web only** today (React Native support is planned). Currently one
-tool is available: the **line** (a two-point trendline).
+Drawing is **web only** today (React Native support is planned). Two tools are
+available: the **line** (a two-point trendline) and the **box** (an axis-aligned
+rectangle defined by two opposite corners).
 
 There are two ways to manage the drawings themselves:
 
@@ -129,13 +130,14 @@ If you need to pre-seed a store, or build an import/export feature, use the
 `serializeDrawings` / `deserializeDrawings` helpers exported from
 `@vroomchart/react` rather than hand-rolling the envelope.
 
-## Activating the line tool
+## Activating a drawing tool
 
-To start drawing, put the chart in draw mode with the line tool:
+To start drawing, put the chart in draw mode and pick a tool — `'line'` or
+`'box'`:
 
 ```tsx
 setMode('draw');
-setTool('line');
+setTool('line'); // or 'box'
 ```
 
 **How you trigger that is up to you** — a toolbar button, a menu, or a keyboard
@@ -169,19 +171,19 @@ Once the tool is active, all of the interaction and keyboard handling below is
 
 | Action | Effect |
 | --- | --- |
-| Click, then click again | Places the two endpoints; the line commits (`onDrawingComplete`) |
-| Hold **Shift** while placing the 2nd point | Snaps the line to the nearest 45° (0° / 45° / 90° …) |
-| **Esc** / **Delete** / **Backspace** after the first point | Cancels the in-progress line (stays in draw mode) |
+| Click, then click again | Places the two anchors — a line's endpoints, or a box's two opposite corners; the shape commits (`onDrawingComplete`) |
+| Hold **Shift** while placing the 2nd point | **Line**: snaps to the nearest 45° (0° / 45° / 90° …). **Box**: constrains to a perfect square (equal side lengths) |
+| **Esc** / **Delete** / **Backspace** after the first point | Cancels the in-progress shape (stays in draw mode) |
 
 ### Editing (in `pan` mode)
 
 | Action | Effect |
 | --- | --- |
-| Click a line | Selects it; its endpoint handles appear |
-| Drag an endpoint handle | Moves that endpoint (`onDrawingChange`); hold **Shift** to snap to 45° |
-| Drag the line body | Moves the whole line (`onDrawingChange`) |
-| **Delete** / **Backspace** (with a line selected) | Deletes it (`onDrawingDelete`) |
-| **Cmd/Ctrl + C**, then **Cmd/Ctrl + V** | Copies the selected line and pastes a copy (`onDrawingComplete`) — under the crosshair, or above/below the original when the pointer hasn't moved |
+| Click a shape | Selects it; a line shows its 2 endpoint handles, a box its 4 corner handles |
+| Drag a handle | **Line**: moves that endpoint. **Box**: resizes from that corner, keeping the diagonally opposite corner fixed and all corners at 90° (`onDrawingChange`). Hold **Shift** to snap to 45° / a square |
+| Drag the body | Moves the whole shape (`onDrawingChange`). A box's faint interior fill is grabbable |
+| **Delete** / **Backspace** (with a shape selected) | Deletes it (`onDrawingDelete`) |
+| **Cmd/Ctrl + C**, then **Cmd/Ctrl + V** | Copies the selected shape and pastes a copy (`onDrawingComplete`) — under the crosshair, or above/below the original when the pointer hasn't moved |
 | Click empty space | Deselects |
 
 ## Platform support

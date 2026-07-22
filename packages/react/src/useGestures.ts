@@ -52,6 +52,21 @@ function drawingId(): string {
   return `draw-${Math.random().toString(36).slice(2)}`;
 }
 
+// The four corners of a box (given its two opposite-corner `points`), in the
+// same order the core's hit-test reports: a, (b.time,a.price), b,
+// (a.time,b.price). Corner k's diagonal is corner (k+2)%4.
+function boxCorners(
+  points: readonly [DrawPoint, DrawPoint],
+): [DrawPoint, DrawPoint, DrawPoint, DrawPoint] {
+  const [a, b] = points;
+  return [
+    { timeMs: a.timeMs, price: a.price },
+    { timeMs: b.timeMs, price: a.price },
+    { timeMs: b.timeMs, price: b.price },
+    { timeMs: a.timeMs, price: b.price },
+  ];
+}
+
 export function useGestures(
   containerRef: React.RefObject<HTMLElement | null>,
   handleRef: React.RefObject<VroomChartHandle | null>,
@@ -76,7 +91,16 @@ export function useGestures(
   //             on a stationary release.
   //   lastCoord — the last coordAt during a handle drag, for the release payload.
   const selectedIdRef = useRef<string | null>(null);
-  const grabRef = useRef<{ index: number; endpoint: number; fixed: DrawPoint } | null>(null);
+  // The endpoint/corner being dragged. `fixed` is the anchor that stays put (the
+  // other line endpoint, or — for a box — the diagonally opposite corner). For a
+  // box we normalize the core so `endpoint` is always 0 (the grabbed corner) and
+  // `fixed` is stored as endpoint 1, so the line's endpoint-drag path drives it.
+  const grabRef = useRef<{
+    index: number;
+    endpoint: number;
+    fixed: DrawPoint;
+    isBox: boolean;
+  } | null>(null);
   const dragLineRef = useRef<{
     index: number;
     startTime: number;
@@ -92,6 +116,7 @@ export function useGestures(
   // clipboard for copy/paste (color/width + the grab t + the crosshair at copy).
   const selectedTRef = useRef(0.5);
   const clipboardRef = useRef<{
+    type: Drawing['type'];
     points: [DrawPoint, DrawPoint];
     color?: Drawing['color'];
     width?: number;
@@ -242,6 +267,7 @@ export function useGestures(
         e.preventDefault();
         const info = handleRef.current?.getCrosshairInfo() ?? null;
         clipboardRef.current = {
+          type: d.type,
           points: [d.points[0], d.points[1]],
           color: d.color,
           width: d.width,
@@ -257,7 +283,7 @@ export function useGestures(
         const id = drawingId();
         optsRef.current.onDrawingComplete?.({
           id,
-          type: 'line',
+          type: clip.type,
           points: pts,
           ...(clip.color != null ? { color: clip.color } : {}),
           ...(clip.width != null ? { width: clip.width } : {}),
@@ -275,10 +301,11 @@ export function useGestures(
   // crosshair-override effect below know to stand down (local input wins).
   const localCrosshairActiveRef = useRef(false);
 
-  // Reset the in-progress draft whenever draw+line mode is not active (e.g. the
-  // host toggled the tool off mid-draw), so re-entering draw mode starts clean.
+  // Reset the in-progress draft whenever no draw tool is active (e.g. the host
+  // toggled the tool off, or switched tools, mid-draw), so re-entering draw mode
+  // starts clean.
   useEffect(() => {
-    const active = opts.mode === 'draw' && opts.tool === 'line';
+    const active = opts.mode === 'draw' && (opts.tool === 'line' || opts.tool === 'box');
     if (active) return;
     drawAnchorRef.current = null;
     const h = handleRef.current;
@@ -351,6 +378,29 @@ export function useGestures(
       const uy = Math.sin(ang);
       const len = dx * ux + dy * uy; // project the cursor onto the snapped ray
       return h.coordAt(f.x + len * ux, f.y + len * uy) ?? free;
+    };
+
+    // Data coord for a moving box corner at pixel (x,y), opposite the `fixed`
+    // corner. With Shift held, constrains the box to a perfect square (equal side
+    // lengths in px), enclosing the cursor — the box analogue of snapToLine's 45°.
+    const snapToSquare = (
+      fixed: DrawPoint,
+      x: number,
+      y: number,
+    ): { timeMs: number; price: number } | null => {
+      const h = handleRef.current;
+      if (!h) return null;
+      const free = h.coordAt(x, y);
+      if (!shiftHeld || !free) return free;
+      const f = h.project(fixed.timeMs, fixed.price);
+      if (!f) return free;
+      const dx = x - f.x;
+      const dy = y - f.y;
+      const side = Math.max(Math.abs(dx), Math.abs(dy)); // equal side = larger delta
+      if (side === 0) return free;
+      const nx = f.x + (dx < 0 ? -side : side);
+      const ny = f.y + (dy < 0 ? -side : side);
+      return h.coordAt(nx, ny) ?? free;
     };
 
     const regionAt = (x: number, y: number): Region => {
@@ -435,43 +485,56 @@ export function useGestures(
       reportCrosshair('hide');
     };
 
-    // True while the line tool should own input (suppress pan/zoom/crosshair).
+    // True while a drawing tool should own input (suppress pan/zoom/crosshair).
     const drawActive = () =>
-      optsRef.current.mode === 'draw' && optsRef.current.tool === 'line';
+      optsRef.current.mode === 'draw' &&
+      (optsRef.current.tool === 'line' || optsRef.current.tool === 'box');
 
-    // While placing the second point, keep the guideline glued to the cursor.
+    // Whether the active draw tool is the box (vs the line). `1`/`0` maps to the
+    // core's draft/drawing `kind`.
+    const drawIsBox = () => optsRef.current.tool === 'box';
+
+    // Snap the moving anchor relative to `fixed`, using the constraint that fits
+    // the shape: square for a box, 45° for a line.
+    const snapMoving = (isBox: boolean, fixed: DrawPoint, x: number, y: number) =>
+      isBox ? snapToSquare(fixed, x, y) : snapToLine(fixed, x, y);
+
+    // While placing the second point, keep the live preview glued to the cursor.
     const updateGuideline = (x: number, y: number) => {
       const h = handleRef.current;
       if (!h) return;
       const a = drawAnchorRef.current;
       if (!a) return;
-      const c = snapToLine(a, x, y);
+      const isBox = drawIsBox();
+      const c = snapMoving(isBox, a, x, y);
       if (!c) return;
-      h.setDraft(a.timeMs, a.price, true, c.timeMs, c.price, true, DRAW_COLOR, DRAW_WIDTH);
+      h.setDraft(a.timeMs, a.price, true, c.timeMs, c.price, true, DRAW_COLOR, DRAW_WIDTH, isBox ? 1 : 0);
       scheduleRender();
     };
 
-    // Line tool tap: place the first point, then commit on the second.
+    // Draw-tool tap: place the first point, then commit on the second. Works for
+    // both the line (two endpoints) and the box (two opposite corners).
     const handleDrawClick = (x: number, y: number) => {
       const h = handleRef.current;
       if (!h) return;
 
+      const isBox = drawIsBox();
       if (!drawAnchorRef.current) {
-        // First point: show node A; the guideline follows on the next move.
+        // First point: show node A; the preview follows on the next move.
         const coord = h.coordAt(x, y);
         if (!coord) return;
         drawAnchorRef.current = coord;
-        h.setDraft(coord.timeMs, coord.price, false, 0, 0, true, DRAW_COLOR, DRAW_WIDTH);
+        h.setDraft(coord.timeMs, coord.price, false, 0, 0, true, DRAW_COLOR, DRAW_WIDTH, isBox ? 1 : 0);
         scheduleRender();
       } else {
-        // Second point: commit the line (Shift-snapped to match the guideline)
-        // and clear the draft. Editing happens in pan mode via the committed line.
+        // Second point: commit the shape (Shift-snapped to match the preview)
+        // and clear the draft. Editing happens in pan mode via the committed shape.
         const a = drawAnchorRef.current;
-        const coord = snapToLine(a, x, y);
+        const coord = snapMoving(isBox, a, x, y);
         if (!coord) return;
         optsRef.current.onDrawingComplete?.({
           id: drawingId(),
-          type: 'line',
+          type: isBox ? 'box' : 'line',
           points: [
             { timeMs: a.timeMs, price: a.price },
             { timeMs: coord.timeMs, price: coord.price },
@@ -489,7 +552,7 @@ export function useGestures(
       const h = handleRef.current;
       const g = grabRef.current;
       if (!h || !g) return;
-      const c = snapToLine(g.fixed, x, y);
+      const c = snapMoving(g.isBox, g.fixed, x, y);
       if (!c) return;
       lastCoordRef.current = c;
       h.moveDrawingEndpoint(g.index, g.endpoint, c.timeMs, c.price);
@@ -534,21 +597,38 @@ export function useGestures(
       downHitRef.current = null;
       if (!drawActive() && panMode === 'chart') {
         const hit = h.hitTestDrawing(x, y);
-        if (hit && (hit.part === 0 || hit.part === 1)) {
-          const gd = (optsRef.current.drawings ?? [])[hit.index];
-          if (gd) {
+        const gd = hit ? (optsRef.current.drawings ?? [])[hit.index] : undefined;
+        const isBox = gd?.type === 'box';
+        // Handle/corner grab: line endpoints (part 0/1) or box corners (part 0..3).
+        const isHandle = hit != null && (isBox ? hit.part <= 3 : hit.part <= 1);
+        if (hit && gd && isHandle) {
+          if (isBox) {
+            // A box corner: the diagonally opposite corner stays fixed. Normalize
+            // the core so endpoint 0 = grabbed corner, endpoint 1 = diagonal, then
+            // the line's endpoint-drag path resizes it (all corners stay 90°).
+            const corners = boxCorners(gd.points);
+            const grabbed = corners[hit.part];
+            const diagonal = corners[(hit.part + 2) % 4];
+            h.moveDrawingEndpoint(hit.index, 0, grabbed.timeMs, grabbed.price);
+            h.moveDrawingEndpoint(hit.index, 1, diagonal.timeMs, diagonal.price);
+            grabRef.current = { index: hit.index, endpoint: 0, fixed: diagonal, isBox: true };
+            lastCoordRef.current = grabbed;
+          } else {
             grabRef.current = {
               index: hit.index,
               endpoint: hit.part,
               fixed: gd.points[hit.part === 0 ? 1 : 0], // the other end stays put
+              isBox: false,
             };
             lastCoordRef.current = null;
-            applySelection(); // enlarge the grabbed handle
-            return; // the handle drag owns this pointer — no pan / long-press
           }
+          applySelection(); // enlarge the grabbed handle
+          return; // the handle drag owns this pointer — no pan / long-press
         }
-        // Body of the already-selected line → translate the whole line on drag.
-        if (hit && hit.part === 2) {
+        // Body of the already-selected shape → translate the whole shape on drag.
+        // Line body is part 2; box body (interior/edge) is part 4.
+        const isBody = hit != null && (isBox ? hit.part === 4 : hit.part === 2);
+        if (hit && isBody) {
           const list = optsRef.current.drawings ?? [];
           const selIdx = selectedIdRef.current
             ? list.findIndex((d) => d.id === selectedIdRef.current)
@@ -567,7 +647,7 @@ export function useGestures(
                 lastB: d.points[1],
               };
               el.style.cursor = 'move';
-              return; // the line drag owns this pointer — no pan / long-press
+              return; // the shape drag owns this pointer — no pan / long-press
             }
           }
         }
@@ -720,8 +800,13 @@ export function useGestures(
         const d = list[g.index];
         const c = lastCoordRef.current;
         if (d && c) {
-          const pts: [DrawPoint, DrawPoint] = [d.points[0], d.points[1]];
-          pts[g.endpoint] = { timeMs: c.timeMs, price: c.price };
+          // Box: the two opposite corners are the dragged corner + its fixed
+          // diagonal (order-independent). Line: replace the grabbed endpoint,
+          // keeping the other in place.
+          const pts: [DrawPoint, DrawPoint] = g.isBox
+            ? [{ timeMs: c.timeMs, price: c.price }, g.fixed]
+            : [d.points[0], d.points[1]];
+          if (!g.isBox) pts[g.endpoint] = { timeMs: c.timeMs, price: c.price };
           optsRef.current.onDrawingChange?.({ ...d, points: pts });
         }
         applySelection();
@@ -756,10 +841,16 @@ export function useGestures(
       if (pointers.size === 0 && !moved && panMode === 'chart' && crosshairSource !== 'press') {
         const hit = downHitRef.current;
         const list = optsRef.current.drawings ?? [];
-        if (hit && hit.part === 2 && list[hit.index]) {
+        const hitDrawing = hit ? list[hit.index] : undefined;
+        // Body hit: line body is part 2, box body is part 4.
+        const isBodyHit =
+          hit != null &&
+          hitDrawing != null &&
+          (hitDrawing.type === 'box' ? hit.part === 4 : hit.part === 2);
+        if (hit && isBodyHit && hitDrawing) {
           selectedTRef.current = hit.t; // remember where along the line it was grabbed
-          if (selectedIdRef.current !== list[hit.index].id) {
-            selectedIdRef.current = list[hit.index].id;
+          if (selectedIdRef.current !== hitDrawing.id) {
+            selectedIdRef.current = hitDrawing.id;
             applySelection();
           }
         } else if (!hit && selectedIdRef.current != null) {

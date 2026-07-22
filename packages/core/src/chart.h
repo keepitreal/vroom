@@ -152,6 +152,7 @@ struct VroomChart {
     bool           draft_guide = false;
     uint32_t       draft_color = 0xff2962ff;
     float          draft_width = 2.f;
+    int32_t        draft_kind = 0;  // 0 = line, 1 = box (matches VroomDrawing)
 
     // Selection/editing state for committed drawings. selected_drawing indexes
     // `drawings` (or -1); its endpoints render as handles. grabbed_endpoint is

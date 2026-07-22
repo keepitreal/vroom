@@ -198,6 +198,7 @@ class WebChart {
       out[i].b.price = d["bPrice"].as<double>();
       out[i].color = d["color"].as<uint32_t>();
       out[i].width = d["width"].as<float>();
+      out[i].kind = d["kind"].as<int32_t>();
     }
     vroom_chart_set_drawings(chart_, out.data(), n);
   }
@@ -225,10 +226,11 @@ class WebChart {
     vroom_chart_set_liquidity(chart_, out.data(), n, &style);
   }
   void setDraft(double a_time, double a_price, bool has_b, double b_time,
-                double b_price, bool guide, uint32_t color, float width) {
+                double b_price, bool guide, uint32_t color, float width,
+                int kind) {
     vroom_chart_set_draft(chart_, static_cast<int64_t>(a_time), a_price, has_b,
                           static_cast<int64_t>(b_time), b_price, guide, color,
-                          width);
+                          width, kind);
   }
   void clearDraft() { vroom_chart_clear_draft(chart_); }
 

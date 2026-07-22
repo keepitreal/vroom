@@ -128,7 +128,7 @@ export type ChartMode = 'pan' | 'draw';
 export type ChartType = 'candles' | 'line';
 
 /** Active drawing tool while in `draw` mode. `null` draws nothing. */
-export type DrawTool = null | 'line';
+export type DrawTool = null | 'line' | 'box';
 
 /** A drawing anchor in data space, so it stays glued to the candles on pan/zoom. */
 export type DrawPoint = {
@@ -141,16 +141,21 @@ export type DrawPoint = {
 /**
  * A committed drawing. Pass an array of these via the `drawings` prop to render
  * persisted annotations; the chart appends a new one (via `onDrawingComplete`)
- * each time the user finishes drawing. For now only the `'line'` (two-point
- * trendline) type exists.
+ * each time the user finishes drawing. Two types exist:
+ *   `'line'` — a two-point trendline from `points[0]` to `points[1]`.
+ *   `'box'`  — an axis-aligned rectangle whose two opposite corners are
+ *              `points[0]` and `points[1]` (the other two are derived).
  */
 export type Drawing = {
   /** Stable unique id (the chart generates one for drawings it creates). */
   id: string;
-  type: 'line';
-  /** The two endpoints, in data space. */
+  type: 'line' | 'box';
+  /**
+   * The two data-space anchors: a line's endpoints, or a box's two opposite
+   * corners.
+   */
   points: [DrawPoint, DrawPoint];
-  /** Line color (hex string or packed ARGB number). Default solid blue. */
+  /** Stroke color (hex string or packed ARGB number). Default solid blue. */
   color?: VroomColor;
   /** Stroke width in px. Default 2. */
   width?: number;

@@ -17,6 +17,12 @@ import type {
 
 // The embind class instance. Methods mirror web/vroom_web.cpp; `delete()` frees
 // the C++ object (embind requires explicit disposal).
+//
+// This interface — and WasmHandle's forwarding below — mirrors VroomChartHandle
+// argument-for-argument, so it MUST be updated whenever a handle signature
+// changes. TypeScript will NOT flag a dropped trailing parameter: a method with
+// fewer params still satisfies an interface requiring more, so the argument is
+// silently lost at runtime instead of failing to compile.
 interface WebChartInstance {
   setCandles(bytes: Uint8Array): void;
   setSize(width: number, height: number, dpr: number): void;
@@ -57,6 +63,7 @@ interface WebChartInstance {
     guide: boolean,
     color: number,
     width: number,
+    kind: number,
   ): void;
   clearDraft(): void;
   setSelectedDrawing(index: number, grabbedEndpoint: number): void;
@@ -192,8 +199,9 @@ class WasmHandle implements VroomChartHandle {
     guide: boolean,
     color: number,
     width: number,
+    kind: number,
   ): void {
-    this.wc.setDraft(aTime, aPrice, hasB, bTime, bPrice, guide, color >>> 0, width);
+    this.wc.setDraft(aTime, aPrice, hasB, bTime, bPrice, guide, color >>> 0, width, kind);
   }
   clearDraft(): void {
     this.wc.clearDraft();

@@ -32,13 +32,16 @@ void draw(SkCanvas* canvas,
           float candle_area_h);
 
 // Result of a hit-test against the committed drawings. `index` is the drawing
-// index (or -1 for a miss); `part` is 0 (endpoint A), 1 (endpoint B), or 2 (line
-// body). Endpoint hits are only reported for the currently selected drawing
+// index (or -1 for a miss). `part` depends on the drawing kind:
+//   * line — 0 (endpoint A), 1 (endpoint B), or 2 (line body).
+//   * box  — 0..3 (the four corners, in the order returned by box_corners:
+//            a, (b.x,a.y), b, (a.x,b.y)) or 4 (box body: interior or edges).
+// Corner/endpoint hits are only reported for the currently selected drawing
 // (whose handles are visible).
 struct HitResult {
     int32_t index;
     int32_t part;
-    float   t;  // 0..1 grab position along the segment (A→B); 0/1 for handle hits
+    float   t;  // 0..1 grab position along a line segment (A→B); 0 for box/handle hits
 };
 
 HitResult hit_test(const VroomChart& chart,

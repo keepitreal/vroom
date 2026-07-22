@@ -55,12 +55,16 @@ typedef struct VroomDrawPoint {
     double  price;
 } VroomDrawPoint;
 
-// A committed line drawing: a two-point trendline on the price pane.
+// A committed drawing on the price pane. `kind` selects the geometry:
+//   0 = line — a two-point trendline from `a` to `b`.
+//   1 = box  — an axis-aligned rectangle whose two opposite corners are `a` and
+//              `b`; the other two corners (a.x,b.y) and (b.x,a.y) are derived.
 typedef struct VroomDrawing {
     VroomDrawPoint a;
     VroomDrawPoint b;
     uint32_t       color;  // 0xAARRGGBB
     float          width;  // stroke width in px
+    int32_t        kind;   // 0 = line, 1 = box
 } VroomDrawing;
 
 // A resting-liquidity band: a price interval carrying a total order size on one
@@ -349,12 +353,15 @@ void vroom_chart_set_liquidity(VroomChart* chart, const VroomBand* bands,
 
 // Sets the transient in-progress "draft" the drawing tool shows while the user
 // places points. Node A is always shown; when `has_b`, node B is shown too.
-// `guide != 0` also draws the guideline A->B (the live line preview); `guide == 0`
-// draws node dots only (the committed segment already renders via set_drawings).
-// `color`/`width` style the guideline to match the eventual line.
+// `guide != 0` also draws the live preview (a guideline for a line, or a preview
+// rectangle for a box); `guide == 0` draws node dots only (the committed shape
+// already renders via set_drawings). `kind` matches VroomDrawing (0 = line,
+// 1 = box) so the preview geometry matches the eventual shape. `color`/`width`
+// style the preview to match the eventual drawing.
 void vroom_chart_set_draft(VroomChart* chart, int64_t a_time, double a_price,
                            bool has_b, int64_t b_time, double b_price,
-                           bool guide, uint32_t color, float width);
+                           bool guide, uint32_t color, float width,
+                           int32_t kind);
 
 // Clears the draft (hides the in-progress node dots / guideline).
 void vroom_chart_clear_draft(VroomChart* chart);

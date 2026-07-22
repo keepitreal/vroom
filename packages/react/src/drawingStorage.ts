@@ -20,7 +20,7 @@ import type { Drawing } from '@vroomchart/types';
 export const DRAWINGS_VERSION = 1;
 
 /** Drawing `type`s this build understands. Extend as tools are added. */
-const KNOWN_TYPES = new Set<Drawing['type']>(['line']);
+const KNOWN_TYPES = new Set<Drawing['type']>(['line', 'box']);
 
 type Envelope = { v: number; drawings: Drawing[] };
 
