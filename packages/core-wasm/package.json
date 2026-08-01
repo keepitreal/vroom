@@ -4,10 +4,10 @@
   "description": "Framework-agnostic web core for the vroom chart — Skia-WASM renderer with a Canvas2D fallback.",
   "license": "MIT",
   "author": "Darion Welch",
-  "homepage": "https://github.com/darionwelch/vroom#readme",
+  "homepage": "https://github.com/keepitreal/vroom#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/darionwelch/vroom.git",
+    "url": "git+https://github.com/keepitreal/vroom.git",
     "directory": "packages/core-wasm"
   },
   "keywords": [
