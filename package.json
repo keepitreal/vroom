@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "description": "Mobile-first Skia candlestick chart library — monorepo root",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.34.5",
   "engines": {
     "node": ">=20"
   },
@@ -24,6 +24,7 @@
   },
   "pnpm": {
     "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check).",
+    "onlyBuiltDependencies": ["esbuild"],
     "overrides": {
       "tar": ">=7.5.19",
       "postcss": ">=8.5.18 <9",
