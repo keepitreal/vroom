@@ -1,0 +1,37 @@
+# Vroom
+
+> Lightning-fast, Skia-powered candlestick charting library for React Native (iOS/Android) and the web (React DOM). A single C++ rendering core built on Skia drives all platforms, delivering 60+ FPS pan, pinch, and zoom. Supports candlesticks, volume, 5 technical indicators (RSI, VWAP, EMA, SMA, MACD), drawing tools (trendlines, rectangles, freehand pencil), crosshair, and full theming.
+
+- Published packages: `react-native-vroom-chart` (React Native), `@vroomchart/react` (web React), `@vroomchart/core-wasm` (framework-agnostic web core).
+- GitHub: https://github.com/keepitreal/vroom
+- npm: https://www.npmjs.com/package/react-native-vroom-chart
+
+## Getting Started
+
+- [Introduction](https://vroom-docs.vercel.app/): Features, gestures, drawing tools overview.
+- [Installation](https://vroom-docs.vercel.app/getting-started/installation): Package install + peer dependencies for React Native and web.
+- [Quickstart](https://vroom-docs.vercel.app/getting-started/quickstart): Render your first chart with code examples for both platforms.
+
+## Guides
+
+- [Indicators](https://vroom-docs.vercel.app/guides/indicators): Configuring RSI, MACD, moving averages (SMA/EMA), and VWAP with code samples.
+- [Theming](https://vroom-docs.vercel.app/guides/theming): Color overrides, shape & size knobs (wick width, rounded candles, volume), and candle borders.
+- [Gestures & Viewport](https://vroom-docs.vercel.app/guides/gestures-and-viewport): Pan, pinch, zoom, axis drag, visibleRange, and defaultCandleWidth.
+- [Crosshair & Events](https://vroom-docs.vercel.app/guides/crosshair-and-events): onCrosshair callback, future-time snapping, haptics, and onViewportChange.
+- [Drawing Tools](https://vroom-docs.vercel.app/guides/drawing-tools): Managed vs. controlled drawings, persistence via drawingStore, undo/redo, and tools (line, box, pencil).
+
+## Reference
+
+- [API Reference](https://vroom-docs.vercel.app/reference/): Complete type reference (Candle, VroomTheme, VroomChartProps, indicator configs, etc.) and VroomChart component docs.
+- [Platform Differences](https://vroom-docs.vercel.app/reference/platform-differences): How style, className, and wasm props differ between React Native and web.
+
+## Architecture
+
+vroom uses a shared C++ core (Skia renderer) exposed through an `extern "C"` facade. Platform wrappers own the canvas surface and forward gesture events:
+- React Native: JSI bridge → `react-native-vroom-chart`
+- Web: Emscripten/WASM → `@vroomchart/core-wasm` → `@vroomchart/react`
+- Planned: JNI for Android-native, Swift for iOS-native
+
+## Optional
+
+- [GitHub Repository](https://github.com/keepitreal/vroom): Source code, issues, and contributing guide.

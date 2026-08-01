@@ -1,0 +1,577 @@
+# Vroom — Full Documentation
+
+> Lightning-fast, Skia-powered candlestick charting library for React Native (iOS/Android) and the web (React DOM). A single C++ rendering core built on Skia drives all platforms, delivering 60+ FPS pan, pinch, and zoom.
+
+## Overview
+
+**vroom** is an open source candlestick charting library that runs on iOS and Android via React Native and web via WASM beneath a React wrapper. The mobile and web implementations share a single C++ rendering core built on Skia, so charts stay smooth under pans, pinches, and live updates.
+
+vroom currently supports 5 technical analysis indicators: RSI, VWAP, EMA, SMA, MACD and volume with more to come.
+
+Native iOS and Android wrappers are in progress. Building the chart core in C++/Skia means it can and will be truly cross-platform.
+
+### Features
+
+**Candles, Volume and Indicators** — Candlesticks and volume render by default. Chart colors, candle styling (wick width, rounded bodies and wicks, rounded volume bars), the initial candle width, indicator visibility and parameters are all configurable through the `theme` and prop surface. vroom does not offer chart chrome/toolbars to customize the chart and its indicators. This is done by the consuming app so you can have full control of the look and feel of your product.
+
+**Gestures** — Navigating the chart feels natural and performs at 60+ FPS across all interactions. Pan to scroll, pinch to zoom, and drag the price/time axes to rescale them.
+
+**Crosshair** — The chart crosshair surfaces chart level data so the host app can render OHLCV data and fire haptics.
+
+**Drawing tools** — vroom supports trendlines, rectangles and freehand pencil drawing, with full undo/redo. Drawings are persisted via an injected local storage adapter and are indexed by asset/market so the drawings are maintained across refreshes.
+
+## Packages
+
+| Package | npm name | Platform |
+|---|---|---|
+| React Native | `react-native-vroom-chart` | iOS via JSI + Skia (Android in progress) |
+| React (web) | `@vroomchart/react` | React DOM via Skia-WASM |
+| Core (web) | `@vroomchart/core-wasm` | Framework-agnostic WASM + Canvas2D fallback |
+
+Shared TypeScript types are defined in `@vroomchart/types` and bundled into published packages.
+
+## Architecture
+
+```
+C++ core (Skia)
+  ├── extern "C" facade (vroom_chart.h)
+  ├── JSI bridge ──► react-native-vroom-chart (iOS native)
+  ├── WASM compile ──► @vroomchart/core-wasm ──► @vroomchart/react (web)
+  └── (future: JNI for Android, FFI for Swift/Kotlin standalone packages)
+```
+
+The core owns all drawing. Platform wrappers own the canvas surface and gesture forwarding. WASM assets are bundled inside `@vroomchart/core-wasm`; consumers don't host them.
+
+## Installation
+
+### React Native
+
+```sh
+npm install react-native-vroom-chart
+```
+
+Peer dependencies:
+
+```sh
+npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+```
+
+| Package | Version |
+| --- | --- |
+| `@shopify/react-native-skia` | `>= 2.0.0` |
+| `react-native-gesture-handler` | `>= 2.16.0` |
+| `react-native-reanimated` | `>= 4.0.0` |
+
+Wrap your app in a `GestureHandlerRootView`, and follow the Reanimated Babel-plugin setup.
+
+`react-native-vroom-chart` ships a native module (the C++ Skia core via JSI), so it is **not** available in Expo Go. Use a development build / dev client.
+
+Android support is in progress.
+
+### Web
+
+```sh
+npm install @vroomchart/react
+```
+
+This pulls in `@vroomchart/core-wasm` automatically — the Skia core compiled to WebAssembly, bundled together with its WASM binary and a font.
+
+Peer dependencies:
+
+| Package | Version |
+| --- | --- |
+| `react` | `>= 18` |
+| `react-dom` | `>= 18` |
+
+No gesture-handler / Reanimated setup needed. Input is handled internally with Pointer/Wheel events.
+
+The package locates its WASM/font assets with `new URL(..., import.meta.url)`, so a modern bundler (Vite, webpack 5+) emits and rewrites the asset URLs for you.
+
+## Quickstart
+
+### React Native
+
+```tsx
+import { View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { VroomChart, type Candle } from "react-native-vroom-chart";
+
+const candles: Candle[] = [
+  { timeMs: 1700000000000, open: 100, high: 105, low: 98, close: 103, volume: 1200 },
+  { timeMs: 1700003600000, open: 103, high: 108, low: 102, close: 107, volume: 1500 },
+];
+
+export function Chart() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>
+        <VroomChart candles={candles} style={{ flex: 1 }} />
+      </View>
+    </GestureHandlerRootView>
+  );
+}
+```
+
+### Web
+
+```tsx
+import { VroomChart, type Candle } from "@vroomchart/react";
+
+const candles: Candle[] = [
+  { timeMs: 1700000000000, open: 100, high: 105, low: 98, close: 103, volume: 1200 },
+  { timeMs: 1700003600000, open: 103, high: 108, low: 102, close: 107, volume: 1500 },
+];
+
+export function Chart() {
+  return <VroomChart candles={candles} style={{ width: "100%", height: 400 }} />;
+}
+```
+
+That's the whole required surface: `candles`. Everything else is optional.
+
+## Props
+
+| Prop | Type | Description |
+| --- | --- | --- |
+| `candles` | `Candle[]` | Required. OHLCV data (`timeMs`, `open`, `high`, `low`, `close`, `volume`). |
+| `style` | `StyleProp<ViewStyle>` (RN) / `CSSProperties` (web) | Root view style. Defaults to filling the parent. |
+| `width` | `number` | Explicit width override in px. |
+| `height` | `number` | Explicit height override in px. |
+| `visibleRange` | `{ startMs, endMs }` | Time window to render. Omit to fit all candles. |
+| `defaultCandleWidth` | `number` | Initial candle body width in px. Drives initial zoom. |
+| `theme` | `VroomTheme` | Color overrides and shape knobs. |
+| `seriesKey` | `string` | Market identity — used for drawing storage keying. |
+| `crosshairOffset` | `number` | Lift the crosshair dot above the touch point (px). Default 40. |
+| `crosshairOverride` | `{ timeMs, price }` | Drive crosshair externally (for syncing multiple charts). |
+| `onCrosshair` | `(e: CrosshairEvent) => void` | Fires as the crosshair shows, moves, or hides. |
+| `onViewportChange` | `(startMs, endMs) => void` | Fires when the visible time range changes via gesture. |
+| `rsi` | `RSIConfig` | RSI indicator config. |
+| `macd` | `MACDConfig` | MACD indicator config. |
+| `movingAverages` | `MovingAverageOverlay[]` | Array of SMA/EMA overlay lines on the price pane. |
+| `vwap` | `VWAPConfig` | VWAP overlay config. |
+| `mode` | `"pan" \| "draw"` | Chart interaction mode. |
+| `tool` | `"line" \| "box" \| "pencil" \| null` | Active drawing tool (web only). |
+| `chartType` | `"candles" \| "line"` | Price series rendering style. |
+| `liquidity` | `LiquidityConfig` | L2 liquidity bands overlay (web only). |
+| `drawings` | `Drawing[]` | Controlled drawings array (web only). |
+| `drawingStore` | `DrawingStore` | Managed drawing persistence adapter (web only). |
+| `onDrawingComplete` | `(d: Drawing) => void` | Drawing committed. |
+| `onDrawingChange` | `(d: Drawing) => void` | Drawing moved/resized. |
+| `onDrawingDelete` | `(id: string) => void` | Drawing removed. |
+| `onHistoryChange` | `(s: UndoRedoState) => void` | Managed undo/redo availability. |
+| `historyRef` | `RefObject<UndoRedoControls>` | Managed undo/redo trigger. |
+| `onUndo` | `() => void` | Controlled undo callback. |
+| `onRedo` | `() => void` | Controlled redo callback. |
+| `historyLimit` | `number` | Max undo steps. Default 100. |
+
+## Indicators
+
+Four indicator families. Two render in their own pane below the candles (RSI, MACD); two are overlays drawn on the price pane (moving averages, VWAP).
+
+### RSI
+
+Wilder's RSI in a pane below the candles, with configurable bands and an optional moving-average trendline.
+
+```tsx
+<VroomChart
+  candles={candles}
+  rsi={{ enabled: true, period: 14, upperBand: 70, lowerBand: 30, maEnabled: true, maPeriod: 14 }}
+/>
+```
+
+Defaults: `period` 14, `upperBand` 70, `lowerBand` 30, trendline on at length 14.
+
+### MACD
+
+MACD (fast/slow/signal EMAs) in its own pane below the candles.
+
+```tsx
+<VroomChart candles={candles} macd={{ enabled: true, fast: 12, slow: 26, signal: 9 }} />
+```
+
+Defaults: `fast` 12, `slow` 26, `signal` 9. When both RSI and MACD are enabled, both panes stack below the chart.
+
+### Moving averages (SMA / EMA)
+
+Pass an array of overlay lines via `movingAverages` to draw directly on the price pane.
+
+```tsx
+<VroomChart
+  candles={candles}
+  movingAverages={[
+    { kind: "ema", length: 9, color: "#ffa726" },
+    { kind: "ema", length: 21, color: "#26c6da" },
+    { kind: "sma", length: 50, source: "hlc3", width: 2 },
+  ]}
+/>
+```
+
+- `kind` — `"sma"` or `"ema"`.
+- `length` — lookback in candles.
+- `source` — price input (`close` (default), `open`, `high`, `low`, `hl2`, `hlc3`, `ohlc4`).
+- `color` / `width` — line styling.
+
+### VWAP
+
+Session-anchored VWAP as a single line on the price pane, resetting each session.
+
+```tsx
+<VroomChart
+  candles={candles}
+  vwap={{ enabled: true, resetMinutes: 0, color: "#00bcd4", width: 1.5 }}
+/>
+```
+
+`resetMinutes` offsets the session boundary from UTC midnight (in minutes).
+
+## Theming
+
+Style the chart through the `theme` prop. Every field is optional — anything omitted keeps the library default.
+
+```tsx
+<VroomChart
+  candles={candles}
+  theme={{
+    background: "#0d1117",
+    bull: "#26a69a",
+    bear: "#ef5350",
+    accentBull: "#26a69a",
+    accentBear: "#ef5350",
+    borderBull: "#1b7a70",
+    borderBear: "#c0392b",
+    wickBull: "#26a69a",
+    wickBear: "#ef5350",
+    grid: "#1f2630",
+    axisText: "#8b949e",
+    crosshair: "#c9d1d9",
+    crosshairTarget: "#ffffff",
+    wickWidth: 1,
+    wickRoundCap: true,
+    candleRadius: 2,
+    volumeRadius: 2,
+  }}
+/>
+```
+
+### Color formats
+
+A color (`VroomColor`) is either:
+- a hex string — `"#0d1117"` (6-digit RGB) or `"#ff0d1117"` (8-digit `#aarrggbb`), or
+- a packed ARGB number — e.g. `0xff0d1117`.
+
+### Color fields
+
+| Field | Affects |
+| --- | --- |
+| `background` | Chart + axis-strip background |
+| `bull` | Up candle body fill |
+| `bear` | Down candle body fill |
+| `borderBull` | Up candle body border |
+| `borderBear` | Down candle body border |
+| `wickBull` | Up candle wick (defaults to `bull`) |
+| `wickBear` | Down candle wick (defaults to `bear`) |
+| `accentBull` | Generic up color: rising price indicator, up volume bars, MACD histogram |
+| `accentBear` | Generic down color: falling price indicator, down volume bars, MACD histogram |
+| `grid` | Gridlines |
+| `axisText` | Price + time axis label text |
+| `crosshair` | Crosshair dashed lines |
+| `crosshairTarget` | The hollow ring/dot at the crosshair intersection |
+
+### Shape & size
+
+| Field | Type | Effect |
+| --- | --- | --- |
+| `wickWidth` | number (px) | Wick stroke width. Default `1`. |
+| `wickRoundCap` | boolean | Round the wick end caps. Default `false`. |
+| `candleRadius` | number (px) | Corner radius of candle bodies. Default `0`. |
+| `volumeRadius` | number (px) | Corner radius of volume bars' top corners. Default `0`. |
+
+### Candle borders
+
+`borderBull` / `borderBear` draw a 1px outline inside the candle body. Hidden by default (omit the field). Set a contrasting color to outline the body from within.
+
+## Gestures & viewport
+
+### React Native
+
+| Gesture | Effect |
+| --- | --- |
+| Drag (one finger) | Scroll through time; vertical drag moves the price window |
+| Pinch | Zoom around the focus point |
+| Drag the price axis (right) | Rescale price only |
+| Drag the time axis (bottom) | Rescale time only |
+| Long-press | Show the snapping crosshair |
+
+### Web
+
+| Input | Effect |
+| --- | --- |
+| Drag | Scroll through time; vertical drag moves the price window |
+| Wheel scroll (vertical) | Zoom the time window around the cursor |
+| Horizontal scroll / shift+wheel | Pan through time |
+| Ctrl/⌘+wheel or trackpad pinch | Zoom both axes around the cursor |
+| Drag the price axis (right) | Rescale price only |
+| Drag the time axis (bottom) | Rescale time only |
+| Hover (mouse) | Show the snapping crosshair under the cursor |
+
+### Controlling the visible window
+
+```tsx
+<VroomChart
+  candles={candles}
+  visibleRange={{ startMs: 1700000000000, endMs: 1700090000000 }}
+/>
+```
+
+Omit it (or pass both `0`) to fit all candles. Use `defaultCandleWidth` to frame by candle size instead:
+
+```tsx
+<VroomChart candles={candles} defaultCandleWidth={8} />
+```
+
+### Sizing
+
+The chart fills its parent — prefer layout-driven sizing via `style`. Pass explicit `width`/`height` only to override measured layout.
+
+## Crosshair & events
+
+The crosshair snaps to the nearest candle and reports through `onCrosshair`. Activated by long-press on touch and by hovering on web.
+
+```tsx
+<VroomChart
+  candles={candles}
+  onCrosshair={(e) => {
+    if (e.reason === "show" || e.reason === "move") {
+      // Optional haptic feedback
+    }
+    setSelected(e.active ? e.candle : null);
+  }}
+/>
+```
+
+### CrosshairEvent fields
+
+- `active` — whether the crosshair is showing.
+- `candle` — the Candle under the crosshair (OHLCV), or `null` when inactive or on a future slot.
+- `timeMs` — the bar-open time of the slot the crosshair snaps to, or `null` when inactive. Set even in the empty space ahead of the most recent candle.
+- `price` — free price at the crosshair's horizontal line, in data space. Pair with `timeMs` to mirror onto another chart via `crosshairOverride`.
+- `reason` — `"show"` (activated), `"move"` (snapped to a different slot), or `"hide"` (dismissed).
+
+### Snapping into the future
+
+The crosshair locks to candle-aligned slots even in empty space ahead of the most recent candle. `candle` is `null` while `timeMs` reports the slot's time:
+
+```tsx
+onCrosshair={(e) => {
+  if (!e.active) return clearReadout();
+  if (e.candle) showOhlcv(e.candle);
+  else showFutureTime(e.timeMs);
+}}
+```
+
+### Viewport changes
+
+```tsx
+<VroomChart
+  candles={candles}
+  onViewportChange={(startMs, endMs) => {
+    // e.g. fetch more candles when the user scrolls into the past
+  }}
+/>
+```
+
+## Drawing tools (web only)
+
+Three tools: line (two-point trendline), box (axis-aligned rectangle), and pencil (freehand stroke). Drawings are anchored in data space.
+
+### Controlled model
+
+```tsx
+<VroomChart
+  candles={candles}
+  mode={mode}
+  tool={tool}
+  drawings={drawings}
+  onDrawingComplete={(d) => setDrawings((p) => [...p, d])}
+  onDrawingChange={(d) => setDrawings((p) => p.map((x) => (x.id === d.id ? d : x)))}
+  onDrawingDelete={(id) => setDrawings((p) => p.filter((x) => x.id !== id))}
+  onModeChange={setMode}
+/>
+```
+
+### Managed persistence (recommended)
+
+```tsx
+const drawingStore = useMemo<DrawingStore>(
+  () => ({
+    load: (marketId) => localStorage.getItem(`drawings:${marketId}`),
+    save: (marketId, data) => localStorage.setItem(`drawings:${marketId}`, data),
+  }),
+  [],
+);
+
+<VroomChart
+  candles={candles}
+  seriesKey={asset}
+  drawingStore={drawingStore}
+/>
+```
+
+`load` and `save` may return promises, so the same shape works for AsyncStorage, MMKV, or remote backends. Saves are debounced and flushed on market switch and unmount.
+
+### Undo & redo
+
+Every committed drawing action is one undo step. ⌘Z undoes; ⇧⌘Z redoes. History is in-memory and session-only (drawings persist, the undo stack doesn't). Depth capped at 100 steps.
+
+**Managed mode:** shortcuts work automatically. For toolbar buttons, use `onHistoryChange` and `historyRef`.
+
+**Controlled mode:** use `useDrawingHistory` hook which bundles both the array and history stack.
+
+### Activating a drawing tool
+
+```tsx
+setMode("draw");
+setTool("line"); // or "box" | "pencil"
+```
+
+How you trigger that is up to you — vroom deliberately does not bind global hotkeys.
+
+## Platform differences
+
+The data, indicator, theme, and event types are identical across both packages. The only prop that differs is `style`:
+
+**React Native:** `style?: StyleProp<ViewStyle>`
+
+**Web:** `style?: CSSProperties`, plus `className?: string` and `wasm?: WasmConfig`.
+
+Web-only features (type-check everywhere, render on web only):
+- `liquidity` — L2 liquidity bands
+- `drawings` — drawing tools
+
+## Core types
+
+### Candle
+
+```ts
+type Candle = {
+  timeMs: number;  // Bar open time as Unix epoch milliseconds
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+```
+
+### CrosshairEvent
+
+```ts
+type CrosshairEvent = {
+  active: boolean;
+  candle: Candle | null;
+  timeMs: number | null;
+  price: number | null;
+  reason: "show" | "move" | "hide";
+};
+```
+
+### VroomTheme
+
+```ts
+type VroomTheme = {
+  background?: VroomColor;
+  bull?: VroomColor;
+  bear?: VroomColor;
+  borderBull?: VroomColor;
+  borderBear?: VroomColor;
+  wickBull?: VroomColor;
+  wickBear?: VroomColor;
+  accentBull?: VroomColor;
+  accentBear?: VroomColor;
+  grid?: VroomColor;
+  axisText?: VroomColor;
+  crosshair?: VroomColor;
+  crosshairTarget?: VroomColor;
+  wickWidth?: number;
+  wickRoundCap?: boolean;
+  candleRadius?: number;
+  volumeRadius?: number;
+};
+```
+
+### VisibleRange
+
+```ts
+type VisibleRange = { startMs: number; endMs: number };
+```
+
+### RSIConfig
+
+```ts
+type RSIConfig = {
+  enabled: boolean;
+  period?: number;       // default 14
+  upperBand?: number;    // default 70
+  lowerBand?: number;    // default 30
+  maEnabled?: boolean;   // default true
+  maPeriod?: number;     // default 14
+};
+```
+
+### MACDConfig
+
+```ts
+type MACDConfig = {
+  enabled: boolean;
+  fast?: number;    // default 12
+  slow?: number;    // default 26
+  signal?: number;  // default 9
+};
+```
+
+### MovingAverageOverlay
+
+```ts
+type MovingAverageOverlay = {
+  kind: "sma" | "ema";
+  length: number;
+  source?: MASource;  // default "close"
+  color?: VroomColor;
+  width?: number;
+};
+
+type MASource = "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4";
+```
+
+### VWAPConfig
+
+```ts
+type VWAPConfig = {
+  enabled: boolean;
+  resetMinutes?: number;  // default 0
+  color?: VroomColor;
+  width?: number;         // default 1
+};
+```
+
+### ChartType
+
+```ts
+type ChartType = "candles" | "line";
+// "candles" — candlestick bodies + wicks (default)
+// "line" — single polyline through each candle's close
+```
+
+### VroomColor
+
+```ts
+type VroomColor = string | number;
+// hex string ("#0d1117" or "#ff0d1117") or packed ARGB number (0xff0d1117)
+```
+
+## Links
+
+- Documentation: https://vroom-docs.vercel.app
+- GitHub: https://github.com/keepitreal/vroom
+- npm (React Native): https://www.npmjs.com/package/react-native-vroom-chart
+- npm (React web): https://www.npmjs.com/package/@vroomchart/react
