@@ -18,7 +18,15 @@
     "wasm",
     "finance",
     "trading",
-    "charting"
+    "charting",
+    "ohlcv",
+    "technical-analysis",
+    "indicators",
+    "drawing-tools",
+    "crosshair",
+    "stock-chart",
+    "typescript",
+    "react-chart"
   ],
   "type": "module",
   "main": "./dist/index.js",

@@ -18,7 +18,13 @@
     "webassembly",
     "canvas",
     "finance",
-    "trading"
+    "trading",
+    "ohlcv",
+    "technical-analysis",
+    "indicators",
+    "stock-chart",
+    "typescript",
+    "renderer"
   ],
   "type": "module",
   "main": "./dist/index.js",
