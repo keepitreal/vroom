@@ -1,0 +1,55 @@
+name: CI
+
+# Build, typecheck and test the published packages, plus a blocking
+# dependency-vulnerability gate. The committed WASM binaries mean no emsdk is
+# needed here — build:packages is tsup-only.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # No `version:` here on purpose — pnpm's version comes from the
+      # `packageManager` field in package.json.
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm run build:packages
+
+      - run: pnpm -r --filter './packages/*' run typecheck
+
+      - run: pnpm --filter @vroomchart/react --filter react-native-vroom-chart run test
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Blocking: fails on any high/critical advisory anywhere in the graph.
+      # Knowingly-accepted lower-severity advisories are documented in the
+      # pnpm.overrides block of the root package.json.
+      - run: pnpm audit --audit-level high

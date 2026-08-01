@@ -1,21 +1,17 @@
 name: Release
 
 # DORMANT — CI publishing is not enabled yet. The project publishes manually for
-# now (`npm login` + `pnpm publish --access public` with an OTP). This workflow is
-# kept as scaffolding and only runs via manual dispatch so it doesn't fail on
-# pushes (it would need an NPM_TOKEN it doesn't have).
+# now (`npm login` + `pnpm publish --access public` with an OTP). This workflow
+# is kept as scaffolding and only runs via manual dispatch.
 #
-# To enable automated releases, prefer npm Trusted Publishing (OIDC) over a
-# stored token:
+# It is wired for npm Trusted Publishing (OIDC) — no stored NPM_TOKEN. To
+# enable automated releases:
 #   1. Manually publish each package once (so it exists on npm).
-#   2. On npmjs.com, add a Trusted Publisher to each package pointing at this repo
-#      + this workflow file.
-#   3. Switch the trigger below back to `push: branches: [main]`, add
-#      `id-token: write` to permissions, ensure a recent npm
-#      (`npm i -g npm@latest`, Trusted Publishing needs npm >= 11.5.1), and drop
-#      the NPM_TOKEN/NODE_AUTH_TOKEN env lines from the publish step.
+#   2. On npmjs.com, add a Trusted Publisher to each package pointing at this
+#      repo + this workflow file (release.yml).
+#   3. Switch the trigger below back to `push: branches: [main]`.
 # Once that's done, Changesets opens a "Version Packages" PR on push; merging it
-# publishes the bumped packages.
+# publishes the bumped packages with provenance attestations.
 
 on:
   workflow_dispatch:
@@ -25,28 +21,31 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
+  id-token: write # npm Trusted Publishing (OIDC provenance)
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       # No `version:` here on purpose — pnpm's version comes from the
       # `packageManager` field in package.json. Specifying it in both places
       # makes action-setup fail with "Multiple versions of pnpm specified".
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+
+      # Trusted Publishing needs npm >= 11.5.1.
+      - run: npm i -g npm@latest
 
       - run: pnpm install --frozen-lockfile
 
       - name: Create release PR or publish
-        uses: changesets/action@v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: pnpm run version
           publish: pnpm run release
@@ -54,5 +53,3 @@ jobs:
           title: "chore: version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

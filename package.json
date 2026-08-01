@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "description": "Mobile-first Skia candlestick chart library — monorepo root",
   "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "pnpm --filter test-bench start",
     "rebuild:ios": "pnpm --filter test-bench rebuild:ios",
