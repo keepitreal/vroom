@@ -3,14 +3,20 @@
 // `seriesKey` (the market). Drawings are data-space anchored, so keying by market
 // means they persist across timeframe changes but not across markets.
 //
+// Also owns the drawings' undo/redo history: one step per committed action,
+// recorded in the same handlers that mutate the array. The stack is in-memory
+// and cleared on market switch — the drawings persist, the history doesn't
+// (see drawingHistory.ts for the rationale).
+//
 // Returns the internal drawings plus the three edit handlers to feed into the
 // gesture layer (in place of the controlled props). A no-op when `store` is
 // undefined, so it can be called unconditionally (rules of hooks).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Drawing, DrawingStore } from '@vroomchart/types';
+import type { Drawing, DrawingStore, UndoRedoState } from '@vroomchart/types';
 
 import { serializeDrawings, deserializeDrawings } from './drawingStorage';
+import { DrawingHistory, DEFAULT_HISTORY_LIMIT } from './drawingHistory';
 
 const SAVE_DEBOUNCE_MS = 400;
 
@@ -19,13 +25,21 @@ export type ManagedDrawings = {
   onDrawingComplete: (d: Drawing) => void;
   onDrawingChange: (d: Drawing) => void;
   onDrawingDelete: (id: string) => void;
+  undo: () => void;
+  redo: () => void;
+  clearHistory: () => void;
+  historyState: UndoRedoState;
 };
+
+const HISTORY_EMPTY: UndoRedoState = { canUndo: false, canRedo: false };
 
 export function useManagedDrawings(
   seriesKey: string | undefined,
   store: DrawingStore | undefined,
+  historyLimit: number = DEFAULT_HISTORY_LIMIT,
 ): ManagedDrawings {
   const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [historyState, setHistoryState] = useState<UndoRedoState>(HISTORY_EMPTY);
 
   // Latest-committed refs so the load effect / debounce read current values
   // without re-subscribing.
@@ -39,9 +53,26 @@ export function useManagedDrawings(
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warnedRef = useRef(false);
 
+  const historyRef = useRef<DrawingHistory | null>(null);
+  if (historyRef.current == null) historyRef.current = new DrawingHistory(historyLimit);
+  historyRef.current.limit = Math.max(1, historyLimit);
+
   const setBoth = (list: Drawing[]) => {
     drawingsRef.current = list;
     setDrawings(list);
+  };
+
+  // Re-render only when availability actually flips (the stacks live in a ref).
+  const syncHistoryState = () => {
+    const h = historyRef.current!;
+    setHistoryState((p) =>
+      p.canUndo === h.canUndo && p.canRedo === h.canRedo ? p : h.state,
+    );
+  };
+
+  const resetHistory = () => {
+    historyRef.current!.clear();
+    syncHistoryState();
   };
 
   // Persist immediately (cancelling any pending debounce). Best-effort.
@@ -75,9 +106,13 @@ export function useManagedDrawings(
   }, [seriesKey, flushSave]);
 
   // Load on mount / market change; flush-save the outgoing market on the way out.
+  // Loading is a document replacement, not a user action: it never records
+  // history, and any history from the previous market is dropped so undo can't
+  // cross-apply to the wrong document.
   useEffect(() => {
     const s = storeRef.current;
     if (!s) return;
+    resetHistory();
     if (seriesKey == null) {
       if (!warnedRef.current && typeof console !== 'undefined') {
         console.warn(
@@ -126,6 +161,8 @@ export function useManagedDrawings(
 
   const onDrawingComplete = useCallback(
     (d: Drawing) => {
+      historyRef.current!.recordAdd(d);
+      syncHistoryState();
       setDrawings((p) => {
         const next = [...p, d];
         drawingsRef.current = next;
@@ -137,6 +174,11 @@ export function useManagedDrawings(
   );
   const onDrawingChange = useCallback(
     (d: Drawing) => {
+      const before = drawingsRef.current.find((x) => x.id === d.id);
+      if (before) {
+        historyRef.current!.recordChange(before, d);
+        syncHistoryState();
+      }
       setDrawings((p) => {
         const next = p.map((x) => (x.id === d.id ? d : x));
         drawingsRef.current = next;
@@ -148,6 +190,11 @@ export function useManagedDrawings(
   );
   const onDrawingDelete = useCallback(
     (id: string) => {
+      const index = drawingsRef.current.findIndex((x) => x.id === id);
+      if (index >= 0) {
+        historyRef.current!.recordDelete(drawingsRef.current[index]!, index);
+        syncHistoryState();
+      }
       setDrawings((p) => {
         const next = p.filter((x) => x.id !== id);
         drawingsRef.current = next;
@@ -158,5 +205,33 @@ export function useManagedDrawings(
     [scheduleSave],
   );
 
-  return { drawings, onDrawingComplete, onDrawingChange, onDrawingDelete };
+  const undo = useCallback(() => {
+    const next = historyRef.current!.undo(drawingsRef.current);
+    syncHistoryState();
+    if (next == null) return;
+    setBoth(next);
+    scheduleSave(); // the persisted document tracks the undone state
+  }, [scheduleSave]);
+  const redo = useCallback(() => {
+    const next = historyRef.current!.redo(drawingsRef.current);
+    syncHistoryState();
+    if (next == null) return;
+    setBoth(next);
+    scheduleSave();
+  }, [scheduleSave]);
+  const clearHistory = useCallback(() => {
+    historyRef.current!.clear();
+    setHistoryState((p) => (p.canUndo || p.canRedo ? { canUndo: false, canRedo: false } : p));
+  }, []);
+
+  return {
+    drawings,
+    onDrawingComplete,
+    onDrawingChange,
+    onDrawingDelete,
+    undo,
+    redo,
+    clearHistory,
+    historyState,
+  };
 }

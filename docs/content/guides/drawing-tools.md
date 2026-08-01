@@ -126,6 +126,90 @@ useEffect(() => {
 }, [mode]);
 ```
 
+## Undo & redo
+
+Every committed drawing action — a finished stroke or shape, an endpoint drag, a
+delete — is one undo step. Draw two pencil strokes and press **⌘Z / Ctrl+Z**:
+only the second disappears; again, and the first goes too. **⇧⌘Z /
+Ctrl+Shift+Z / Ctrl+Y** redoes in order. In-progress gestures never enter
+history (Escape or ⌘Z cancels a pending point instead).
+
+History is **in-memory and session-only** — the drawings persist (via
+`drawingStore` or your own state), the undo stack deliberately doesn't, matching
+TradingView, Excalidraw and Figma. In managed mode it's also scoped per
+`seriesKey`: switching markets resets it, so undo can never edit a market you're
+no longer looking at. Depth is capped at 100 steps (`historyLimit` to change).
+
+### Managed mode
+
+With a `drawingStore` the shortcuts just work. For toolbar buttons, bind
+availability via `onHistoryChange` and trigger via `historyRef`:
+
+```tsx
+import { useRef, useState } from "react";
+import {
+  VroomChart,
+  type UndoRedoControls,
+  type UndoRedoState,
+} from "@vroomchart/react";
+
+function Chart({ candles, asset, drawingStore }) {
+  const [history, setHistory] = useState<UndoRedoState>({
+    canUndo: false,
+    canRedo: false,
+  });
+  const historyRef = useRef<UndoRedoControls | null>(null);
+
+  return (
+    <>
+      <button disabled={!history.canUndo} onClick={() => historyRef.current?.undo()}>
+        Undo
+      </button>
+      <button disabled={!history.canRedo} onClick={() => historyRef.current?.redo()}>
+        Redo
+      </button>
+      <VroomChart
+        candles={candles}
+        seriesKey={asset}
+        drawingStore={drawingStore}
+        onHistoryChange={setHistory}
+        historyRef={historyRef}
+      />
+    </>
+  );
+}
+```
+
+### Controlled mode
+
+When you own the array, own the history too — `useDrawingHistory` bundles both.
+Wire its handlers to the chart and its `undo`/`redo` to the `onUndo`/`onRedo`
+props (which fire on the keyboard shortcuts):
+
+```tsx
+import { VroomChart, useDrawingHistory } from "@vroomchart/react";
+
+function Chart({ candles }) {
+  const h = useDrawingHistory();
+
+  return (
+    <VroomChart
+      candles={candles}
+      drawings={h.drawings}
+      onDrawingComplete={h.onDrawingComplete}
+      onDrawingChange={h.onDrawingChange}
+      onDrawingDelete={h.onDrawingDelete}
+      onUndo={h.undo}
+      onRedo={h.redo}
+    />
+  );
+}
+```
+
+`h.canUndo` / `h.canRedo` drive buttons; `h.replaceAll(list)` swaps in a loaded
+document without recording an undo step. For fully custom state management, the
+bare `DrawingHistory` stack is exported too.
+
 ## Platform support
 
 Drawing tools are **web only** for now — the `drawings` prop and its callbacks

@@ -219,6 +219,33 @@ export type DrawingStore = {
   save: (marketId: string, data: string) => void | Promise<void>;
 };
 
+/**
+ * Whether undo/redo are currently available for the chart's drawings — the
+ * payload of `onHistoryChange`, for binding toolbar button enabled-states.
+ */
+export type UndoRedoState = {
+  canUndo: boolean;
+  canRedo: boolean;
+};
+
+/**
+ * Programmatic undo/redo controls, published through the `historyRef` prop in
+ * managed mode — for toolbar buttons and other UI outside the chart. The
+ * keyboard shortcuts (⌘Z / ⇧⌘Z / Ctrl+Y) work without this.
+ */
+export type UndoRedoControls = {
+  /** Roll back the most recent committed drawing action. No-op when empty. */
+  undo: () => void;
+  /** Re-apply the most recently undone action. No-op when empty. */
+  redo: () => void;
+  /**
+   * Drop the undo/redo stacks without touching the drawings. Rarely needed —
+   * users find a cleared history surprising — but useful when reusing a mounted
+   * chart for what the user perceives as a brand-new context.
+   */
+  clearHistory: () => void;
+};
+
 /** RSI indicator config. Rendered in a pane below the candles when enabled. */
 export type RSIConfig = {
   enabled?: boolean;
@@ -446,6 +473,38 @@ export type VroomChartCoreProps = {
    * host should apply the requested mode.
    */
   onModeChange?: (mode: ChartMode) => void;
+  /**
+   * Max drawing undo depth in managed mode (one step = one committed drawing
+   * action). Oldest steps are evicted beyond this. Default 100. History is
+   * in-memory and per-`seriesKey`: it resets on market switch and is never
+   * persisted — only the drawings themselves are saved. Web only.
+   */
+  historyLimit?: number;
+  /**
+   * Fired when drawing undo/redo availability changes in managed mode — bind
+   * toolbar undo/redo buttons' enabled-state to it. (In controlled mode you own
+   * the history, so track availability yourself.) Web only.
+   */
+  onHistoryChange?: (state: UndoRedoState) => void;
+  /**
+   * Receives programmatic `undo`/`redo`/`clearHistory` controls in managed mode
+   * (e.g. `useRef<UndoRedoControls | null>(null)` passed here, then
+   * `historyRef.current?.undo()` from a toolbar button). Set to `null` while
+   * unmounted or when no `drawingStore` is present. Web only.
+   */
+  historyRef?: { current: UndoRedoControls | null };
+  /**
+   * Fired when the user presses the undo shortcut (⌘Z / Ctrl+Z) in controlled
+   * mode — apply the undo to your own drawings state. Ignored when
+   * `drawingStore` is set (managed mode undoes internally). Web only.
+   */
+  onUndo?: () => void;
+  /**
+   * Fired when the user presses the redo shortcut (⇧⌘Z / Ctrl+Shift+Z /
+   * Ctrl+Y) in controlled mode — apply the redo to your own drawings state.
+   * Ignored when `drawingStore` is set. Web only.
+   */
+  onRedo?: () => void;
   onCrosshair?: (e: CrosshairEvent) => void;
   onViewportChange?: (startMs: number, endMs: number) => void;
 };

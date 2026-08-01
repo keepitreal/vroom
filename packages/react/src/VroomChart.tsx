@@ -2,7 +2,7 @@
 // a <canvas> via @vroomchart/core-wasm and wires pointer/wheel gestures. API-matched
 // to the React Native component (same props from @vroomchart/types).
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 
 import { useChartCore } from './useChartCore';
@@ -46,14 +46,34 @@ export function VroomChart(props: VroomChartProps) {
     onModeChange,
     drawingStore,
     seriesKey,
+    historyLimit,
+    onHistoryChange,
+    historyRef,
+    onUndo,
+    onRedo,
   } = props;
 
   // Managed persistence: when a `drawingStore` is provided the chart owns the
   // drawings array itself (keyed by seriesKey) instead of the controlled props.
   // The hook is always called (rules of hooks) but no-ops without a store.
-  const managed = useManagedDrawings(seriesKey, drawingStore);
+  const managed = useManagedDrawings(seriesKey, drawingStore, historyLimit);
   const stored = drawingStore != null;
   const effectiveDrawings = stored ? managed.drawings : drawings;
+
+  // Managed-mode history surface: availability changes out via onHistoryChange,
+  // programmatic controls in via historyRef. Controlled mode owns its own
+  // history (see useDrawingHistory), so both are managed-only.
+  const { historyState, undo, redo, clearHistory } = managed;
+  useEffect(() => {
+    if (stored) onHistoryChange?.(historyState);
+  }, [stored, historyState, onHistoryChange]);
+  useEffect(() => {
+    if (!historyRef || !stored) return;
+    historyRef.current = { undo, redo, clearHistory };
+    return () => {
+      historyRef.current = null;
+    };
+  }, [historyRef, stored, undo, redo, clearHistory]);
 
   const { containerRef, canvasRef, handleRef, scheduleRender } = useChartCore(
     stored ? { ...props, drawings: effectiveDrawings } : props,
@@ -71,6 +91,8 @@ export function VroomChart(props: VroomChartProps) {
     onDrawingComplete: stored ? managed.onDrawingComplete : onDrawingComplete,
     onDrawingChange: stored ? managed.onDrawingChange : onDrawingChange,
     onDrawingDelete: stored ? managed.onDrawingDelete : onDrawingDelete,
+    onUndo: stored ? managed.undo : onUndo,
+    onRedo: stored ? managed.redo : onRedo,
     onRequestMode: onModeChange,
   });
 

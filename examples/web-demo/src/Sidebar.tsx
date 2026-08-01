@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode, useState } from 'react';
-import type { ChartMode, ChartType, DrawTool } from '@vroomchart/react';
+import type { ChartMode, ChartType, DrawTool, UndoRedoState } from '@vroomchart/react';
 
 // GitHub-dark palette (matches the rest of the demo's inline styling).
 const PANEL = '#161b22';
@@ -206,6 +206,9 @@ export type SidebarProps = {
     toggleLineTool: () => void;
     toggleBoxTool: () => void;
     togglePencilTool: () => void;
+    history: UndoRedoState;
+    undoDrawing: () => void;
+    redoDrawing: () => void;
   };
   panels: {
     activeCount: number;
@@ -417,6 +420,24 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             }}
           >
             Pencil (P)
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={overlays.undoDrawing}
+            disabled={!overlays.history.canUndo}
+            style={{ ...btn, flex: 1, ...(overlays.history.canUndo ? {} : { opacity: 0.4, cursor: 'default' }) }}
+            title="Undo the last drawing action (⌘Z / Ctrl+Z)"
+          >
+            ↩ Undo
+          </button>
+          <button
+            onClick={overlays.redoDrawing}
+            disabled={!overlays.history.canRedo}
+            style={{ ...btn, flex: 1, ...(overlays.history.canRedo ? {} : { opacity: 0.4, cursor: 'default' }) }}
+            title="Redo the last undone drawing action (⇧⌘Z / Ctrl+Y)"
+          >
+            ↪ Redo
           </button>
         </div>
       </Section>

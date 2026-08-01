@@ -9,6 +9,8 @@ import {
   type DrawingStore,
   type LiquidityBand,
   type LiquidityConfig,
+  type UndoRedoControls,
+  type UndoRedoState,
 } from '@vroomchart/react';
 import { Sidebar } from './Sidebar';
 import { SettingsModal, DEFAULT_THEME, type ThemeState, type NumericStyle } from './SettingsModal';
@@ -110,6 +112,9 @@ export type DrawProps = {
   // through this adapter, keyed by the market (seriesKey).
   drawingStore: DrawingStore;
   onModeChange: (m: ChartMode) => void;
+  // Undo/redo surface (managed mode): availability out, button-driven controls in.
+  onHistoryChange: (s: UndoRedoState) => void;
+  historyRef: { current: UndoRedoControls | null };
 };
 
 // Read the saved theme, merging onto DEFAULT_THEME so newly-added fields are
@@ -443,6 +448,13 @@ export function App() {
   const toggleBoxTool = useCallback(() => selectTool('box'), [selectTool]);
   const togglePencilTool = useCallback(() => selectTool('pencil'), [selectTool]);
 
+  // Drawing undo/redo: the chart owns the history (managed mode); the sidebar
+  // buttons just mirror availability and trigger it. ⌘Z / ⇧⌘Z work natively.
+  const [history, setHistory] = useState<UndoRedoState>({ canUndo: false, canRedo: false });
+  const historyRef = useRef<UndoRedoControls | null>(null);
+  const undoDrawing = useCallback(() => historyRef.current?.undo(), []);
+  const redoDrawing = useCallback(() => historyRef.current?.redo(), []);
+
   // "L" toggles the line tool, "R" the box (rectangle), "P" the pencil —
   // Figma/Excalidraw style. This lives in the demo, not the library — the hotkey
   // is the consuming app's choice, so vroom doesn't enshrine one. Ignore it while
@@ -473,6 +485,8 @@ export function App() {
       setDrawMode(m);
       if (m === 'pan') setDrawTool(null);
     },
+    onHistoryChange: setHistory,
+    historyRef,
   };
 
   useEffect(() => {
@@ -710,7 +724,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

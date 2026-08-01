@@ -56,7 +56,7 @@ function Chart({ candles }) {
 
 ## Drawing tools
 
-Vroom supports trendlines, rectangles and freehand pencil drawing. Drawings are persisted via an injected local storage adapter and are indexed by asset/market so the drawings are maintained across refreshes.
+Vroom supports trendlines, rectangles and freehand pencil drawing, with full undo/redo (⌘Z / ⇧⌘Z, one step per committed drawing). Drawings are persisted via an injected local storage adapter and are indexed by asset/market so the drawings are maintained across refreshes.
 
   <img src="/img/drawing.gif" alt="smooth gestures" width="360" />
   <figcaption style={{textAlign: 'left'}}><em>Trendline, rect, and pencil supported</em></figcaption>

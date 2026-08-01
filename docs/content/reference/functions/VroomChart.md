@@ -4,7 +4,7 @@
 function VroomChart(props): Element;
 ```
 
-Defined in: [react-native/src/VroomChart.tsx:36](https://github.com/keepitreal/vroom/blob/ad6f4129cd8547aeef88698716895e0af77971c9/packages/react-native/src/VroomChart.tsx#L36)
+Defined in: [react-native/src/VroomChart.tsx:36](https://github.com/keepitreal/vroom/blob/3f6a67d6951af43fd8eed66e70bf2793c353bbc0/packages/react-native/src/VroomChart.tsx#L36)
 
 Skia-rendered candlestick chart. Pass OHLCV `candles` and size it via `style`
 (it fills its parent by default). Pan to scroll, pinch to zoom, drag the

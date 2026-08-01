@@ -30,6 +30,10 @@ export type GestureOptions = {
   onDrawingChange?: (drawing: Drawing) => void;
   /** Fired when the selected line is deleted (Backspace/Delete). */
   onDrawingDelete?: (id: string) => void;
+  /** Fired on the undo shortcut (⌘Z / Ctrl+Z). */
+  onUndo?: () => void;
+  /** Fired on the redo shortcut (⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y). */
+  onRedo?: () => void;
   /** Fired when the chart wants the host to change mode (e.g. exit on click-away). */
   onRequestMode?: (mode: ChartMode) => void;
 };
@@ -308,7 +312,25 @@ export function useGestures(
 
       if (!(e.metaKey || e.ctrlKey)) return;
       const key = e.key.toLowerCase();
-      if (key === 'c') {
+      if (key === 'z' || key === 'y') {
+        // ⌘Z with a pending first anchor undoes the point placement (like
+        // Escape), not the previous committed drawing.
+        if (key === 'z' && !e.shiftKey && drawAnchorRef.current) {
+          e.preventDefault();
+          drawAnchorRef.current = null;
+          const h = handleRef.current;
+          if (h) {
+            h.clearDraft();
+            scheduleRender();
+          }
+          return;
+        }
+        const redo = key === 'y' || e.shiftKey;
+        const fn = redo ? optsRef.current.onRedo : optsRef.current.onUndo;
+        if (!fn) return; // unhandled — leave the event to the page
+        e.preventDefault();
+        fn();
+      } else if (key === 'c') {
         if (window.getSelection()?.toString()) return; // don't hijack a real text copy
         const d = findSelected();
         if (!d) return;
