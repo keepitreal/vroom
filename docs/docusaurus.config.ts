@@ -35,6 +35,10 @@ const config: Config = {
         // changing public types.
         entryPoints: ['../packages/react-native/src/index.ts'],
         tsconfig: '../packages/react-native/tsconfig.json',
+        // Pin source links to the branch, not the commit SHA typedoc defaults
+        // to — SHA-pinned links change on every commit, which made the CI
+        // "reference is committed" check fail on every push by construction.
+        gitRevision: 'main',
         out: 'content/reference',
         readme: 'none',
         excludeInternal: true,
