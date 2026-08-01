@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Drawing } from '@vroomchart/types';
 
-import { DRAWINGS_VERSION, deserializeDrawings, serializeDrawings } from './drawingStorage';
+import {
+  DRAWINGS_VERSION,
+  deserializeDrawings,
+  isValidDrawing,
+  serializeDrawings,
+} from './drawingStorage';
 
 const p = (timeMs: number, price: number) => ({ timeMs, price });
 
@@ -91,5 +96,39 @@ describe('backward compatibility', () => {
 
   it('loads a bare array as the pre-envelope v0 shape', () => {
     expect(deserializeDrawings(JSON.stringify([line]))).toEqual([line]);
+  });
+});
+
+// The same guard filters the controlled `drawings` prop before entries reach
+// the WASM boundary (useChartCore), so it must reject anything whose anchors
+// would read as undefined/NaN doubles.
+describe('isValidDrawing (controlled drawings prop guard)', () => {
+  it('accepts well-formed line, box and pencil drawings', () => {
+    expect(isValidDrawing(line)).toBe(true);
+    expect(isValidDrawing(box)).toBe(true);
+    expect(isValidDrawing(pencil)).toBe(true);
+  });
+
+  it('rejects a drawing with an empty points array', () => {
+    expect(isValidDrawing({ id: 'x', type: 'pencil', points: [] })).toBe(false);
+    expect(isValidDrawing({ id: 'x', type: 'line', points: [] })).toBe(false);
+  });
+
+  it('rejects a drawing with a non-finite coordinate', () => {
+    const nan = { id: 'x', type: 'line', points: [p(1, NaN), p(2, 2)] };
+    const inf = { id: 'x', type: 'box', points: [p(1, 1), p(Infinity, 2)] };
+    expect(isValidDrawing(nan)).toBe(false);
+    expect(isValidDrawing(inf)).toBe(false);
+  });
+
+  it('rejects a line/box with the wrong point arity', () => {
+    expect(isValidDrawing({ id: 'x', type: 'line', points: [p(1, 1)] })).toBe(false);
+    expect(isValidDrawing({ id: 'x', type: 'box', points: [p(1, 1), p(2, 2), p(3, 3)] })).toBe(false);
+  });
+
+  it('rejects unknown types and non-objects', () => {
+    expect(isValidDrawing({ id: 'x', type: 'arrow', points: [p(1, 1), p(2, 2)] })).toBe(false);
+    expect(isValidDrawing(null)).toBe(false);
+    expect(isValidDrawing('line')).toBe(false);
   });
 });

@@ -23,6 +23,7 @@ import {
   timeframeWindow,
   type DataTransition,
 } from './dataTransitions';
+import { isValidDrawing } from './drawingStorage';
 
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;
@@ -295,7 +296,10 @@ export function useChartCore(
       (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
       vwap?.width ?? 1.5,
     );
-    h.setDrawings((drawings ?? []).map(drawingToSpec));
+    // The controlled `drawings` prop is consumer-supplied — filter malformed
+    // entries (wrong arity, non-finite anchors) before they reach the WASM
+    // boundary, matching the validation the managed store path already does.
+    h.setDrawings((drawings ?? []).filter(isValidDrawing).map(drawingToSpec));
     h.setLiquidity(
       liquidity?.bands?.length ? liquidityToSpec(liquidity) : EMPTY_LIQUIDITY,
     );

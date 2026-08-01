@@ -44,7 +44,7 @@ function isPoint(p: unknown): boolean {
  * assume two well-formed anchors. Anything malformed is dropped exactly like an
  * unknown type, rather than reaching the renderer as garbage.
  */
-function isValidDrawing(d: unknown): d is Drawing {
+export function isValidDrawing(d: unknown): d is Drawing {
   if (d == null || typeof d !== 'object') return false;
   const { type, points } = d as { type?: unknown; points?: unknown };
   if (typeof type !== 'string' || !KNOWN_TYPES.has(type as Drawing['type'])) {
