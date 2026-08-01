@@ -20,7 +20,7 @@
     "release": "pnpm build:packages && changeset publish"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.27.11"
+    "@changesets/cli": "^2.31.1"
   },
   "pnpm": {
     "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check).",
