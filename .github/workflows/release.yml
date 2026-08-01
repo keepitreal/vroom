@@ -36,7 +36,10 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20
+          # Trusted Publishing (OIDC) needs Node >= 22.14.0; changeset publish
+          # authenticates through pnpm (>= 10, pinned in packageManager), whose
+          # OIDC support supersedes the globally-installed npm below.
+          node-version: 24
           cache: pnpm
 
       # Trusted Publishing needs npm >= 11.5.1.
