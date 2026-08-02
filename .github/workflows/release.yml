@@ -1,19 +1,17 @@
 name: Release
 
-# DORMANT — CI publishing is not enabled yet. The project publishes manually for
-# now (`npm login` + `pnpm publish --access public` with an OTP). This workflow
-# is kept as scaffolding and only runs via manual dispatch.
+# Automated releases via Changesets + npm Trusted Publishing (OIDC, no stored
+# NPM_TOKEN — provenance is attached automatically). Trusted publishers are
+# configured on npmjs.com for each package, pointing at this repo + workflow.
 #
-# It is wired for npm Trusted Publishing (OIDC) — no stored NPM_TOKEN. To
-# enable automated releases:
-#   1. Manually publish each package once (so it exists on npm).
-#   2. On npmjs.com, add a Trusted Publisher to each package pointing at this
-#      repo + this workflow file (release.yml).
-#   3. Switch the trigger below back to `push: branches: [main]`.
-# Once that's done, Changesets opens a "Version Packages" PR on push; merging it
-# publishes the bumped packages with provenance attestations.
+# Flow: land changesets on feature PRs (`pnpm changeset`). On push to main,
+# Changesets opens a "Version Packages" PR that bumps versions + changelogs.
+# Merging THAT PR publishes the bumped packages. A push with no pending
+# changesets is a no-op. `workflow_dispatch` is kept for manual re-runs.
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
