@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # Changesets needs full history/tags to compute releases
 
       # No `version:` here on purpose — pnpm's version comes from the
       # `packageManager` field in package.json. Specifying it in both places
