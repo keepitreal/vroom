@@ -18,6 +18,7 @@
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
 
+#include "bollinger.h"
 #include "candles.h"
 #include "chart_internal.h"
 #include "crosshair.h"
@@ -100,6 +101,15 @@ void VroomChart::ensure_vwap() {
     vwap_dirty = false;
 }
 
+void VroomChart::ensure_bollinger() {
+    if (!bollinger.enabled || !bollinger_dirty) return;
+    vroom::bollinger::compute(candles.data(), candles.size(), bollinger.period,
+                              bollinger.mult, bollinger.source,
+                              bollinger.basis_kind, bb_middle_cache,
+                              bb_upper_cache, bb_lower_cache);
+    bollinger_dirty = false;
+}
+
 void VroomChart::draw_chart(SkCanvas* canvas) {
     const auto lay = layout();
 
@@ -148,6 +158,23 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      space, so they scale with the y-axis.
     vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
                            candle_area_h);
+
+    // 4.7. Bollinger Band fill — the translucent region between the upper and
+    //      lower bands, behind the candles so their bull/bear colors stay
+    //      untinted. The band lines themselves draw above the candles (5.65).
+    if (bollinger.enabled) {
+        ensure_bollinger();
+        if (bollinger.fill_enabled &&
+            bb_upper_cache.size() == candles.size() &&
+            bb_lower_cache.size() == candles.size()) {
+            vroom::ma_overlay::fill_between(
+                canvas, lay, bounds, visible, n,
+                bb_upper_cache.data() + range.start,
+                bb_lower_cache.data() + range.start, window_ms,
+                visible_start_ms, candle_duration_ms, candle_right,
+                candle_area_h, bollinger.upper_color, bollinger.fill_opacity);
+        }
+    }
 
     // 5. Price series — candles, a close-price line, or a blend of the two during
     //    the candle↔line morph. `morph_fade` crossfades candles→line and
@@ -199,6 +226,28 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                     window_ms, visible_start_ms,
                                     candle_duration_ms, candle_right,
                                     candle_area_h, vwap_color, vwap_width, brk);
+        }
+    }
+
+    // 5.65. Bollinger Band lines — upper, lower, then the basis last so it
+    //       reads on top where the bands pinch. Same price scale as the
+    //       candles; the fill went down in 4.7.
+    if (bollinger.enabled) {
+        ensure_bollinger();
+        const std::size_t sz = candles.size();
+        if (bb_upper_cache.size() == sz && bb_lower_cache.size() == sz &&
+            bb_middle_cache.size() == sz) {
+            const auto stroke = [&](const std::vector<double>& cache,
+                                    uint32_t color, float width) {
+                vroom::ma_overlay::draw(canvas, lay, bounds, visible, n,
+                                        cache.data() + range.start, window_ms,
+                                        visible_start_ms, candle_duration_ms,
+                                        candle_right, candle_area_h, color,
+                                        width);
+            };
+            stroke(bb_upper_cache, bollinger.upper_color, bollinger.upper_width);
+            stroke(bb_lower_cache, bollinger.lower_color, bollinger.lower_width);
+            stroke(bb_middle_cache, bollinger.middle_color, bollinger.middle_width);
         }
     }
 

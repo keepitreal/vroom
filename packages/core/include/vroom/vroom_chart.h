@@ -49,6 +49,26 @@ typedef struct VroomOverlay {
     float    width;   // stroke width in px
 } VroomOverlay;
 
+// Bollinger Bands overlay drawn on the price pane: a basis MA of `source` over
+// `period`, banded at ± `mult` × population standard deviation of the same
+// window. Per TradingView semantics the stdev always uses the window's
+// arithmetic mean, even when `basis_kind` selects an EMA basis line.
+typedef struct VroomBollinger {
+    int32_t  enabled;       // 0/1
+    int32_t  period;        // lookback in candles (clamped >= 1; default 20)
+    float    mult;          // stdev multiplier (clamped >= 0; default 2)
+    int32_t  source;        // 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4
+    int32_t  basis_kind;    // 0 = SMA, 1 = EMA
+    uint32_t upper_color;   // 0xAARRGGBB
+    float    upper_width;   // stroke px
+    uint32_t middle_color;
+    float    middle_width;
+    uint32_t lower_color;
+    float    lower_width;
+    int32_t  fill_enabled;  // 0/1: translucent fill between upper and lower
+    float    fill_opacity;  // 0..1, multiplied into upper_color's alpha
+} VroomBollinger;
+
 // A drawing anchor in data space (so a drawing tracks the candles on pan/zoom).
 typedef struct VroomDrawPoint {
     int64_t time_ms;  // epoch milliseconds (not snapped to a candle slot)
@@ -320,6 +340,11 @@ void vroom_chart_set_overlays(VroomChart* chart, const VroomOverlay* overlays,
 // reset time). `color` is 0xAARRGGBB; `width` is the stroke px.
 void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
                           uint32_t color, float width);
+
+// Configures the Bollinger Bands overlay (three price-pane lines + an optional
+// translucent fill between the bands; no pane is reserved). Color/width/fill
+// changes only re-render; enabled/period/mult/source/basis changes recompute.
+void vroom_chart_set_bollinger(VroomChart* chart, const VroomBollinger* cfg);
 
 // ---- Drawings (line annotations) ------------------------------------------
 

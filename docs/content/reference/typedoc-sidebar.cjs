@@ -8,6 +8,11 @@ const typedocSidebar = {
       items: [
         {
           type: "doc",
+          id: "reference/type-aliases/BollingerBandsConfig",
+          label: "BollingerBandsConfig"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/Candle",
           label: "Candle"
         },

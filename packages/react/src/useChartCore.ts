@@ -12,6 +12,7 @@ import {
   parseColor,
   type LoadVroomOptions,
   type OverlaySpec,
+  type BollingerSpec,
   type DrawingSpec,
   type LiquiditySpec,
   type VroomChartHandle,
@@ -38,6 +39,34 @@ function overlayToNumeric(
     source: srcIdx < 0 ? 0 : srcIdx,
     color: (o.color != null ? parseColor(o.color) : null) ?? 0xff2962ff,
     width: o.width ?? 1.5,
+  };
+}
+
+// Bollinger defaults: blue bands / orange basis, matching the repo palette.
+const DEFAULT_BB_BAND_COLOR = 0xff2962ff;
+const DEFAULT_BB_BASIS_COLOR = 0xffff6d00;
+
+function bollingerToSpec(
+  cfg: VroomChartCoreProps['bollingerBands'],
+): BollingerSpec {
+  const srcIdx = cfg?.source ? MA_SOURCES.indexOf(cfg.source) : 0;
+  return {
+    enabled: cfg?.enabled ?? false,
+    period: cfg?.period ?? 20,
+    mult: cfg?.stdDev ?? 2,
+    source: srcIdx < 0 ? 0 : srcIdx,
+    basisKind: cfg?.basis === 'ema' ? 1 : 0,
+    upperColor:
+      (cfg?.upperColor != null ? parseColor(cfg.upperColor) : null) ?? DEFAULT_BB_BAND_COLOR,
+    upperWidth: cfg?.upperWidth ?? 1,
+    middleColor:
+      (cfg?.middleColor != null ? parseColor(cfg.middleColor) : null) ?? DEFAULT_BB_BASIS_COLOR,
+    middleWidth: cfg?.middleWidth ?? 1,
+    lowerColor:
+      (cfg?.lowerColor != null ? parseColor(cfg.lowerColor) : null) ?? DEFAULT_BB_BAND_COLOR,
+    lowerWidth: cfg?.lowerWidth ?? 1,
+    fillEnabled: cfg?.fill ?? true,
+    fillOpacity: cfg?.fillOpacity ?? 0.1,
   };
 }
 
@@ -129,6 +158,7 @@ export function useChartCore(
     macd,
     movingAverages,
     vwap,
+    bollingerBands,
     drawings,
     liquidity,
   } = props;
@@ -207,6 +237,7 @@ export function useChartCore(
   const macdKey = macd ? JSON.stringify(macd) : '';
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
+  const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
   const drawingsKey = drawings ? JSON.stringify(drawings) : '';
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
   const explicit = visibleRange != null;
@@ -296,6 +327,7 @@ export function useChartCore(
       (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
       vwap?.width ?? 1.5,
     );
+    h.setBollinger(bollingerToSpec(bollingerBands));
     // The controlled `drawings` prop is consumer-supplied — filter malformed
     // entries (wrong arity, non-finite anchors) before they reach the WASM
     // boundary, matching the validation the managed store path already does.
@@ -304,9 +336,10 @@ export function useChartCore(
       liquidity?.bands?.length ? liquidityToSpec(liquidity) : EMPTY_LIQUIDITY,
     );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/drawings/liquidity tracked via *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/drawings/liquidity
+    // tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, drawingsKey, liquidityKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, scheduleRender]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

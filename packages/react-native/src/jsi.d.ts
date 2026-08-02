@@ -142,6 +142,26 @@ export interface ChartHandle {
     color: number,
     width: number,
   ): void;
+  /**
+   * Configures the Bollinger Bands overlay (three price-pane lines + optional
+   * fill between the bands). source/basisKind mirror setOverlays' encodings;
+   * colors are packed 0xAARRGGBB; fillOpacity is 0..1.
+   */
+  setBollinger(spec: {
+    enabled: boolean;
+    period: number;
+    mult: number;
+    source: number;
+    basisKind: number;
+    upperColor: number;
+    upperWidth: number;
+    middleColor: number;
+    middleWidth: number;
+    lowerColor: number;
+    lowerWidth: number;
+    fillEnabled: boolean;
+    fillOpacity: number;
+  }): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

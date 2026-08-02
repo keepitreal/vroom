@@ -14,6 +14,7 @@ export type {
   MASource,
   MovingAverageOverlay,
   VWAPConfig,
+  BollingerBandsConfig,
   MACDConfig,
   ChartType,
 } from '@vroomchart/types';

@@ -51,6 +51,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setMACD"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -547,6 +548,52 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const uint32_t color = static_cast<uint32_t>(args[2].asNumber());
           const float width = static_cast<float>(args[3].asNumber());
           vroom_chart_set_vwap(chart_, enabled, reset, color, width);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setBollinger") {
+    // setBollinger({enabled, period, mult, source, basisKind, upperColor,
+    // upperWidth, middleColor, middleWidth, lowerColor, lowerWidth,
+    // fillEnabled, fillOpacity}) — Bollinger Bands overlay. No render; the
+    // next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setBollinger"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          VroomBollinger cfg{};
+          cfg.enabled = s.getProperty(rt2, "enabled").asBool() ? 1 : 0;
+          cfg.period = static_cast<int32_t>(
+              s.getProperty(rt2, "period").asNumber());
+          cfg.mult = static_cast<float>(
+              s.getProperty(rt2, "mult").asNumber());
+          cfg.source = static_cast<int32_t>(
+              s.getProperty(rt2, "source").asNumber());
+          cfg.basis_kind = static_cast<int32_t>(
+              s.getProperty(rt2, "basisKind").asNumber());
+          cfg.upper_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "upperColor").asNumber());
+          cfg.upper_width = static_cast<float>(
+              s.getProperty(rt2, "upperWidth").asNumber());
+          cfg.middle_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "middleColor").asNumber());
+          cfg.middle_width = static_cast<float>(
+              s.getProperty(rt2, "middleWidth").asNumber());
+          cfg.lower_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "lowerColor").asNumber());
+          cfg.lower_width = static_cast<float>(
+              s.getProperty(rt2, "lowerWidth").asNumber());
+          cfg.fill_enabled =
+              s.getProperty(rt2, "fillEnabled").asBool() ? 1 : 0;
+          cfg.fill_opacity = static_cast<float>(
+              s.getProperty(rt2, "fillOpacity").asNumber());
+          vroom_chart_set_bollinger(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }

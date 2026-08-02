@@ -19,6 +19,7 @@ import {
 } from 'react-native-vroom-chart';
 
 import {
+  DEFAULT_BOLLINGER_PARAMS,
   DEFAULT_EMA_LINE,
   DEFAULT_INDICATOR_STATE,
   DEFAULT_MA_LINE,
@@ -27,6 +28,7 @@ import {
   DEFAULT_VWAP_PARAMS,
   enabledCount,
   IndicatorsMenu,
+  type BollingerParams,
   type IndicatorId,
   type IndicatorState,
   type MACDParams,
@@ -216,6 +218,15 @@ export default function App() {
     [],
   );
 
+  const [bbParams, setBbParams] = useState<BollingerParams>(
+    DEFAULT_BOLLINGER_PARAMS,
+  );
+  const patchBb = useCallback(
+    (patch: Partial<BollingerParams>) =>
+      setBbParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
     // Seed one default line when enabling an empty MA/EMA group.
@@ -292,6 +303,21 @@ export default function App() {
             color: vwapParams.color,
             width: vwapParams.width,
           }}
+          bollingerBands={{
+            enabled: indicators.bb.enabled,
+            period: bbParams.period,
+            stdDev: bbParams.stdDev,
+            source: bbParams.source,
+            basis: bbParams.basis,
+            upperColor: bbParams.upperColor,
+            upperWidth: bbParams.width,
+            middleColor: bbParams.middleColor,
+            middleWidth: bbParams.width,
+            lowerColor: bbParams.lowerColor,
+            lowerWidth: bbParams.width,
+            fill: bbParams.fill,
+            fillOpacity: bbParams.fillOpacity,
+          }}
         />
 
         <View style={styles.footer}>
@@ -328,6 +354,8 @@ export default function App() {
         emaEditor={emaEditor}
         vwapParams={vwapParams}
         onVwapParamsChange={patchVwap}
+        bbParams={bbParams}
+        onBbParamsChange={patchBb}
       />
 
       <StatusBar style="light" />

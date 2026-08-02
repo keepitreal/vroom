@@ -6,6 +6,7 @@ import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
 import { applyTheme, parseColor } from './theme';
 import type {
+  BollingerBandsConfig,
   Candle,
   ChartType,
   MACDConfig,
@@ -35,6 +36,35 @@ function overlayToNumeric(o: MovingAverageOverlay) {
     source: srcIdx < 0 ? 0 : srcIdx,
     color: (o.color != null ? parseColor(o.color) : null) ?? 0xff2962ff,
     width: o.width ?? 1.5,
+  };
+}
+
+// Bollinger defaults: blue bands / orange basis, matching the repo palette.
+const DEFAULT_BB_BAND_COLOR = 0xff2962ff;
+const DEFAULT_BB_BASIS_COLOR = 0xffff6d00;
+
+function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
+  const srcIdx = cfg?.source ? MA_SOURCES.indexOf(cfg.source) : 0;
+  return {
+    enabled: cfg?.enabled ?? false,
+    period: cfg?.period ?? 20,
+    mult: cfg?.stdDev ?? 2,
+    source: srcIdx < 0 ? 0 : srcIdx,
+    basisKind: cfg?.basis === 'ema' ? 1 : 0,
+    upperColor:
+      (cfg?.upperColor != null ? parseColor(cfg.upperColor) : null) ??
+      DEFAULT_BB_BAND_COLOR,
+    upperWidth: cfg?.upperWidth ?? 1,
+    middleColor:
+      (cfg?.middleColor != null ? parseColor(cfg.middleColor) : null) ??
+      DEFAULT_BB_BASIS_COLOR,
+    middleWidth: cfg?.middleWidth ?? 1,
+    lowerColor:
+      (cfg?.lowerColor != null ? parseColor(cfg.lowerColor) : null) ??
+      DEFAULT_BB_BAND_COLOR,
+    lowerWidth: cfg?.lowerWidth ?? 1,
+    fillEnabled: cfg?.fill ?? true,
+    fillOpacity: cfg?.fillOpacity ?? 0.1,
   };
 }
 
@@ -70,6 +100,7 @@ export function useChartCore(
   macd?: MACDConfig,
   movingAverages?: MovingAverageOverlay[],
   vwap?: VWAPConfig,
+  bollingerBands?: BollingerBandsConfig,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   // Push setDefaultCandleWidth only once (first load): setCandles re-runs on
@@ -98,6 +129,7 @@ export function useChartCore(
   const macdKey = macd ? JSON.stringify(macd) : '';
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
+  const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -147,12 +179,14 @@ export function useChartCore(
       (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
       vwap?.width ?? 1.5,
     );
+    h.setBollinger(bollingerToSpec(bollingerBands));
     // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
     // the VroomBand structs in the JSI handle) — web-only for now.
     setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap are represented by their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands are represented by
+    // their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey]);
 
   return { handle: handleRef.current, picture };
 }

@@ -33,6 +33,7 @@ export type {
   MASource,
   MovingAverageOverlay,
   VWAPConfig,
+  BollingerBandsConfig,
   LiquidityBand,
   LiquidityConfig,
   ChartMode,

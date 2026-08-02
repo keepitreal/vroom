@@ -131,6 +131,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->macd_dirty = true;
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
+    chart->bollinger_dirty = true;
 
     // Infer the candle period from the first interval. Robust enough for
     // uniform-duration series (the only kind we model today).
@@ -158,6 +159,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     chart->macd_dirty = true;
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
+    chart->bollinger_dirty = true;
     chart->mark_dirty();
 }
 
@@ -168,6 +170,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     chart->macd_dirty = true;
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
+    chart->bollinger_dirty = true;
     chart->mark_dirty();
 }
 
@@ -1046,6 +1049,29 @@ extern "C" void vroom_chart_set_vwap(VroomChart* chart, bool enabled,
     chart->vwap_color = color;
     chart->vwap_width = width;
     if (recompute) chart->vwap_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_bollinger(VroomChart* chart,
+                                          const VroomBollinger* cfg) {
+    if (!chart || !cfg) return;
+    VroomBollinger next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    next.fill_enabled = next.fill_enabled ? 1 : 0;
+    if (next.period < 1) next.period = 1;
+    if (!(next.mult >= 0.f)) next.mult = 0.f;
+    next.fill_opacity = std::clamp(next.fill_opacity, 0.f, 1.f);
+
+    // Only the series-affecting fields force a recompute; style and fill
+    // changes are render-only.
+    const VroomBollinger& cur = chart->bollinger;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.period != next.period ||
+                           cur.mult != next.mult ||
+                           cur.source != next.source ||
+                           cur.basis_kind != next.basis_kind;
+    chart->bollinger = next;
+    if (recompute) chart->bollinger_dirty = true;
     chart->mark_dirty();
 }
 
