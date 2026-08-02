@@ -4,10 +4,10 @@
   "description": "Skia-quality candlestick chart for the web (React DOM).",
   "license": "MIT",
   "author": "Darion Welch",
-  "homepage": "https://github.com/darionwelch/vroom#readme",
+  "homepage": "https://github.com/keepitreal/vroom#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/darionwelch/vroom.git",
+    "url": "git+https://github.com/keepitreal/vroom.git",
     "directory": "packages/react"
   },
   "keywords": [
@@ -18,7 +18,15 @@
     "wasm",
     "finance",
     "trading",
-    "charting"
+    "charting",
+    "ohlcv",
+    "technical-analysis",
+    "indicators",
+    "drawing-tools",
+    "crosshair",
+    "stock-chart",
+    "typescript",
+    "react-chart"
   ],
   "type": "module",
   "main": "./dist/index.js",

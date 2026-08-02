@@ -4,10 +4,10 @@
   "description": "Mobile-first Skia candlestick chart for React Native",
   "license": "MIT",
   "author": "Darion Welch",
-  "homepage": "https://github.com/darionwelch/vroom#readme",
+  "homepage": "https://github.com/keepitreal/vroom#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/darionwelch/vroom.git",
+    "url": "git+https://github.com/keepitreal/vroom.git",
     "directory": "packages/react-native"
   },
   "keywords": [
@@ -18,7 +18,18 @@
     "finance",
     "trading",
     "charting",
-    "ios"
+    "ios",
+    "android",
+    "ohlcv",
+    "technical-analysis",
+    "indicators",
+    "drawing-tools",
+    "crosshair",
+    "react-native-skia",
+    "reanimated",
+    "gesture-handler",
+    "typescript",
+    "stock-chart"
   ],
   "main": "lib/index.js",
   "module": "lib/index.mjs",

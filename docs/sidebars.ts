@@ -17,6 +17,8 @@ const sidebars: SidebarsConfig = {
       type: 'category',
       label: 'Guides',
       items: [
+        'guides/why-vroom',
+        'guides/architecture',
         'guides/theming',
         'guides/indicators',
         'guides/crosshair-and-events',

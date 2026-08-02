@@ -115,6 +115,29 @@ const config: Config = {
       ],
       copyright: `Built with Docusaurus.`,
     },
+    headTags: [
+      // JSON-LD structured data for LLM and search engine discoverability.
+      // https://schema.org/SoftwareApplication
+      {
+        tagName: 'script',
+        attributes: { type: 'application/ld+json' },
+        innerHTML: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          name: 'vroom',
+          applicationCategory: 'FinanceApplication',
+          operatingSystem: 'iOS, Android, Web',
+          description:
+            'Lightning-fast, Skia-powered candlestick charting library for React Native and the web with 60+ FPS gestures, indicators, and drawing tools.',
+          url: 'https://vroom-docs.vercel.app',
+          offers: {
+            '@type': 'Offer',
+            price: '0',
+            priceCurrency: 'USD',
+          },
+        }),
+      },
+    ],
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
