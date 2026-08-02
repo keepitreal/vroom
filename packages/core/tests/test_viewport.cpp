@@ -1,6 +1,7 @@
 #include "doctest.h"
 
 #include "viewport.h"
+#include <initializer_list>
 
 using vroom::Layout;
 using vroom::PriceBounds;

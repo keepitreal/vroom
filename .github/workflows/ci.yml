@@ -35,6 +35,26 @@ jobs:
 
       - run: pnpm --filter @vroomchart/react --filter react-native-vroom-chart run test
 
+
+  # C++ unit tests (doctest via cmake+ctest). Independent of the JS build;
+  # runs in parallel with `test` so CI wall-clock time stays the same.
+  test-core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - run: sudo apt-get update && sudo apt-get install -y cmake g++ make
+
+      # pnpm is only here to invoke the `test:core` script from root
+      # package.json — no `pnpm install` is needed for that.
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+
+      - run: pnpm test:core
+
   audit:
     runs-on: ubuntu-latest
     steps:
