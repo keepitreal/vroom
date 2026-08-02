@@ -1,5 +1,14 @@
 # react-native-vroom-chart
 
+## 0.5.0
+
+### Minor Changes
+
+- 9feb921: Add a Bollinger Bands overlay indicator (`bollingerBands` prop): a basis
+  SMA/EMA over a configurable period with upper/lower bands at ± N population
+  standard deviations, per-line colors/widths, and an optional translucent fill
+  between the bands. Defaults match TradingView (20-period SMA of close, ±2σ).
+
 ## 0.4.0
 
 ### Minor Changes
