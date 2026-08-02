@@ -15,7 +15,7 @@ Pod::Spec.new do |s|
   s.name         = "react-native-vroom-chart"
   s.version      = package["version"]
   s.summary      = package["description"]
-  s.homepage     = "https://github.com/darionwelch/vroom"
+  s.homepage     = "https://github.com/keepitreal/vroom"
   s.license      = { :type => "MIT" }
   s.authors      = { "vroom" => "noreply@example.com" }
   s.platforms    = { :ios => "14.0" }
