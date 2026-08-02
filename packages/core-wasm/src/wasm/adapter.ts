@@ -5,6 +5,7 @@
 
 import type {
   AxisMetrics,
+  BollingerSpec,
   Coord,
   CrosshairCandle,
   CrosshairInfo,
@@ -52,6 +53,7 @@ interface WebChartInstance {
   setMACD(e: boolean, f: number, s: number, sig: number): void;
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(e: boolean, reset: number, color: number, width: number): void;
+  setBollinger(spec: BollingerSpec): void;
   setDrawings(drawings: DrawingSpec[]): void;
   setLiquidity(liquidity: LiquiditySpec): void;
   setDraft(
@@ -180,6 +182,14 @@ class WasmHandle implements VroomChartHandle {
   }
   setVWAP(enabled: boolean, resetOffsetMin: number, color: number, width: number): void {
     this.wc.setVWAP(enabled, resetOffsetMin, color >>> 0, width);
+  }
+  setBollinger(spec: BollingerSpec): void {
+    this.wc.setBollinger({
+      ...spec,
+      upperColor: spec.upperColor >>> 0,
+      middleColor: spec.middleColor >>> 0,
+      lowerColor: spec.lowerColor >>> 0,
+    });
   }
   setDrawings(drawings: DrawingSpec[]): void {
     this.wc.setDrawings(

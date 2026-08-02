@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type {
+  BollingerBandsConfig,
   MACDConfig,
   MASource,
   MovingAverageOverlay,
@@ -12,7 +13,7 @@ import type {
 // parameter controls. The host (App) owns all state; this component only owns
 // list<->detail navigation.
 
-export type IndicatorId = 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
+export type IndicatorId = 'bb' | 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
 
 export type IndicatorConfig = {
   enabled: boolean;
@@ -27,6 +28,12 @@ type IndicatorMeta = {
 };
 
 export const INDICATORS: IndicatorMeta[] = [
+  {
+    id: 'bb',
+    name: 'Bollinger Bands',
+    description:
+      'A moving-average basis with bands ±N standard deviations away — the bands widen with volatility and squeeze when it fades.',
+  },
   {
     id: 'ema',
     name: 'Exponential Moving Average',
@@ -60,6 +67,7 @@ export const INDICATORS: IndicatorMeta[] = [
 ];
 
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
+  bb: { enabled: false },
   ema: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
@@ -132,6 +140,32 @@ export const DEFAULT_VWAP_PARAMS: VWAPParams = {
   width: 1.5,
 };
 
+export type BollingerParams = {
+  period: number;
+  stdDev: number;
+  source: MASource;
+  basis: 'sma' | 'ema';
+  upperColor: string;
+  middleColor: string;
+  lowerColor: string;
+  width: number;
+  fill: boolean;
+  fillOpacity: number;
+};
+
+export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
+  period: 20,
+  stdDev: 2,
+  source: 'close',
+  basis: 'sma',
+  upperColor: '#2962ff',
+  middleColor: '#ff6d00',
+  lowerColor: '#2962ff',
+  width: 1,
+  fill: true,
+  fillOpacity: 0.1,
+};
+
 export type OverlayEditor = {
   lines: MALineParams[];
   onChange: (index: number, patch: Partial<MALineParams>) => void;
@@ -168,6 +202,7 @@ export type IndicatorChartProps = {
   macd: MACDConfig;
   movingAverages: MovingAverageOverlay[];
   vwap: VWAPConfig;
+  bollingerBands: BollingerBandsConfig;
 };
 
 export function deriveIndicatorProps(
@@ -177,6 +212,7 @@ export function deriveIndicatorProps(
   maLines: MALineParams[],
   emaLines: MALineParams[],
   vwapParams: VWAPParams,
+  bbParams: BollingerParams,
 ): IndicatorChartProps {
   const movingAverages: MovingAverageOverlay[] = [
     ...(state.ma.enabled
@@ -211,6 +247,21 @@ export function deriveIndicatorProps(
       resetMinutes: vwapParams.resetHour * 60,
       color: vwapParams.color,
       width: vwapParams.width,
+    },
+    bollingerBands: {
+      enabled: state.bb.enabled,
+      period: bbParams.period,
+      stdDev: bbParams.stdDev,
+      source: bbParams.source,
+      basis: bbParams.basis,
+      upperColor: bbParams.upperColor,
+      upperWidth: bbParams.width,
+      middleColor: bbParams.middleColor,
+      middleWidth: bbParams.width,
+      lowerColor: bbParams.lowerColor,
+      lowerWidth: bbParams.width,
+      fill: bbParams.fill,
+      fillOpacity: bbParams.fillOpacity,
     },
   };
 }
@@ -272,6 +323,8 @@ export function IndicatorsModal({
   emaEditor,
   vwapParams,
   onVwapParamsChange,
+  bbParams,
+  onBbParamsChange,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -285,6 +338,8 @@ export function IndicatorsModal({
   emaEditor: OverlayEditor;
   vwapParams: VWAPParams;
   onVwapParamsChange: (patch: Partial<VWAPParams>) => void;
+  bbParams: BollingerParams;
+  onBbParamsChange: (patch: Partial<BollingerParams>) => void;
 }) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -326,6 +381,10 @@ export function IndicatorsModal({
             vwapParams={detail.id === 'vwap' ? vwapParams : undefined}
             onVwapParamsChange={
               detail.id === 'vwap' ? onVwapParamsChange : undefined
+            }
+            bbParams={detail.id === 'bb' ? bbParams : undefined}
+            onBbParamsChange={
+              detail.id === 'bb' ? onBbParamsChange : undefined
             }
           />
         ) : (
@@ -681,6 +740,8 @@ function DetailScreen({
   editor,
   vwapParams,
   onVwapParamsChange,
+  bbParams,
+  onBbParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -693,10 +754,13 @@ function DetailScreen({
   editor?: OverlayEditor;
   vwapParams?: VWAPParams;
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
+  bbParams?: BollingerParams;
+  onBbParamsChange?: (patch: Partial<BollingerParams>) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
+  const bb = bbParams && onBbParamsChange ? bbParams : null;
   return (
     <>
       <div style={navBar}>
@@ -857,6 +921,115 @@ function DetailScreen({
                   onChange={(w) => onVwapParamsChange!({ width: w })}
                 />
               </div>
+            </>
+          ) : bb ? (
+            <>
+              <Stepper
+                label="Period"
+                value={bb.period}
+                min={1}
+                max={200}
+                onChange={(n) => onBbParamsChange!({ period: n })}
+              />
+              <div style={paramRow}>
+                <span style={paramLabel}>Std dev</span>
+                <Segmented
+                  options={[
+                    { label: '1', value: 1 },
+                    { label: '1.5', value: 1.5 },
+                    { label: '2', value: 2 },
+                    { label: '2.5', value: 2.5 },
+                    { label: '3', value: 3 },
+                  ]}
+                  value={bb.stdDev}
+                  onChange={(v) => onBbParamsChange!({ stdDev: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Basis</span>
+                <Segmented
+                  options={[
+                    { label: 'SMA', value: 0 },
+                    { label: 'EMA', value: 1 },
+                  ]}
+                  value={bb.basis === 'ema' ? 1 : 0}
+                  onChange={(v) =>
+                    onBbParamsChange!({ basis: v === 1 ? 'ema' : 'sma' })
+                  }
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Source</span>
+                <button
+                  onClick={() => {
+                    const i = MA_SOURCES.indexOf(bb.source);
+                    onBbParamsChange!({
+                      source: MA_SOURCES[(i + 1) % MA_SOURCES.length],
+                    });
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    background: '#161b22',
+                    border: '1px solid #30363d',
+                    color: '#c9d1d9',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {bb.source}
+                  <span style={{ color: '#6e7681', fontSize: 13 }}>⟳</span>
+                </button>
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Band color</span>
+                <Swatches
+                  value={bb.upperColor}
+                  onChange={(c) =>
+                    onBbParamsChange!({ upperColor: c, lowerColor: c })
+                  }
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Basis color</span>
+                <Swatches
+                  value={bb.middleColor}
+                  onChange={(c) => onBbParamsChange!({ middleColor: c })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Width</span>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={bb.width}
+                  onChange={(w) => onBbParamsChange!({ width: w })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Fill</span>
+                <Toggle
+                  value={bb.fill}
+                  onChange={(v) => onBbParamsChange!({ fill: v })}
+                />
+              </div>
+              {bb.fill && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>Fill opacity</span>
+                  <Segmented
+                    options={[
+                      { label: '5%', value: 0.05 },
+                      { label: '10%', value: 0.1 },
+                      { label: '20%', value: 0.2 },
+                    ]}
+                    value={bb.fillOpacity}
+                    onChange={(v) => onBbParamsChange!({ fillOpacity: v })}
+                  />
+                </div>
+              )}
             </>
           ) : (
             <p style={{ color: '#8b949e', fontSize: 14 }}>

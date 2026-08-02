@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import type { MASource } from 'react-native-vroom-chart';
 
-export type IndicatorId = 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
+export type IndicatorId = 'bb' | 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
 
 export type IndicatorConfig = {
   enabled: boolean;
@@ -38,6 +38,12 @@ type IndicatorMeta = {
 
 // Listed alphabetically by name. Add search once the list grows.
 export const INDICATORS: IndicatorMeta[] = [
+  {
+    id: 'bb',
+    name: 'Bollinger Bands',
+    description:
+      'A moving-average basis with bands ±N standard deviations away — the bands widen with volatility and squeeze when it fades.',
+  },
   {
     id: 'ema',
     name: 'Exponential Moving Average',
@@ -71,6 +77,7 @@ export const INDICATORS: IndicatorMeta[] = [
 ];
 
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
+  bb: { enabled: false },
   ema: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
@@ -146,6 +153,34 @@ export const DEFAULT_VWAP_PARAMS: VWAPParams = {
   width: 1.5,
 };
 
+// Bollinger Bands params (single instance; the enable toggle lives in
+// IndicatorState above). One width is shared by all three lines.
+export type BollingerParams = {
+  period: number;
+  stdDev: number;
+  source: MASource;
+  basis: 'sma' | 'ema';
+  upperColor: string;
+  middleColor: string;
+  lowerColor: string;
+  width: number;
+  fill: boolean;
+  fillOpacity: number;
+};
+
+export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
+  period: 20,
+  stdDev: 2,
+  source: 'close',
+  basis: 'sma',
+  upperColor: '#2962ff',
+  middleColor: '#ff6d00',
+  lowerColor: '#2962ff',
+  width: 1,
+  fill: true,
+  fillOpacity: 0.1,
+};
+
 // Drives one overlay list editor (MA or EMA) in the detail screen.
 export type OverlayEditor = {
   lines: MALineParams[];
@@ -190,6 +225,8 @@ type Props = {
   emaEditor: OverlayEditor;
   vwapParams: VWAPParams;
   onVwapParamsChange: (patch: Partial<VWAPParams>) => void;
+  bbParams: BollingerParams;
+  onBbParamsChange: (patch: Partial<BollingerParams>) => void;
 };
 
 export function IndicatorsMenu({
@@ -205,6 +242,8 @@ export function IndicatorsMenu({
   emaEditor,
   vwapParams,
   onVwapParamsChange,
+  bbParams,
+  onBbParamsChange,
 }: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -249,6 +288,10 @@ export function IndicatorsMenu({
             vwapParams={detail.id === 'vwap' ? vwapParams : undefined}
             onVwapParamsChange={
               detail.id === 'vwap' ? onVwapParamsChange : undefined
+            }
+            bbParams={detail.id === 'bb' ? bbParams : undefined}
+            onBbParamsChange={
+              detail.id === 'bb' ? onBbParamsChange : undefined
             }
           />
         ) : (
@@ -459,6 +502,8 @@ function DetailScreen({
   editor,
   vwapParams,
   onVwapParamsChange,
+  bbParams,
+  onBbParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -471,10 +516,13 @@ function DetailScreen({
   editor?: OverlayEditor;
   vwapParams?: VWAPParams;
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
+  bbParams?: BollingerParams;
+  onBbParamsChange?: (patch: Partial<BollingerParams>) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
+  const bb = bbParams && onBbParamsChange ? bbParams : null;
   return (
     <View style={styles.flex}>
       <View style={styles.navBar}>
@@ -606,6 +654,106 @@ function DetailScreen({
                   onChange={(w) => onVwapParamsChange!({ width: w })}
                 />
               </View>
+            </>
+          ) : bb ? (
+            <>
+              <Stepper
+                label="Period"
+                value={bb.period}
+                min={1}
+                max={200}
+                onChange={(n) => onBbParamsChange!({ period: n })}
+              />
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Std dev</Text>
+                <Segmented
+                  options={[
+                    { label: '1', value: 1 },
+                    { label: '1.5', value: 1.5 },
+                    { label: '2', value: 2 },
+                    { label: '2.5', value: 2.5 },
+                    { label: '3', value: 3 },
+                  ]}
+                  value={bb.stdDev}
+                  onChange={(v) => onBbParamsChange!({ stdDev: v })}
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Basis</Text>
+                <Segmented
+                  options={[
+                    { label: 'SMA', value: 0 },
+                    { label: 'EMA', value: 1 },
+                  ]}
+                  value={bb.basis === 'ema' ? 1 : 0}
+                  onChange={(v) =>
+                    onBbParamsChange!({ basis: v === 1 ? 'ema' : 'sma' })
+                  }
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Source</Text>
+                <Pressable
+                  style={styles.cycleBtn}
+                  onPress={() => {
+                    const i = MA_SOURCES.indexOf(bb.source);
+                    onBbParamsChange!({
+                      source: MA_SOURCES[(i + 1) % MA_SOURCES.length],
+                    });
+                  }}
+                >
+                  <Text style={styles.cycleText}>{bb.source}</Text>
+                  <Text style={styles.cycleCaret}>⟳</Text>
+                </Pressable>
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Band color</Text>
+                <Swatches
+                  value={bb.upperColor}
+                  onChange={(c) =>
+                    onBbParamsChange!({ upperColor: c, lowerColor: c })
+                  }
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Basis color</Text>
+                <Swatches
+                  value={bb.middleColor}
+                  onChange={(c) => onBbParamsChange!({ middleColor: c })}
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Width</Text>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={bb.width}
+                  onChange={(w) => onBbParamsChange!({ width: w })}
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Fill</Text>
+                <Switch
+                  value={bb.fill}
+                  onValueChange={(v) => onBbParamsChange!({ fill: v })}
+                  trackColor={{ true: '#238636', false: '#30363d' }}
+                  thumbColor="#f0f6fc"
+                  ios_backgroundColor="#30363d"
+                />
+              </View>
+              {bb.fill ? (
+                <View style={styles.paramRow}>
+                  <Text style={styles.paramLabel}>Fill opacity</Text>
+                  <Segmented
+                    options={[
+                      { label: '5%', value: 0.05 },
+                      { label: '10%', value: 0.1 },
+                      { label: '20%', value: 0.2 },
+                    ]}
+                    value={bb.fillOpacity}
+                    onChange={(v) => onBbParamsChange!({ fillOpacity: v })}
+                  />
+                </View>
+              ) : null}
             </>
           ) : (
             <Text style={styles.placeholder}>

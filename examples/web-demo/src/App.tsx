@@ -22,8 +22,10 @@ import {
   DEFAULT_MA_LINE,
   DEFAULT_EMA_LINE,
   DEFAULT_VWAP_PARAMS,
+  DEFAULT_BOLLINGER_PARAMS,
   deriveIndicatorProps,
   enabledCount,
+  type BollingerParams,
   type IndicatorId,
   type IndicatorState,
   type MACDParams,
@@ -572,6 +574,9 @@ export function App() {
   const [maLines, setMaLines] = useState<MALineParams[]>([DEFAULT_MA_LINE]);
   const [emaLines, setEmaLines] = useState<MALineParams[]>([DEFAULT_EMA_LINE]);
   const [vwapParams, setVwapParams] = useState<VWAPParams>(DEFAULT_VWAP_PARAMS);
+  const [bbParams, setBbParams] = useState<BollingerParams>(
+    DEFAULT_BOLLINGER_PARAMS,
+  );
 
   const patchRsi = useCallback(
     (patch: Partial<RSIParams>) => setRsiParams((p) => ({ ...p, ...patch })),
@@ -583,6 +588,11 @@ export function App() {
   );
   const patchVwap = useCallback(
     (patch: Partial<VWAPParams>) => setVwapParams((p) => ({ ...p, ...patch })),
+    [],
+  );
+  const patchBb = useCallback(
+    (patch: Partial<BollingerParams>) =>
+      setBbParams((p) => ({ ...p, ...patch })),
     [],
   );
 
@@ -614,6 +624,7 @@ export function App() {
     maLines,
     emaLines,
     vwapParams,
+    bbParams,
   );
   const activeCount = enabledCount(indicators);
 
@@ -756,6 +767,8 @@ export function App() {
         emaEditor={emaEditor}
         vwapParams={vwapParams}
         onVwapParamsChange={patchVwap}
+        bbParams={bbParams}
+        onBbParamsChange={patchBb}
       />
     </div>
   );

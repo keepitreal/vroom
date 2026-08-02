@@ -135,6 +135,20 @@ struct VroomChart {
     std::vector<unsigned char> vwap_breaks;
     bool vwap_dirty = true;
 
+    // Bollinger Bands overlay (price pane; no pane reserved). Caches aligned to
+    // `candles` (NaN warmup), recomputed lazily by ensure_bollinger() when
+    // bollinger_dirty. Defaults: 20-period SMA of close, ±2σ, blue bands /
+    // orange basis, 10% fill.
+    VroomBollinger bollinger{0, 20, 2.f, 0, 0,
+                             0xff2962ff, 1.f,   // upper: blue
+                             0xffff6d00, 1.f,   // middle: orange
+                             0xff2962ff, 1.f,   // lower: blue
+                             1, 0.1f};
+    std::vector<double> bb_middle_cache;
+    std::vector<double> bb_upper_cache;
+    std::vector<double> bb_lower_cache;
+    bool bollinger_dirty = true;
+
     // --- drawings (annotations) --------------------------------------------
     // Committed drawings, anchored in data space so they track the candles on
     // pan/zoom. Drawn on the price pane above candles/overlays.
@@ -221,6 +235,10 @@ struct VroomChart {
 
     // Recomputes the VWAP cache when vwap_dirty and VWAP is enabled.
     void ensure_vwap();
+
+    // Recomputes the Bollinger Band caches when bollinger_dirty and the
+    // indicator is enabled.
+    void ensure_bollinger();
 
     // The main drawing pass. Calls into the labels and candles modules.
     void draw_chart(SkCanvas* canvas);

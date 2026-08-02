@@ -1,9 +1,9 @@
 # Indicators
 
-vroom ships four indicator families. Two render in their own **pane below the
-candles** (RSI, MACD); two are **overlays drawn on the price pane** (moving
-averages, VWAP). Each is configured through its own prop and is off until you
-enable it.
+vroom ships five indicator families. Two render in their own **pane below the
+candles** (RSI, MACD); three are **overlays drawn on the price pane** (moving
+averages, VWAP, Bollinger Bands). Each is configured through its own prop and
+is off until you enable it.
 
 ## RSI
 
@@ -69,3 +69,36 @@ See [`VWAPConfig`](../reference/index.md).
 
 `resetMinutes` offsets the session boundary from UTC midnight (in minutes) — e.g.
 pass `9 * 60 + 30` for a 09:30 UTC reset. The line breaks at each reset.
+
+## Bollinger Bands
+
+Three lines on the price pane — a basis moving average with an upper and lower
+band ± N standard deviations away — plus a translucent fill between the bands.
+See [`BollingerBandsConfig`](../reference/index.md).
+
+```tsx
+<VroomChart
+  candles={candles}
+  bollingerBands={{ enabled: true, period: 20, stdDev: 2 }}
+/>
+```
+
+The formula: `middle = MA(source, period)`; `upper/lower = middle ± stdDev × σ`,
+where σ is the **population** standard deviation of `source` over the same
+trailing window. With `basis: 'ema'` the middle line becomes an EMA, but σ is
+still computed around the window's arithmetic mean (matching TradingView).
+
+| Option | Default | Notes |
+| --- | --- | --- |
+| `period` | `20` | Lookback in candles, clamped to ≥ 1. |
+| `stdDev` | `2` | Standard-deviation multiplier. |
+| `source` | `'close'` | Any [`MASource`](../reference/index.md). |
+| `basis` | `'sma'` | `'sma'` or `'ema'` basis line. |
+| `upperColor` / `lowerColor` | blue | Band line colors. |
+| `middleColor` | orange | Basis line color. |
+| `upperWidth` / `middleWidth` / `lowerWidth` | `1` | Stroke widths in px. |
+| `fill` | `true` | Translucent fill between the bands. |
+| `fillOpacity` | `0.1` | 0..1, applied to the upper band color. |
+
+The first `period − 1` candles have no value (the warmup window), so the lines
+and fill start at the first fully-formed window.

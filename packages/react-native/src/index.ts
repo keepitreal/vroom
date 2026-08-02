@@ -11,5 +11,6 @@ export type {
   MASource,
   MovingAverageOverlay,
   VWAPConfig,
+  BollingerBandsConfig,
   ChartType,
 } from './types';

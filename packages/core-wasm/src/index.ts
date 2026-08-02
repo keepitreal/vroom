@@ -37,6 +37,7 @@ export type {
   CrosshairCandle,
   CrosshairInfo,
   OverlaySpec,
+  BollingerSpec,
   DrawingSpec,
   BandSpec,
   LiquiditySpec,

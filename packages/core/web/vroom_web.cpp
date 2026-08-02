@@ -171,6 +171,26 @@ class WebChart {
   void setVWAP(bool enabled, int reset_offset_min, uint32_t color, float width) {
     vroom_chart_set_vwap(chart_, enabled, reset_offset_min, color, width);
   }
+  // `s` is a JS object {enabled, period, mult, source, basisKind, upperColor,
+  // upperWidth, middleColor, middleWidth, lowerColor, lowerWidth, fillEnabled,
+  // fillOpacity}.
+  void setBollinger(const em::val& s) {
+    VroomBollinger cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.period = s["period"].as<int32_t>();
+    cfg.mult = s["mult"].as<float>();
+    cfg.source = s["source"].as<int32_t>();
+    cfg.basis_kind = s["basisKind"].as<int32_t>();
+    cfg.upper_color = s["upperColor"].as<uint32_t>();
+    cfg.upper_width = s["upperWidth"].as<float>();
+    cfg.middle_color = s["middleColor"].as<uint32_t>();
+    cfg.middle_width = s["middleWidth"].as<float>();
+    cfg.lower_color = s["lowerColor"].as<uint32_t>();
+    cfg.lower_width = s["lowerWidth"].as<float>();
+    cfg.fill_enabled = s["fillEnabled"].as<bool>() ? 1 : 0;
+    cfg.fill_opacity = s["fillOpacity"].as<float>();
+    vroom_chart_set_bollinger(chart_, &cfg);
+  }
   // `overlays` is a JS array of {kind, period, source, color, width}.
   void setOverlays(const em::val& overlays) {
     const size_t n = overlays["length"].as<size_t>();
@@ -469,6 +489,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setMACD", &WebChart::setMACD)
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
+      .function("setBollinger", &WebChart::setBollinger)
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setDraft", &WebChart::setDraft)

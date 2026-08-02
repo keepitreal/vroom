@@ -4,6 +4,7 @@
 
 | Type Alias | Description |
 | ------ | ------ |
+| [BollingerBandsConfig](type-aliases/BollingerBandsConfig.md) | Bollinger Bands overlay config. A basis moving average of `source` over `period`, banded at ± `stdDev` × population standard deviation of the same window, drawn as three lines on the price pane with an optional translucent fill between the bands. No pane is reserved. |
 | [Candle](type-aliases/Candle.md) | A single OHLCV bar. `candles` is an array of these. |
 | [ChartType](type-aliases/ChartType.md) | How the price series is drawn. 'candles' — default: candlestick bodies + wicks. 'line' — a single polyline through each candle's close. Volume, indicators, overlays, crosshair, and drawings still render. |
 | [CrosshairEvent](type-aliases/CrosshairEvent.md) | Payload passed to `onCrosshair` as the crosshair shows, moves, or hides. |

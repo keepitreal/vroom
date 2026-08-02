@@ -87,6 +87,30 @@ export type OverlaySpec = {
   width: number;
 };
 
+/** The Bollinger Bands overlay, in the core's numeric encoding. */
+export type BollingerSpec = {
+  enabled: boolean;
+  period: number;
+  /** Standard-deviation multiplier. */
+  mult: number;
+  /** 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4 */
+  source: number;
+  /** Basis MA type: 0 = SMA, 1 = EMA. */
+  basisKind: number;
+  /** Packed 0xAARRGGBB. */
+  upperColor: number;
+  /** Stroke width in px. */
+  upperWidth: number;
+  middleColor: number;
+  middleWidth: number;
+  lowerColor: number;
+  lowerWidth: number;
+  /** Translucent fill between the bands. */
+  fillEnabled: boolean;
+  /** 0..1, multiplied into upperColor's alpha. */
+  fillOpacity: number;
+};
+
 /**
  * A committed line drawing in the core's numeric encoding. Endpoints are in data
  * space (epoch ms + price) so the line tracks the candles on pan/zoom.
@@ -254,6 +278,7 @@ export interface VroomChartHandle {
     color: number,
     width: number,
   ): void;
+  setBollinger(spec: BollingerSpec): void;
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;

@@ -303,6 +303,43 @@ export type VWAPConfig = {
 };
 
 /**
+ * Bollinger Bands overlay config. A basis moving average of `source` over
+ * `period`, banded at ± `stdDev` × population standard deviation of the same
+ * window, drawn as three lines on the price pane with an optional translucent
+ * fill between the bands. No pane is reserved.
+ */
+export type BollingerBandsConfig = {
+  enabled?: boolean;
+  /** Lookback in candles. Default 20, clamped to >= 1. */
+  period?: number;
+  /** Standard-deviation multiplier. Default 2. */
+  stdDev?: number;
+  /** Price source. Default 'close'. */
+  source?: MASource;
+  /**
+   * Basis (middle) line type. Default 'sma'. The stdev always uses the
+   * window's arithmetic mean, even with an EMA basis (TradingView semantics).
+   */
+  basis?: 'sma' | 'ema';
+  /** Upper band color (hex string or packed ARGB number). Default blue. */
+  upperColor?: string | number;
+  /** Upper band stroke width in px. Default 1. */
+  upperWidth?: number;
+  /** Basis (middle) line color. Default orange. */
+  middleColor?: string | number;
+  /** Basis line stroke width in px. Default 1. */
+  middleWidth?: number;
+  /** Lower band color. Default blue. */
+  lowerColor?: string | number;
+  /** Lower band stroke width in px. Default 1. */
+  lowerWidth?: number;
+  /** Translucent fill between the bands. Default true. */
+  fill?: boolean;
+  /** Fill opacity 0..1, applied to the upper band color. Default 0.1. */
+  fillOpacity?: number;
+};
+
+/**
  * A single resting-liquidity band: a price interval carrying a total order size
  * on one side of the book. Consolidate raw L2 levels into these buckets before
  * passing them. The vertical extent is defined in price space, so bands scale
@@ -414,6 +451,8 @@ export type VroomChartCoreProps = {
   movingAverages?: MovingAverageOverlay[];
   /** VWAP overlay (session anchor, configurable reset). */
   vwap?: VWAPConfig;
+  /** Bollinger Bands overlay (three lines + fill on the price pane). */
+  bollingerBands?: BollingerBandsConfig;
   /** Resting-order / order-book liquidity bands drawn behind the candles. */
   liquidity?: LiquidityConfig;
   /**
