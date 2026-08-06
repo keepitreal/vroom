@@ -40,7 +40,17 @@ static void ensureAxisTypeface(jsi::Runtime& runtime) {
   if (!ctx) return;
   auto mgr = ctx->createFontMgr();
   if (!mgr) return;
-  auto tf = mgr->matchFamilyStyle(nullptr, SkFontStyle());  // system default
+
+  // A null family name is meant to request "the platform default" — CoreText
+  // (iOS) honors that, but Android's SkFontMgr_New_Android does not: it
+  // returns null unless given an actual family name, even though its
+  // underlying font set (sans-serif, arial, ...) is perfectly populated. Fall
+  // back to "sans-serif" (Android's standard generic-family alias) whenever
+  // the null-family lookup comes back empty.
+  auto tf = mgr->matchFamilyStyle(nullptr, SkFontStyle());
+  if (!tf) {
+    tf = mgr->matchFamilyStyle("sans-serif", SkFontStyle());
+  }
   if (!tf) return;
   vroom::set_axis_typeface(tf);
   done = true;
