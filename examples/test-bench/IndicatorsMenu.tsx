@@ -12,13 +12,13 @@ import {
   FlatList,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MASource } from 'react-native-vroom-chart';
 
 export type IndicatorId = 'bb' | 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
