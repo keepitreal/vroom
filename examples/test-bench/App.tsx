@@ -2,15 +2,12 @@ import { Picker } from '@react-native-picker/picker';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useMemo, useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 import {
   VroomChart,
   type Candle,
@@ -265,101 +262,106 @@ export default function App() {
   ];
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Vroom Test Bench</Text>
-        </View>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Vroom Test Bench</Text>
+          </View>
 
-        <View style={styles.ohlcv}>
-          {shown ? (
-            <>
-              <Field label="O" value={shown.open.toFixed(2)} />
-              <Field label="H" value={shown.high.toFixed(2)} />
-              <Field label="L" value={shown.low.toFixed(2)} />
-              <Field
-                label="C"
-                value={shown.close.toFixed(2)}
-                color={bull ? '#3fb950' : '#f85149'}
-              />
-              <Field label="V" value={fmtVol(shown.volume)} />
-            </>
-          ) : null}
-        </View>
+          <View style={styles.ohlcv}>
+            {shown ? (
+              <>
+                <Field label="O" value={shown.open.toFixed(2)} />
+                <Field label="H" value={shown.high.toFixed(2)} />
+                <Field label="L" value={shown.low.toFixed(2)} />
+                <Field
+                  label="C"
+                  value={shown.close.toFixed(2)}
+                  color={bull ? '#3fb950' : '#f85149'}
+                />
+                <Field label="V" value={fmtVol(shown.volume)} />
+              </>
+            ) : null}
+          </View>
 
-        {/* Remount on interval change so the visible window re-defaults to
-            the new data's recent range. */}
-        <VroomChart
-          key={selected.label}
-          candles={candles}
-          style={styles.chart}
-          onCrosshair={handleCrosshair}
-          rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
-          macd={{ enabled: indicators.macd.enabled, ...macdParams }}
-          movingAverages={movingAverages}
-          vwap={{
-            enabled: indicators.vwap.enabled,
-            resetMinutes: vwapParams.resetHour * 60,
-            color: vwapParams.color,
-            width: vwapParams.width,
-          }}
-          bollingerBands={{
-            enabled: indicators.bb.enabled,
-            period: bbParams.period,
-            stdDev: bbParams.stdDev,
-            source: bbParams.source,
-            basis: bbParams.basis,
-            upperColor: bbParams.upperColor,
-            upperWidth: bbParams.width,
-            middleColor: bbParams.middleColor,
-            middleWidth: bbParams.width,
-            lowerColor: bbParams.lowerColor,
-            lowerWidth: bbParams.width,
-            fill: bbParams.fill,
-            fillOpacity: bbParams.fillOpacity,
-          }}
+          {/* Remount on interval change so the visible window re-defaults to
+              the new data's recent range. */}
+          <VroomChart
+            key={selected.label}
+            candles={candles}
+            style={styles.chart}
+            onCrosshair={handleCrosshair}
+            rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
+            macd={{ enabled: indicators.macd.enabled, ...macdParams }}
+            movingAverages={movingAverages}
+            vwap={{
+              enabled: indicators.vwap.enabled,
+              resetMinutes: vwapParams.resetHour * 60,
+              color: vwapParams.color,
+              width: vwapParams.width,
+            }}
+            bollingerBands={{
+              enabled: indicators.bb.enabled,
+              period: bbParams.period,
+              stdDev: bbParams.stdDev,
+              source: bbParams.source,
+              basis: bbParams.basis,
+              upperColor: bbParams.upperColor,
+              upperWidth: bbParams.width,
+              middleColor: bbParams.middleColor,
+              middleWidth: bbParams.width,
+              lowerColor: bbParams.lowerColor,
+              lowerWidth: bbParams.width,
+              fill: bbParams.fill,
+              fillOpacity: bbParams.fillOpacity,
+            }}
+          />
+
+          <View style={styles.footer}>
+            <View style={styles.footerRow}>
+              <IntervalSelect value={selected} onChange={setSelected} />
+
+              <Pressable
+                style={styles.fnBtn}
+                onPress={() => setMenuOpen(true)}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    activeCount > 0 && styles.fnSymbolActive,
+                  ]}
+                >
+                  ƒ
+                </Text>
+                {activeCount > 0 ? (
+                  <Text style={styles.fnCount}>{activeCount}</Text>
+                ) : null}
+              </Pressable>
+            </View>
+          </View>
+        </SafeAreaView>
+
+        <IndicatorsMenu
+          visible={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          state={indicators}
+          onToggle={toggleIndicator}
+          rsiParams={rsiParams}
+          onRsiParamsChange={patchRsi}
+          macdParams={macdParams}
+          onMacdParamsChange={patchMacd}
+          maEditor={maEditor}
+          emaEditor={emaEditor}
+          vwapParams={vwapParams}
+          onVwapParamsChange={patchVwap}
+          bbParams={bbParams}
+          onBbParamsChange={patchBb}
         />
 
-        <View style={styles.footer}>
-          <View style={styles.footerRow}>
-            <IntervalSelect value={selected} onChange={setSelected} />
-
-            <Pressable style={styles.fnBtn} onPress={() => setMenuOpen(true)}>
-              <Text
-                style={[
-                  styles.fnSymbol,
-                  activeCount > 0 && styles.fnSymbolActive,
-                ]}
-              >
-                ƒ
-              </Text>
-              {activeCount > 0 ? (
-                <Text style={styles.fnCount}>{activeCount}</Text>
-              ) : null}
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
-
-      <IndicatorsMenu
-        visible={menuOpen}
-        onClose={() => setMenuOpen(false)}
-        state={indicators}
-        onToggle={toggleIndicator}
-        rsiParams={rsiParams}
-        onRsiParamsChange={patchRsi}
-        macdParams={macdParams}
-        onMacdParamsChange={patchMacd}
-        maEditor={maEditor}
-        emaEditor={emaEditor}
-        vwapParams={vwapParams}
-        onVwapParamsChange={patchVwap}
-        bbParams={bbParams}
-        onBbParamsChange={patchBb}
-      />
-
-      <StatusBar style="light" />
-    </GestureHandlerRootView>
+        <StatusBar style="light" />
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
