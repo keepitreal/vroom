@@ -1,0 +1,115 @@
+// android/build.gradle
+//
+// Builds the Android half of the JSI bridge: a small `vroomchart` native
+// library (see CMakeLists.txt) plus the TurboModule that installs it
+// (see src/main/java/com/vroom/chart). Modeled on
+// @shopify/react-native-skia/android/build.gradle and
+// react-native-worklets/android/build.gradle, which solve the same
+// "compile custom C++ against the RN/RN-Skia JSI internals" problem.
+
+def safeExtGet(prop, fallback) {
+  rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+}
+
+def reactNativeArchitectures() {
+  def value = project.getProperties().get("reactNativeArchitectures")
+  return value ? value.split(",") : ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
+}
+
+// Resolves a package's directory via Node's own module resolution, so this
+// works whether react-native-vroom-chart is installed flat or (as in this
+// monorepo) via pnpm's nested .pnpm store.
+def resolvePackageDir(packageJsonSpecifier) {
+  def packageJsonPath = providers.exec {
+    workingDir(rootDir)
+    commandLine("node", "--print", "require.resolve('${packageJsonSpecifier}')")
+  }.standardOutput.asText.get().trim()
+  return file(packageJsonPath).parentFile
+}
+
+def reactNativeDir = resolvePackageDir("react-native/package.json")
+def skiaCppDir = new File(resolvePackageDir("@shopify/react-native-skia/package.json"), "cpp")
+
+// Mirror ../cpp/_core_{src,include} from ../../core/{src,include} whenever
+// the monorepo core is present, so edits to packages/core/ propagate on the
+// next build without a separate vendoring step. This matches
+// ../react-native-vroom-chart.podspec's iOS behavior; a published package
+// (no ../../core) falls back to the committed vendored copies instead
+// (see ../scripts/vendor-core.mjs).
+def coreRoot = file("${projectDir}/../../core")
+if (coreRoot.isDirectory()) {
+  ["src", "include"].each { sub ->
+    def dst = file("${projectDir}/../cpp/_core_${sub}")
+    delete dst
+    copy {
+      from "${coreRoot}/${sub}"
+      into dst
+    }
+  }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+apply plugin: "com.facebook.react"
+
+android {
+  namespace "com.vroom.chart"
+  compileSdkVersion safeExtGet("compileSdkVersion", 36)
+
+  if (rootProject.hasProperty("ndkPath")) {
+    ndkPath rootProject.ext.ndkPath
+  }
+  if (rootProject.hasProperty("ndkVersion")) {
+    ndkVersion rootProject.ext.ndkVersion
+  }
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 24)
+    targetSdkVersion safeExtGet("targetSdkVersion", 36)
+
+    externalNativeBuild {
+      cmake {
+        abiFilters(*reactNativeArchitectures())
+        arguments "-DANDROID_STL=c++_shared",
+                  "-DREACT_NATIVE_DIR=${reactNativeDir}",
+                  "-DVROOM_SKIA_CPP_DIR=${skiaCppDir}"
+      }
+    }
+  }
+
+  buildFeatures {
+    // Consumes the `ReactAndroid` prefab package (published by
+    // com.facebook.react:react-android) so CMake can `find_package(ReactAndroid)`
+    // for the jsi headers/library without us hand-resolving RN's AAR layout.
+    prefab true
+  }
+
+  externalNativeBuild {
+    cmake {
+      path "CMakeLists.txt"
+    }
+  }
+
+  lintOptions {
+    abortOnError false
+  }
+}
+
+repositories {
+  maven {
+    url("${reactNativeDir}/android")
+  }
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  // ../cpp/VroomChartHostObject.cpp constructs RN-Skia JSI host objects
+  // (JsiSkPicture, etc.) whose base class (RNJsi::JsiHostObject) has
+  // out-of-line methods compiled into RN-Skia's own native library — we link
+  // against its prefab-published `rnskia` package (below, in CMakeLists.txt)
+  // rather than recompiling those .cpp files ourselves, to avoid duplicate
+  // definitions of RNSkia's internals across two separately-loaded .so's.
+  implementation project(":shopify_react-native-skia")
+}
