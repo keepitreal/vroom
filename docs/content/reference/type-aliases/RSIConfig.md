@@ -1,4 +1,4 @@
-# Type Alias: RSIConfig
+# `RSIConfig`
 
 ```ts
 type RSIConfig = {
@@ -11,7 +11,7 @@ type RSIConfig = {
 };
 ```
 
-Defined in: [types/src/index.ts:250](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L250)
+Source: [types/src/index.ts:250](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L250)
 
 RSI indicator config. Rendered in a pane below the candles when enabled.
 
@@ -23,9 +23,9 @@ RSI indicator config. Rendered in a pane below the candles when enabled.
 optional enabled?: boolean;
 ```
 
-Defined in: [types/src/index.ts:251](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L251)
+Source: [types/src/index.ts:251](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L251)
 
-***
+---
 
 ### lowerBand?
 
@@ -33,11 +33,11 @@ Defined in: [types/src/index.ts:251](https://github.com/keepitreal/vroom/blob/ma
 optional lowerBand?: number;
 ```
 
-Defined in: [types/src/index.ts:257](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L257)
+Source: [types/src/index.ts:257](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L257)
 
 Oversold band level (0..100). Default 30.
 
-***
+---
 
 ### maEnabled?
 
@@ -45,11 +45,11 @@ Oversold band level (0..100). Default 30.
 optional maEnabled?: boolean;
 ```
 
-Defined in: [types/src/index.ts:259](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L259)
+Source: [types/src/index.ts:259](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L259)
 
 Show the RSI-based moving-average trendline. Default true.
 
-***
+---
 
 ### maPeriod?
 
@@ -57,11 +57,11 @@ Show the RSI-based moving-average trendline. Default true.
 optional maPeriod?: number;
 ```
 
-Defined in: [types/src/index.ts:261](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L261)
+Source: [types/src/index.ts:261](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L261)
 
 Trendline (MA of RSI) length. Default 14, clamped to >= 1.
 
-***
+---
 
 ### period?
 
@@ -69,11 +69,11 @@ Trendline (MA of RSI) length. Default 14, clamped to >= 1.
 optional period?: number;
 ```
 
-Defined in: [types/src/index.ts:253](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L253)
+Source: [types/src/index.ts:253](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L253)
 
 Lookback period in candle counts. Default 14, clamped to >= 2.
 
-***
+---
 
 ### upperBand?
 
@@ -81,6 +81,6 @@ Lookback period in candle counts. Default 14, clamped to >= 2.
 optional upperBand?: number;
 ```
 
-Defined in: [types/src/index.ts:255](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L255)
+Source: [types/src/index.ts:255](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L255)
 
 Overbought band level (0..100). Default 70.
