@@ -30,6 +30,7 @@
 #include "macd.h"
 #include "macd_pane.h"
 #include "price_indicator.h"
+#include "price_lines.h"
 #include "rsi.h"
 #include "rsi_pane.h"
 #include "volume.h"
@@ -278,6 +279,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      it overlaps; tracks the latest close as the price scale moves.
     vroom::price_indicator::draw(canvas, *this, lay, bounds,
                                  candle_right, candle_area_h);
+
+    // 7.55. Consumer-supplied price status lines — same tier as the current-price
+    //       indicator (their badges must cover the labels underneath), but after
+    //       it so a resting order at the last close stays readable.
+    vroom::price_lines::draw(canvas, *this, lay, bounds, candle_right,
+                             candle_area_h);
 
     // 7.6. Indicator panes stacked below the candles, ordered by enable
     //      sequence (most recently enabled at the bottom). Each pane is

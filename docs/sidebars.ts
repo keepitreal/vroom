@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'guides/crosshair-and-events',
         'guides/gestures-and-viewport',
         'guides/drawing-tools',
+        'guides/price-lines',
       ],
     },
     {

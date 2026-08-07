@@ -36,6 +36,8 @@ export type {
   BollingerBandsConfig,
   LiquidityBand,
   LiquidityConfig,
+  PriceLine,
+  PriceLinesStyle,
   ChartMode,
   ChartType,
   DrawTool,

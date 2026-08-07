@@ -1,6 +1,8 @@
 #include "VroomChartHostObject.h"
 
 #include <cstring>
+#include <string>
+#include <vector>
 
 #include "chart_internal.h"
 #include "vroom/vroom_chart.h"
@@ -27,7 +29,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(24);
+  out.reserve(29);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -52,6 +54,11 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "coordAt"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLines"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "hitTestPriceLine"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLineHover"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLineDrag"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -656,6 +663,154 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           cfg.fill_opacity = static_cast<float>(
               s.getProperty(rt2, "fillOpacity").asNumber());
           vroom_chart_set_bollinger(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "coordAt") {
+    // coordAt(x, y) -> { timeMs, price } | null. The continuous data coordinate
+    // at a pixel — not snapped to a candle slot. Null when there are no candles
+    // or the viewport is degenerate. No rendering.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "coordAt"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          VroomCoord c{};
+          if (!vroom_chart_coord_at(chart_,
+                                    static_cast<float>(args[0].asNumber()),
+                                    static_cast<float>(args[1].asNumber()), &c)) {
+            return jsi::Value::null();
+          }
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "timeMs", static_cast<double>(c.time_ms));
+          obj.setProperty(rt2, "price", c.price);
+          return obj;
+        });
+  }
+
+  if (name == "setPriceLines") {
+    // setPriceLines({ lines: [{ price, color, width, lineStyle, text, quantity,
+    // flags }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost }) —
+    // replaces the full set of price status lines. No render; the next render()
+    // picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setPriceLines"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto cfg = args[0].asObject(rt2);
+          auto lines_val = cfg.getProperty(rt2, "lines");
+          if (!lines_val.isObject()) return jsi::Value::undefined();
+          auto lines_obj = lines_val.asObject(rt2);
+          if (!lines_obj.isArray(rt2)) return jsi::Value::undefined();
+          auto arr = lines_obj.asArray(rt2);
+          const size_t len = arr.size(rt2);
+          std::vector<VroomPriceLine> lines(len);
+          // Label storage, kept alive until set_price_lines has copied it.
+          std::vector<std::string> texts(len);
+          std::vector<std::string> quantities(len);
+          for (size_t i = 0; i < len; ++i) {
+            auto l = arr.getValueAtIndex(rt2, i).asObject(rt2);
+            lines[i].price = l.getProperty(rt2, "price").asNumber();
+            lines[i].color = static_cast<uint32_t>(
+                l.getProperty(rt2, "color").asNumber());
+            lines[i].width = static_cast<float>(
+                l.getProperty(rt2, "width").asNumber());
+            lines[i].line_style = static_cast<int32_t>(
+                l.getProperty(rt2, "lineStyle").asNumber());
+            texts[i] = l.getProperty(rt2, "text").asString(rt2).utf8(rt2);
+            quantities[i] =
+                l.getProperty(rt2, "quantity").asString(rt2).utf8(rt2);
+            lines[i].text = texts[i].c_str();
+            lines[i].quantity = quantities[i].c_str();
+            lines[i].flags = static_cast<int32_t>(
+                l.getProperty(rt2, "flags").asNumber());
+          }
+          VroomPriceLineStyle style{};
+          style.body_bg = static_cast<uint32_t>(
+              cfg.getProperty(rt2, "bodyBg").asNumber());
+          style.font_size_px = static_cast<float>(
+              cfg.getProperty(rt2, "fontSizePx").asNumber());
+          style.line_length_frac = static_cast<float>(
+              cfg.getProperty(rt2, "lineLengthFrac").asNumber());
+          style.align = static_cast<int32_t>(
+              cfg.getProperty(rt2, "align").asNumber());
+          style.hover_boost = static_cast<float>(
+              cfg.getProperty(rt2, "hoverBoost").asNumber());
+          vroom_chart_set_price_lines(chart_, lines.data(), lines.size(), &style);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "hitTestPriceLine") {
+    // hitTestPriceLine(x, y) -> { index, part } | null. `part` is 0 for the line
+    // or its label body (the drag target) and 1 for the close button. Cheap
+    // enough to call at gesture rate — no rendering.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "hitTestPriceLine"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          int32_t index = -1, part = -1;
+          if (!vroom_chart_hit_test_price_line(
+                  chart_, static_cast<float>(args[0].asNumber()),
+                  static_cast<float>(args[1].asNumber()), &index, &part)) {
+            return jsi::Value::null();
+          }
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "index", index);
+          obj.setProperty(rt2, "part", part);
+          return obj;
+        });
+  }
+
+  if (name == "setPriceLineHover") {
+    // setPriceLineHover(index, part) — highlight a price line's segment; -1
+    // clears. No hover on touch, so this exists for parity/pointer devices.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setPriceLineHover"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_price_line_hover(
+              chart_, static_cast<int32_t>(args[0].asNumber()),
+              static_cast<int32_t>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setPriceLineDrag") {
+    // setPriceLineDrag(index, price) — live drag preview; index -1 ends it. The
+    // committed price is untouched: restate setPriceLines to apply a move.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setPriceLineDrag"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_price_line_drag(
+              chart_, static_cast<int32_t>(args[0].asNumber()),
+              args[1].asNumber());
           return jsi::Value::undefined();
         });
   }

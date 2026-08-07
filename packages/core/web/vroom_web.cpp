@@ -263,6 +263,53 @@ class WebChart {
     style.width_frac = cfg["widthFrac"].as<float>();
     vroom_chart_set_liquidity(chart_, out.data(), n, &style);
   }
+  // `cfg` is a JS object { lines: [{price, color, width, lineStyle, text,
+  // quantity, flags}, ...], bodyBg, fontSizePx, lineLengthFrac, align,
+  // hoverBoost }.
+  void setPriceLines(const em::val& cfg) {
+    em::val lines = cfg["lines"];
+    const size_t n = lines["length"].as<size_t>();
+    std::vector<VroomPriceLine> out(n);
+    // Per-line label storage, kept alive until set_price_lines has copied it.
+    std::vector<std::string> texts(n);
+    std::vector<std::string> quantities(n);
+    for (size_t i = 0; i < n; ++i) {
+      em::val l = lines[i];
+      out[i].price = l["price"].as<double>();
+      out[i].color = l["color"].as<uint32_t>();
+      out[i].width = l["width"].as<float>();
+      out[i].line_style = l["lineStyle"].as<int32_t>();
+      texts[i] = l["text"].as<std::string>();
+      quantities[i] = l["quantity"].as<std::string>();
+      out[i].text = texts[i].c_str();
+      out[i].quantity = quantities[i].c_str();
+      out[i].flags = l["flags"].as<int32_t>();
+    }
+    VroomPriceLineStyle style{};
+    style.body_bg = cfg["bodyBg"].as<uint32_t>();
+    style.font_size_px = cfg["fontSizePx"].as<float>();
+    style.line_length_frac = cfg["lineLengthFrac"].as<float>();
+    style.align = cfg["align"].as<int32_t>();
+    style.hover_boost = cfg["hoverBoost"].as<float>();
+    vroom_chart_set_price_lines(chart_, out.data(), n, &style);
+  }
+  // Returns {index, part} of the price line hit at pixel (x, y), or null.
+  em::val hitTestPriceLine(float x, float y) {
+    int32_t index = -1, part = -1;
+    if (!vroom_chart_hit_test_price_line(chart_, x, y, &index, &part))
+      return em::val::null();
+    em::val o = em::val::object();
+    o.set("index", index);
+    o.set("part", part);
+    return o;
+  }
+  void setPriceLineHover(int index, int part) {
+    vroom_chart_set_price_line_hover(chart_, index, part);
+  }
+  void setPriceLineDrag(int index, double price) {
+    vroom_chart_set_price_line_drag(chart_, index, price);
+  }
+
   void setDraft(double a_time, double a_price, bool has_b, double b_time,
                 double b_price, bool guide, uint32_t color, float width,
                 int kind) {
@@ -492,6 +539,10 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setBollinger", &WebChart::setBollinger)
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
+      .function("setPriceLines", &WebChart::setPriceLines)
+      .function("hitTestPriceLine", &WebChart::hitTestPriceLine)
+      .function("setPriceLineHover", &WebChart::setPriceLineHover)
+      .function("setPriceLineDrag", &WebChart::setPriceLineDrag)
       .function("setDraft", &WebChart::setDraft)
       .function("startDraftStroke", &WebChart::startDraftStroke)
       .function("appendDraftPoint", &WebChart::appendDraftPoint)

@@ -11,6 +11,8 @@
 | [MACDConfig](type-aliases/MACDConfig.md) | MACD indicator config. Rendered in its own pane below the candles. |
 | [MASource](type-aliases/MASource.md) | Price source for a moving average. |
 | [MovingAverageOverlay](type-aliases/MovingAverageOverlay.md) | A moving-average overlay line drawn on the price pane. Provide an array of these via `movingAverages` to render a ribbon of SMA/EMA lines. |
+| [PriceLine](type-aliases/PriceLine.md) | A consumer-supplied horizontal status line at a fixed price — the primitive behind resting limit orders, take-profits, stop-losses and liquidation levels. |
+| [PriceLinesStyle](type-aliases/PriceLinesStyle.md) | Shared layout/style for every price line, passed via `priceLinesStyle`. |
 | [RSIConfig](type-aliases/RSIConfig.md) | RSI indicator config. Rendered in a pane below the candles when enabled. |
 | [VisibleRange](type-aliases/VisibleRange.md) | A time window over the candle data, as Unix epoch milliseconds. |
 | [VroomChartProps](type-aliases/VroomChartProps.md) | Props for the [VroomChart](functions/VroomChart.md) component. The cross-platform props come from VroomChartCoreProps; `style` is the React Native flavor. |

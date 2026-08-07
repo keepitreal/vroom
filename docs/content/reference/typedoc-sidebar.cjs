@@ -43,6 +43,16 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/PriceLine",
+          label: "PriceLine"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/PriceLinesStyle",
+          label: "PriceLinesStyle"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/RSIConfig",
           label: "RSIConfig"
         },

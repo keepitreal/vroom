@@ -13,6 +13,7 @@ import {
   type Candle,
   type CrosshairEvent,
   type MovingAverageOverlay,
+  type PriceLine,
 } from 'react-native-vroom-chart';
 
 import {
@@ -67,6 +68,52 @@ function mockCandles(n: number, stepMs: number): Candle[] {
     price = close;
   }
   return out;
+}
+
+// A price line plus the label prefix its `text` is built from, so a drag can
+// rebuild the caption around the new price.
+type DemoPriceLine = PriceLine & { label: string };
+
+const priceLineText = (label: string, price: number) => `${label} @ ${price.toFixed(2)}`;
+
+// Sample order/position lines around the latest close: a draggable resting limit
+// buy below spot (with a size pill and a cancel button), the take-profit it pairs
+// with above, and a fixed liquidation level that can't be moved or dismissed.
+function mockPriceLines(candles: Candle[]): DemoPriceLine[] {
+  if (candles.length === 0) return [];
+  // Spread the samples across the range of the candles that are roughly on
+  // screen. Off-range lines are culled, so anchoring to the visible range keeps
+  // all three in view no matter where the random walk wandered.
+  const recent = candles.slice(-120);
+  let lo = recent[0].low;
+  let hi = recent[0].high;
+  for (const c of recent) {
+    if (c.low < lo) lo = c.low;
+    if (c.high > hi) hi = c.high;
+  }
+  const at = (frac: number) => lo + (hi - lo) * frac;
+  const line = (
+    id: string,
+    label: string,
+    price: number,
+    rest: Partial<DemoPriceLine>,
+  ): DemoPriceLine => ({ id, label, price, text: priceLineText(label, price), ...rest });
+  return [
+    line('limit-buy', 'Limit Buy', at(0.3), {
+      quantity: '0.75',
+      color: '#26a69a',
+      draggable: true,
+    }),
+    line('take-profit', 'Take Profit', at(0.78), {
+      quantity: 'Full',
+      color: '#ef5350',
+      draggable: true,
+    }),
+    line('liquidation', 'Liquidation', at(0.08), {
+      color: '#f0a020',
+      closable: false,
+    }),
+  ];
 }
 
 function fmtVol(v: number): string {
@@ -168,6 +215,31 @@ export default function App() {
     } else if (e.reason === 'move') {
       Haptics.selectionAsync().catch(() => {});
     }
+  }, []);
+
+  // Price lines are a controlled prop, so the app owns the array: a drag reports
+  // a candidate price and the × reports a cancellation, and this state is what
+  // decides whether either actually happens. Re-seeded per interval, since the
+  // mock series (and therefore spot) changes with it.
+  const [showPriceLines, setShowPriceLines] = useState(false);
+  const [priceLines, setPriceLines] = useState<DemoPriceLine[]>([]);
+  const togglePriceLines = useCallback(() => {
+    setShowPriceLines((on) => {
+      if (!on) setPriceLines(mockPriceLines(candles));
+      return !on;
+    });
+  }, [candles]);
+  const onPriceLineDragEnd = useCallback((id: string, price: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setPriceLines((prev) =>
+      prev.map((l) =>
+        l.id === id ? { ...l, price, text: priceLineText(l.label, price) } : l,
+      ),
+    );
+  }, []);
+  const onPriceLineClose = useCallback((id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    setPriceLines((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
   // Indicator enable/config state lives here so it can later drive the chart;
@@ -316,11 +388,28 @@ export default function App() {
               fill: bbParams.fill,
               fillOpacity: bbParams.fillOpacity,
             }}
+            priceLines={showPriceLines ? priceLines : undefined}
+            onPriceLineDragEnd={onPriceLineDragEnd}
+            onPriceLineClose={onPriceLineClose}
           />
 
           <View style={styles.footer}>
             <View style={styles.footerRow}>
               <IntervalSelect value={selected} onChange={setSelected} />
+
+              <Pressable
+                style={[styles.fnBtn, showPriceLines && styles.fnBtnActive]}
+                onPress={togglePriceLines}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    showPriceLines && styles.fnSymbolActive,
+                  ]}
+                >
+                  ⊞
+                </Text>
+              </Pressable>
 
               <Pressable
                 style={styles.fnBtn}
@@ -437,6 +526,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
   },
+  fnBtnActive: { backgroundColor: '#1f2a1f' },
   fnSymbolActive: { color: '#3fb950' },
   fnCount: {
     color: '#3fb950',

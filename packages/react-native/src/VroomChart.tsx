@@ -52,6 +52,11 @@ export function VroomChart(props: VroomChartProps) {
     crosshairOffset = 40,
     onCrosshair,
     onViewportChange,
+    priceLines,
+    priceLinesStyle,
+    onPriceLineDrag,
+    onPriceLineDragEnd,
+    onPriceLineClose,
   } = props;
 
   // Fill the parent by default: measure via onLayout. Explicit width/height
@@ -69,6 +74,20 @@ export function VroomChart(props: VroomChartProps) {
     );
   }, []);
 
+  // The close button is callback-gated, so whether a handler exists is part of
+  // what gets rendered.
+  const priceLinesProp = useMemo(
+    () =>
+      priceLines
+        ? {
+            lines: priceLines,
+            style: priceLinesStyle,
+            hasCloseHandler: onPriceLineClose != null,
+          }
+        : undefined,
+    [priceLines, priceLinesStyle, onPriceLineClose],
+  );
+
   const { handle, picture } = useChartCore(
     candles,
     { width, height },
@@ -81,6 +100,7 @@ export function VroomChart(props: VroomChartProps) {
     movingAverages,
     vwap,
     bollingerBands,
+    priceLinesProp,
   );
 
   // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat
@@ -238,13 +258,31 @@ export function VroomChart(props: VroomChartProps) {
     [handle, width, height],
   );
 
+  // Hit-tests the price lines at a touch point, resolving the core's index back
+  // to the line it belongs to. Null when nothing was hit.
+  const hitPriceLine = useCallback(
+    (x: number, y: number) => {
+      if (!handle || !priceLines?.length) return null;
+      const hit = handle.hitTestPriceLine(x, y);
+      const line = hit ? priceLines[hit.index] : undefined;
+      return hit && line ? { index: hit.index, part: hit.part, line } : null;
+    },
+    [handle, priceLines],
+  );
+
+  // A price line being dragged vertically: its core index, its id, and the last
+  // previewed price (the payload for the drop).
+  const priceDrag = useRef<{ index: number; id: string; price: number } | null>(
+    null,
+  );
+
   // Pan routes to different C++ mutators depending on where it started: the
   // candle area (chart scroll / crosshair move), the y-axis strip (price
-  // scale), the x-axis strip (time scale), or the indicator pane (horizontal
-  // scroll only). We classify on onStart.
-  const panMode = useRef<'chart' | 'price-axis' | 'time-axis' | 'indicator'>(
-    'chart',
-  );
+  // scale), the x-axis strip (time scale), the indicator pane (horizontal
+  // scroll only), or a draggable price line. We classify on onStart.
+  const panMode = useRef<
+    'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'price-line'
+  >('chart');
 
   const pan = Gesture.Pan()
     .runOnJS(true)
@@ -254,6 +292,20 @@ export function VroomChart(props: VroomChartProps) {
       // Always classify — an axis drag controls the axis even while the
       // crosshair is up. Only a chart-area drag interacts with the crosshair.
       panMode.current = hitAxis(e.x, e.y);
+      // A draggable price line takes the drag over from the chart. Seeding the
+      // preview at the committed price puts the label in drag styling before the
+      // first move, so the grab registers immediately.
+      priceDrag.current = null;
+      if (handle && panMode.current === 'chart' && !crosshairActive.current) {
+        const pl = hitPriceLine(e.x, e.y);
+        if (pl && pl.part === 0) {
+          panMode.current = 'price-line';
+          priceDrag.current = { index: pl.index, id: pl.line.id, price: pl.line.price };
+          handle.setPriceLineDrag(pl.index, pl.line.price);
+          const p = handle.render();
+          if (p) pictureSV.value = p;
+        }
+      }
     })
     .onChange((e) => {
       if (!handle) return;
@@ -266,6 +318,16 @@ export function VroomChart(props: VroomChartProps) {
         // Drag in an indicator pane scrolls the candles horizontally only —
         // no vertical price slide (the pane's scale is fixed).
         next = handle.pan(e.changeX, 0);
+      } else if (panMode.current === 'price-line') {
+        // Preview the price under the finger; nothing is committed until the drop.
+        const g = priceDrag.current;
+        if (!g) return;
+        const c = handle.coordAt(e.x, e.y);
+        if (!c) return;
+        g.price = c.price;
+        handle.setPriceLineDrag(g.index, c.price);
+        onPriceLineDrag?.(g.id, c.price);
+        next = handle.render();
       } else if (crosshairActive.current) {
         // Chart area + crosshair up → the drag moves the crosshair instead of
         // scrolling. Vertical line tracks the finger x; the dot/horizontal line
@@ -294,6 +356,18 @@ export function VroomChart(props: VroomChartProps) {
     })
     .onEnd((e) => {
       if (!handle) return;
+      // Price-line drop. The preview always clears here: the line is a controlled
+      // prop, so it only really moves once the host restates it — which means a
+      // rejected (or ignored) move reverts on its own.
+      if (panMode.current === 'price-line') {
+        const g = priceDrag.current;
+        priceDrag.current = null;
+        handle.setPriceLineDrag(-1, 0);
+        const p = handle.render();
+        if (p) pictureSV.value = p;
+        if (g) onPriceLineDragEnd?.(g.id, g.price);
+        return;
+      }
       // A chart-area drag with the crosshair up just moved the crosshair —
       // nothing about the viewport changed, and no momentum.
       if (panMode.current === 'chart' && crosshairActive.current) return;
@@ -406,6 +480,9 @@ export function VroomChart(props: VroomChartProps) {
       if (!handle) return;
       // A long press on an axis strip controls the axis, never the crosshair.
       if (hitAxis(e.x, e.y) !== 'chart') return;
+      // A press on a price line belongs to that line — dragging it or tapping its
+      // close button — so it must not raise the crosshair over the top.
+      if (hitPriceLine(e.x, e.y)) return;
       cancelDecay();
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
@@ -421,12 +498,20 @@ export function VroomChart(props: VroomChartProps) {
       });
     });
 
-  // A tap dismisses the crosshair while it's up; otherwise it's a no-op (so it
-  // never interferes with normal pan/pinch).
+  // A tap activates a price line's close button, and otherwise dismisses the
+  // crosshair while it's up. Any other tap is a no-op, so it never interferes
+  // with normal pan/pinch.
   const tap = Gesture.Tap()
     .runOnJS(true)
     .onStart((e) => {
-      if (!handle || !crosshairActive.current) return;
+      if (!handle) return;
+      // The close button is a tap target whether or not the crosshair is up.
+      const pl = hitPriceLine(e.x, e.y);
+      if (pl && pl.part === 1) {
+        onPriceLineClose?.(pl.line.id);
+        return;
+      }
+      if (!crosshairActive.current) return;
       // A tap on an axis strip controls the axis, never dismisses the crosshair.
       if (hitAxis(e.x, e.y) !== 'chart') return;
       crosshairActive.current = false;

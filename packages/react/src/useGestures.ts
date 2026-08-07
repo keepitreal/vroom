@@ -5,7 +5,14 @@
 // be non-passive and call preventDefault.
 
 import { useCallback, useEffect, useRef } from 'react';
-import type { ChartMode, CrosshairEvent, Drawing, DrawPoint, DrawTool } from '@vroomchart/types';
+import type {
+  ChartMode,
+  CrosshairEvent,
+  Drawing,
+  DrawPoint,
+  DrawTool,
+  PriceLine,
+} from '@vroomchart/types';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
 import { simplifyIndices } from './simplify';
@@ -36,6 +43,17 @@ export type GestureOptions = {
   onRedo?: () => void;
   /** Fired when the chart wants the host to change mode (e.g. exit on click-away). */
   onRequestMode?: (mode: ChartMode) => void;
+  /**
+   * Price status lines (controlled). Used to hit-test/drag/close, and to map the
+   * core's hit index back to the line's id.
+   */
+  priceLines?: PriceLine[];
+  /** Fired continuously while a price line is dragged. */
+  onPriceLineDrag?: (id: string, price: number) => void;
+  /** Fired once when a dragged price line is dropped. */
+  onPriceLineDragEnd?: (id: string, price: number) => void;
+  /** Fired when a price line's close button is activated. */
+  onPriceLineClose?: (id: string) => void;
 };
 
 const MIN_SPAN = 24; // px — minimum two-finger span for an axis to scale
@@ -159,6 +177,17 @@ export function useGestures(
   const pencilRef = useRef<{ pts: DrawPoint[]; px: { x: number; y: number }[] } | null>(
     null,
   );
+  // Price-line interaction. A drag carries the line's core index + id and the
+  // last previewed price (the drop payload); `cancelled` is set by Escape so the
+  // release knows to submit nothing. A press on the close button is recorded here
+  // and only acted on if the pointer comes up without moving.
+  const priceDragRef = useRef<{
+    index: number;
+    id: string;
+    price: number;
+    cancelled?: boolean;
+  } | null>(null);
+  const priceCloseRef = useRef<{ id: string } | null>(null);
   const downHitRef = useRef<{ index: number; part: number; t: number } | null>(null);
   const lastCoordRef = useRef<{ timeMs: number; price: number } | null>(null);
   // Where along the selected line it was grabbed (0..1, A→B), and the in-memory
@@ -277,6 +306,21 @@ export function useGestures(
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (isEditableTarget()) return;
+
+      // Escape mid-drag on a price line abandons the move: the preview drops and
+      // the line snaps back to its committed price without submitting anything.
+      // The ref is kept (flagged) rather than cleared so the eventual release
+      // knows this pointer was a cancelled drag, not a pan.
+      if (e.key === 'Escape' && priceDragRef.current && !priceDragRef.current.cancelled) {
+        e.preventDefault();
+        priceDragRef.current.cancelled = true;
+        const h = handleRef.current;
+        if (h) {
+          h.setPriceLineDrag(-1, 0);
+          scheduleRender();
+        }
+        return;
+      }
 
       // Mid-draw (first anchor placed, awaiting the second): Escape/Delete/
       // Backspace cancels the in-progress anchor but keeps draw mode active.
@@ -423,6 +467,9 @@ export function useGestures(
     let lastX = 0;
     let lastY = 0;
     const pinch = { spanX: 1, spanY: 1, ratioX: 1, ratioY: 1, enableX: false, enableY: false, active: false };
+    // Which price-line segment is currently highlighted, so a hover that hasn't
+    // changed doesn't push state (hover fires on every mouse move).
+    const priceHover = { index: -1, part: -1 };
 
     const rel = (e: PointerEvent | WheelEvent) => {
       const r = el.getBoundingClientRect();
@@ -474,6 +521,14 @@ export function useGestures(
       const nx = f.x + (dx < 0 ? -side : side);
       const ny = f.y + (dy < 0 ? -side : side);
       return h.coordAt(nx, ny) ?? free;
+    };
+
+    const setPriceHover = (index: number, part: number) => {
+      if (priceHover.index === index && priceHover.part === part) return;
+      priceHover.index = index;
+      priceHover.part = part;
+      handleRef.current?.setPriceLineHover(index, part);
+      scheduleRender();
     };
 
     const regionAt = (x: number, y: number): Region => {
@@ -766,7 +821,28 @@ export function useGestures(
       // Editing (pan mode, chart area): grab a handle to drag it now; otherwise
       // record the hit so a stationary release can select a body / deselect.
       downHitRef.current = null;
+      priceCloseRef.current = null;
       if (!drawActive() && panMode === 'chart') {
+        // Price lines render over the drawings layer, so they get first refusal
+        // on the pointer.
+        const plHit = h.hitTestPriceLine(x, y);
+        const pl = plHit ? (optsRef.current.priceLines ?? [])[plHit.index] : undefined;
+        if (plHit && pl) {
+          if (plHit.part === 1) {
+            // Close button: resolve on a stationary release, so a drag that
+            // happens to start on the button pans instead of cancelling an order.
+            priceCloseRef.current = { id: pl.id };
+            return; // no long-press crosshair under the button
+          }
+          // Seed the preview at the committed price so the label and badge are
+          // already in drag styling before the first move.
+          priceDragRef.current = { index: plHit.index, id: pl.id, price: pl.price };
+          h.setPriceLineDrag(plHit.index, pl.price);
+          el.style.cursor = 'ns-resize';
+          scheduleRender();
+          return; // the line drag owns this pointer — no pan / long-press
+        }
+
         const hit = h.hitTestDrawing(x, y);
         const gd = hit ? (optsRef.current.drawings ?? [])[hit.index] : undefined;
         // Handle/corner grab: line endpoints (part 0/1) or box corners (part
@@ -859,8 +935,15 @@ export function useGestures(
             return;
           }
           const region = regionAt(x, y);
-          el.style.cursor =
-            region === 'separator'
+          // Price lines are chrome laid over the pane, so hovering one wins over
+          // the region's own cursor.
+          const plHit = region === 'chart' ? h.hitTestPriceLine(x, y) : null;
+          setPriceHover(plHit?.index ?? -1, plHit?.part ?? -1);
+          el.style.cursor = plHit
+            ? plHit.part === 1
+              ? 'pointer'
+              : 'ns-resize'
+            : region === 'separator'
               ? 'row-resize'
               : region === 'indicator-axis'
                 ? 'ns-resize'
@@ -885,6 +968,22 @@ export function useGestures(
       // start.
       if (pencilRef.current) {
         pencilMove(x, y);
+        return;
+      }
+
+      // Price-line drag: preview the price under the pointer live, with no move
+      // threshold, and never pan. A drag cancelled with Escape keeps the pointer
+      // — it just stops previewing, so the chart doesn't lurch into a pan.
+      if (priceDragRef.current) {
+        const g = priceDragRef.current;
+        const c = g.cancelled ? null : h.coordAt(x, y);
+        if (c) {
+          g.price = c.price;
+          h.setPriceLineDrag(g.index, c.price);
+          optsRef.current.onPriceLineDrag?.(g.id, c.price);
+          if (!moved && Math.hypot(x - downX, y - downY) > MOVE_THRESH) moved = true;
+          scheduleRender();
+        }
         return;
       }
 
@@ -997,6 +1096,29 @@ export function useGestures(
         return;
       }
 
+      // Price-line drag release. The preview always drops here: the line is a
+      // controlled prop, so it only really moves once the host restates it —
+      // which means a rejected (or ignored) move reverts on its own.
+      if (priceDragRef.current && pointers.size === 0) {
+        const g = priceDragRef.current;
+        priceDragRef.current = null;
+        handleRef.current?.setPriceLineDrag(-1, 0);
+        if (moved && !g.cancelled) optsRef.current.onPriceLineDragEnd?.(g.id, g.price);
+        el.style.cursor = '';
+        scheduleRender();
+        return;
+      }
+
+      // Close-button release: only a stationary press counts, so dragging off the
+      // button is a way out of a mis-tap.
+      if (priceCloseRef.current && pointers.size === 0) {
+        const g = priceCloseRef.current;
+        priceCloseRef.current = null;
+        if (!moved) optsRef.current.onPriceLineClose?.(g.id);
+        el.style.cursor = '';
+        return;
+      }
+
       // Handle-drag release (editing): persist the moved endpoint, keep it
       // selected, and un-grab (drops the 50% enlarge).
       if (grabRef.current && pointers.size === 0) {
@@ -1090,6 +1212,7 @@ export function useGestures(
 
     const onPointerLeave = () => {
       if (crosshairSource === 'hover') hideCrosshair();
+      setPriceHover(-1, -1);
       el.style.cursor = '';
     };
 

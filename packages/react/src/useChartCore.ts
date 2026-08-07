@@ -15,7 +15,12 @@ import {
   type BollingerSpec,
   type DrawingSpec,
   type LiquiditySpec,
+  type PriceLinesSpec,
   type VroomChartHandle,
+  PRICE_LINE_AXIS_LABEL,
+  PRICE_LINE_CLOSABLE,
+  PRICE_LINE_DRAGGABLE,
+  PRICE_LINE_EXTEND_LEFT,
 } from '@vroomchart/core-wasm';
 import type { VroomChartCoreProps } from '@vroomchart/types';
 import {
@@ -130,6 +135,56 @@ const EMPTY_LIQUIDITY: LiquiditySpec = {
   widthFrac: 0.25,
 };
 
+// Price-line defaults: a soft red dotted rule with a dark translucent label,
+// close in weight to the current-price indicator it sits beside.
+const DEFAULT_PRICE_LINE_COLOR = 0xffef5350;
+const DEFAULT_PRICE_LINE_BODY_BG = 0xd91c2128;
+const DEFAULT_PRICE_LINE_HOVER_BOOST = 1.25;
+
+const LINE_STYLES = { solid: 0, dotted: 1, dashed: 2 } as const;
+
+function priceLinesToSpec(
+  lines: NonNullable<VroomChartCoreProps['priceLines']>,
+  style: VroomChartCoreProps['priceLinesStyle'],
+  // Whether a close handler exists. The button is callback-gated: with nothing
+  // for it to do, it isn't drawn at all.
+  hasCloseHandler: boolean,
+): PriceLinesSpec {
+  return {
+    lines: lines.map((l) => ({
+      price: l.price,
+      color: (l.color != null ? parseColor(l.color) : null) ?? DEFAULT_PRICE_LINE_COLOR,
+      width: l.width ?? 1,
+      lineStyle: LINE_STYLES[l.lineStyle ?? 'dotted'],
+      text: l.text ?? '',
+      quantity: l.quantity ?? '',
+      flags:
+        (l.draggable ? PRICE_LINE_DRAGGABLE : 0) |
+        (hasCloseHandler && l.closable !== false ? PRICE_LINE_CLOSABLE : 0) |
+        (l.axisLabel !== false ? PRICE_LINE_AXIS_LABEL : 0) |
+        (l.extendLeft !== false ? PRICE_LINE_EXTEND_LEFT : 0),
+    })),
+    bodyBg:
+      (style?.bodyBackground != null ? parseColor(style.bodyBackground) : null) ??
+      DEFAULT_PRICE_LINE_BODY_BG,
+    fontSizePx: style?.fontSize ?? 0,
+    lineLengthFrac: style?.inset ?? 0,
+    align: style?.align === 'left' ? 0 : style?.align === 'center' ? 1 : 2,
+    hoverBoost: style?.hoverBoost ?? DEFAULT_PRICE_LINE_HOVER_BOOST,
+  };
+}
+
+// Cleared overlay: no lines (the style values are irrelevant, but the spec shape
+// requires them).
+const EMPTY_PRICE_LINES: PriceLinesSpec = {
+  lines: [],
+  bodyBg: DEFAULT_PRICE_LINE_BODY_BG,
+  fontSizePx: 0,
+  lineLengthFrac: 0,
+  align: 2,
+  hoverBoost: DEFAULT_PRICE_LINE_HOVER_BOOST,
+};
+
 export type UseChartCore = {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -161,6 +216,9 @@ export function useChartCore(
     bollingerBands,
     drawings,
     liquidity,
+    priceLines,
+    priceLinesStyle,
+    onPriceLineClose,
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -240,6 +298,11 @@ export function useChartCore(
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
   const drawingsKey = drawings ? JSON.stringify(drawings) : '';
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
+  // Whether a close handler exists is part of the rendered output (it gates the
+  // button), so it belongs in the key alongside the lines themselves.
+  const priceLinesKey = priceLines
+    ? JSON.stringify([priceLines, priceLinesStyle ?? null, onPriceLineClose != null])
+    : '';
   const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
@@ -335,11 +398,16 @@ export function useChartCore(
     h.setLiquidity(
       liquidity?.bands?.length ? liquidityToSpec(liquidity) : EMPTY_LIQUIDITY,
     );
+    h.setPriceLines(
+      priceLines?.length
+        ? priceLinesToSpec(priceLines, priceLinesStyle, onPriceLineClose != null)
+        : EMPTY_PRICE_LINES,
+    );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/drawings/liquidity
-    // tracked via *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/drawings/liquidity/
+    // priceLines tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

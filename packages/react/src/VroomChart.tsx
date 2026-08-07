@@ -51,6 +51,10 @@ export function VroomChart(props: VroomChartProps) {
     historyRef,
     onUndo,
     onRedo,
+    priceLines,
+    onPriceLineDrag,
+    onPriceLineDragEnd,
+    onPriceLineClose,
   } = props;
 
   // Managed persistence: when a `drawingStore` is provided the chart owns the
@@ -94,6 +98,10 @@ export function VroomChart(props: VroomChartProps) {
     onUndo: stored ? managed.undo : onUndo,
     onRedo: stored ? managed.redo : onRedo,
     onRequestMode: onModeChange,
+    priceLines,
+    onPriceLineDrag,
+    onPriceLineDragEnd,
+    onPriceLineClose,
   });
 
   const rootStyle: CSSProperties = {

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <chrono>
+#include <string>
 #include <vector>
 
 #include "vroom/vroom_chart.h"
@@ -194,6 +195,32 @@ struct VroomChart {
     // fading left from the price axis. Empty when the overlay is off.
     std::vector<VroomBand>   bands;
     VroomLiquidityStyle      liquidity_style{};
+
+    // --- price status lines -------------------------------------------------
+    // Consumer-supplied horizontal lines at fixed prices (resting orders, TP/SL,
+    // liquidation levels), each with a label group and an optional close button.
+    //
+    // Mirrors the public VroomPriceLine but *owns* its label strings, so the
+    // caller may free theirs as soon as the setter returns.
+    struct StoredPriceLine {
+        double      price = 0.0;
+        uint32_t    color = 0xffef5350;
+        float       width = 1.f;
+        int32_t     line_style = 1;  // dotted, matching the price indicator
+        std::string text;
+        std::string quantity;
+        int32_t     flags = 0;  // VroomPriceLineFlags
+    };
+    std::vector<StoredPriceLine> price_lines;
+    VroomPriceLineStyle          price_line_style{};
+
+    // Interaction state, driven by the host's gesture layer. The hovered segment
+    // renders highlighted; while a line is dragged it renders at
+    // dragged_price_line_price with a ghost at its committed price. -1 = none.
+    int32_t hovered_price_line = -1;
+    int32_t hovered_price_line_part = -1;
+    int32_t dragged_price_line = -1;
+    double  dragged_price_line_price = 0.0;
 
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;

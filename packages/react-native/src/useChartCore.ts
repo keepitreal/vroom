@@ -11,6 +11,8 @@ import type {
   ChartType,
   MACDConfig,
   MovingAverageOverlay,
+  PriceLine,
+  PriceLinesStyle,
   RSIConfig,
   VisibleRange,
   VroomTheme,
@@ -68,6 +70,61 @@ function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
   };
 }
 
+// Price-line defaults: a soft red dotted rule with a dark translucent label,
+// close in weight to the current-price indicator it sits beside.
+const DEFAULT_PRICE_LINE_COLOR = 0xffef5350;
+const DEFAULT_PRICE_LINE_BODY_BG = 0xd91c2128;
+const DEFAULT_PRICE_LINE_HOVER_BOOST = 1.25;
+
+const LINE_STYLES = { solid: 0, dotted: 1, dashed: 2 } as const;
+
+// Mirrors VroomPriceLineFlags in packages/core/include/vroom/vroom_chart.h.
+const PRICE_LINE_DRAGGABLE = 1 << 0;
+const PRICE_LINE_CLOSABLE = 1 << 1;
+const PRICE_LINE_AXIS_LABEL = 1 << 2;
+const PRICE_LINE_EXTEND_LEFT = 1 << 3;
+
+/** The price lines + their shared style, as the chart's props express them. */
+export type PriceLinesProp = {
+  lines: PriceLine[];
+  style?: PriceLinesStyle;
+  /**
+   * Whether the host supplied a close handler. The close button is
+   * callback-gated, so with nothing for it to do it isn't drawn at all.
+   */
+  hasCloseHandler: boolean;
+};
+
+function priceLinesToSpec(cfg: PriceLinesProp) {
+  return {
+    lines: cfg.lines.map((l) => ({
+      price: l.price,
+      color:
+        (l.color != null ? parseColor(l.color) : null) ?? DEFAULT_PRICE_LINE_COLOR,
+      width: l.width ?? 1,
+      lineStyle: LINE_STYLES[l.lineStyle ?? 'dotted'],
+      text: l.text ?? '',
+      quantity: l.quantity ?? '',
+      flags:
+        (l.draggable ? PRICE_LINE_DRAGGABLE : 0) |
+        (cfg.hasCloseHandler && l.closable !== false ? PRICE_LINE_CLOSABLE : 0) |
+        (l.axisLabel !== false ? PRICE_LINE_AXIS_LABEL : 0) |
+        (l.extendLeft !== false ? PRICE_LINE_EXTEND_LEFT : 0),
+    })),
+    bodyBg:
+      (cfg.style?.bodyBackground != null ? parseColor(cfg.style.bodyBackground) : null) ??
+      DEFAULT_PRICE_LINE_BODY_BG,
+    fontSizePx: cfg.style?.fontSize ?? 0,
+    lineLengthFrac: cfg.style?.inset ?? 0,
+    align: cfg.style?.align === 'left' ? 0 : cfg.style?.align === 'center' ? 1 : 2,
+    hoverBoost: cfg.style?.hoverBoost ?? DEFAULT_PRICE_LINE_HOVER_BOOST,
+  };
+}
+
+// Cleared overlay: no lines (the style values are irrelevant, but the spec shape
+// requires them).
+const EMPTY_PRICE_LINES = priceLinesToSpec({ lines: [], hasCloseHandler: false });
+
 let installed = false;
 function ensureInstalled(): void {
   if (installed) return;
@@ -101,6 +158,7 @@ export function useChartCore(
   movingAverages?: MovingAverageOverlay[],
   vwap?: VWAPConfig,
   bollingerBands?: BollingerBandsConfig,
+  priceLines?: PriceLinesProp,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   // Push setDefaultCandleWidth only once (first load): setCandles re-runs on
@@ -130,6 +188,7 @@ export function useChartCore(
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
+  const priceLinesKey = priceLines ? JSON.stringify(priceLines) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -180,13 +239,16 @@ export function useChartCore(
       vwap?.width ?? 1.5,
     );
     h.setBollinger(bollingerToSpec(bollingerBands));
+    h.setPriceLines(
+      priceLines?.lines.length ? priceLinesToSpec(priceLines) : EMPTY_PRICE_LINES,
+    );
     // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
     // the VroomBand structs in the JSI handle) — web-only for now.
     setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands are represented by
-    // their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/priceLines are
+    // represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, priceLinesKey]);
 
   return { handle: handleRef.current, picture };
 }
