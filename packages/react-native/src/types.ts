@@ -17,6 +17,8 @@ export type {
   BollingerBandsConfig,
   MACDConfig,
   ChartType,
+  PriceLine,
+  PriceLinesStyle,
 } from '@vroomchart/types';
 
 /**

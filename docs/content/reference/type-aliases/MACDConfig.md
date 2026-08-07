@@ -1,4 +1,4 @@
-# Type Alias: MACDConfig
+# `MACDConfig`
 
 ```ts
 type MACDConfig = {
@@ -9,7 +9,7 @@ type MACDConfig = {
 };
 ```
 
-Defined in: [types/src/index.ts:390](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L390)
+Source: [types/src/index.ts:464](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L464)
 
 MACD indicator config. Rendered in its own pane below the candles.
 
@@ -21,9 +21,9 @@ MACD indicator config. Rendered in its own pane below the candles.
 optional enabled?: boolean;
 ```
 
-Defined in: [types/src/index.ts:391](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L391)
+Source: [types/src/index.ts:465](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L465)
 
-***
+---
 
 ### fast?
 
@@ -31,11 +31,11 @@ Defined in: [types/src/index.ts:391](https://github.com/keepitreal/vroom/blob/ma
 optional fast?: number;
 ```
 
-Defined in: [types/src/index.ts:393](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L393)
+Source: [types/src/index.ts:467](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L467)
 
 Fast EMA length. Default 12.
 
-***
+---
 
 ### signal?
 
@@ -43,11 +43,11 @@ Fast EMA length. Default 12.
 optional signal?: number;
 ```
 
-Defined in: [types/src/index.ts:397](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L397)
+Source: [types/src/index.ts:471](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L471)
 
 Signal-line EMA length. Default 9.
 
-***
+---
 
 ### slow?
 
@@ -55,6 +55,6 @@ Signal-line EMA length. Default 9.
 optional slow?: number;
 ```
 
-Defined in: [types/src/index.ts:395](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L395)
+Source: [types/src/index.ts:469](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L469)
 
 Slow EMA length (forced > fast). Default 26.

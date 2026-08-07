@@ -12,6 +12,7 @@ import type {
   DrawingSpec,
   LiquiditySpec,
   OverlaySpec,
+  PriceLinesSpec,
   VroomChartHandle,
   VroomModule,
 } from '../handle';
@@ -56,6 +57,10 @@ interface WebChartInstance {
   setBollinger(spec: BollingerSpec): void;
   setDrawings(drawings: DrawingSpec[]): void;
   setLiquidity(liquidity: LiquiditySpec): void;
+  setPriceLines(priceLines: PriceLinesSpec): void;
+  hitTestPriceLine(x: number, y: number): { index: number; part: number } | null;
+  setPriceLineHover(index: number, part: number): void;
+  setPriceLineDrag(index: number, price: number): void;
   setDraft(
     aTime: number,
     aPrice: number,
@@ -202,6 +207,22 @@ class WasmHandle implements VroomChartHandle {
       buyColor: liquidity.buyColor >>> 0,
       sellColor: liquidity.sellColor >>> 0,
     });
+  }
+  setPriceLines(priceLines: PriceLinesSpec): void {
+    this.wc.setPriceLines({
+      ...priceLines,
+      lines: priceLines.lines.map((l) => ({ ...l, color: l.color >>> 0 })),
+      bodyBg: priceLines.bodyBg >>> 0,
+    });
+  }
+  hitTestPriceLine(x: number, y: number): { index: number; part: number } | null {
+    return this.wc.hitTestPriceLine(x, y);
+  }
+  setPriceLineHover(index: number, part: number): void {
+    this.wc.setPriceLineHover(index, part);
+  }
+  setPriceLineDrag(index: number, price: number): void {
+    this.wc.setPriceLineDrag(index, price);
   }
   setDraft(
     aTime: number,

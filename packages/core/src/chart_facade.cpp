@@ -14,6 +14,7 @@
 #include "chart.h"
 #include "drawings.h"
 #include "labels.h"
+#include "price_lines.h"
 #include "viewport.h"
 
 class SkCanvas;
@@ -812,6 +813,70 @@ extern "C" void vroom_chart_set_liquidity(VroomChart* chart,
     chart->mark_dirty();
 }
 
+// ---- Price status lines ---------------------------------------------------
+
+extern "C" void vroom_chart_set_price_lines(VroomChart* chart,
+                                            const VroomPriceLine* lines,
+                                            size_t count,
+                                            const VroomPriceLineStyle* style) {
+    if (!chart) return;
+    // Deep-copy into the owning form: the label strings live in the chart, so the
+    // caller's buffers may be freed as soon as this returns.
+    chart->price_lines.clear();
+    chart->price_lines.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+        const VroomPriceLine& src = lines[i];
+        VroomChart::StoredPriceLine pl;
+        pl.price = src.price;
+        pl.color = src.color;
+        pl.width = src.width;
+        pl.line_style = src.line_style;
+        if (src.text) pl.text = src.text;
+        if (src.quantity) pl.quantity = src.quantity;
+        pl.flags = src.flags;
+        chart->price_lines.push_back(std::move(pl));
+    }
+    if (style) chart->price_line_style = *style;
+    // Drop interaction state that no longer refers to a live line — otherwise a
+    // removed line would leave a stuck hover highlight or drag preview.
+    const auto n = static_cast<int32_t>(count);
+    if (chart->hovered_price_line >= n) {
+        chart->hovered_price_line = -1;
+        chart->hovered_price_line_part = -1;
+    }
+    if (chart->dragged_price_line >= n) chart->dragged_price_line = -1;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_price_line_hover(VroomChart* chart, int32_t index,
+                                                 int32_t part) {
+    if (!chart) return;
+    if (index < 0 || index >= static_cast<int32_t>(chart->price_lines.size())) {
+        index = -1;
+        part = -1;
+    }
+    if (chart->hovered_price_line == index && chart->hovered_price_line_part == part) {
+        return;  // hover fires on every pointer move; don't redraw for nothing
+    }
+    chart->hovered_price_line = index;
+    chart->hovered_price_line_part = part;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_price_line_drag(VroomChart* chart, int32_t index,
+                                                double price) {
+    if (!chart) return;
+    if (index < 0 || index >= static_cast<int32_t>(chart->price_lines.size())) {
+        if (chart->dragged_price_line == -1) return;
+        chart->dragged_price_line = -1;
+        chart->mark_dirty();
+        return;
+    }
+    chart->dragged_price_line = index;
+    chart->dragged_price_line_price = price;
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_set_draft(VroomChart* chart, int64_t a_time,
                                       double a_price, bool has_b, int64_t b_time,
                                       double b_price, bool guide, uint32_t color,
@@ -923,6 +988,32 @@ extern "C" bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px,
     if (out_index) *out_index = hit.index;
     if (out_part) *out_part = hit.part;
     if (out_t) *out_t = hit.t;
+    return true;
+}
+
+extern "C" bool vroom_chart_hit_test_price_line(VroomChart* chart, float x_px,
+                                                float y_px, int32_t* out_index,
+                                                int32_t* out_part) {
+    if (!chart || chart->price_lines.empty() || chart->candles.empty()) return false;
+    const auto lay = chart->layout();
+    // Same bounds and pane geometry as draw_chart, so the grab regions line up
+    // with what's on screen.
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+    const float candle_area_h = vroom::price_pane_bottom(lay);
+    const float candle_right =
+        chart->width_px - lay.y_axis_width_px - lay.right_padding_px;
+    const auto hit = vroom::price_lines::hit_test(*chart, lay, bounds, candle_right,
+                                                  candle_area_h, x_px, y_px);
+    if (hit.index < 0) return false;
+    if (out_index) *out_index = hit.index;
+    if (out_part) *out_part = hit.part;
     return true;
 }
 

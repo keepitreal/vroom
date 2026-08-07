@@ -201,6 +201,8 @@ export type SidebarProps = {
     setShowLiquidity: (v: boolean) => void;
     bandHeight: number;
     setBandHeight: (v: number) => void;
+    showPriceLines: boolean;
+    setShowPriceLines: (v: boolean) => void;
     drawMode: ChartMode;
     drawTool: DrawTool;
     toggleLineTool: () => void;
@@ -384,6 +386,12 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             </span>
           </Row>
         )}
+        <ToggleRow
+          label="Price lines"
+          checked={overlays.showPriceLines}
+          onChange={overlays.setShowPriceLines}
+          title="Overlay sample order/position status lines. Drag the limit order to reprice it, or click its × to cancel."
+        />
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={overlays.toggleLineTool}

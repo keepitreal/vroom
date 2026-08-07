@@ -162,6 +162,44 @@ export type LiquiditySpec = {
   widthFrac: number;
 };
 
+/** Bit flags for `PriceLineSpec.flags`. */
+export const PRICE_LINE_DRAGGABLE = 1 << 0;
+export const PRICE_LINE_CLOSABLE = 1 << 1;
+export const PRICE_LINE_AXIS_LABEL = 1 << 2;
+export const PRICE_LINE_EXTEND_LEFT = 1 << 3;
+
+/** A single price status line in the core's numeric encoding. */
+export type PriceLineSpec = {
+  price: number;
+  /** Packed 0xAARRGGBB. */
+  color: number;
+  /** Stroke width in px. */
+  width: number;
+  /** 0 = solid, 1 = dotted, 2 = dashed. */
+  lineStyle: number;
+  /** Body label. Empty hides the body pill. */
+  text: string;
+  /** Trailing solid-fill segment. Empty hides it. */
+  quantity: string;
+  /** Bitwise-or of the PRICE_LINE_* flags. */
+  flags: number;
+};
+
+/** Price status lines + shared style, in the core's numeric encoding. */
+export type PriceLinesSpec = {
+  lines: PriceLineSpec[];
+  /** Translucent body/close-button pill fill, packed 0xAARRGGBB. */
+  bodyBg: number;
+  /** 0 = inherit the axis font size. */
+  fontSizePx: number;
+  /** 0..1 of pane width: the label group's right-edge inset from the axis. */
+  lineLengthFrac: number;
+  /** 0 = left, 1 = center, 2 = right. */
+  align: number;
+  /** Brightness multiplier for the hovered segment; 1 = no highlight. */
+  hoverBoost: number;
+};
+
 /** A continuous data coordinate at a pixel position (no candle snapping). */
 export type Coord = {
   timeMs: number;
@@ -287,6 +325,30 @@ export interface VroomChartHandle {
    * with an empty `bands` array to clear the overlay.
    */
   setLiquidity(liquidity: LiquiditySpec): void;
+  /**
+   * Replace the full set of price status lines (plus their shared style). Pass a
+   * spec with an empty `lines` array to clear them.
+   */
+  setPriceLines(priceLines: PriceLinesSpec): void;
+  /**
+   * Hit-test pixel (x, y) against the price lines. `part` is 0 for the line or
+   * its label body (the drag target) and 1 for the close button; close buttons
+   * win over lines and the nearest in y wins among several candidates. Only
+   * draggable lines report part 0 and only closable lines report part 1. Null on
+   * a miss.
+   */
+  hitTestPriceLine(x: number, y: number): { index: number; part: number } | null;
+  /**
+   * Mark a price line's segment as hovered so it renders highlighted. Pass -1 to
+   * clear. `part` matches `hitTestPriceLine`.
+   */
+  setPriceLineHover(index: number, part: number): void;
+  /**
+   * Drive the live drag preview: the line, its label and its badge render at
+   * `price` with a ghost at the committed one. Pass -1 to end the preview. The
+   * committed price is untouched — restate `setPriceLines` to apply the move.
+   */
+  setPriceLineDrag(index: number, price: number): void;
   /**
    * Set the transient in-progress draft shown while placing a drawing. Node A is
    * always shown; node B is shown when `hasB`. `guide` also draws the live

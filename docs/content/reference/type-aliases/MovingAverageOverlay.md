@@ -1,4 +1,4 @@
-# Type Alias: MovingAverageOverlay
+# `MovingAverageOverlay`
 
 ```ts
 type MovingAverageOverlay = {
@@ -10,7 +10,7 @@ type MovingAverageOverlay = {
 };
 ```
 
-Defined in: [types/src/index.ts:278](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L278)
+Source: [types/src/index.ts:278](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L278)
 
 A moving-average overlay line drawn on the price pane. Provide an array of
 these via `movingAverages` to render a ribbon of SMA/EMA lines.
@@ -23,11 +23,11 @@ these via `movingAverages` to render a ribbon of SMA/EMA lines.
 optional color?: string | number;
 ```
 
-Defined in: [types/src/index.ts:286](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L286)
+Source: [types/src/index.ts:286](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L286)
 
 Line color (hex string or packed ARGB number).
 
-***
+---
 
 ### kind
 
@@ -35,11 +35,11 @@ Line color (hex string or packed ARGB number).
 kind: "sma" | "ema";
 ```
 
-Defined in: [types/src/index.ts:280](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L280)
+Source: [types/src/index.ts:280](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L280)
 
 'sma' (simple) or 'ema' (exponential).
 
-***
+---
 
 ### length
 
@@ -47,11 +47,11 @@ Defined in: [types/src/index.ts:280](https://github.com/keepitreal/vroom/blob/ma
 length: number;
 ```
 
-Defined in: [types/src/index.ts:282](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L282)
+Source: [types/src/index.ts:282](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L282)
 
 Lookback in candles.
 
-***
+---
 
 ### source?
 
@@ -59,11 +59,11 @@ Lookback in candles.
 optional source?: MASource;
 ```
 
-Defined in: [types/src/index.ts:284](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L284)
+Source: [types/src/index.ts:284](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L284)
 
 Price source. Default 'close'.
 
-***
+---
 
 ### width?
 
@@ -71,6 +71,6 @@ Price source. Default 'close'.
 optional width?: number;
 ```
 
-Defined in: [types/src/index.ts:288](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L288)
+Source: [types/src/index.ts:288](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L288)
 
 Stroke width in px. Default 1.5.

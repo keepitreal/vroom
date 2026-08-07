@@ -118,6 +118,44 @@ typedef struct VroomLiquidityStyle {
     float    width_frac;
 } VroomLiquidityStyle;
 
+// ---- Price status lines ---------------------------------------------------
+
+// Bit flags for VroomPriceLine::flags.
+typedef enum {
+    VROOM_PRICE_LINE_DRAGGABLE   = 1 << 0,  // the line can be dragged vertically
+    VROOM_PRICE_LINE_CLOSABLE    = 1 << 1,  // render the trailing close ("x") button
+    VROOM_PRICE_LINE_AXIS_LABEL  = 1 << 2,  // render the price badge in the y-axis strip
+    VROOM_PRICE_LINE_EXTEND_LEFT = 1 << 3,  // extend the line to the pane's left edge
+} VroomPriceLineFlags;
+
+// A consumer-supplied horizontal status line at a fixed price — the primitive
+// behind resting limit orders, take-profits, liquidation levels and the like.
+//
+// Visually: a line across the price pane ending in a label group made of a body
+// pill (`text`), an optional solid-filled `quantity` pill, and an optional close
+// button, plus an optional price badge in the y-axis strip.
+//
+// `text` / `quantity` are UTF-8 and copied internally, so the caller may free
+// them as soon as the call returns. A null or empty string hides that segment.
+typedef struct VroomPriceLine {
+    double      price;
+    uint32_t    color;       // 0xAARRGGBB — line, border, body text, close icon
+    float       width;       // stroke width in px
+    int32_t     line_style;  // 0 = solid, 1 = dotted, 2 = dashed
+    const char* text;        // body label
+    const char* quantity;    // trailing solid-fill segment
+    int32_t     flags;       // bitwise-or of VroomPriceLineFlags
+} VroomPriceLine;
+
+// Layout/style shared by every price line, so the per-line struct stays small.
+typedef struct VroomPriceLineStyle {
+    uint32_t body_bg;           // translucent body/close-button pill fill (0xAARRGGBB)
+    float    font_size_px;      // 0 = inherit VROOM_FLOAT_AXIS_FONT_SIZE_PX
+    float    line_length_frac;  // 0..1 of pane width: the label group's right-edge inset
+    int32_t  align;             // 0 = left, 1 = center, 2 = right
+    float    hover_boost;       // brightness multiplier for the hovered segment (1 = flat)
+} VroomPriceLineStyle;
+
 // A continuous data coordinate at a pixel position (no candle snapping). Used to
 // translate a drawing-tool click into a data-space anchor.
 typedef struct VroomCoord {
@@ -389,6 +427,38 @@ void vroom_chart_translate_drawing(VroomChart* chart, int32_t index,
 // and fading left. Pass count 0 to clear; `style` may be null when count is 0.
 void vroom_chart_set_liquidity(VroomChart* chart, const VroomBand* bands,
                                size_t count, const VroomLiquidityStyle* style);
+
+// ---- Price status lines ---------------------------------------------------
+
+// Replaces the full set of price status lines and their shared style. Lines
+// render on the price pane above the axis labels (so their badges cover any
+// label they overlap) and below the crosshair. A line whose price maps outside
+// the price pane is skipped rather than clamped. Pass count 0 to clear;
+// `style` may be null when count is 0.
+void vroom_chart_set_price_lines(VroomChart* chart, const VroomPriceLine* lines,
+                                 size_t count,
+                                 const VroomPriceLineStyle* style);
+
+// Hit-tests pixel (x_px, y_px) against the price lines. On a hit, fills
+// *out_index with the line index and *out_part with 0 (the line or its label
+// body — the drag target) or 1 (the close button), and returns true. When
+// several lines are within tolerance the nearest in y wins. Only draggable
+// lines report part 0 and only closable lines report part 1. Returns false on a
+// miss (out params untouched). Either out pointer may be null.
+bool vroom_chart_hit_test_price_line(VroomChart* chart, float x_px, float y_px,
+                                     int32_t* out_index, int32_t* out_part);
+
+// Marks a price line's segment as hovered so it renders highlighted. `index` -1
+// clears the hover. `part` matches vroom_chart_hit_test_price_line.
+void vroom_chart_set_price_line_hover(VroomChart* chart, int32_t index,
+                                      int32_t part);
+
+// Drives the live drag preview: the line, its label and its badge render at
+// `price` instead of the committed one, and a faint ghost marks where it
+// started. `index` -1 ends the preview. The committed price is never mutated —
+// the host applies (or rejects) the new price by restating its lines.
+void vroom_chart_set_price_line_drag(VroomChart* chart, int32_t index,
+                                     double price);
 
 // Sets the transient in-progress "draft" the drawing tool shows while the user
 // places points. Node A is always shown; when `has_b`, node B is shown too.

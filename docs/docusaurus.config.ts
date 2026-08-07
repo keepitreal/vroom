@@ -51,6 +51,20 @@ const config: Config = {
         parametersFormat: 'table',
         typeDeclarationFormat: 'table',
         sidebar: { pretty: true },
+        // Presentation of the generated pages. These live here rather than as
+        // edits to content/reference/ so they survive regeneration — a hand
+        // edit there is reverted by the next build and fails the CI freshness
+        // check.
+        //
+        // Drop the "Type Alias: " / "Function: " prefix from page titles and
+        // set the name as code, so a title reads `VroomColor`.
+        textContentMappings: { 'title.memberPage': '`{name}`' },
+        // "Defined in:" reads as TypeDoc scaffolding; "Source:" is plainer.
+        // The theme appends the colon, so the string omits it.
+        locales: { en: { theme_defined_in: 'Source' } },
+        // Normalizes table padding and emits `---` thematic breaks instead of
+        // `***`. Requires the prettier devDependency in this workspace.
+        formatWithPrettier: true,
       },
     ],
   ],

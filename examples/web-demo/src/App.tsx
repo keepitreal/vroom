@@ -9,6 +9,7 @@ import {
   type DrawingStore,
   type LiquidityBand,
   type LiquidityConfig,
+  type PriceLine,
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
@@ -300,6 +301,54 @@ function makeBands(candles: Candle[], tick = 0, heightFrac = 0.85): LiquidityCon
   return { bands, buyColor: '#26a69a', sellColor: '#ef5350' };
 }
 
+// A price line plus the label prefix its `text` is built from, so a drag can
+// rebuild the caption around the new price.
+type DemoPriceLine = PriceLine & { label: string };
+
+const priceLineText = (label: string, price: number) => `${label} @ ${price.toFixed(2)}`;
+
+// Sample order/position lines anchored around the latest close: a draggable
+// resting limit buy under spot (with a size pill and a cancel button), the
+// take-profit it pairs with above, and a fixed liquidation level the user can
+// neither move nor dismiss.
+function makePriceLines(candles: Candle[]): DemoPriceLine[] {
+  if (candles.length === 0) return [];
+  // Spread the samples across the price range of the candles that are roughly
+  // on screen, rather than a fixed percentage of spot: off-range lines are
+  // culled, and a percentage that reads well for a $100 asset puts every line
+  // outside the viewport for one priced in the tens of thousands.
+  const recent = candles.slice(-120);
+  let lo = recent[0].low;
+  let hi = recent[0].high;
+  for (const c of recent) {
+    if (c.low < lo) lo = c.low;
+    if (c.high > hi) hi = c.high;
+  }
+  const at = (frac: number) => lo + (hi - lo) * frac;
+  const line = (
+    id: string,
+    label: string,
+    price: number,
+    rest: Partial<DemoPriceLine>,
+  ): DemoPriceLine => ({ id, label, price, text: priceLineText(label, price), ...rest });
+  return [
+    line('limit-buy', 'Limit Buy', at(0.3), {
+      quantity: '0.75',
+      color: '#26a69a',
+      draggable: true,
+    }),
+    line('take-profit', 'Take Profit', at(0.78), {
+      quantity: 'Full',
+      color: '#ef5350',
+      draggable: true,
+    }),
+    line('liquidation', 'Liquidation', at(0.08), {
+      color: '#f0a020',
+      closable: false,
+    }),
+  ];
+}
+
 // Shared toolbar button style.
 const toolBtn: CSSProperties = {
   background: 'transparent',
@@ -319,6 +368,7 @@ export function App() {
   const [useSeriesKey, setUseSeriesKey] = useState(true);
   const [gaps, setGaps] = useState(false);
   const [showLiquidity, setShowLiquidity] = useState(false);
+  const [showPriceLines, setShowPriceLines] = useState(false);
   // Demo candles are stateful so the Add/Update tools can stream into them; they
   // reset to the base series whenever the asset/timeframe (or Gaps) changes.
   const demoBase = useMemo(() => {
@@ -354,6 +404,36 @@ export function App() {
     [candles, liqTick, bandHeight],
   );
   const [readout, setReadout] = useState<string>('hover / long-press for crosshair');
+
+  // Price lines are a controlled prop, so the demo owns the array: a drag reports
+  // a candidate price and the × reports a cancellation, and this state is what
+  // decides whether either actually happens.
+  const [priceLines, setPriceLines] = useState<DemoPriceLine[]>([]);
+  useEffect(() => {
+    if (!showPriceLines) return;
+    setPriceLines(makePriceLines(candles));
+    // Keyed to the series rather than `candles`: re-seeding on every streamed
+    // candle would throw away the user's drags.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showPriceLines, asset, tf]);
+  const onPriceLineDrag = useCallback((id: string, price: number) => {
+    setReadout(`dragging ${id} → ${price.toFixed(2)}`);
+  }, []);
+  const onPriceLineDragEnd = useCallback((id: string, price: number) => {
+    setReadout(`moved ${id} to ${price.toFixed(2)}`);
+    setPriceLines((prev) =>
+      prev.map((l) =>
+        l.id === id ? { ...l, price, text: priceLineText(l.label, price) } : l,
+      ),
+    );
+  }, []);
+  const onPriceLineClose = useCallback((id: string) => {
+    setReadout(`cancelled ${id}`);
+    setPriceLines((prev) => prev.filter((l) => l.id !== id));
+  }, []);
+  const priceLineProps = showPriceLines
+    ? { priceLines, onPriceLineDrag, onPriceLineDragEnd, onPriceLineClose }
+    : {};
 
   // Layout: single chart, or two stacked crosshair-linked panes (replaces the
   // old Sync view). Sidebar expand/collapse is persisted.
@@ -669,6 +749,7 @@ export function App() {
                   transitionMs={transitionMs}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
+                  {...priceLineProps}
                   {...indicatorProps}
                   {...drawProps}
                   onCrosshair={onPrimaryCrosshair}
@@ -702,6 +783,7 @@ export function App() {
                 transitionMs={transitionMs}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
+                {...priceLineProps}
                 {...indicatorProps}
                 {...drawProps}
                 onCrosshair={onPrimaryCrosshair}
@@ -735,7 +817,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

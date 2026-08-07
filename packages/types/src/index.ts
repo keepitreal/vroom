@@ -386,6 +386,80 @@ export type LiquidityConfig = {
   widthFrac?: number;
 };
 
+/**
+ * A consumer-supplied horizontal status line at a fixed price — the primitive
+ * behind resting limit orders, take-profits, stop-losses and liquidation levels.
+ *
+ * Renders as a line across the price pane ending in a label group (a `text` pill
+ * plus an optional solid-filled `quantity` pill and an optional close button),
+ * with a price badge in the y-axis strip.
+ *
+ * Interaction is opt-in and callback-gated, mirroring TradingView: the line is
+ * only draggable when `draggable` is set, and the close button only renders when
+ * you pass `onPriceLineClose`. Dragging is a *preview* — the chart never mutates
+ * the price you gave it, so a move your backend rejects reverts on its own
+ * simply by leaving your `priceLines` state unchanged.
+ */
+export type PriceLine = {
+  /** Stable unique id, echoed back by every callback. */
+  id: string;
+  /** Where the line sits on the price scale. */
+  price: number;
+  /** Body label — render whatever you like (e.g. `'Limit Buy @ 13.79'`). */
+  text?: string;
+  /**
+   * Trailing segment, drawn as a solid-filled pill with white text so size reads
+   * at a glance (e.g. `'x 5.206'`). Omit to hide it.
+   */
+  quantity?: string;
+  /** Line, border, body text and close-icon color. Defaults to a soft red. */
+  color?: VroomColor;
+  /** Stroke width in px. Default 1. */
+  width?: number;
+  /** Line style. Default `'dotted'`, matching the current-price indicator. */
+  lineStyle?: 'solid' | 'dotted' | 'dashed';
+  /**
+   * Let the user drag this line vertically to a new price. Default false.
+   * Pair with `onPriceLineDragEnd` to commit the move.
+   */
+  draggable?: boolean;
+  /**
+   * Show the close button on this line. Defaults to true, but the button only
+   * ever renders if you also pass `onPriceLineClose` — set this to false to opt a
+   * single line out (e.g. a liquidation level the user can't dismiss).
+   */
+  closable?: boolean;
+  /** Extend the line to the pane's left edge. Default true. */
+  extendLeft?: boolean;
+  /** Show the price badge in the y-axis strip. Default true. */
+  axisLabel?: boolean;
+};
+
+/** Shared layout/style for every price line, passed via `priceLinesStyle`. */
+export type PriceLinesStyle = {
+  /**
+   * Translucent fill behind the body and close-button pills, so the label reads
+   * over candles without hiding them. Defaults to a dark translucent grey.
+   */
+  bodyBackground?: VroomColor;
+  /** Label font size in px. Defaults to the axis font size. */
+  fontSize?: number;
+  /**
+   * How far in from the price axis the label group sits, as a fraction of pane
+   * width (0 = flush against the axis, 0.5 = at the pane's midpoint). Only
+   * applies when `align` is `'right'`. Default 0.
+   */
+  inset?: number;
+  /** Where the label group sits horizontally. Default `'right'`. */
+  align?: 'left' | 'center' | 'right';
+  /**
+   * How much the hovered line or close button brightens, as a channel
+   * multiplier. 1 disables the highlight. Default 1.25. Web only — touch
+   * platforms have no hover state.
+   */
+  hoverBoost?: number;
+};
+
 /** MACD indicator config. Rendered in its own pane below the candles. */
 export type MACDConfig = {
   enabled?: boolean;
@@ -455,6 +529,37 @@ export type VroomChartCoreProps = {
   bollingerBands?: BollingerBandsConfig;
   /** Resting-order / order-book liquidity bands drawn behind the candles. */
   liquidity?: LiquidityConfig;
+  /**
+   * Horizontal status lines at consumer-supplied prices (resting orders, TP/SL,
+   * liquidation levels), each with a text label and an optional close button.
+   *
+   * This is a controlled prop: the chart renders exactly what you pass and never
+   * mutates it. A drag paints a live preview and reports the new price through
+   * `onPriceLineDragEnd`; the line only actually moves once you update this
+   * array, so a rejected move needs no explicit rollback.
+   */
+  priceLines?: PriceLine[];
+  /** Shared layout/style for every entry in `priceLines`. */
+  priceLinesStyle?: PriceLinesStyle;
+  /**
+   * Fired continuously while a draggable price line is being dragged, with the
+   * price under the pointer. Use it for a live readout (e.g. an order ticket);
+   * wait for `onPriceLineDragEnd` to commit.
+   */
+  onPriceLineDrag?: (id: string, price: number) => void;
+  /**
+   * Fired once when the user drops a dragged price line. Submit the new price to
+   * your backend here, then update `priceLines` on success — the line snaps back
+   * on its own if you don't. Dragging is cancelled (and this never fires) if the
+   * user presses Escape.
+   */
+  onPriceLineDragEnd?: (id: string, price: number) => void;
+  /**
+   * Fired when the user activates a price line's close button. Passing this
+   * handler is what makes the button render at all; individual lines opt out with
+   * `closable: false`.
+   */
+  onPriceLineClose?: (id: string) => void;
   /**
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the

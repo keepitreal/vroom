@@ -162,6 +162,54 @@ export interface ChartHandle {
     fillEnabled: boolean;
     fillOpacity: number;
   }): void;
+  /**
+   * The continuous data coordinate at pixel (x, y) — not snapped to a candle
+   * slot. Null when there are no candles or the viewport is degenerate. Cheap to
+   * call at gesture rate (no rendering).
+   */
+  coordAt(x: number, y: number): { timeMs: number; price: number } | null;
+  /**
+   * Replaces the full set of price status lines (plus their shared style).
+   * lineStyle: 0=solid,1=dotted,2=dashed; color/bodyBg are packed 0xAARRGGBB;
+   * flags is a bitmask (1=draggable, 2=closable, 4=axis label, 8=extend left);
+   * align: 0=left,1=center,2=right. Pass an empty `lines` array to clear.
+   */
+  setPriceLines(spec: {
+    lines: {
+      price: number;
+      color: number;
+      width: number;
+      lineStyle: number;
+      text: string;
+      quantity: string;
+      flags: number;
+    }[];
+    bodyBg: number;
+    fontSizePx: number;
+    lineLengthFrac: number;
+    align: number;
+    hoverBoost: number;
+  }): void;
+  /**
+   * Hit-tests pixel (x, y) against the price lines. `part` is 0 for the line or
+   * its label body (the drag target) and 1 for the close button; close buttons
+   * win over lines and the nearest in y wins among several candidates. Only
+   * draggable lines report part 0 and only closable lines report part 1. Cheap
+   * to call at gesture rate (no rendering).
+   */
+  hitTestPriceLine(x: number, y: number): { index: number; part: number } | null;
+  /**
+   * Marks a price line's segment as hovered so it renders highlighted; -1 clears.
+   * `part` matches hitTestPriceLine. Touch has no hover state, so this is here
+   * for pointer devices and web parity.
+   */
+  setPriceLineHover(index: number, part: number): void;
+  /**
+   * Drives the live drag preview: the line, its label and its badge render at
+   * `price` with a ghost at the committed one. Pass -1 to end the preview. The
+   * committed price is untouched — restate setPriceLines to apply the move.
+   */
+  setPriceLineDrag(index: number, price: number): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): SkPicture | null;

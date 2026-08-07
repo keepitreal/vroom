@@ -13,4 +13,6 @@ export type {
   VWAPConfig,
   BollingerBandsConfig,
   ChartType,
+  PriceLine,
+  PriceLinesStyle,
 } from './types';

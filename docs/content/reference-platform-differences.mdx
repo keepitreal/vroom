@@ -5,8 +5,8 @@ slug: /reference/platform-differences
 description: How VroomChartProps differs between the React Native and web packages.
 ---
 
-import Tabs from '@theme/Tabs';
-import TabItem from '@theme/TabItem';
+import Tabs from "@theme/Tabs";
+import TabItem from "@theme/TabItem";
 
 # Platform differences
 
@@ -69,9 +69,13 @@ and two extra props are available:
 Everything else — `candles`, `visibleRange`, `defaultCandleWidth`, `theme`, `rsi`,
 `macd`, `movingAverages`, `vwap`, `crosshairOffset`, `crosshairOverride`,
 `width`/`height`, and both event callbacks — is shared (`VroomChartCoreProps`) and
-behaves identically on both platforms. That includes the full `theme` surface, so
-the newer styling fields (`wickWidth`, `candleRadius`, `wickRoundCap`,
-`volumeRadius`) and `defaultCandleWidth` work the same way on web and React Native.
+behaves identically on both platforms.
+
+Price status lines (`priceLines`, `priceLinesStyle`, `onPriceLineDrag`,
+`onPriceLineDragEnd`, `onPriceLineClose`) also work on both platforms, with one
+difference: the hover highlight and the `ns-resize` cursor are web-only, since
+touch has no hover state. On React Native the lines and their buttons always
+render at full strength. See [Price lines](./guides/price-lines.md).
 
 ## Web-only overlays
 

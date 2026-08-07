@@ -41,9 +41,17 @@ export type {
   DrawingSpec,
   BandSpec,
   LiquiditySpec,
+  PriceLineSpec,
+  PriceLinesSpec,
   Coord,
 } from './handle';
 export { ColorKey, FloatKey } from './handle';
+export {
+  PRICE_LINE_DRAGGABLE,
+  PRICE_LINE_CLOSABLE,
+  PRICE_LINE_AXIS_LABEL,
+  PRICE_LINE_EXTEND_LEFT,
+} from './handle';
 export { packCandles, unpackCandles, BYTES_PER_CANDLE } from './packCandles';
 export { parseColor, applyTheme, argbToCss, COLOR_KEYS, FLOAT_KEYS, BOOL_KEYS } from './color';
 export type { WasmConfig } from './wasm/loadWasm';
