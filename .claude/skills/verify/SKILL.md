@@ -48,5 +48,12 @@ Gestures on the canvas (`page.locator('canvas').last()`):
   badge, y refit
 - BTC→SOL (seriesKey on and off): full reset, y-axis ~80 not ~55k
 - pan in auto-y → y follows; price-axis drag → y freezes across next pan
-- manual y then asset/timeframe switch → freeze must clear
+- manual y then asset switch → freeze must clear
+- manual y then timeframe switch → freeze must SURVIVE, rescaled so the candle
+  high-low envelope keeps its pixel height (see preservePriceEnvelope). Volume
+  bars and the price indicator share the candle colors by default, so to measure
+  the envelope from a screenshot first override `accentBull`/`accentBear` to a
+  distinct hue (the demo persists its theme under localStorage `vroom-theme`).
+  Compare the manual/auto envelope ratio at each interval, not absolute pixels —
+  the extreme high/low is a 1px antialiased wick tip.
 - Repro view appends → x-window must not move

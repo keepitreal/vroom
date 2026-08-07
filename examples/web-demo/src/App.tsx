@@ -360,6 +360,13 @@ const toolBtn: CSSProperties = {
   cursor: 'pointer',
 };
 
+const toolBtnActive: CSSProperties = {
+  ...toolBtn,
+  background: '#1f6feb',
+  border: '1px solid #1f6feb',
+  color: '#fff',
+};
+
 export function App() {
   // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
   // bundled in @vroomchart/core-wasm.
@@ -726,6 +733,18 @@ export function App() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', color: '#c9d1d9', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center', borderBottom: '1px solid #21262d' }}>
         <strong style={{ fontSize: 16 }}>Vroom 🏎️💨</strong>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {TIMEFRAMES.map((t) => (
+            <button
+              key={t.label}
+              onClick={() => setTf(t.stepMs)}
+              style={t.stepMs === tf ? toolBtnActive : toolBtn}
+              title={`Switch to the ${t.label} interval`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
         <button
           onClick={() => setSidebarOpen((o) => !o)}

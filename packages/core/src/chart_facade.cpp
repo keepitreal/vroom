@@ -258,6 +258,43 @@ extern "C" void vroom_chart_reset_price_scale(VroomChart* chart) {
     chart->mark_dirty();
 }
 
+extern "C" bool vroom_chart_get_visible_price_envelope(VroomChart* chart,
+                                                       double* out_low,
+                                                       double* out_high) {
+    if (!chart) return false;
+    const auto idx = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    if (idx.end <= idx.start) return false;
+    const auto env = vroom::price_bounds(chart->candles.data() + idx.start,
+                                         idx.end - idx.start);
+    if (out_low) *out_low = env.min;
+    if (out_high) *out_high = env.max;
+    return true;
+}
+
+extern "C" void vroom_chart_preserve_price_envelope(VroomChart* chart,
+                                                    double prev_low,
+                                                    double prev_high) {
+    // Auto mode already holds the envelope's pixel height constant (auto_price_
+    // bounds widens it by a fixed factor), so there is nothing to preserve.
+    if (!chart || !chart->price_bounds_manual) return;
+
+    double new_low = 0.0, new_high = 0.0;
+    const bool has_new =
+        vroom_chart_get_visible_price_envelope(chart, &new_low, &new_high);
+    if (!has_new || !(prev_high > prev_low) || !(new_high > new_low)) {
+        // Nothing to scale against — fall back to re-fitting the price scale.
+        vroom_chart_reset_price_scale(chart);
+        return;
+    }
+
+    chart->price_bounds = vroom::preserve_envelope_bounds(
+        chart->price_bounds, {prev_low, prev_high}, {new_low, new_high});
+    vroom::labels::recompute_axis_width(*chart);
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/) {
     if (!chart || dx_px == 0.f || chart->candles.empty()) return;
 

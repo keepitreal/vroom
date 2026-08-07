@@ -330,12 +330,15 @@ export function useChartCore(
         // period from the new data.
         let tfArgs: { oldWindow: { startMs: number; endMs: number }; oldStepMs: number; oldLastMs: number } | null =
           null;
+        // The pre-swap candle envelope, used to scale-lock the y-axis below.
+        let prevEnvelope: { low: number; high: number } | null = null;
         if (transition === 'timeframe' && prev != null) {
           const oldWindow = h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
           if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
             tfArgs = { oldWindow, oldStepMs, oldLastMs: prev.candles[prev.candles.length - 1].timeMs };
           }
+          prevEnvelope = h.getVisiblePriceEnvelope();
         }
 
         // Drive the initial zoom from a target candle width, but only on a
@@ -365,7 +368,13 @@ export function useChartCore(
             );
             h.setVisibleRange(w.startMs, w.endMs);
           }
-          h.resetPriceScale();
+          // Scale-lock the y-axis: the same price action re-buckets into a
+          // smaller/larger high-low span, so a manual price range is rescaled to
+          // keep the candle envelope at the pixel height it just had instead of
+          // snapping back to auto-fit. A no-op in auto-y mode, which is already
+          // span-invariant.
+          if (prevEnvelope) h.preservePriceEnvelope(prevEnvelope.low, prevEnvelope.high);
+          else h.resetPriceScale();
         } else if (transition === 'reset') {
           h.resetView();
         }

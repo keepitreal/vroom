@@ -235,8 +235,9 @@ export interface VroomChartHandle {
    * 1 = line. Driven per-frame by the host; setChartType snaps both.
    */
   setMorph(collapse: number, fade: number): void;
-  // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale on
-  // the JSI handle — currently web-only.
+  // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale/
+  // getVisiblePriceEnvelope/preservePriceEnvelope on the JSI handle —
+  // currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
   getVisibleRange(): { startMs: number; endMs: number };
   /**
@@ -252,6 +253,25 @@ export interface VroomChartHandle {
    * timeframe switch) so the price scale re-fits the newly visible candles.
    */
   resetPriceScale(): void;
+  /**
+   * The visible price *envelope* — the min low / max high across the currently
+   * visible candles, i.e. the extent the candles occupy rather than the (wider)
+   * axis range. Null when no candles are visible.
+   */
+  getVisiblePriceEnvelope(): { low: number; high: number } | null;
+  /**
+   * Scale lock for a same-asset data swap that re-buckets the same price action
+   * into a different high-low span (a timeframe switch). Rescales a *manual*
+   * price range so the visible envelope keeps the exact pixel height and
+   * position the given pre-swap envelope had — so candles don't suddenly shrink
+   * or grow when the interval changes.
+   *
+   * Call after setCandles + setVisibleRange, passing the envelope read by
+   * getVisiblePriceEnvelope before the swap. A no-op in auto-y mode (auto-fit is
+   * already span-invariant); falls back to resetPriceScale when either envelope
+   * is degenerate.
+   */
+  preservePriceEnvelope(prevLow: number, prevHigh: number): void;
 
   /** Shift the visible range by dx/dy CSS px. */
   pan(dx: number, dy: number): void;

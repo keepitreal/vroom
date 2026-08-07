@@ -263,6 +263,29 @@ void vroom_chart_reset_view(VroomChart* chart);
 // switch) so the price scale re-fits the newly visible candles.
 void vroom_chart_reset_price_scale(VroomChart* chart);
 
+// Reads the visible price *envelope* — the min low / max high across the
+// currently visible candles. This is the extent the candles actually occupy, not
+// the axis range (which is wider: see vroom_chart_preserve_price_envelope).
+// Returns false (out params untouched) when no candles are visible. Either out
+// pointer may be null.
+bool vroom_chart_get_visible_price_envelope(VroomChart* chart,
+                                            double* out_low, double* out_high);
+
+// "Scale lock" for a same-asset data swap that re-buckets the same price action
+// into a different high-low span (a timeframe switch). Rescales a *manual* price
+// range so the visible envelope keeps the exact pixel height and position that
+// the [prev_low, prev_high] envelope had before the swap — so candles don't
+// suddenly shrink or grow when the interval changes.
+//
+// Call after set_candles + set_visible_range, passing the envelope read by
+// vroom_chart_get_visible_price_envelope *before* the swap.
+//
+// No-op in auto mode: auto-fit already widens the envelope by a fixed factor, so
+// its pixel height is invariant. Falls back to reset_price_scale semantics when
+// either envelope is degenerate.
+void vroom_chart_preserve_price_envelope(VroomChart* chart,
+                                         double prev_low, double prev_high);
+
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
 // Directional zoom. scale_x scales the time window around focus_x_px (>1 =
 // narrower window, wider candles); scale_y scales the price range around

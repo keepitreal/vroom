@@ -140,6 +140,20 @@ class WebChart {
   }
   void resetView() { vroom_chart_reset_view(chart_); }
   void resetPriceScale() { vroom_chart_reset_price_scale(chart_); }
+  // Returns the visible {low, high} candle envelope, or null when nothing is
+  // visible.
+  em::val getVisiblePriceEnvelope() {
+    double low = 0.0, high = 0.0;
+    if (!vroom_chart_get_visible_price_envelope(chart_, &low, &high))
+      return em::val::null();
+    em::val o = em::val::object();
+    o.set("low", low);
+    o.set("high", high);
+    return o;
+  }
+  void preservePriceEnvelope(double prev_low, double prev_high) {
+    vroom_chart_preserve_price_envelope(chart_, prev_low, prev_high);
+  }
   void pan(float dx, float dy) { vroom_chart_pan(chart_, dx, dy); }
   void translate(float dx, float dy) { vroom_chart_translate(chart_, dx, dy); }
   void zoom(float sx, float sy, float fx, float fy) {
@@ -519,6 +533,8 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("getVisibleRange", &WebChart::getVisibleRange)
       .function("resetView", &WebChart::resetView)
       .function("resetPriceScale", &WebChart::resetPriceScale)
+      .function("getVisiblePriceEnvelope", &WebChart::getVisiblePriceEnvelope)
+      .function("preservePriceEnvelope", &WebChart::preservePriceEnvelope)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)
       .function("zoom", &WebChart::zoom)

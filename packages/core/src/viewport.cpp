@@ -213,6 +213,24 @@ PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count) {
     return {mid - half, mid + half};
 }
 
+PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
+                                     const PriceBounds& old_env,
+                                     const PriceBounds& new_env) {
+    const double axis_range = old_axis.max - old_axis.min;
+    const double old_span = old_env.max - old_env.min;
+    const double new_span = new_env.max - new_env.min;
+    if (axis_range <= 0.0 || old_span <= 0.0 || new_span <= 0.0) return old_axis;
+
+    // Same span/range ratio => same pixel height for the envelope.
+    const double new_range = axis_range * (new_span / old_span);
+    // Fraction of the axis (from the bottom) where the old envelope's midpoint
+    // sat; putting the new midpoint at the same fraction pins the envelope box.
+    const double t =
+        ((old_env.min + old_env.max) * 0.5 - old_axis.min) / axis_range;
+    const double new_mid = (new_env.min + new_env.max) * 0.5;
+    return {new_mid - t * new_range, new_mid + (1.0 - t) * new_range};
+}
+
 float price_to_y(const Layout& layout,
                  const PriceBounds& bounds,
                  double price) {

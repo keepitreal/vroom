@@ -140,6 +140,20 @@ constexpr double kAutoYZoom = 1.5;
 // {0, 1} sentinel when count == 0 (callers keep their previous bounds).
 PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count);
 
+// Rescales an axis range so a data envelope keeps the pixel height *and* the
+// pixel position it had before a data swap — the "scale lock" applied on a
+// timeframe switch, where the same price action re-buckets into a smaller or
+// larger high-low span.
+//
+// `old_axis` is the axis range that was in effect; `old_env` / `new_env` are the
+// visible high-low envelopes (as returned by price_bounds) before and after the
+// swap. Resolution-independent: both envelopes share the same draw band, so the
+// band height cancels out. Returns `old_axis` unchanged when any span is
+// degenerate.
+PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
+                                     const PriceBounds& old_env,
+                                     const PriceBounds& new_env);
+
 // Map a price to y in pixels. y=0 is top of the chart.
 float price_to_y(const Layout& layout, const PriceBounds& bounds, double price);
 

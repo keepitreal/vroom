@@ -319,6 +319,64 @@ TEST_CASE("auto_price_bounds") {
     }
 }
 
+TEST_CASE("preserve_envelope_bounds") {
+    SUBCASE("a halved envelope halves the axis range") {
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds old_env{40.0, 60.0};  // span 20, mid 50 -> t = 0.5
+        PriceBounds new_env{45.0, 55.0};  // span 10, mid 50
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, old_env, new_env);
+        CHECK(b.min == doctest::Approx(25.0));
+        CHECK(b.max == doctest::Approx(75.0));
+    }
+
+    SUBCASE("a doubled envelope doubles the axis range") {
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds old_env{45.0, 55.0};  // span 10, mid 50 -> t = 0.5
+        PriceBounds new_env{40.0, 60.0};  // span 20
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, old_env, new_env);
+        CHECK(b.min == doctest::Approx(-50.0));
+        CHECK(b.max == doctest::Approx(150.0));
+    }
+
+    SUBCASE("keeps the envelope's pixel height and position") {
+        Layout l = make_layout();  // 1000px draw band, no padding
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds old_env{70.0, 90.0};  // off-center, near the top
+        PriceBounds new_env{20.0, 25.0};  // tighter and much lower
+        const float old_top = vroom::price_to_y(l, axis, old_env.max);
+        const float old_bot = vroom::price_to_y(l, axis, old_env.min);
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, old_env, new_env);
+        CHECK(vroom::price_to_y(l, b, new_env.max) == doctest::Approx(old_top));
+        CHECK(vroom::price_to_y(l, b, new_env.min) == doctest::Approx(old_bot));
+    }
+
+    SUBCASE("an unchanged envelope is the identity") {
+        PriceBounds axis{10.0, 20.0};
+        PriceBounds env{12.0, 18.0};
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, env, env);
+        CHECK(b.min == doctest::Approx(10.0));
+        CHECK(b.max == doctest::Approx(20.0));
+    }
+
+    SUBCASE("degenerate spans return the axis unchanged") {
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds env{40.0, 60.0};
+        PriceBounds flat{50.0, 50.0};
+
+        PriceBounds no_old = vroom::preserve_envelope_bounds(axis, flat, env);
+        CHECK(no_old.min == doctest::Approx(0.0));
+        CHECK(no_old.max == doctest::Approx(100.0));
+
+        PriceBounds no_new = vroom::preserve_envelope_bounds(axis, env, flat);
+        CHECK(no_new.min == doctest::Approx(0.0));
+        CHECK(no_new.max == doctest::Approx(100.0));
+
+        PriceBounds flat_axis = vroom::preserve_envelope_bounds(flat, env, env);
+        CHECK(flat_axis.min == doctest::Approx(50.0));
+        CHECK(flat_axis.max == doctest::Approx(50.0));
+    }
+}
+
 TEST_CASE("price_to_y") {
     Layout l = make_layout();  // candle area = full 1000px height, no padding
     PriceBounds b{0.0, 100.0};
