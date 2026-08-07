@@ -236,8 +236,8 @@ export interface VroomChartHandle {
    */
   setMorph(collapse: number, fade: number): void;
   // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale/
-  // getVisiblePriceEnvelope/preservePriceEnvelope on the JSI handle —
-  // currently web-only.
+  // getVisiblePriceEnvelope/preservePriceEnvelope/beginIntervalMorph/
+  // setIntervalMorph on the JSI handle — currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
   getVisibleRange(): { startMs: number; endMs: number };
   /**
@@ -272,6 +272,23 @@ export interface VroomChartHandle {
    * is degenerate.
    */
   preservePriceEnvelope(prevLow: number, prevHigh: number): void;
+  /**
+   * Capture the visible candle geometry so the next data swap can animate as a
+   * reshape rather than a jump: each candle's wick and body slide and stretch
+   * into the shape of its counterpart in the new data.
+   *
+   * Candles are paired by *slot* — position counting back from the right edge of
+   * the visible window, which a timeframe switch preserves. Call before
+   * setCandles, then drive setIntervalMorph from 0 to 1.
+   */
+  beginIntervalMorph(): void;
+  /**
+   * Advance the interval morph started by beginIntervalMorph. `t` (clamped to
+   * 0..1) is the eased progress: 0 renders the captured geometry pixel-
+   * identically to the pre-swap frame, 1 renders the new candles and releases
+   * the capture. Driven per-frame by the host animation loop.
+   */
+  setIntervalMorph(t: number): void;
 
   /** Shift the visible range by dx/dy CSS px. */
   pan(dx: number, dy: number): void;

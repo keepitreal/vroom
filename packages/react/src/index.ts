@@ -40,6 +40,7 @@ export type {
   PriceLinesStyle,
   ChartMode,
   ChartType,
+  TransitionEasing,
   DrawTool,
   DrawPoint,
   Drawing,

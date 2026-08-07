@@ -34,6 +34,12 @@ inline float x_axis_top(const Layout& l) {
     return l.height_px - l.x_axis_height_px;
 }
 
+// Width available to candles: the full width minus the y-axis strip and the
+// right-hand gutter.
+inline float candle_area_width(const Layout& l) {
+    return l.width_px - l.y_axis_width_px - l.right_padding_px;
+}
+
 struct PriceBounds {
     double min;
     double max;
@@ -43,6 +49,17 @@ struct PriceBounds {
 struct IndexRange {
     size_t start;
     size_t end;
+};
+
+// One candle's geometry captured in normalized form for the interval morph:
+// x as a fraction of the candle-area width, prices as fractions of the price
+// band. Resolution-independent, so a resize mid-morph stays correct — and
+// independent of the price bounds, so the captured geometry keeps its pixel
+// position after a timeframe switch re-scales the y-axis.
+struct CandleSnapshot {
+    float x;
+    float open, high, low, close;
+    bool  bull;  // close >= open; selects the fill / wick / border color
 };
 
 // Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
@@ -156,6 +173,15 @@ PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
 
 // Map a price to y in pixels. y=0 is top of the chart.
 float price_to_y(const Layout& layout, const PriceBounds& bounds, double price);
+
+// Fraction of the price band a price sits at: 0 = bounds.min, 1 = bounds.max.
+// Returns 0.5 for a degenerate range, matching price_to_y's midpoint fallback.
+double price_fraction(const PriceBounds& bounds, double price);
+
+// The y of a band fraction. Splits price_to_y in two so geometry can be stored
+// independently of the price bounds (see CandleSnapshot):
+//   price_to_y(l, b, p) == y_at_fraction(l, price_fraction(b, p))
+float y_at_fraction(const Layout& layout, double frac);
 
 // Inverse of price_to_y: map a pixel y in the price pane back to a price.
 // Returns bounds.min for a degenerate range or draw band.

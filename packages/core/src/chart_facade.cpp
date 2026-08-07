@@ -242,6 +242,10 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     chart->visible_start_ms = 0;
     chart->visible_end_ms = 0;
     chart->price_bounds_manual = false;
+    // An asset switch reframes wholesale, so a slot-paired morph is meaningless
+    // here — drop any capture rather than leaving it to reshape the wrong data.
+    chart->morph_from.clear();
+    chart->interval_morph_t = 1.f;
     apply_default_framing(chart);
     vroom::labels::recompute_axis_width(*chart);
     if (chart->cb.on_viewport_changed) {
@@ -292,6 +296,56 @@ extern "C" void vroom_chart_preserve_price_envelope(VroomChart* chart,
     chart->price_bounds = vroom::preserve_envelope_bounds(
         chart->price_bounds, {prev_low, prev_high}, {new_low, new_high});
     vroom::labels::recompute_axis_width(*chart);
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart) {
+    if (!chart) return;
+    chart->morph_from.clear();
+    chart->interval_morph_t = 1.f;
+
+    const auto lay = chart->layout();
+    const float area_w = vroom::candle_area_width(lay);
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (area_w <= 0.f || window_ms <= 0) return;
+
+    const auto idx = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const std::size_t n = idx.end - idx.start;
+    if (n == 0) return;
+    const ::VroomCandle* visible = chart->candles.data() + idx.start;
+
+    const auto bounds = chart->price_bounds_manual
+        ? chart->price_bounds
+        : vroom::auto_price_bounds(visible, n);
+
+    // Normalized so the capture is independent of both the price bounds (which
+    // the swap is about to replace) and the surface size (which may change
+    // mid-morph). Newest candle first, matching the slot indexing in
+    // candles::draw.
+    chart->morph_from.resize(n);
+    for (std::size_t k = 0; k < n; ++k) {
+        const auto& c = visible[n - 1 - k];
+        chart->morph_from[k] = vroom::CandleSnapshot{
+            vroom::candle_center_x(lay, c.time_ms, chart->candle_duration_ms,
+                                   chart->visible_start_ms, window_ms) / area_w,
+            static_cast<float>(vroom::price_fraction(bounds, c.open)),
+            static_cast<float>(vroom::price_fraction(bounds, c.high)),
+            static_cast<float>(vroom::price_fraction(bounds, c.low)),
+            static_cast<float>(vroom::price_fraction(bounds, c.close)),
+            c.close >= c.open,
+        };
+    }
+}
+
+extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
+    if (!chart) return;
+    chart->interval_morph_t = std::clamp(t, 0.f, 1.f);
+    if (chart->interval_morph_t >= 1.f) {
+        chart->morph_from.clear();
+        chart->morph_from.shrink_to_fit();
+    }
     chart->mark_dirty();
 }
 

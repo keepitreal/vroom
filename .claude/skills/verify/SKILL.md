@@ -29,7 +29,10 @@ pnpm --filter web-demo dev --port 5199 --strictPort   # background
 Drive with Playwright (install `playwright` + chromium in a scratchpad dir if
 missing). Headless chromium logs Skia "Shader compilation error" console
 errors — harmless, rendering still works; filter them out. Wait ~2.5s after
-load for WASM init, ~700ms after each interaction before screenshotting.
+load for WASM init, ~700ms after each interaction before screenshotting. A
+timeframe switch is animated (default 300ms), so wait past it or a screenshot
+lands mid-morph. Set `vroom-transition-ms` / `vroom-transition-easing` in
+localStorage to control the animation without touching the sidebar.
 
 Useful selectors (demo top bar): view buttons `Repro`/`Demo`, asset buttons
 `BTC`/`SOL`, timeframe buttons `1m`/`5m`/`15m`/`1h`, `seriesKey` checkbox
@@ -56,4 +59,10 @@ Gestures on the canvas (`page.locator('canvas').last()`):
   distinct hue (the demo persists its theme under localStorage `vroom-theme`).
   Compare the manual/auto envelope ratio at each interval, not absolute pixels —
   the extreme high/low is a 1px antialiased wick tip.
+- timeframe switch mid-animation → each candle's high/low must interpolate
+  between the two settled frames while its columns stay put (see
+  beginIntervalMorph). A hue test can't classify a candle that flips direction:
+  its color blends through neutral gray. Check that no column outside the settled
+  footprint lights up rather than diffing masks both ways, and note that
+  neighboring candles can merge into one column run mid-morph when they grow.
 - Repro view appends → x-window must not move

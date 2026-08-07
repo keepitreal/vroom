@@ -21,6 +21,7 @@ import {
 import { useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
+import { ease } from './easing';
 import type { VroomChartProps } from './types';
 import './jsi.d';
 
@@ -43,6 +44,7 @@ export function VroomChart(props: VroomChartProps) {
     defaultCandleWidth,
     chartType,
     transitionMs,
+    transitionEasing,
     theme,
     rsi,
     macd,
@@ -179,6 +181,9 @@ export function VroomChart(props: VroomChartProps) {
   const morphRaf = useRef<number | null>(null);
   const morphFade = useRef<number | null>(null);
   const morphHandle = useRef<typeof handle>(null);
+  // In a ref so changing the curve mid-animation doesn't restart the clock.
+  const easingRef = useRef(transitionEasing);
+  easingRef.current = transitionEasing;
   useEffect(() => {
     if (!handle) return undefined;
     const target = chartType === 'line' ? 1 : 0;
@@ -212,8 +217,7 @@ export function VroomChart(props: VroomChartProps) {
     const step = (now: number) => {
       if (startTs == null) startTs = now;
       const prog = Math.min(1, (now - startTs) / dur);
-      const e = prog * prog * (3 - 2 * prog); // smoothstep ease-in-out
-      const fade = from + (target - from) * e;
+      const fade = from + (target - from) * ease(easingRef.current, prog);
       morphFade.current = fade;
       handle.setMorph(fade, fade);
       const p = handle.render();

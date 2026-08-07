@@ -286,6 +286,22 @@ bool vroom_chart_get_visible_price_envelope(VroomChart* chart,
 void vroom_chart_preserve_price_envelope(VroomChart* chart,
                                          double prev_low, double prev_high);
 
+// Captures the currently visible candle geometry so the next data swap can be
+// animated as a reshape rather than a jump: each candle's wick and body slide
+// and stretch into the shape of its counterpart in the new data.
+//
+// Candles are paired by *slot* — position counting back from the right edge of
+// the visible window, which a timeframe switch preserves. Call before
+// set_candles, then drive vroom_chart_set_interval_morph from 0 to 1.
+// No-op when nothing is visible.
+void vroom_chart_begin_interval_morph(VroomChart* chart);
+
+// Advances the interval morph started by vroom_chart_begin_interval_morph. `t`
+// (clamped to 0..1) is the eased progress: 0 renders the captured geometry
+// pixel-identically to the pre-swap frame, 1 renders the new candles and
+// releases the capture. Driven per-frame by the host animation loop.
+void vroom_chart_set_interval_morph(VroomChart* chart, float t);
+
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
 // Directional zoom. scale_x scales the time window around focus_x_px (>1 =
 // narrower window, wider candles); scale_y scales the price range around

@@ -406,6 +406,51 @@ TEST_CASE("price_to_y") {
     }
 }
 
+TEST_CASE("price_fraction / y_at_fraction") {
+    Layout l = make_layout();  // candle area = full 1000px height, no padding
+
+    SUBCASE("fractions land on the band bottom / middle / top") {
+        CHECK(vroom::y_at_fraction(l, 0.0) == doctest::Approx(1000.f));
+        CHECK(vroom::y_at_fraction(l, 0.5) == doctest::Approx(500.f));
+        CHECK(vroom::y_at_fraction(l, 1.0) == doctest::Approx(0.f));
+    }
+
+    SUBCASE("honors padding and the x-axis strip like price_to_y") {
+        l.top_padding_frac = 0.1f;
+        l.bottom_padding_frac = 0.1f;
+        l.x_axis_height_px = 200.f;  // candle area 800 -> band 80..720
+        CHECK(vroom::y_at_fraction(l, 0.0) == doctest::Approx(720.f));
+        CHECK(vroom::y_at_fraction(l, 1.0) == doctest::Approx(80.f));
+    }
+
+    SUBCASE("price_fraction maps min/mid/max to 0/0.5/1") {
+        PriceBounds b{10.0, 30.0};
+        CHECK(vroom::price_fraction(b, 10.0) == doctest::Approx(0.0));
+        CHECK(vroom::price_fraction(b, 20.0) == doctest::Approx(0.5));
+        CHECK(vroom::price_fraction(b, 30.0) == doctest::Approx(1.0));
+    }
+
+    SUBCASE("degenerate range collapses to the band midpoint") {
+        PriceBounds flat{50.0, 50.0};
+        CHECK(vroom::price_fraction(flat, 50.0) == doctest::Approx(0.5));
+        CHECK(vroom::price_fraction(flat, 999.0) == doctest::Approx(0.5));
+    }
+
+    SUBCASE("composes back into price_to_y") {
+        l.top_padding_frac = 0.08f;
+        l.bottom_padding_frac = 0.12f;
+        for (const PriceBounds b : {PriceBounds{0.0, 100.0},
+                                    PriceBounds{-5.0, 5.0},
+                                    PriceBounds{54000.0, 61000.0},
+                                    PriceBounds{50.0, 50.0}}) {
+            for (const double p : {-20.0, 0.0, 49.5, 50.0, 55000.0, 120.0}) {
+                CHECK(vroom::y_at_fraction(l, vroom::price_fraction(b, p)) ==
+                      doctest::Approx(vroom::price_to_y(l, b, p)));
+            }
+        }
+    }
+}
+
 TEST_CASE("y_to_price") {
     Layout l = make_layout();  // candle area = full 1000px height, no padding
     PriceBounds b{0.0, 100.0};

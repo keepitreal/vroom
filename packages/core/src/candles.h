@@ -12,6 +12,7 @@
 class SkCanvas;
 
 namespace vroom {
+struct CandleSnapshot;
 struct Layout;
 struct PriceBounds;
 struct Theme;
@@ -26,6 +27,12 @@ namespace vroom::candles {
 // candle→line transition: 0 = normal candle, 1 = a flat point at the close (the
 // body/wick heights and width shrink to the line). `opacity` (0..1) fades the
 // whole candle layer out as the line fades in. Both default to a no-op.
+//
+// `from` / `from_n` is the outgoing geometry of an interval morph, indexed from
+// the right of the visible slice (slot 0 = newest), and `morph_t` (0..1) is the
+// eased progress toward `visible`. Each slot's wick and body interpolate between
+// the two; slots present on only one side fade in or out. `morph_t == 1` (the
+// default) draws `visible` alone.
 void draw(SkCanvas* canvas,
           const ::VroomCandle* visible,
           std::size_t n,
@@ -36,6 +43,9 @@ void draw(SkCanvas* canvas,
           int64_t visible_start_ms,
           int64_t candle_duration_ms,
           float collapse = 0.f,
-          float opacity = 1.f);
+          float opacity = 1.f,
+          const CandleSnapshot* from = nullptr,
+          std::size_t from_n = 0,
+          float morph_t = 1.f);
 
 }  // namespace vroom::candles

@@ -10,6 +10,7 @@ import {
   type LiquidityBand,
   type LiquidityConfig,
   type PriceLine,
+  type TransitionEasing,
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
@@ -43,7 +44,10 @@ const WICK_CAP_KEY = 'vroom-wick-cap';
 const VOLUME_RADIUS_KEY = 'vroom-volume-radius';
 const CHART_TYPE_KEY = 'vroom-chart-type';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
+const TRANSITION_EASING_KEY = 'vroom-transition-easing';
 const SIDEBAR_KEY = 'vroom-sidebar';
+
+const EASINGS: readonly TransitionEasing[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
 // Generic localStorage getters for the numeric/boolean style knobs.
 function loadNum(key: string, def: number): number {
@@ -399,8 +403,13 @@ export function App() {
       ? 'line'
       : 'candles',
   );
-  // Candle↔line transition duration (ms). 0 = instant snap.
+  // Duration (ms) of the candle↔line and interval-switch animations. 0 = snap.
   const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
+  const [easing, setEasing] = useState<TransitionEasing>(() => {
+    if (typeof window === 'undefined') return 'ease-in-out';
+    const v = window.localStorage.getItem(TRANSITION_EASING_KEY);
+    return EASINGS.includes(v as TransitionEasing) ? (v as TransitionEasing) : 'ease-in-out';
+  });
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -613,6 +622,14 @@ export function App() {
 
   useEffect(() => {
     try {
+      window.localStorage.setItem(TRANSITION_EASING_KEY, easing);
+    } catch {
+      // best-effort
+    }
+  }, [easing]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? '1' : '0');
     } catch {
       // best-effort
@@ -766,6 +783,7 @@ export function App() {
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
+                  transitionEasing={easing}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...priceLineProps}
@@ -783,6 +801,7 @@ export function App() {
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
+                  transitionEasing={easing}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -800,6 +819,7 @@ export function App() {
                 theme={chartTheme}
                 chartType={chartType}
                 transitionMs={transitionMs}
+                transitionEasing={easing}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...priceLineProps}
@@ -812,7 +832,8 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, transitionMs, setTransitionMs }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType }}
+            animation={{ transitionMs, setTransitionMs, easing, setEasing }}
             data={{
               assets: Object.keys(ASSETS),
               asset,

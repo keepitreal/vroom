@@ -185,9 +185,15 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const float fade = morph_fade;
     const float collapse = morph_collapse;
     if (fade < 1.f) {
+        // An interval morph additionally reshapes each slot from the geometry it
+        // held before the timeframe switch (see `morph_from`).
+        const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
         vroom::candles::draw(canvas, visible, n, lay, theme, bounds, window_ms,
                              visible_start_ms, candle_duration_ms, collapse,
-                             1.f - fade);
+                             1.f - fade,
+                             morphing ? morph_from.data() : nullptr,
+                             morphing ? morph_from.size() : 0,
+                             morphing ? interval_morph_t : 1.f);
     }
     if (fade > 0.f) {
         std::vector<double> closes(n);

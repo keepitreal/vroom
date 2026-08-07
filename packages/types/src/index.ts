@@ -127,6 +127,12 @@ export type ChartMode = 'pan' | 'draw';
  */
 export type ChartType = 'candles' | 'line';
 
+/**
+ * Easing curve for animated transitions (candle↔line and interval switches).
+ * Defaults to `'ease-in-out'`.
+ */
+export type TransitionEasing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+
 /** Active drawing tool while in `draw` mode. `null` draws nothing. */
 export type DrawTool = null | 'line' | 'box' | 'pencil';
 
@@ -511,11 +517,17 @@ export type VroomChartCoreProps = {
    */
   chartType?: ChartType;
   /**
-   * Duration (ms) of the animated candle↔line transition when `chartType`
-   * changes. Default ~300. `0` snaps instantly. Ignored (snaps) when the OS
-   * requests reduced motion, which instead uses a plain cross-fade.
+   * Duration (ms) of the animated transitions: the candle↔line switch when
+   * `chartType` changes, and the candle reshape when the `candles` array is
+   * swapped for a different interval of the same asset. Default ~300. `0` snaps
+   * instantly. Ignored (snaps) when the OS requests reduced motion, which
+   * instead uses a plain cross-fade.
    */
   transitionMs?: number;
+  /**
+   * Easing curve applied to those transitions. Default `'ease-in-out'`.
+   */
+  transitionEasing?: TransitionEasing;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

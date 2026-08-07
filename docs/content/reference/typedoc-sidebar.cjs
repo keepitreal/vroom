@@ -58,6 +58,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/TransitionEasing",
+          label: "TransitionEasing"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/VisibleRange",
           label: "VisibleRange"
         },

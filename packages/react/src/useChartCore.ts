@@ -22,14 +22,23 @@ import {
   PRICE_LINE_DRAGGABLE,
   PRICE_LINE_EXTEND_LEFT,
 } from '@vroomchart/core-wasm';
-import type { VroomChartCoreProps } from '@vroomchart/types';
+import type { TransitionEasing, VroomChartCoreProps } from '@vroomchart/types';
 import {
   classifyTransition,
   inferStepMs,
   timeframeWindow,
   type DataTransition,
 } from './dataTransitions';
+import { ease } from './easing';
 import { isValidDrawing } from './drawingStorage';
+
+function prefersReducedMotion(): boolean {
+  return !!(
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
 
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;
@@ -208,6 +217,7 @@ export function useChartCore(
     defaultCandleWidth,
     chartType,
     transitionMs,
+    transitionEasing,
     theme,
     rsi,
     macd,
@@ -232,8 +242,18 @@ export function useChartCore(
     seriesKey?: string;
   } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const intervalMorphRafRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [measured, setMeasured] = useState({ width: 0, height: 0 });
+
+  // Animation config in a ref, refreshed each render, so changing the duration
+  // or easing doesn't re-run the data-push effect below (which would re-push
+  // every candle).
+  const animRef = useRef<{ ms: number; easing: TransitionEasing | undefined }>({
+    ms: 300,
+    easing: undefined,
+  });
+  animRef.current = { ms: Math.max(0, transitionMs ?? 300), easing: transitionEasing };
 
   // Captured at mount: which core to load (stub vs Skia-WASM). Changing it after
   // mount has no effect — the core is created once and shared process-wide.
@@ -254,6 +274,29 @@ export function useChartCore(
     });
   }, []);
 
+  // Stop an in-flight interval morph and land the core on the new candles.
+  const endIntervalMorph = useCallback(() => {
+    if (intervalMorphRafRef.current != null) {
+      cancelAnimationFrame(intervalMorphRafRef.current);
+      intervalMorphRafRef.current = null;
+    }
+    handleRef.current?.setIntervalMorph(1);
+  }, []);
+
+  // Runs the interval morph clock. The core holds the pre-swap geometry (see
+  // beginIntervalMorph) and reshapes each candle slot toward its new counterpart.
+  const startIntervalMorph = useCallback((h: VroomChartHandle) => {
+    const { ms, easing } = animRef.current;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / ms);
+      h.setIntervalMorph(p < 1 ? ease(easing, p) : 1);
+      h.present();
+      intervalMorphRafRef.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    intervalMorphRafRef.current = requestAnimationFrame(step);
+  }, []);
+
   // Create the handle once the canvas exists; destroy on unmount.
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -268,6 +311,8 @@ export function useChartCore(
       disposed = true;
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+      if (intervalMorphRafRef.current != null) cancelAnimationFrame(intervalMorphRafRef.current);
+      intervalMorphRafRef.current = null;
       handleRef.current?.destroy();
       handleRef.current = null;
       setReady(false);
@@ -332,6 +377,7 @@ export function useChartCore(
           null;
         // The pre-swap candle envelope, used to scale-lock the y-axis below.
         let prevEnvelope: { low: number; high: number } | null = null;
+        let willMorph = false;
         if (transition === 'timeframe' && prev != null) {
           const oldWindow = h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
@@ -339,6 +385,18 @@ export function useChartCore(
             tfArgs = { oldWindow, oldStepMs, oldLastMs: prev.candles[prev.candles.length - 1].timeMs };
           }
           prevEnvelope = h.getVisiblePriceEnvelope();
+          // Capture the outgoing candle geometry, but only when it will actually
+          // be animated so a disabled animation costs no snapshot. A switch
+          // during a morph restarts from the data the core currently holds.
+          willMorph = animRef.current.ms > 0 && !prefersReducedMotion();
+          if (willMorph) {
+            endIntervalMorph();
+            h.beginIntervalMorph();
+          }
+        } else if (transition === 'initial' || transition === 'reset') {
+          // Wholesale reframing — the slot pairing no longer holds, so land any
+          // in-flight morph rather than reshaping into unrelated data.
+          endIntervalMorph();
         }
 
         // Drive the initial zoom from a target candle width, but only on a
@@ -375,6 +433,9 @@ export function useChartCore(
           // span-invariant.
           if (prevEnvelope) h.preservePriceEnvelope(prevEnvelope.low, prevEnvelope.high);
           else h.resetPriceScale();
+          // Started after the new bounds are in place: the snapshot is in band
+          // fractions, so frame 0 still matches the pre-switch pixels exactly.
+          if (willMorph) startIntervalMorph(h);
         } else if (transition === 'reset') {
           h.resetView();
         }
@@ -416,7 +477,7 @@ export function useChartCore(
     // theme/rsi/macd/movingAverages/vwap/bollingerBands/drawings/liquidity/
     // priceLines tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here
@@ -442,11 +503,7 @@ export function useChartCore(
     }
     if (morphFadeRef.current === target) return;
 
-    const reduce = !!(
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    );
+    const reduce = prefersReducedMotion();
     const dur = Math.max(0, transitionMs ?? 300);
 
     if (morphRafRef.current != null) {
@@ -464,8 +521,7 @@ export function useChartCore(
     const start = performance.now();
     const step = (now: number) => {
       const p = Math.min(1, (now - start) / dur);
-      const e = p * p * (3 - 2 * p); // smoothstep ease-in-out
-      const fade = from + (target - from) * e;
+      const fade = from + (target - from) * ease(animRef.current.easing, p);
       morphFadeRef.current = fade;
       h.setMorph(reduce ? 0 : fade, fade);
       h.present();

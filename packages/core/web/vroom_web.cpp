@@ -154,6 +154,10 @@ class WebChart {
   void preservePriceEnvelope(double prev_low, double prev_high) {
     vroom_chart_preserve_price_envelope(chart_, prev_low, prev_high);
   }
+  void beginIntervalMorph() { vroom_chart_begin_interval_morph(chart_); }
+  void setIntervalMorph(double t) {
+    vroom_chart_set_interval_morph(chart_, static_cast<float>(t));
+  }
   void pan(float dx, float dy) { vroom_chart_pan(chart_, dx, dy); }
   void translate(float dx, float dy) { vroom_chart_translate(chart_, dx, dy); }
   void zoom(float sx, float sy, float fx, float fy) {
@@ -535,6 +539,8 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("resetPriceScale", &WebChart::resetPriceScale)
       .function("getVisiblePriceEnvelope", &WebChart::getVisiblePriceEnvelope)
       .function("preservePriceEnvelope", &WebChart::preservePriceEnvelope)
+      .function("beginIntervalMorph", &WebChart::beginIntervalMorph)
+      .function("setIntervalMorph", &WebChart::setIntervalMorph)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)
       .function("zoom", &WebChart::zoom)
