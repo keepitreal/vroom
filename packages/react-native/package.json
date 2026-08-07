@@ -1,6 +1,6 @@
 {
   "name": "react-native-vroom-chart",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Mobile-first Skia candlestick chart for React Native",
   "license": "MIT",
   "author": "Darion Welch",

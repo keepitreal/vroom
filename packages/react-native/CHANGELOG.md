@@ -1,5 +1,39 @@
 # react-native-vroom-chart
 
+## 0.6.0
+
+### Minor Changes
+
+- b256f19: Implement the Android native bridge. `VroomChart` now renders and responds to
+  gestures (pan, pinch, crosshair, axis scaling) on Android via a JNI/JSI bridge
+  into the same C++ chart core and RN-Skia integration the iOS bridge uses.
+  Previously the Android TurboModule was a placeholder and `VroomChart` was
+  non-functional on Android.
+- eead2e2: Add consumer-supplied horizontal price status lines, in the style of
+  TradingView's order and position lines. Pass `priceLines` to render a line at a
+  price with a label group — body text, an optional quantity segment, and an
+  optional close button — plus a matching badge in the price axis.
+
+  Lines can be dragged vertically when `draggable` is set: `onPriceLineDrag` fires
+  continuously and `onPriceLineDragEnd` fires on drop, and because `priceLines` is
+  a controlled prop a host that rejects the move simply doesn't update state and
+  the line snaps back. Supplying `onPriceLineClose` renders the close button on
+  lines marked `closable`. Escape cancels an in-progress drag on web, where the
+  hovered segment also brightens and the cursor becomes `ns-resize`.
+
+  Rendering and hit-testing live in the C++ core, so web and React Native share
+  one implementation.
+
+### Patch Changes
+
+- 9eeb60a: Fix axis labels (price and time) never rendering. Two bugs compounded: on
+  Android, obtaining RN-Skia's platform context used a `dynamic_pointer_cast`
+  that always fails across the `librnskia.so`/`libvroomchart.so` boundary (same
+  class of cross-`.so` RTTI mismatch as the `JsiSkPicture` bridge), so the axis
+  typeface was never loaded at all; separately, on both platforms, requesting
+  the "default" system font with a null family name isn't honored by Android's
+  font manager (`SkFontMgr_New_Android`), which now falls back to `sans-serif`.
+
 ## 0.5.0
 
 ### Minor Changes
