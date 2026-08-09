@@ -17,6 +17,35 @@
 
 namespace vroom::ma_overlay {
 
+namespace {
+// Strokes a built polyline, clipped to the candle area so a line that runs off
+// range doesn't bleed into the axis strips or any indicator pane below.
+void stroke_path(SkCanvas* canvas,
+                 SkPathBuilder& path,
+                 float candle_right,
+                 float candle_area_h,
+                 uint32_t color,
+                 float width,
+                 float opacity) {
+    SkPaint line;
+    line.setAntiAlias(true);
+    line.setColor(static_cast<SkColor>(color));
+    // Fade the line in during the candle→line morph (multiplies the color alpha).
+    if (opacity < 1.f) {
+        line.setAlphaf(line.getAlphaf() * opacity);
+    }
+    line.setStyle(SkPaint::kStroke_Style);
+    line.setStrokeWidth(width > 0.f ? width : 1.5f);
+
+    canvas->save();
+    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    canvas->drawPath(path.detach(), line);
+    canvas->restore();
+}
+
+inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
+}  // namespace
+
 void draw(SkCanvas* canvas,
           const Layout& lay,
           const PriceBounds& bounds,
@@ -60,22 +89,75 @@ void draw(SkCanvas* canvas,
         }
     }
 
-    SkPaint line;
-    line.setAntiAlias(true);
-    line.setColor(static_cast<SkColor>(color));
-    // Fade the line in during the candle→line morph (multiplies the color alpha).
-    if (opacity < 1.f) {
-        line.setAlphaf(line.getAlphaf() * opacity);
-    }
-    line.setStyle(SkPaint::kStroke_Style);
-    line.setStrokeWidth(width > 0.f ? width : 1.5f);
+    stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity);
+}
 
-    // Clip to the candle area so a line that runs off-range doesn't bleed into
-    // the axis strips or any indicator pane below.
-    canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
-    canvas->drawPath(path.detach(), line);
-    canvas->restore();
+void draw_close_line(SkCanvas* canvas,
+                     const Layout& lay,
+                     const PriceBounds& bounds,
+                     const ::VroomCandle* visible,
+                     std::size_t n,
+                     int64_t window_ms,
+                     int64_t visible_start_ms,
+                     int64_t candle_duration_ms,
+                     float candle_right,
+                     float candle_area_h,
+                     uint32_t color,
+                     float width,
+                     float opacity,
+                     const CandleSnapshot* from,
+                     std::size_t from_n,
+                     float morph_t) {
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
+    opacity = std::clamp(opacity, 0.f, 1.f);
+    if (opacity <= 0.f) return;
+    morph_t = std::clamp(morph_t, 0.f, 1.f);
+
+    const std::size_t from_count = vroom::morph_from_count(from, from_n, morph_t);
+    const std::size_t slots = std::max(n, from_count);
+    if (slots == 0) return;
+    const float area_w = vroom::candle_area_width(lay);
+
+    // Descending slots — position counting back from the right edge, the pairing
+    // a timeframe switch preserves — which walks the line left to right, so the
+    // vertex order matches draw()'s at morph_t == 1. Every candle has a close, so
+    // there are no gaps to break the subpath on.
+    SkPathBuilder path;
+    bool pen_down = false;
+    for (std::size_t k = slots; k-- > 0;) {
+        const ::VroomCandle* to = (k < n) ? &visible[n - 1 - k] : nullptr;
+        const CandleSnapshot* frm = (k < from_count) ? &from[k] : nullptr;
+
+        float x, y;
+        if (to) {
+            const float tx = vroom::candle_center_x(
+                lay, to->time_ms, candle_duration_ms, visible_start_ms, window_ms);
+            const float ty = vroom::price_to_y(lay, bounds, to->close);
+            if (frm) {
+                // The capture is in band fractions, so it lands on the same pixels
+                // it occupied pre-switch even though the bounds changed.
+                x = lerp(frm->x * area_w, tx, morph_t);
+                y = lerp(vroom::y_at_fraction(lay, frm->close), ty, morph_t);
+            } else {
+                x = tx;
+                y = ty;
+            }
+        } else {
+            // A slot only the outgoing data had. Counts match in practice, so this
+            // just keeps gappy or short-history data from breaking the line.
+            x = frm->x * area_w;
+            y = vroom::y_at_fraction(lay, frm->close);
+        }
+
+        if (pen_down) {
+            path.lineTo(x, y);
+        } else {
+            path.moveTo(x, y);
+            pen_down = true;
+        }
+    }
+
+    stroke_path(canvas, path, candle_right, candle_area_h, color, width, opacity);
 }
 
 void fill_between(SkCanvas* canvas,

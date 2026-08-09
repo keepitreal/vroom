@@ -11,6 +11,7 @@
 class SkCanvas;
 
 namespace vroom {
+struct CandleSnapshot;
 struct Layout;
 struct PriceBounds;
 }  // namespace vroom
@@ -39,6 +40,32 @@ void draw(SkCanvas* canvas,
           float width,
           const unsigned char* break_before = nullptr,
           float opacity = 1.f);
+
+// The close-price polyline of line-chart mode. Equivalent to draw() fed the
+// visible closes, plus the interval morph: `from` / `from_n` is the outgoing
+// geometry indexed from the right of the visible slice (slot 0 = newest) and
+// `morph_t` (0..1) is the eased progress, so each vertex slides from the close it
+// had before the timeframe switch to its new one. `morph_t == 1` (the default)
+// draws `visible` alone.
+//
+// Separate from draw() because the capture holds candle closes — it can't stand
+// in for an indicator's values.
+void draw_close_line(SkCanvas* canvas,
+                     const Layout& lay,
+                     const PriceBounds& bounds,
+                     const ::VroomCandle* visible,
+                     std::size_t n,
+                     int64_t window_ms,
+                     int64_t visible_start_ms,
+                     int64_t candle_duration_ms,
+                     float candle_right,
+                     float candle_area_h,
+                     uint32_t color,
+                     float width,
+                     float opacity = 1.f,
+                     const CandleSnapshot* from = nullptr,
+                     std::size_t from_n = 0,
+                     float morph_t = 1.f);
 
 // Fills the closed region between two aligned series (NaN where undefined)
 // with `color` at its alpha × `opacity` — used for the Bollinger Band fill.

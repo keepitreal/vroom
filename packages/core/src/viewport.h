@@ -62,6 +62,16 @@ struct CandleSnapshot {
     bool  bull;  // close >= open; selects the fill / wick / border color
 };
 
+// How many captured slots still contribute to a frame — 0 once the morph is
+// done, which releases the capture. Drawing routines take max(n, this) as their
+// slot count, pairing the new candle at slot k (visible[n - 1 - k]) with the
+// captured one (from[k]), both counting back from the right edge.
+inline std::size_t morph_from_count(const CandleSnapshot* from,
+                                    std::size_t from_n,
+                                    float morph_t) {
+    return (from && morph_t < 1.f) ? from_n : 0;
+}
+
 // Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
 // When both are 0, returns the full range (Phase 1 default-everything behavior).
 // Candles must be sorted ascending by time_ms (invariant of the public API).

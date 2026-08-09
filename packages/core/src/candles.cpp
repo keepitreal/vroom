@@ -68,9 +68,9 @@ void draw(SkCanvas* canvas,
     morph_t = std::clamp(morph_t, 0.f, 1.f);
     if (opacity <= 0.f) return;
 
-    // Slots the outgoing geometry still contributes to. A finished morph drops
-    // it, reducing the loop below to the plain candle path.
-    const std::size_t from_count = (from && morph_t < 1.f) ? from_n : 0;
+    // A finished morph drops the capture, reducing the loop below to the plain
+    // candle path.
+    const std::size_t from_count = vroom::morph_from_count(from, from_n, morph_t);
     const std::size_t slots = std::max(n, from_count);
     if (slots == 0) return;
 

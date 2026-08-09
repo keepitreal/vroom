@@ -182,27 +182,26 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //    `morph_collapse` folds each candle toward its close (the line vertex).
     //    fade 0 = pure candles, fade 1 = pure line. The line reuses the MA-overlay
     //    polyline routine, fed the visible closes and styled by theme.LINE.
+    //    An interval morph additionally reshapes each slot from the geometry it
+    //    held before the timeframe switch (see `morph_from`) — candle bodies and
+    //    line vertices alike, so both layers stay in step mid-crossfade.
     const float fade = morph_fade;
     const float collapse = morph_collapse;
+    const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
+    const vroom::CandleSnapshot* morph_src = morphing ? morph_from.data() : nullptr;
+    const std::size_t morph_n = morphing ? morph_from.size() : 0;
+    const float morph_t = morphing ? interval_morph_t : 1.f;
     if (fade < 1.f) {
-        // An interval morph additionally reshapes each slot from the geometry it
-        // held before the timeframe switch (see `morph_from`).
-        const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
         vroom::candles::draw(canvas, visible, n, lay, theme, bounds, window_ms,
                              visible_start_ms, candle_duration_ms, collapse,
-                             1.f - fade,
-                             morphing ? morph_from.data() : nullptr,
-                             morphing ? morph_from.size() : 0,
-                             morphing ? interval_morph_t : 1.f);
+                             1.f - fade, morph_src, morph_n, morph_t);
     }
     if (fade > 0.f) {
-        std::vector<double> closes(n);
-        for (std::size_t i = 0; i < n; ++i) closes[i] = visible[i].close;
-        vroom::ma_overlay::draw(
-            canvas, lay, bounds, visible, n, closes.data(), window_ms,
+        vroom::ma_overlay::draw_close_line(
+            canvas, lay, bounds, visible, n, window_ms,
             visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
             theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-            nullptr, fade);
+            fade, morph_src, morph_n, morph_t);
     }
 
     // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the
