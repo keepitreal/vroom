@@ -112,6 +112,7 @@ void VroomChart::ensure_bollinger() {
 }
 
 void VroomChart::draw_chart(SkCanvas* canvas) {
+    begin_frame();
     const auto lay = layout();
 
     // 1. Background
@@ -140,14 +141,24 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
     //    share these opacities so their animations stay in lockstep.
-    vroom::labels::update_y_fades(*this, lay, bounds);
-    vroom::labels::update_x_fades(*this, lay);
+    //    While an interval morph fades the old ticks out, the axes are still laid
+    //    out against the pre-switch scale and window so nothing appears to move;
+    //    they adopt the new ones at the midpoint, invisible. Every axis call in
+    //    the frame has to agree on which of the two it's using.
+    const auto axis_phase = vroom::labels::interval_phase(*this);
+    const auto& axis_bounds = axis_phase.outgoing ? morph_from_bounds : bounds;
+    const int64_t axis_start_ms =
+        axis_phase.outgoing ? morph_from_start_ms : visible_start_ms;
+    const int64_t axis_end_ms =
+        axis_phase.outgoing ? morph_from_end_ms : visible_end_ms;
+    vroom::labels::update_y_fades(*this, lay, axis_bounds);
+    vroom::labels::update_x_fades(*this, lay, axis_start_ms, axis_end_ms);
 
     // 4. Gridlines — drawn before candles so candle bodies overlay them.
     //    Vertical (time) gridlines are intentionally disabled for now —
     //    re-enable by adding `vroom::labels::draw_x_gridlines(canvas, *this,
-    //    candle_right, candle_area_h);` here.
-    vroom::labels::draw_y_gridlines(canvas, *this, lay, bounds,
+    //    axis_start_ms, axis_end_ms, candle_right, candle_area_h);` here.
+    vroom::labels::draw_y_gridlines(canvas, *this, lay, axis_bounds,
                                     candle_right, candle_area_h);
 
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
@@ -277,8 +288,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         axis_bg);
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)
-    vroom::labels::draw_y_labels(canvas, *this, lay, bounds);
-    vroom::labels::draw_x_labels(canvas, *this, lay);
+    vroom::labels::draw_y_labels(canvas, *this, lay, axis_bounds);
+    vroom::labels::draw_x_labels(canvas, *this, lay, axis_start_ms, axis_end_ms);
 
     // 7.5. Current-price line + box — above labels so the box covers any label
     //      it overlaps; tracks the latest close as the price scale moves.
@@ -366,19 +377,24 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     vroom::labels::gc_x_fades(*this);
 }
 
-void VroomChart::rebuild_chart_picture() {
-    // Compute dt for fade animations. We cap large gaps (resume from
-    // background, long idle) so we don't snap animations to completion.
-    auto now = std::chrono::steady_clock::now();
+void VroomChart::begin_frame() {
+    // dt for the fade animations. A large gap (resume from background, or an idle
+    // chart that a click just woke up) is clamped to a nominal frame rather than
+    // zeroed: dt == 0 means "snap" to the fade updaters, which would finish every
+    // fade in the first frame after any idle period.
+    constexpr float kNominalFrameSeconds = 1.f / 60.f;
+    const auto now = std::chrono::steady_clock::now();
     float dt = 0.f;
     if (anim_started) {
         dt = std::chrono::duration<float>(now - last_anim_tick).count();
-        if (dt > 0.1f) dt = 0.f;
+        if (dt > 0.1f) dt = kNominalFrameSeconds;
     }
     last_anim_tick = now;
     anim_started = true;
     last_dt_seconds = dt;
+}
 
+void VroomChart::rebuild_chart_picture() {
     SkPictureRecorder recorder;
     SkCanvas* canvas = recorder.beginRecording(SkRect::MakeWH(width_px, height_px));
     draw_chart(canvas);

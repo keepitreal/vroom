@@ -337,6 +337,17 @@ extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart) {
             c.close >= c.open,
         };
     }
+
+    // The scale the capture was taken against — the axes render their outgoing
+    // ticks from it, and it's about to be replaced on the chart itself.
+    chart->morph_from_bounds = bounds;
+    chart->morph_from_start_ms = chart->visible_start_ms;
+    chart->morph_from_end_ms = chart->visible_end_ms;
+
+    // Open the morph at 0 rather than leaving it at 1: the caller still has to
+    // push the new candles, and any frame painted in between should show the
+    // captured geometry — which is what the pre-switch frame looked like.
+    chart->interval_morph_t = 0.f;
 }
 
 extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {

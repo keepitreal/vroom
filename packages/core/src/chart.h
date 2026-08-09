@@ -71,6 +71,13 @@ struct VroomChart {
     // Empty when not morphing.
     std::vector<vroom::CandleSnapshot> morph_from;
     float interval_morph_t = 1.f;  // 1 = not morphing
+    // The pre-switch price scale and time window. The candle capture above is
+    // normalized against these, and the axes keep rendering their old ticks from
+    // them while fading out (see labels::interval_phase), so a label is never
+    // drawn at a position it didn't already occupy.
+    vroom::PriceBounds morph_from_bounds{0.0, 1.0};
+    int64_t morph_from_start_ms = 0;
+    int64_t morph_from_end_ms = 0;
 
     // Cached y-axis width in pixels, sized to fit the widest formatted price
     // label. 0 = uncomputed; layout() falls back to a width ratio.
@@ -243,9 +250,9 @@ struct VroomChart {
     std::chrono::steady_clock::time_point last_anim_tick{};
     bool anim_started = false;
 
-    // dt of the current rebuild — populated by rebuild_chart_picture and
-    // consumed by the label-fade updaters. Public so the labels namespace
-    // can read it without a getter.
+    // dt of the current frame — populated by begin_frame and consumed by the
+    // label-fade updaters. Public so the labels namespace can read it without a
+    // getter.
     float last_dt_seconds = 0.f;
 
     // --- methods ------------------------------------------------------------
@@ -275,11 +282,18 @@ struct VroomChart {
     // indicator is enabled.
     void ensure_bollinger();
 
-    // The main drawing pass. Calls into the labels and candles modules.
+    // The main drawing pass. Calls into the labels and candles modules, and owns
+    // the per-frame animation clock (see begin_frame) so every host gets it —
+    // the web build draws straight through vroom_chart_draw rather than the
+    // SkPicture cache below.
     void draw_chart(SkCanvas* canvas);
 
+    // Per-frame animation bookkeeping: computes `last_dt_seconds`, which paces
+    // the label fades. Called at the top of draw_chart.
+    void begin_frame();
+
     // Re-records `chart_picture` by invoking draw_chart on a fresh
-    // SkPictureRecorder. Also computes `last_dt_seconds` for fade animation.
+    // SkPictureRecorder.
     void rebuild_chart_picture();
 
     // True if any axis label is mid-fade. Used by the JS-side animation loop

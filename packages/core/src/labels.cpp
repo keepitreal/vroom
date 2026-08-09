@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <vector>
 
 #include "chart.h"
 #include "fonts.h"
@@ -46,7 +47,24 @@ void advance(Fade& f, float step, float dt) {
     }
 }
 
+// Drives a whole axis off the morph envelope instead of the per-label fades:
+// everything in the phase's tick set shares one opacity, and anything outside it
+// is dropped outright. At the midpoint the axis is transparent, so swapping the
+// set there costs nothing visually.
+template <typename Fade>
+void apply_envelope(std::vector<Fade>& fades, float opacity) {
+    for (auto& f : fades) f.opacity = f.target > 0.f ? opacity : 0.f;
+}
+
 }  // namespace
+
+IntervalPhase interval_phase(const VroomChart& chart) {
+    if (chart.morph_from.empty() || chart.interval_morph_t >= 1.f) return {};
+    const float t = chart.interval_morph_t;
+    constexpr float kMid = 0.5f;
+    if (t < kMid) return {true, true, 1.f - t / kMid};
+    return {true, false, (t - kMid) / (1.f - kMid)};
+}
 
 // ----- Y-axis ---------------------------------------------------------------
 
@@ -81,6 +99,11 @@ void update_y_fades(VroomChart& chart,
         }
     }
 
+    const auto phase = interval_phase(chart);
+    if (phase.active) {
+        apply_envelope(chart.y_fades, phase.opacity);
+        return;
+    }
     const float step = kFadeRate * chart.last_dt_seconds;
     for (auto& f : chart.y_fades) advance(f, step, chart.last_dt_seconds);
 }
@@ -162,24 +185,27 @@ void gc_y_fades(VroomChart& chart) {
 
 // ----- X-axis ---------------------------------------------------------------
 
-void update_x_fades(VroomChart& chart, const Layout& lay) {
+void update_x_fades(VroomChart& chart,
+                    const Layout& lay,
+                    int64_t start_ms,
+                    int64_t end_ms) {
     if (chart.candles.empty()) return;
-    if (chart.visible_end_ms <= chart.visible_start_ms) return;
+    if (end_ms <= start_ms) return;
 
     const float candle_area_w =
         lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
     if (candle_area_w <= 0.f) return;
 
-    const int64_t window_ms = chart.visible_end_ms - chart.visible_start_ms;
+    const int64_t window_ms = end_ms - start_ms;
     const vroom::TimeTick tick =
         vroom::pick_time_tick(window_ms, candle_area_w);
 
     for (auto& f : chart.x_fades) f.target = 0.f;
 
-    int64_t t = vroom::first_tick_at_or_after(chart.visible_start_ms, tick);
+    int64_t t = vroom::first_tick_at_or_after(start_ms, tick);
     constexpr int kMaxLabels = 64;
     int promoted = 0;
-    for (; t <= chart.visible_end_ms && promoted < kMaxLabels;
+    for (; t <= end_ms && promoted < kMaxLabels;
          t = vroom::next_tick(t, tick), ++promoted) {
         bool found = false;
         for (auto& f : chart.x_fades) {
@@ -194,16 +220,23 @@ void update_x_fades(VroomChart& chart, const Layout& lay) {
         }
     }
 
+    const auto phase = interval_phase(chart);
+    if (phase.active) {
+        apply_envelope(chart.x_fades, phase.opacity);
+        return;
+    }
     const float step = kFadeRate * chart.last_dt_seconds;
     for (auto& f : chart.x_fades) advance(f, step, chart.last_dt_seconds);
 }
 
 void draw_x_gridlines(SkCanvas* canvas,
                       const VroomChart& chart,
+                      int64_t start_ms,
+                      int64_t end_ms,
                       float candle_area_w,
                       float candle_area_h) {
-    if (chart.visible_end_ms <= chart.visible_start_ms) return;
-    const int64_t window_ms = chart.visible_end_ms - chart.visible_start_ms;
+    if (end_ms <= start_ms) return;
+    const int64_t window_ms = end_ms - start_ms;
     if (window_ms <= 0 || candle_area_w <= 0.f) return;
 
     SkPaint grid;
@@ -212,9 +245,8 @@ void draw_x_gridlines(SkCanvas* canvas,
     grid.setAntiAlias(true);
     for (const auto& f : chart.x_fades) {
         if (f.opacity <= 1e-3f) continue;
-        const float frac =
-            static_cast<float>(f.time_ms - chart.visible_start_ms) /
-            static_cast<float>(window_ms);
+        const float frac = static_cast<float>(f.time_ms - start_ms) /
+                           static_cast<float>(window_ms);
         const float x = frac * candle_area_w;
         if (x < 0.f || x > candle_area_w) continue;
         grid.setAlphaf(f.opacity);
@@ -224,10 +256,12 @@ void draw_x_gridlines(SkCanvas* canvas,
 
 void draw_x_labels(SkCanvas* canvas,
                    const VroomChart& chart,
-                   const Layout& lay) {
+                   const Layout& lay,
+                   int64_t start_ms,
+                   int64_t end_ms) {
     auto tf = vroom::axis_typeface();
     if (!tf || chart.candles.empty()) return;
-    if (chart.visible_end_ms <= chart.visible_start_ms) return;
+    if (end_ms <= start_ms) return;
 
     // X-axis labels live in the bottom strip, which stays anchored regardless
     // of any indicator pane above it.
@@ -236,7 +270,7 @@ void draw_x_labels(SkCanvas* canvas,
         lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
     if (candle_area_w <= 0.f) return;
 
-    const int64_t window_ms = chart.visible_end_ms - chart.visible_start_ms;
+    const int64_t window_ms = end_ms - start_ms;
     // Recompute the cadence here just to decide label formatting.
     const vroom::TimeTick tick =
         vroom::pick_time_tick(window_ms, candle_area_w);
@@ -262,9 +296,8 @@ void draw_x_labels(SkCanvas* canvas,
         tick.step_ms >= 24LL * 60 * 60 * 1000;
     for (const auto& f : chart.x_fades) {
         if (f.opacity <= 1e-3f) continue;
-        const float frac =
-            static_cast<float>(f.time_ms - chart.visible_start_ms) /
-            static_cast<float>(window_ms);
+        const float frac = static_cast<float>(f.time_ms - start_ms) /
+                           static_cast<float>(window_ms);
         const float x_center = frac * candle_area_w;
 
         char buf[16];
