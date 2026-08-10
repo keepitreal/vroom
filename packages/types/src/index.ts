@@ -88,7 +88,12 @@ export type VroomTheme = {
   candleRadius?: number;
   /** Round the wick end caps. Defaults to false. */
   wickRoundCap?: boolean;
-  /** Corner radius (px) of the *top* of volume bars. Defaults to 0 (square). */
+  /**
+   * Corner radius (px) of the *top* of volume bars. Defaults to 0 (square).
+   *
+   * @deprecated Use `volume.radius`, which sits with the rest of the volume
+   * styling. This still applies when `volume.radius` is omitted.
+   */
   volumeRadius?: number;
   /** Gridlines. */
   grid?: VroomColor;
@@ -352,6 +357,36 @@ export type BollingerBandsConfig = {
 };
 
 /**
+ * Volume bar config. One bottom-anchored bar per candle on the price pane,
+ * drawn under the candles and sharing their x position and body width.
+ *
+ * Unlike the other indicator configs the bars are on by default, so omitting
+ * this prop leaves the chart looking as it always has.
+ */
+export type VolumeConfig = {
+  /** Draw the bars. Default true. */
+  enabled?: boolean;
+  /** Bar opacity 0..1 (1 = opaque). Default 0.5, so bars read quieter than the candles. */
+  opacity?: number;
+  /**
+   * Height of the tallest bar as a fraction of the price pane, 0..1.
+   * Default 0.2.
+   *
+   * This is a ceiling rather than a reserved strip: raising it lets the bars
+   * reach further up over the candles rather than compressing them, matching
+   * TradingView's built-in volume. Heights always auto-fit the loudest volume
+   * in view, so the tallest bar sits exactly at the ceiling.
+   */
+  height?: number;
+  /** Corner radius (px) of the *top* of each bar. Defaults to `theme.volumeRadius`, else 0 (square). */
+  radius?: number;
+  /** Up-bar color (hex string or packed ARGB number). Defaults to `theme.accentBull`. */
+  upColor?: string | number;
+  /** Down-bar color (hex string or packed ARGB number). Defaults to `theme.accentBear`. */
+  downColor?: string | number;
+};
+
+/**
  * A single resting-liquidity band: a price interval carrying a total order size
  * on one side of the book. Consolidate raw L2 levels into these buckets before
  * passing them. The vertical extent is defined in price space, so bands scale
@@ -545,6 +580,8 @@ export type VroomChartCoreProps = {
   vwap?: VWAPConfig;
   /** Bollinger Bands overlay (three lines + fill on the price pane). */
   bollingerBands?: BollingerBandsConfig;
+  /** Volume bars under the candles. On by default; disable or restyle them here. */
+  volume?: VolumeConfig;
   /** Resting-order / order-book liquidity bands drawn behind the candles. */
   liquidity?: LiquidityConfig;
   /**

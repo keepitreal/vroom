@@ -51,6 +51,7 @@ export function VroomChart(props: VroomChartProps) {
     movingAverages,
     vwap,
     bollingerBands,
+    volume,
     crosshairOffset = 40,
     onCrosshair,
     onViewportChange,
@@ -102,6 +103,7 @@ export function VroomChart(props: VroomChartProps) {
     movingAverages,
     vwap,
     bollingerBands,
+    volume,
     priceLinesProp,
   );
 

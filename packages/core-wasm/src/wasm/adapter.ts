@@ -13,6 +13,7 @@ import type {
   LiquiditySpec,
   OverlaySpec,
   PriceLinesSpec,
+  VolumeSpec,
   VroomChartHandle,
   VroomModule,
 } from '../handle';
@@ -59,6 +60,7 @@ interface WebChartInstance {
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(e: boolean, reset: number, color: number, width: number): void;
   setBollinger(spec: BollingerSpec): void;
+  setVolume(spec: VolumeSpec): void;
   setDrawings(drawings: DrawingSpec[]): void;
   setLiquidity(liquidity: LiquiditySpec): void;
   setPriceLines(priceLines: PriceLinesSpec): void;
@@ -210,6 +212,13 @@ class WasmHandle implements VroomChartHandle {
       upperColor: spec.upperColor >>> 0,
       middleColor: spec.middleColor >>> 0,
       lowerColor: spec.lowerColor >>> 0,
+    });
+  }
+  setVolume(spec: VolumeSpec): void {
+    this.wc.setVolume({
+      ...spec,
+      upColor: spec.upColor >>> 0,
+      downColor: spec.downColor >>> 0,
     });
   }
   setDrawings(drawings: DrawingSpec[]): void {

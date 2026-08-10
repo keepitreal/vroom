@@ -165,6 +165,12 @@ struct VroomChart {
     std::vector<double> bb_lower_cache;
     bool bollinger_dirty = true;
 
+    // Volume bars (price pane, under the candles). On by default with every
+    // style field left on its inherit sentinel, so an untouched chart looks
+    // exactly as it did before the config existed. No cache — bar heights come
+    // straight off the visible candles' volume.
+    VroomVolume volume{1, -1.f, -1.f, -1.f, 0u, 0u};
+
     // --- drawings (annotations) --------------------------------------------
     // Committed drawings, anchored in data space so they track the candles on
     // pan/zoom. Drawn on the price pane above candles/overlays.

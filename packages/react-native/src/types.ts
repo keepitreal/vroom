@@ -15,6 +15,7 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,
+  VolumeConfig,
   MACDConfig,
   ChartType,
   TransitionEasing,

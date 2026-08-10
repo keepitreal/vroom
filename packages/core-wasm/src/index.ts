@@ -38,6 +38,7 @@ export type {
   CrosshairInfo,
   OverlaySpec,
   BollingerSpec,
+  VolumeSpec,
   DrawingSpec,
   BandSpec,
   LiquiditySpec,

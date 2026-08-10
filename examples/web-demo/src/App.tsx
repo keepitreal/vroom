@@ -25,6 +25,7 @@ import {
   DEFAULT_EMA_LINE,
   DEFAULT_VWAP_PARAMS,
   DEFAULT_BOLLINGER_PARAMS,
+  DEFAULT_VOLUME_PARAMS,
   deriveIndicatorProps,
   enabledCount,
   type BollingerParams,
@@ -33,6 +34,7 @@ import {
   type MACDParams,
   type MALineParams,
   type RSIParams,
+  type VolumeParams,
   type VWAPParams,
 } from './IndicatorsModal';
 
@@ -41,7 +43,6 @@ const CANDLE_WIDTH_KEY = 'vroom-candle-width';
 const WICK_WIDTH_KEY = 'vroom-wick-width';
 const CANDLE_RADIUS_KEY = 'vroom-candle-radius';
 const WICK_CAP_KEY = 'vroom-wick-cap';
-const VOLUME_RADIUS_KEY = 'vroom-volume-radius';
 const CHART_TYPE_KEY = 'vroom-chart-type';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
 const TRANSITION_EASING_KEY = 'vroom-transition-easing';
@@ -498,7 +499,6 @@ export function App() {
   const [wickWidth, setWickWidth] = useState(loadWickWidth);
   const [candleRadius, setCandleRadius] = useState(() => loadNum(CANDLE_RADIUS_KEY, 0));
   const [wickRoundCap, setWickRoundCap] = useState(() => loadBool(WICK_CAP_KEY, false));
-  const [volumeRadius, setVolumeRadius] = useState(() => loadNum(VOLUME_RADIUS_KEY, 0));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Drawing tool state. `drawMode`/`drawTool` drive the chart. Drawings are
@@ -648,24 +648,22 @@ export function App() {
   useEffect(() => {
     try {
       window.localStorage.setItem(CANDLE_RADIUS_KEY, String(candleRadius));
-      window.localStorage.setItem(VOLUME_RADIUS_KEY, String(volumeRadius));
       window.localStorage.setItem(WICK_CAP_KEY, wickRoundCap ? '1' : '0');
     } catch {
       // best-effort
     }
-  }, [candleRadius, volumeRadius, wickRoundCap]);
+  }, [candleRadius, wickRoundCap]);
 
   // Color theme plus the numeric/boolean style knobs, as one VroomTheme for the charts.
   const chartTheme = useMemo(
-    () => ({ ...theme, wickWidth, candleRadius, wickRoundCap, volumeRadius }),
-    [theme, wickWidth, candleRadius, wickRoundCap, volumeRadius],
+    () => ({ ...theme, wickWidth, candleRadius, wickRoundCap }),
+    [theme, wickWidth, candleRadius, wickRoundCap],
   );
-  const numericStyle: NumericStyle = { wickWidth, candleRadius, wickRoundCap, volumeRadius };
+  const numericStyle: NumericStyle = { wickWidth, candleRadius, wickRoundCap };
   const onNumericStyleChange = (patch: Partial<NumericStyle>) => {
     if (patch.wickWidth !== undefined) setWickWidth(patch.wickWidth);
     if (patch.candleRadius !== undefined) setCandleRadius(patch.candleRadius);
     if (patch.wickRoundCap !== undefined) setWickRoundCap(patch.wickRoundCap);
-    if (patch.volumeRadius !== undefined) setVolumeRadius(patch.volumeRadius);
   };
 
   // Indicator enable/config state lives here so it drives both chart views.
@@ -680,6 +678,9 @@ export function App() {
   const [vwapParams, setVwapParams] = useState<VWAPParams>(DEFAULT_VWAP_PARAMS);
   const [bbParams, setBbParams] = useState<BollingerParams>(
     DEFAULT_BOLLINGER_PARAMS,
+  );
+  const [volumeParams, setVolumeParams] = useState<VolumeParams>(
+    DEFAULT_VOLUME_PARAMS,
   );
 
   const patchRsi = useCallback(
@@ -697,6 +698,11 @@ export function App() {
   const patchBb = useCallback(
     (patch: Partial<BollingerParams>) =>
       setBbParams((p) => ({ ...p, ...patch })),
+    [],
+  );
+  const patchVolume = useCallback(
+    (patch: Partial<VolumeParams>) =>
+      setVolumeParams((p) => ({ ...p, ...patch })),
     [],
   );
 
@@ -729,6 +735,7 @@ export function App() {
     emaLines,
     vwapParams,
     bbParams,
+    volumeParams,
   );
   const activeCount = enabledCount(indicators);
 
@@ -891,6 +898,8 @@ export function App() {
         onVwapParamsChange={patchVwap}
         bbParams={bbParams}
         onBbParamsChange={patchBb}
+        volumeParams={volumeParams}
+        onVolumeParamsChange={patchVolume}
       />
     </div>
   );

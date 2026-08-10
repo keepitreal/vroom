@@ -188,8 +188,10 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     }
 
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
-    vroom::volume::draw(canvas, visible, n, lay, theme,
-                        window_ms, visible_start_ms, candle_duration_ms);
+    if (volume.enabled) {
+        vroom::volume::draw(canvas, visible, n, lay, theme, volume,
+                            window_ms, visible_start_ms, candle_duration_ms);
+    }
 
     // 4.6. Liquidity bands (resting-order depth) — behind the candles so the
     //      candle bodies paint over the volume-driven tint. Anchored in price

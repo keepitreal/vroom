@@ -209,6 +209,18 @@ class WebChart {
     cfg.fill_opacity = s["fillOpacity"].as<float>();
     vroom_chart_set_bollinger(chart_, &cfg);
   }
+  // `s` is a JS object {enabled, heightFrac, opacity, radiusPx, upColor,
+  // downColor}. Negative floats / zero colors mean "inherit the theme".
+  void setVolume(const em::val& s) {
+    VroomVolume cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.height_frac = s["heightFrac"].as<float>();
+    cfg.opacity = s["opacity"].as<float>();
+    cfg.radius_px = s["radiusPx"].as<float>();
+    cfg.up_color = s["upColor"].as<uint32_t>();
+    cfg.down_color = s["downColor"].as<uint32_t>();
+    vroom_chart_set_volume(chart_, &cfg);
+  }
   // `overlays` is a JS array of {kind, period, source, color, width}.
   void setOverlays(const em::val& overlays) {
     const size_t n = overlays["length"].as<size_t>();
@@ -559,6 +571,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
       .function("setBollinger", &WebChart::setBollinger)
+      .function("setVolume", &WebChart::setVolume)
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setPriceLines", &WebChart::setPriceLines)

@@ -113,6 +113,25 @@ export type BollingerSpec = {
 };
 
 /**
+ * The volume bars, in the core's numeric encoding. The style fields carry an
+ * inherit sentinel — a negative number or a fully transparent color tells the
+ * core to fall back to the matching theme key.
+ */
+export type VolumeSpec = {
+  enabled: boolean;
+  /** Tallest bar as a fraction of the price pane. < 0 inherits 0.2. */
+  heightFrac: number;
+  /** 0..1 (1 = opaque). < 0 inherits the theme's volume opacity. */
+  opacity: number;
+  /** Top-corner radius in px. < 0 inherits the theme's volumeRadius. */
+  radiusPx: number;
+  /** Packed 0xAARRGGBB. 0 inherits the theme's accentBull. */
+  upColor: number;
+  /** Packed 0xAARRGGBB. 0 inherits the theme's accentBear. */
+  downColor: number;
+};
+
+/**
  * A committed line drawing in the core's numeric encoding. Endpoints are in data
  * space (epoch ms + price) so the line tracks the candles on pan/zoom.
  */
@@ -355,6 +374,7 @@ export interface VroomChartHandle {
     width: number,
   ): void;
   setBollinger(spec: BollingerSpec): void;
+  setVolume(spec: VolumeSpec): void;
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;

@@ -34,6 +34,7 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,
+  VolumeConfig,
   LiquidityBand,
   LiquidityConfig,
   PriceLine,

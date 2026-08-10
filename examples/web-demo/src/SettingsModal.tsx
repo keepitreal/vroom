@@ -17,12 +17,12 @@ type ColorField = Exclude<
 >;
 export type ThemeState = Record<ColorField, string>;
 
-// Non-color candle/volume styling the demo bundles alongside the color theme.
+// Non-color candle styling the demo bundles alongside the color theme. Volume
+// styling lives on the `volume` prop instead, edited from the Indicators panel.
 export type NumericStyle = {
   wickWidth: number;
   candleRadius: number;
   wickRoundCap: boolean;
-  volumeRadius: number;
 };
 
 const INHERIT = '#00000000';
@@ -423,17 +423,6 @@ export function SettingsModal({
                     onChange={(v) => onNumericStyleChange({ wickRoundCap: v })}
                   />
                 </>
-              )}
-              {section.title === 'Price & volume' && (
-                <StyleSlider
-                  label="Volume radius"
-                  title="Corner radius (px) of the top of volume bars."
-                  value={numericStyle.volumeRadius}
-                  min={0}
-                  max={8}
-                  step={0.5}
-                  onChange={(v) => onNumericStyleChange({ volumeRadius: v })}
-                />
               )}
               {section.fields.map((field) => {
                 const canInherit = INHERIT_FIELDS.has(field);

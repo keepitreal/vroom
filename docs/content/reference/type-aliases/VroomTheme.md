@@ -61,7 +61,7 @@ Generic up color for the price indicator, volume bars, and MACD histogram. Defau
 optional axisText?: VroomColor;
 ```
 
-Source: [types/src/index.ts:96](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L96)
+Source: [types/src/index.ts:101](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L101)
 
 Axis label text (price + time).
 
@@ -145,7 +145,7 @@ Corner radius (px) of candle bodies. Defaults to 0 (square).
 optional crosshair?: VroomColor;
 ```
 
-Source: [types/src/index.ts:98](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L98)
+Source: [types/src/index.ts:103](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L103)
 
 Crosshair dashed lines.
 
@@ -157,7 +157,7 @@ Crosshair dashed lines.
 optional crosshairTarget?: VroomColor;
 ```
 
-Source: [types/src/index.ts:100](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L100)
+Source: [types/src/index.ts:105](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L105)
 
 Crosshair target — the hollow ring/dot at the intersection.
 
@@ -169,7 +169,7 @@ Crosshair target — the hollow ring/dot at the intersection.
 optional grid?: VroomColor;
 ```
 
-Source: [types/src/index.ts:94](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L94)
+Source: [types/src/index.ts:99](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L99)
 
 Gridlines.
 
@@ -181,7 +181,7 @@ Gridlines.
 optional lineColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:102](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L102)
+Source: [types/src/index.ts:107](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L107)
 
 Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 
@@ -193,7 +193,7 @@ Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 optional lineGradientOpacity?: number;
 ```
 
-Source: [types/src/index.ts:110](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L110)
+Source: [types/src/index.ts:115](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L115)
 
 Opacity of the gradient filled beneath the line-chart polyline, at its
 strongest point. The fill uses `lineColor` and ramps to fully transparent at
@@ -207,21 +207,26 @@ the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:104](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L104)
+Source: [types/src/index.ts:109](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L109)
 
 Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 
 ---
 
-### volumeRadius?
+### ~~volumeRadius?~~
 
 ```ts
 optional volumeRadius?: number;
 ```
 
-Source: [types/src/index.ts:92](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L92)
+Source: [types/src/index.ts:97](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L97)
 
 Corner radius (px) of the _top_ of volume bars. Defaults to 0 (square).
+
+#### Deprecated
+
+Use `volume.radius`, which sits with the rest of the volume
+styling. This still applies when `volume.radius` is omitted.
 
 ---
 

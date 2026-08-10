@@ -13,6 +13,7 @@ import {
   type LoadVroomOptions,
   type OverlaySpec,
   type BollingerSpec,
+  type VolumeSpec,
   type DrawingSpec,
   type LiquiditySpec,
   type PriceLinesSpec,
@@ -81,6 +82,20 @@ function bollingerToSpec(
     lowerWidth: cfg?.lowerWidth ?? 1,
     fillEnabled: cfg?.fill ?? true,
     fillOpacity: cfg?.fillOpacity ?? 0.1,
+  };
+}
+
+// Unset style fields go down as the core's inherit sentinels (negative float,
+// transparent color) rather than as literal defaults, so the theme keys stay in
+// charge of anything the consumer didn't set.
+function volumeToSpec(cfg: VroomChartCoreProps['volume']): VolumeSpec {
+  return {
+    enabled: cfg?.enabled ?? true,
+    heightFrac: cfg?.height ?? -1,
+    opacity: cfg?.opacity ?? -1,
+    radiusPx: cfg?.radius ?? -1,
+    upColor: (cfg?.upColor != null ? parseColor(cfg.upColor) : null) ?? 0,
+    downColor: (cfg?.downColor != null ? parseColor(cfg.downColor) : null) ?? 0,
   };
 }
 
@@ -224,6 +239,7 @@ export function useChartCore(
     movingAverages,
     vwap,
     bollingerBands,
+    volume,
     drawings,
     liquidity,
     priceLines,
@@ -341,6 +357,7 @@ export function useChartCore(
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
+  const volumeKey = volume ? JSON.stringify(volume) : '';
   const drawingsKey = drawings ? JSON.stringify(drawings) : '';
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
   // Whether a close handler exists is part of the rendered output (it gates the
@@ -461,6 +478,7 @@ export function useChartCore(
       vwap?.width ?? 1.5,
     );
     h.setBollinger(bollingerToSpec(bollingerBands));
+    h.setVolume(volumeToSpec(volume));
     // The controlled `drawings` prop is consumer-supplied — filter malformed
     // entries (wrong arity, non-finite anchors) before they reach the WASM
     // boundary, matching the validation the managed store path already does.
@@ -474,10 +492,10 @@ export function useChartCore(
         : EMPTY_PRICE_LINES,
     );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/drawings/liquidity/
-    // priceLines tracked via *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/drawings/
+    // liquidity/priceLines tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

@@ -1268,6 +1268,18 @@ extern "C" void vroom_chart_set_bollinger(VroomChart* chart,
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_volume(VroomChart* chart,
+                                       const VroomVolume* cfg) {
+    if (!chart || !cfg) return;
+    VroomVolume next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    // Negative means "inherit", so only clamp the ranges once a value is set.
+    if (next.height_frac >= 0.f) next.height_frac = std::min(next.height_frac, 1.f);
+    if (next.opacity >= 0.f) next.opacity = std::min(next.opacity, 1.f);
+    chart->volume = next;
+    chart->mark_dirty();
+}
+
 // ---- Direct draw (used by hosts that don't need the SkPicture cache) ------
 
 extern "C" void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas) {

@@ -69,6 +69,25 @@ typedef struct VroomBollinger {
     float    fill_opacity;  // 0..1, multiplied into upper_color's alpha
 } VroomBollinger;
 
+// Volume bars on the price pane, one per candle, drawn under the candles.
+//
+// `height_frac` is a ceiling, not a reservation: raising it lets the tallest bar
+// reach further up over the candles rather than compressing them (matching
+// TradingView's built-in volume). Bar heights always auto-fit the loudest volume
+// in view, so the tallest bar sits exactly at the ceiling.
+//
+// The style fields carry an inherit sentinel so the theme keeps supplying them
+// when the consumer doesn't: a negative float or a fully transparent color falls
+// back to the corresponding theme key.
+typedef struct VroomVolume {
+    int32_t  enabled;      // 0/1 — default 1: bars draw unless turned off
+    float    height_frac;  // tallest bar as a fraction of the price pane; < 0 inherits 0.2
+    float    opacity;      // 0..1 (1 = opaque); < 0 inherits VROOM_FLOAT_VOLUME_OPACITY
+    float    radius_px;    // top-corner radius; < 0 inherits VROOM_FLOAT_VOLUME_RADIUS_PX
+    uint32_t up_color;     // 0xAARRGGBB; 0 inherits VROOM_COLOR_ACCENT_BULL
+    uint32_t down_color;   // 0xAARRGGBB; 0 inherits VROOM_COLOR_ACCENT_BEAR
+} VroomVolume;
+
 // A drawing anchor in data space (so a drawing tracks the candles on pan/zoom).
 typedef struct VroomDrawPoint {
     int64_t time_ms;  // epoch milliseconds (not snapped to a candle slot)
@@ -423,6 +442,11 @@ void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
 // translucent fill between the bands; no pane is reserved). Color/width/fill
 // changes only re-render; enabled/period/mult/source/basis changes recompute.
 void vroom_chart_set_bollinger(VroomChart* chart, const VroomBollinger* cfg);
+
+// Configures the volume bars. Render-only — the bars come straight off each
+// candle's volume, so nothing is recomputed. Bars are enabled by default; pass
+// a config with `enabled` 0 to hide them.
+void vroom_chart_set_volume(VroomChart* chart, const VroomVolume* cfg);
 
 // ---- Drawings (line annotations) ------------------------------------------
 

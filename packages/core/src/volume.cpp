@@ -16,7 +16,8 @@
 namespace vroom::volume {
 
 namespace {
-constexpr float kVolumeFrac = 0.20f;  // tallest bar = this fraction of the area
+// Ceiling for the tallest bar when the config inherits it.
+constexpr float kDefaultHeightFrac = 0.20f;
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -24,6 +25,7 @@ void draw(SkCanvas* canvas,
           std::size_t n,
           const Layout& lay,
           const Theme& theme,
+          const ::VroomVolume& cfg,
           int64_t window_ms,
           int64_t visible_start_ms,
           int64_t candle_duration_ms) {
@@ -34,23 +36,38 @@ void draw(SkCanvas* canvas,
     for (std::size_t i = 0; i < n; ++i) max_vol = std::max(max_vol, visible[i].volume);
     if (max_vol <= 0.0) return;
 
+    // Resolve every inherit sentinel up front so the loop reads plain values.
+    const float height_frac =
+        cfg.height_frac >= 0.f ? cfg.height_frac : kDefaultHeightFrac;
+    const float opacity = cfg.opacity >= 0.f
+        ? cfg.opacity
+        : theme.floats[VROOM_FLOAT_VOLUME_OPACITY];
+    const float vol_r = cfg.radius_px >= 0.f
+        ? cfg.radius_px
+        : theme.floats[VROOM_FLOAT_VOLUME_RADIUS_PX];
+    const SkColor up_color = cfg.up_color != 0
+        ? static_cast<SkColor>(cfg.up_color)
+        : theme.colors[VROOM_COLOR_ACCENT_BULL];
+    const SkColor down_color = cfg.down_color != 0
+        ? static_cast<SkColor>(cfg.down_color)
+        : theme.colors[VROOM_COLOR_ACCENT_BEAR];
+
     const float candle_area_h = vroom::price_pane_bottom(lay);
-    const float region_h = candle_area_h * kVolumeFrac;
+    const float region_h = candle_area_h * height_frac;
+    if (region_h <= 0.f) return;
 
     const float body_w = vroom::candle_body_width(
         lay, window_ms, candle_duration_ms);
     const float half_body = body_w * 0.5f;
 
-    const float opacity = theme.floats[VROOM_FLOAT_VOLUME_OPACITY];
-    const float vol_r = theme.floats[VROOM_FLOAT_VOLUME_RADIUS_PX];
     SkPaint bull_paint;
     bull_paint.setAntiAlias(true);
-    bull_paint.setColor(theme.colors[VROOM_COLOR_ACCENT_BULL]);
+    bull_paint.setColor(up_color);
     bull_paint.setAlphaf(opacity);
 
     SkPaint bear_paint;
     bear_paint.setAntiAlias(true);
-    bear_paint.setColor(theme.colors[VROOM_COLOR_ACCENT_BEAR]);
+    bear_paint.setColor(down_color);
     bear_paint.setAlphaf(opacity);
 
     for (std::size_t i = 0; i < n; ++i) {

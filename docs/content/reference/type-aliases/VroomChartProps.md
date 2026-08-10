@@ -6,7 +6,7 @@ type VroomChartProps = VroomChartCoreProps & {
 };
 ```
 
-Source: [react-native/src/types.ts:29](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L29)
+Source: [react-native/src/types.ts:30](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L30)
 
 Props for the [VroomChart](../functions/VroomChart.md) component. The cross-platform props come
 from VroomChartCoreProps; `style` is the React Native flavor.
@@ -15,4 +15,4 @@ from VroomChartCoreProps; `style` is the React Native flavor.
 
 | Name     | Type                       | Description                                                      | Source                                                                                                               |
 | -------- | -------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `style?` | `StyleProp`\<`ViewStyle`\> | Style for the chart's root view. Defaults to filling the parent. | [react-native/src/types.ts:31](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L31) |
+| `style?` | `StyleProp`\<`ViewStyle`\> | Style for the chart's root view. Defaults to filling the parent. | [react-native/src/types.ts:32](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/types.ts#L32) |

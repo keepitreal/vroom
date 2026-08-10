@@ -68,6 +68,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/VolumeConfig",
+          label: "VolumeConfig"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/VroomChartProps",
           label: "VroomChartProps"
         },

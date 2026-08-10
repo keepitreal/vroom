@@ -163,6 +163,20 @@ export interface ChartHandle {
     fillOpacity: number;
   }): void;
   /**
+   * Configures the volume bars under the candles. `heightFrac` is the tallest
+   * bar as a fraction of the price pane. The style fields carry an inherit
+   * sentinel: a negative number or a transparent color falls back to the
+   * matching theme key.
+   */
+  setVolume(spec: {
+    enabled: boolean;
+    heightFrac: number;
+    opacity: number;
+    radiusPx: number;
+    upColor: number;
+    downColor: number;
+  }): void;
+  /**
    * The continuous data coordinate at pixel (x, y) — not snapped to a candle
    * slot. Null when there are no candles or the viewport is degenerate. Cheap to
    * call at gesture rate (no rendering).
