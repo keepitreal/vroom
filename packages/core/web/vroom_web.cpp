@@ -221,6 +221,10 @@ class WebChart {
     cfg.down_color = s["downColor"].as<uint32_t>();
     vroom_chart_set_volume(chart_, &cfg);
   }
+  // `t` is linear progress; the core eases each bar over its own window.
+  void setVolumeCollapse(double t, int easing) {
+    vroom_chart_set_volume_collapse(chart_, static_cast<float>(t), easing);
+  }
   // `overlays` is a JS array of {kind, period, source, color, width}.
   void setOverlays(const em::val& overlays) {
     const size_t n = overlays["length"].as<size_t>();
@@ -572,6 +576,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setVWAP", &WebChart::setVWAP)
       .function("setBollinger", &WebChart::setBollinger)
       .function("setVolume", &WebChart::setVolume)
+      .function("setVolumeCollapse", &WebChart::setVolumeCollapse)
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setPriceLines", &WebChart::setPriceLines)

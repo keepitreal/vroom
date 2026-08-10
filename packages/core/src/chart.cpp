@@ -188,8 +188,11 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     }
 
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
-    if (volume.enabled) {
+    //      A fully collapsed chart has no bars left to draw, which is also how
+    //      "volume disabled" is represented (set_volume snaps the scalar).
+    if (volume_collapse_t < 1.f) {
         vroom::volume::draw(canvas, visible, n, lay, theme, volume,
+                            volume_collapse_t, volume_collapse_easing,
                             window_ms, visible_start_ms, candle_duration_ms);
     }
 

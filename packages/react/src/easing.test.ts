@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TransitionEasing } from '@vroomchart/types';
 
-import { ease } from './easing';
+import { ease, easingIndex } from './easing';
 
 const KINDS: TransitionEasing[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 const SAMPLES = Array.from({ length: 21 }, (_, i) => i / 20);
@@ -51,5 +51,16 @@ describe('ease', () => {
       expect(ease(undefined, p)).toBe(ease('ease-in-out', p));
       expect(ease('bogus' as TransitionEasing, p)).toBe(ease('ease-in-out', p));
     }
+  });
+});
+
+describe('easingIndex', () => {
+  it('matches the VroomEasing order the core declares', () => {
+    expect(KINDS.map(easingIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('falls back to ease-in-out for an unset or unknown curve', () => {
+    expect(easingIndex(undefined)).toBe(easingIndex('ease-in-out'));
+    expect(easingIndex('bogus' as TransitionEasing)).toBe(easingIndex('ease-in-out'));
   });
 });

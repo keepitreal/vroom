@@ -170,6 +170,12 @@ struct VroomChart {
     // exactly as it did before the config existed. No cache — bar heights come
     // straight off the visible candles' volume.
     VroomVolume volume{1, -1.f, -1.f, -1.f, 0u, 0u};
+    // Staggered collapse of those bars, driven per-frame by the host animation
+    // loop: 0 = full height, 1 = all flat. Doubles as the visibility gate, since
+    // a fully collapsed chart draws nothing — set_volume snaps it to match
+    // `volume.enabled`, and the host overrides it while animating.
+    float volume_collapse_t = 0.f;
+    int32_t volume_collapse_easing = VROOM_EASING_IN_OUT;
 
     // --- drawings (annotations) --------------------------------------------
     // Committed drawings, anchored in data space so they track the candles on

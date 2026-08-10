@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import NativeVroomChart from './NativeVroomChart';
@@ -151,10 +152,19 @@ function ensureInstalled(): void {
   installed = true;
 }
 
+/** Progress + curve of the staggered volume-bar collapse. See setVolumeCollapse. */
+export type VolumeCollapse = { t: number; easing: number };
+
 export type ChartCoreState = {
   handle: ChartHandle | null;
   /** Picture freshly rendered after the latest data/size/range push. */
   picture: SkPicture | null;
+  /**
+   * The last volume collapse handed to the core, or null before the first push.
+   * VroomChart's animation loop owns this — it lives here only so the data effect
+   * can restore it, since setVolume snaps the scalar (see below).
+   */
+  volumeCollapseRef: MutableRefObject<VolumeCollapse | null>;
 };
 
 // Owns a ChartHandle and produces an "initial" picture whenever data, size,
@@ -181,6 +191,7 @@ export function useChartCore(
   // every data change, and the core setter re-frames when candles are present,
   // so re-pushing would snap the view away from the user's pan/zoom.
   const defaultWidthAppliedRef = useRef(false);
+  const volumeCollapseRef = useRef<VolumeCollapse | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
 
   if (!handleRef.current && size.width > 0 && size.height > 0) {
@@ -257,6 +268,12 @@ export function useChartCore(
     );
     h.setBollinger(bollingerToSpec(bollingerBands));
     h.setVolume(volumeToSpec(volume));
+    // setVolume snaps the collapse scalar to its `enabled`, which would cut a
+    // toggle animation short whenever this effect re-runs (a streaming candle, a
+    // resize). Hand the in-flight value back; VroomChart's loop drives it from
+    // there.
+    const collapse = volumeCollapseRef.current;
+    if (collapse) h.setVolumeCollapse(collapse.t, collapse.easing);
     h.setPriceLines(
       priceLines?.lines.length ? priceLinesToSpec(priceLines) : EMPTY_PRICE_LINES,
     );
@@ -268,5 +285,5 @@ export function useChartCore(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey]);
 
-  return { handle: handleRef.current, picture };
+  return { handle: handleRef.current, picture, volumeCollapseRef };
 }

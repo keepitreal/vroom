@@ -55,6 +55,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolume"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setVolumeCollapse"));
   out.push_back(jsi::PropNameID::forAscii(rt, "coordAt"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLines"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestPriceLine"));
@@ -695,6 +696,26 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           cfg.down_color = static_cast<uint32_t>(
               s.getProperty(rt2, "downColor").asNumber());
           vroom_chart_set_volume(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setVolumeCollapse") {
+    // setVolumeCollapse(t, easing) — staggered collapse of the volume bars. `t`
+    // is LINEAR progress; the core eases each bar over its own window.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setVolumeCollapse"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_volume_collapse(
+              chart_,
+              static_cast<float>(args[0].asNumber()),
+              static_cast<int32_t>(args[1].asNumber()));
           return jsi::Value::undefined();
         });
   }

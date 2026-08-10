@@ -375,6 +375,17 @@ export interface VroomChartHandle {
   ): void;
   setBollinger(spec: BollingerSpec): void;
   setVolume(spec: VolumeSpec): void;
+  /**
+   * Staggered volume-bar collapse: 0 = full height, 1 = all bars flat. Bars fall
+   * tallest-first and land together; drive 1 → 0 to reveal them, which plays the
+   * same cascade in reverse (shortest bar home first).
+   *
+   * Unlike setMorph, `t` must be **linear** progress — the core eases each bar
+   * over its own slice of the timeline, so the curve is applied there. `easing`
+   * indexes `linear | ease-in | ease-out | ease-in-out`. setVolume snaps this to
+   * match its `enabled`, so it's only needed while animating.
+   */
+  setVolumeCollapse(t: number, easing: number): void;
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;

@@ -1277,6 +1277,18 @@ extern "C" void vroom_chart_set_volume(VroomChart* chart,
     if (next.height_frac >= 0.f) next.height_frac = std::min(next.height_frac, 1.f);
     if (next.opacity >= 0.f) next.opacity = std::min(next.opacity, 1.f);
     chart->volume = next;
+    // Snap the collapse to the new target, the way set_chart_type snaps the
+    // candle↔line morph. A host that wants the toggle animated overrides this
+    // from its frame loop before the next paint.
+    chart->volume_collapse_t = next.enabled ? 0.f : 1.f;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_volume_collapse(VroomChart* chart, float t,
+                                               int32_t easing) {
+    if (!chart) return;
+    chart->volume_collapse_t = std::clamp(t, 0.f, 1.f);
+    chart->volume_collapse_easing = easing;
     chart->mark_dirty();
 }
 

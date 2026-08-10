@@ -30,7 +30,7 @@ import {
   timeframeWindow,
   type DataTransition,
 } from './dataTransitions';
-import { ease } from './easing';
+import { ease, easingIndex } from './easing';
 import { isValidDrawing } from './drawingStorage';
 
 function prefersReducedMotion(): boolean {
@@ -259,6 +259,10 @@ export function useChartCore(
   } | null>(null);
   const rafRef = useRef<number | null>(null);
   const intervalMorphRafRef = useRef<number | null>(null);
+  // Volume-bar collapse: the last value handed to the core (null until the first
+  // sync), so the data effect can restore it and a toggle mid-animation can
+  // reverse from where it is. Declared up here because the data effect reads it.
+  const volumeCollapseRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [measured, setMeasured] = useState({ width: 0, height: 0 });
 
@@ -479,6 +483,14 @@ export function useChartCore(
     );
     h.setBollinger(bollingerToSpec(bollingerBands));
     h.setVolume(volumeToSpec(volume));
+    // setVolume snaps the collapse scalar to its `enabled`, which would cut a
+    // toggle animation short whenever this effect re-runs (a streaming candle,
+    // a resize). Hand the in-flight value back. On the toggle itself this runs
+    // before the driver effect below, so what lands here is the pre-toggle value
+    // the animation starts from — no flash either way.
+    if (volumeCollapseRef.current != null) {
+      h.setVolumeCollapse(volumeCollapseRef.current, easingIndex(animRef.current.easing));
+    }
     // The controlled `drawings` prop is consumer-supplied — filter malformed
     // entries (wrong arity, non-finite anchors) before they reach the WASM
     // boundary, matching the validation the managed store path already does.
@@ -561,6 +573,63 @@ export function useChartCore(
       }
     };
   }, [ready, chartType, transitionMs, scheduleRender]);
+
+  // Animate the volume bars in and out when `volume.enabled` flips. The core
+  // staggers the bars itself — tallest falling first, all landing together — so
+  // unlike the loops above this one hands it *linear* progress plus the curve;
+  // pre-easing here would compound the two. Hiding drives 0→1, revealing 1→0,
+  // which is the same cascade backwards.
+  const volumeRafRef = useRef<number | null>(null);
+  const volumeHandleRef = useRef<VroomChartHandle | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    const target = (volume?.enabled ?? true) ? 0 : 1;
+
+    // Fresh handle (first load or remount): the data effect's setVolume already
+    // snapped it, so a chart that mounts with bars doesn't animate them in.
+    if (volumeHandleRef.current !== h || volumeCollapseRef.current == null) {
+      volumeHandleRef.current = h;
+      volumeCollapseRef.current = target;
+      return;
+    }
+    if (volumeCollapseRef.current === target) return;
+
+    if (volumeRafRef.current != null) {
+      cancelAnimationFrame(volumeRafRef.current);
+      volumeRafRef.current = null;
+    }
+
+    const dur = Math.max(0, transitionMs ?? 300);
+    if (dur === 0 || prefersReducedMotion()) {
+      volumeCollapseRef.current = target;
+      h.setVolumeCollapse(target, easingIndex(animRef.current.easing));
+      scheduleRender();
+      return;
+    }
+
+    // From wherever the last frame left off, so toggling mid-flight reverses
+    // instead of jumping. A partial trip covers less ground in the same time.
+    const from = volumeCollapseRef.current;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const t = p < 1 ? from + (target - from) * p : target;
+      volumeCollapseRef.current = t;
+      h.setVolumeCollapse(t, easingIndex(animRef.current.easing));
+      h.present();
+      volumeRafRef.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    volumeRafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (volumeRafRef.current != null) {
+        cancelAnimationFrame(volumeRafRef.current);
+        volumeRafRef.current = null;
+      }
+    };
+  }, [ready, volume?.enabled, transitionMs, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

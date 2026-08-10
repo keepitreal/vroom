@@ -25,14 +25,19 @@ namespace vroom::volume {
 // the loudest bar lands on cfg.height_frac of the pane.
 //
 // `cfg` supplies height/opacity/radius/colors; each of its style fields falls
-// back to `theme` when left on its inherit sentinel. Callers gate on
-// cfg.enabled — this draws whenever it's called.
+// back to `theme` when left on its inherit sentinel.
+//
+// `collapse_t` (0 = full height, 1 = flat) staggers the bars down out of view,
+// tallest first, all landing together — see volume_anim.h. It's also the
+// visibility gate: callers skip this entirely at 1, since nothing would draw.
 void draw(SkCanvas* canvas,
           const ::VroomCandle* visible,
           std::size_t n,
           const Layout& lay,
           const Theme& theme,
           const ::VroomVolume& cfg,
+          float collapse_t,
+          int32_t collapse_easing,
           int64_t window_ms,
           int64_t visible_start_ms,
           int64_t candle_duration_ms);

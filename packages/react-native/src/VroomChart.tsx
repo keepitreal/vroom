@@ -21,7 +21,7 @@ import {
 import { useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
-import { ease } from './easing';
+import { ease, easingIndex } from './easing';
 import type { VroomChartProps } from './types';
 import './jsi.d';
 
@@ -91,7 +91,7 @@ export function VroomChart(props: VroomChartProps) {
     [priceLines, priceLinesStyle, onPriceLineClose],
   );
 
-  const { handle, picture } = useChartCore(
+  const { handle, picture, volumeCollapseRef } = useChartCore(
     candles,
     { width, height },
     visibleRange,
@@ -243,6 +243,66 @@ export function VroomChart(props: VroomChartProps) {
       }
     };
   }, [handle, chartType, transitionMs, pictureSV]);
+
+  // Volume-bar collapse. The core staggers the bars itself — tallest falling
+  // first, all landing together — so unlike the loop above this one hands it
+  // *linear* progress plus the curve; pre-easing here would compound the two.
+  // Hiding drives 0→1, revealing 1→0, which is the same cascade backwards.
+  // Mirrors the web driver in react/src/useChartCore.ts.
+  const volumeRaf = useRef<number | null>(null);
+  const volumeHandle = useRef<typeof handle>(null);
+  useEffect(() => {
+    if (!handle) return undefined;
+    const target = (volume?.enabled ?? true) ? 0 : 1;
+    const easing = easingIndex(easingRef.current);
+
+    // Fresh handle (first load / recreate): the data effect's setVolume already
+    // snapped it, so a chart that mounts with bars doesn't animate them in.
+    if (volumeHandle.current !== handle || volumeCollapseRef.current == null) {
+      volumeHandle.current = handle;
+      volumeCollapseRef.current = { t: target, easing };
+      return undefined;
+    }
+    if (volumeCollapseRef.current.t === target) return undefined;
+
+    if (volumeRaf.current != null) {
+      cancelAnimationFrame(volumeRaf.current);
+      volumeRaf.current = null;
+    }
+
+    const dur = Math.max(0, transitionMs ?? 300);
+    if (dur === 0) {
+      volumeCollapseRef.current = { t: target, easing };
+      handle.setVolumeCollapse(target, easing);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      return undefined;
+    }
+
+    // From wherever the last frame left off, so toggling mid-flight reverses
+    // instead of jumping. A partial trip covers less ground in the same time.
+    const from = volumeCollapseRef.current.t;
+    let startTs: number | null = null;
+    const step = (now: number) => {
+      if (startTs == null) startTs = now;
+      const prog = Math.min(1, (now - startTs) / dur);
+      const t = prog < 1 ? from + (target - from) * prog : target;
+      const kind = easingIndex(easingRef.current);
+      volumeCollapseRef.current = { t, easing: kind };
+      handle.setVolumeCollapse(t, kind);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      volumeRaf.current = prog < 1 ? requestAnimationFrame(step) : null;
+    };
+    volumeRaf.current = requestAnimationFrame(step);
+
+    return () => {
+      if (volumeRaf.current != null) {
+        cancelAnimationFrame(volumeRaf.current);
+        volumeRaf.current = null;
+      }
+    };
+  }, [handle, volume?.enabled, transitionMs, pictureSV, volumeCollapseRef]);
 
   // Classifies a touch point into the candle area vs. an axis strip. Axis
   // strips always own their gesture (scale price/time) and take priority over

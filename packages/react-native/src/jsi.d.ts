@@ -177,6 +177,17 @@ export interface ChartHandle {
     downColor: number;
   }): void;
   /**
+   * Staggered volume-bar collapse: 0 = full height, 1 = all bars flat. Bars fall
+   * tallest-first and land together; drive 1 → 0 to reveal them, which plays the
+   * cascade in reverse (shortest bar home first).
+   *
+   * Unlike setMorph, `t` must be **linear** progress — the core eases each bar
+   * over its own slice of the timeline, so the curve is applied there. `easing`
+   * indexes `linear | ease-in | ease-out | ease-in-out`. setVolume snaps this to
+   * match its `enabled`, so it's only needed while animating.
+   */
+  setVolumeCollapse(t: number, easing: number): void;
+  /**
    * The continuous data coordinate at pixel (x, y) — not snapped to a candle
    * slot. Null when there are no candles or the viewport is degenerate. Cheap to
    * call at gesture rate (no rendering).

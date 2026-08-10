@@ -12,6 +12,7 @@
 
 #include "theme.h"
 #include "viewport.h"
+#include "volume_anim.h"
 
 namespace vroom::volume {
 
@@ -26,6 +27,8 @@ void draw(SkCanvas* canvas,
           const Layout& lay,
           const Theme& theme,
           const ::VroomVolume& cfg,
+          float collapse_t,
+          int32_t collapse_easing,
           int64_t window_ms,
           int64_t visible_start_ms,
           int64_t candle_duration_ms) {
@@ -78,8 +81,13 @@ void draw(SkCanvas* canvas,
         const float cx = vroom::candle_center_x(
             lay, c.time_ms, candle_duration_ms,
             visible_start_ms, window_ms);
-        const float h = std::max(
-            1.f, static_cast<float>(c.volume / max_vol) * region_h);
+        // The 1px floor applies to the settled height, not the animated one, so
+        // a collapsing bar can still reach zero.
+        const float frac = static_cast<float>(c.volume / max_vol);
+        const float full_h = std::max(1.f, frac * region_h);
+        const float h = full_h * (1.f - vroom::volume_anim::bar_collapse(
+                                            frac, collapse_t, collapse_easing));
+        if (h < 0.5f) continue;  // collapsed past the point of drawing anything
         const SkRect rect =
             SkRect::MakeXYWH(cx - half_body, candle_area_h - h, body_w, h);
         const SkPaint& paint = bull ? bull_paint : bear_paint;

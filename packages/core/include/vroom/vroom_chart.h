@@ -222,6 +222,21 @@ typedef enum {
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
+// ---- Animation ------------------------------------------------------------
+
+// Easing curves for the animations the core paces itself. Mirrors the
+// TransitionEasing union in @vroomchart/types, index for index.
+//
+// Most animations are eased by the host before it hands the core a progress
+// value; this enum exists for the ones the core has to ease internally because
+// each element runs on its own slice of the timeline.
+typedef enum {
+    VROOM_EASING_LINEAR = 0,
+    VROOM_EASING_IN,
+    VROOM_EASING_OUT,
+    VROOM_EASING_IN_OUT,  // smoothstep; the default for unknown values
+} VroomEasing;
+
 // ---- Callbacks ------------------------------------------------------------
 
 typedef struct {
@@ -447,6 +462,19 @@ void vroom_chart_set_bollinger(VroomChart* chart, const VroomBollinger* cfg);
 // candle's volume, so nothing is recomputed. Bars are enabled by default; pass
 // a config with `enabled` 0 to hide them.
 void vroom_chart_set_volume(VroomChart* chart, const VroomVolume* cfg);
+
+// Advances the staggered volume-bar collapse: 0 leaves every bar at full height,
+// 1 has them all flat. Driven per-frame by the host animation loop.
+//
+// `t` is *linear* progress, unlike the other morph setters. Each bar falls over
+// its own slice of the timeline — the tallest starting first and every bar
+// landing at 1 — so `easing` (a VroomEasing) is applied per bar inside the core;
+// pre-easing here would compound the two curves.
+//
+// Symmetric, so driving 1 -> 0 reveals the bars: the shortest rises first and
+// the tallest arrives last. vroom_chart_set_volume snaps this to match its
+// `enabled`, so the host only needs it while animating.
+void vroom_chart_set_volume_collapse(VroomChart* chart, float t, int32_t easing);
 
 // ---- Drawings (line annotations) ------------------------------------------
 
