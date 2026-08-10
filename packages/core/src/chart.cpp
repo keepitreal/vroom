@@ -161,6 +161,32 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     vroom::labels::draw_y_gridlines(canvas, *this, lay, axis_bounds,
                                     candle_right, candle_area_h);
 
+    // 4.35. Price-series morph state, shared by the gradient fill below and the
+    //       series itself (5). `morph_fade` crossfades candles→line and
+    //       `morph_collapse` folds each candle toward its close (the line vertex);
+    //       fade 0 = pure candles, fade 1 = pure line. An interval morph
+    //       additionally reshapes each slot from the geometry it held before the
+    //       timeframe switch (see `morph_from`) — candle bodies, line vertices and
+    //       the fill alike, so every layer stays in step mid-crossfade.
+    const float fade = morph_fade;
+    const float collapse = morph_collapse;
+    const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
+    const vroom::CandleSnapshot* morph_src = morphing ? morph_from.data() : nullptr;
+    const std::size_t morph_n = morphing ? morph_from.size() : 0;
+    const float morph_t = morphing ? interval_morph_t : 1.f;
+
+    // 4.4. Line-mode gradient fill — the wash under the close polyline. Behind the
+    //      volume bars so they stay legible on top of it, which puts it at the
+    //      back of the price pane's content.
+    if (fade > 0.f) {
+        vroom::ma_overlay::draw_close_gradient(
+            canvas, lay, bounds, visible, n, window_ms,
+            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
+            theme.colors[VROOM_COLOR_LINE],
+            theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
+            fade, morph_src, morph_n, morph_t);
+    }
+
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
     vroom::volume::draw(canvas, visible, n, lay, theme,
                         window_ms, visible_start_ms, candle_duration_ms);
@@ -189,19 +215,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     }
 
     // 5. Price series — candles, a close-price line, or a blend of the two during
-    //    the candle↔line morph. `morph_fade` crossfades candles→line and
-    //    `morph_collapse` folds each candle toward its close (the line vertex).
-    //    fade 0 = pure candles, fade 1 = pure line. The line reuses the MA-overlay
-    //    polyline routine, fed the visible closes and styled by theme.LINE.
-    //    An interval morph additionally reshapes each slot from the geometry it
-    //    held before the timeframe switch (see `morph_from`) — candle bodies and
-    //    line vertices alike, so both layers stay in step mid-crossfade.
-    const float fade = morph_fade;
-    const float collapse = morph_collapse;
-    const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
-    const vroom::CandleSnapshot* morph_src = morphing ? morph_from.data() : nullptr;
-    const std::size_t morph_n = morphing ? morph_from.size() : 0;
-    const float morph_t = morphing ? interval_morph_t : 1.f;
+    //    the candle↔line morph (state hoisted to 4.35 for the gradient fill). The
+    //    line is styled by theme.LINE.
     if (fade < 1.f) {
         vroom::candles::draw(canvas, visible, n, lay, theme, bounds, window_ms,
                              visible_start_ms, candle_duration_ms, collapse,

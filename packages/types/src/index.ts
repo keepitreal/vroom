@@ -98,10 +98,16 @@ export type VroomTheme = {
   crosshair?: VroomColor;
   /** Crosshair target — the hollow ring/dot at the intersection. */
   crosshairTarget?: VroomColor;
-  /** Line-chart-mode close polyline color. Defaults to a neutral foreground. */
+  /** Line-chart-mode close polyline color. Defaults to violet, matching the RSI line. */
   lineColor?: VroomColor;
   /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
   lineWidth?: number;
+  /**
+   * Opacity of the gradient filled beneath the line-chart polyline, at its
+   * strongest point. The fill uses `lineColor` and ramps to fully transparent at
+   * the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
+   */
+  lineGradientOpacity?: number;
 };
 
 /** A time window over the candle data, as Unix epoch milliseconds. */

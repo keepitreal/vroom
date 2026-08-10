@@ -41,6 +41,7 @@ export enum FloatKey {
   WickRoundCap = 9,
   VolumeRadius = 10,
   LineWidth = 11,
+  LineGradientOpacity = 12,
 }
 
 /** OHLCV readout for the candle under the crosshair. */

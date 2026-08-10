@@ -67,12 +67,37 @@ void draw_close_line(SkCanvas* canvas,
                      std::size_t from_n = 0,
                      float morph_t = 1.f);
 
+// The area beneath the close-price polyline, filled with `color` ramping from
+// `gradient_opacity` at the line's peak to fully transparent at the pane bottom.
+// Takes the same geometry and morph arguments as draw_close_line and builds the
+// identical polyline, so the fill tracks the line through a timeframe switch.
+//
+// `opacity` multiplies the ramp, which is what fades the fill in alongside the
+// line during the candle→line morph. Draws nothing when either opacity is 0.
+// Belongs behind the volume bars, so it's a separate call rather than part of
+// draw_close_line.
+void draw_close_gradient(SkCanvas* canvas,
+                         const Layout& lay,
+                         const PriceBounds& bounds,
+                         const ::VroomCandle* visible,
+                         std::size_t n,
+                         int64_t window_ms,
+                         int64_t visible_start_ms,
+                         int64_t candle_duration_ms,
+                         float candle_right,
+                         float candle_area_h,
+                         uint32_t color,
+                         float gradient_opacity,
+                         float opacity = 1.f,
+                         const CandleSnapshot* from = nullptr,
+                         std::size_t from_n = 0,
+                         float morph_t = 1.f);
+
 // Fills the closed region between two aligned series (NaN where undefined)
 // with `color` at its alpha × `opacity` — used for the Bollinger Band fill.
 // Runs where either series is NaN are skipped, so the fill never bridges the
-// warmup gap. Plain-alpha SkPaint fill, no gradient shader (the Skia gradient
-// APIs diverge across our pinned versions; see liquidity.cpp). Clipped to the
-// candle area like draw().
+// warmup gap. Plain-alpha SkPaint fill, no gradient ramp (see gradient.h).
+// Clipped to the candle area like draw().
 void fill_between(SkCanvas* canvas,
                   const Layout& lay,
                   const PriceBounds& bounds,

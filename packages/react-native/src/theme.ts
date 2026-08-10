@@ -27,6 +27,7 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   candleRadius: 8, // VROOM_FLOAT_CANDLE_RADIUS_PX
   volumeRadius: 10, // VROOM_FLOAT_VOLUME_RADIUS_PX
   lineWidth: 11, // VROOM_FLOAT_LINE_WIDTH_PX
+  lineGradientOpacity: 12, // VROOM_FLOAT_LINE_GRADIENT_OPACITY
 };
 
 // Maps each boolean VroomTheme field to its VroomFloatKey index (pushed as 0/1).

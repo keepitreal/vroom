@@ -15,6 +15,7 @@ type VroomTheme = {
   crosshairTarget?: VroomColor;
   grid?: VroomColor;
   lineColor?: VroomColor;
+  lineGradientOpacity?: number;
   lineWidth?: number;
   volumeRadius?: number;
   wickBear?: VroomColor;
@@ -182,7 +183,21 @@ optional lineColor?: VroomColor;
 
 Source: [types/src/index.ts:102](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L102)
 
-Line-chart-mode close polyline color. Defaults to a neutral foreground.
+Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
+
+---
+
+### lineGradientOpacity?
+
+```ts
+optional lineGradientOpacity?: number;
+```
+
+Source: [types/src/index.ts:110](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L110)
+
+Opacity of the gradient filled beneath the line-chart polyline, at its
+strongest point. The fill uses `lineColor` and ramps to fully transparent at
+the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
 
 ---
 

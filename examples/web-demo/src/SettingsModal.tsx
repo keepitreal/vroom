@@ -8,7 +8,12 @@ import type { VroomTheme } from '@vroomchart/react';
 // separately by the demo, so the color state excludes them.
 type ColorField = Exclude<
   keyof VroomTheme,
-  'wickWidth' | 'candleRadius' | 'wickRoundCap' | 'volumeRadius' | 'lineWidth'
+  | 'wickWidth'
+  | 'candleRadius'
+  | 'wickRoundCap'
+  | 'volumeRadius'
+  | 'lineWidth'
+  | 'lineGradientOpacity'
 >;
 export type ThemeState = Record<ColorField, string>;
 
@@ -36,7 +41,7 @@ export const DEFAULT_THEME: ThemeState = {
   axisText: '#c9d1d9',
   crosshair: '#303741',
   crosshairTarget: '#3e4855',
-  lineColor: '#c9d1d9',
+  lineColor: '#8957e5',
 };
 
 // Fields whose default is "inherit the candle body fill". Each gets an
