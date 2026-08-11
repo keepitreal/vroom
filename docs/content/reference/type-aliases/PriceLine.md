@@ -25,9 +25,9 @@ Renders as a line across the price pane ending in a label group (a `text` pill
 plus an optional solid-filled `quantity` pill and an optional close button),
 with a price badge in the y-axis strip.
 
-Interaction is opt-in and callback-gated, mirroring TradingView: the line is
-only draggable when `draggable` is set, and the close button only renders when
-you pass `onPriceLineClose`. Dragging is a _preview_ — the chart never mutates
+Interaction is opt-in and callback-gated: the line is only draggable when
+`draggable` is set, and the close button only renders when you pass
+`onPriceLineClose`. Dragging is a _preview_ — the chart never mutates
 the price you gave it, so a move your backend rejects reverts on its own
 simply by leaving your `priceLines` state unchanged.
 

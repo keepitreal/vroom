@@ -51,7 +51,7 @@ typedef struct VroomOverlay {
 
 // Bollinger Bands overlay drawn on the price pane: a basis MA of `source` over
 // `period`, banded at ± `mult` × population standard deviation of the same
-// window. Per TradingView semantics the stdev always uses the window's
+// window. Per the standard semantics the stdev always uses the window's
 // arithmetic mean, even when `basis_kind` selects an EMA basis line.
 typedef struct VroomBollinger {
     int32_t  enabled;       // 0/1
@@ -72,8 +72,8 @@ typedef struct VroomBollinger {
 // Volume bars on the price pane, one per candle, drawn under the candles.
 //
 // `height_frac` is a ceiling, not a reservation: raising it lets the tallest bar
-// reach further up over the candles rather than compressing them (matching
-// TradingView's built-in volume). Bar heights always auto-fit the loudest volume
+// reach further up over the candles rather than compressing them (matching the
+// conventional volume overlay). Bar heights always auto-fit the loudest volume
 // in view, so the tallest bar sits exactly at the ceiling.
 //
 // The style fields carry an inherit sentinel so the theme keeps supplying them

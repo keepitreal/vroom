@@ -19,7 +19,7 @@ vroom is a specialized candlestick charting library, not a general-purpose chart
 
 ## Comparison
 
-### vroom vs. TradingView lightweight-charts
+### vroom vs. lightweight-charts
 
 | | vroom | lightweight-charts |
 |---|---|---|
@@ -31,7 +31,7 @@ vroom is a specialized candlestick charting library, not a general-purpose chart
 | **Customization** | Full theme + candle styling knobs | Extensive, but chart chrome is owned by the library |
 | **Size** | WASM binary (~2MB) + JS | JS only (~200KB) |
 
-**Choose vroom** if you need native mobile and want full control over the UI chrome. **Choose lightweight-charts** if you're web-only and want TradingView's complete widget (toolbars, menus, built-in drawings).
+**Choose vroom** if you need native mobile and want full control over the UI chrome. **Choose lightweight-charts** if you're web-only and want a complete prebuilt widget (toolbars, menus, built-in drawings).
 
 ### vroom vs. victory-native
 

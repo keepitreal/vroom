@@ -8,7 +8,7 @@
 // The stack is in-memory and session-only by design. The document (the drawings
 // themselves) is what persists — via `drawingStore` or the consumer's own state —
 // matching the document-persisted / history-ephemeral split every major drawing
-// app uses (TradingView, Excalidraw, tldraw, Photoshop).
+// app uses (Excalidraw, tldraw, Figma, Photoshop).
 
 import type { Drawing, UndoRedoState } from '@vroomchart/types';
 

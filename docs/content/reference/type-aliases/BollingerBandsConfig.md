@@ -36,7 +36,7 @@ optional basis?: "sma" | "ema";
 Source: [types/src/index.ts:340](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L340)
 
 Basis (middle) line type. Default 'sma'. The stdev always uses the
-window's arithmetic mean, even with an EMA basis (TradingView semantics).
+window's arithmetic mean, even with an EMA basis (the standard semantics).
 
 ---
 

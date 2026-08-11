@@ -335,7 +335,7 @@ export type BollingerBandsConfig = {
   source?: MASource;
   /**
    * Basis (middle) line type. Default 'sma'. The stdev always uses the
-   * window's arithmetic mean, even with an EMA basis (TradingView semantics).
+   * window's arithmetic mean, even with an EMA basis (the standard semantics).
    */
   basis?: 'sma' | 'ema';
   /** Upper band color (hex string or packed ARGB number). Default blue. */
@@ -374,7 +374,7 @@ export type VolumeConfig = {
    *
    * This is a ceiling rather than a reserved strip: raising it lets the bars
    * reach further up over the candles rather than compressing them, matching
-   * TradingView's built-in volume. Heights always auto-fit the loudest volume
+   * the conventional volume overlay. Heights always auto-fit the loudest volume
    * in view, so the tallest bar sits exactly at the ceiling.
    */
   height?: number;
@@ -441,9 +441,9 @@ export type LiquidityConfig = {
  * plus an optional solid-filled `quantity` pill and an optional close button),
  * with a price badge in the y-axis strip.
  *
- * Interaction is opt-in and callback-gated, mirroring TradingView: the line is
- * only draggable when `draggable` is set, and the close button only renders when
- * you pass `onPriceLineClose`. Dragging is a *preview* — the chart never mutates
+ * Interaction is opt-in and callback-gated: the line is only draggable when
+ * `draggable` is set, and the close button only renders when you pass
+ * `onPriceLineClose`. Dragging is a *preview* — the chart never mutates
  * the price you gave it, so a move your backend rejects reverts on its own
  * simply by leaving your `priceLines` state unchanged.
  */

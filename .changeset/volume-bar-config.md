@@ -18,8 +18,8 @@ indicators:
   existing charts unchanged; pass `{ enabled: false }` to hide them.
 - `opacity` (default 0.5) sets how much quieter the bars read than the candles.
 - `height` (default 0.2) is the tallest bar as a fraction of the price pane.
-  It's a ceiling rather than a reserved strip, matching TradingView's built-in
-  volume: raising it lets the bars reach further up over the candles instead of
+  It's a ceiling rather than a reserved strip, matching the conventional volume
+  overlay: raising it lets the bars reach further up over the candles instead of
   compressing them.
 - `radius`, `upColor` and `downColor` restyle the bars, defaulting to
   `theme.volumeRadius` and `theme.accentBull` / `theme.accentBear`.
