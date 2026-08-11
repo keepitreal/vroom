@@ -86,7 +86,7 @@ See [`BollingerBandsConfig`](../reference/index.md).
 The formula: `middle = MA(source, period)`; `upper/lower = middle ± stdDev × σ`,
 where σ is the **population** standard deviation of `source` over the same
 trailing window. With `basis: 'ema'` the middle line becomes an EMA, but σ is
-still computed around the window's arithmetic mean (matching TradingView).
+still computed around the window's arithmetic mean (the standard definition).
 
 | Option | Default | Notes |
 | --- | --- | --- |

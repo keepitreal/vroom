@@ -136,7 +136,7 @@ history (Escape or ⌘Z cancels a pending point instead).
 
 History is **in-memory and session-only** — the drawings persist (via
 `drawingStore` or your own state), the undo stack deliberately doesn't, matching
-TradingView, Excalidraw and Figma. In managed mode it's also scoped per
+Excalidraw, Figma and Photoshop. In managed mode it's also scoped per
 `seriesKey`: switching markets resets it, so undo can never edit a market you're
 no longer looking at. Depth is capped at 100 steps (`historyLimit` to change).
 

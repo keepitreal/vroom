@@ -19,7 +19,7 @@ namespace vroom::bollinger {
 //                 period window
 //
 // The stdev always uses the window's arithmetic mean, even when basis_kind
-// selects an EMA basis line (TradingView semantics).
+// selects an EMA basis line (the standard semantics).
 //
 // Each output is resized to n; values are NaN for i < period-1 and when
 // n < period.

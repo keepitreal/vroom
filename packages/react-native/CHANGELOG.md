@@ -9,9 +9,9 @@
   into the same C++ chart core and RN-Skia integration the iOS bridge uses.
   Previously the Android TurboModule was a placeholder and `VroomChart` was
   non-functional on Android.
-- eead2e2: Add consumer-supplied horizontal price status lines, in the style of
-  TradingView's order and position lines. Pass `priceLines` to render a line at a
-  price with a label group — body text, an optional quantity segment, and an
+- eead2e2: Add consumer-supplied horizontal price status lines, in the style of the order
+  and position lines trading terminals draw. Pass `priceLines` to render a line at
+  a price with a label group — body text, an optional quantity segment, and an
   optional close button — plus a matching badge in the price axis.
 
   Lines can be dragged vertically when `draggable` is set: `onPriceLineDrag` fires
@@ -41,7 +41,7 @@
 - 9feb921: Add a Bollinger Bands overlay indicator (`bollingerBands` prop): a basis
   SMA/EMA over a configurable period with upper/lower bands at ± N population
   standard deviations, per-line colors/widths, and an optional translucent fill
-  between the bands. Defaults match TradingView (20-period SMA of close, ±2σ).
+  between the bands. Defaults match the standard settings (20-period SMA of close, ±2σ).
 
 ## 0.4.0
 

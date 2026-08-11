@@ -58,7 +58,7 @@ Default 0.2.
 
 This is a ceiling rather than a reserved strip: raising it lets the bars
 reach further up over the candles rather than compressing them, matching
-TradingView's built-in volume. Heights always auto-fit the loudest volume
+the conventional volume overlay. Heights always auto-fit the loudest volume
 in view, so the tallest bar sits exactly at the ceiling.
 
 ---

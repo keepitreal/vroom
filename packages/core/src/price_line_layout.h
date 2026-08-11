@@ -17,7 +17,7 @@ constexpr float kPadV = 4.f;    // above/below the text
 constexpr float kCorner = 6.f;  // rounded-pill corner radius
 
 // Extra grab band above and below the stroke, so a 1px line is still an easy
-// target. Matches the tolerance TradingView's own chart libraries settled on.
+// target. Matches the tolerance mainstream chart libraries settled on.
 constexpr float kLineHitTolerance = 7.f;
 
 // Gap between the label group and the price axis when right-aligned. Wide enough
