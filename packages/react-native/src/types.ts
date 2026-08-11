@@ -15,8 +15,10 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,
+  VolumeConfig,
   MACDConfig,
   ChartType,
+  TransitionEasing,
   PriceLine,
   PriceLinesStyle,
 } from '@vroomchart/types';

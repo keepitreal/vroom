@@ -25,9 +25,14 @@
   "pnpm": {
     "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check).",
     "onlyBuiltDependencies": ["esbuild"],
+    "auditConfig": {
+      "//": "image-size has no fixed release — every version through 2.0.2 (the latest) is affected, so there is nothing to pin. Both advisories are parser denial-of-service reached only at build time, via docusaurus's mdx-loader and expo's metro, on images from this repo; neither path ships in a published package. Drop these once docusaurus/expo pick up a fixed image-size.",
+      "ignoreGhsas": ["GHSA-w3rx-r6r6-pgpr", "GHSA-5p2g-fcmc-qvqq"]
+    },
     "overrides": {
       "tar": ">=7.5.19",
       "postcss": ">=8.5.18 <9",
+      "nanoid@3": ">=3.3.17 <4",
       "brace-expansion@1": ">=1.1.17 <2",
       "brace-expansion@2": ">=2.1.2 <3",
       "brace-expansion@5": ">=5.0.8",

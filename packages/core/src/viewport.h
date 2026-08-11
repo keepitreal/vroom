@@ -34,6 +34,12 @@ inline float x_axis_top(const Layout& l) {
     return l.height_px - l.x_axis_height_px;
 }
 
+// Width available to candles: the full width minus the y-axis strip and the
+// right-hand gutter.
+inline float candle_area_width(const Layout& l) {
+    return l.width_px - l.y_axis_width_px - l.right_padding_px;
+}
+
 struct PriceBounds {
     double min;
     double max;
@@ -44,6 +50,27 @@ struct IndexRange {
     size_t start;
     size_t end;
 };
+
+// One candle's geometry captured in normalized form for the interval morph:
+// x as a fraction of the candle-area width, prices as fractions of the price
+// band. Resolution-independent, so a resize mid-morph stays correct — and
+// independent of the price bounds, so the captured geometry keeps its pixel
+// position after a timeframe switch re-scales the y-axis.
+struct CandleSnapshot {
+    float x;
+    float open, high, low, close;
+    bool  bull;  // close >= open; selects the fill / wick / border color
+};
+
+// How many captured slots still contribute to a frame — 0 once the morph is
+// done, which releases the capture. Drawing routines take max(n, this) as their
+// slot count, pairing the new candle at slot k (visible[n - 1 - k]) with the
+// captured one (from[k]), both counting back from the right edge.
+inline std::size_t morph_from_count(const CandleSnapshot* from,
+                                    std::size_t from_n,
+                                    float morph_t) {
+    return (from && morph_t < 1.f) ? from_n : 0;
+}
 
 // Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
 // When both are 0, returns the full range (Phase 1 default-everything behavior).
@@ -140,8 +167,31 @@ constexpr double kAutoYZoom = 1.5;
 // {0, 1} sentinel when count == 0 (callers keep their previous bounds).
 PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count);
 
+// Rescales an axis range so a data envelope keeps the pixel height *and* the
+// pixel position it had before a data swap — the "scale lock" applied on a
+// timeframe switch, where the same price action re-buckets into a smaller or
+// larger high-low span.
+//
+// `old_axis` is the axis range that was in effect; `old_env` / `new_env` are the
+// visible high-low envelopes (as returned by price_bounds) before and after the
+// swap. Resolution-independent: both envelopes share the same draw band, so the
+// band height cancels out. Returns `old_axis` unchanged when any span is
+// degenerate.
+PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
+                                     const PriceBounds& old_env,
+                                     const PriceBounds& new_env);
+
 // Map a price to y in pixels. y=0 is top of the chart.
 float price_to_y(const Layout& layout, const PriceBounds& bounds, double price);
+
+// Fraction of the price band a price sits at: 0 = bounds.min, 1 = bounds.max.
+// Returns 0.5 for a degenerate range, matching price_to_y's midpoint fallback.
+double price_fraction(const PriceBounds& bounds, double price);
+
+// The y of a band fraction. Splits price_to_y in two so geometry can be stored
+// independently of the price bounds (see CandleSnapshot):
+//   price_to_y(l, b, p) == y_at_fraction(l, price_fraction(b, p))
+float y_at_fraction(const Layout& layout, double frac);
 
 // Inverse of price_to_y: map a pixel y in the price pane back to a price.
 // Returns bounds.min for a degenerate range or draw band.

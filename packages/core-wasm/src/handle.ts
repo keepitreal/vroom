@@ -41,6 +41,7 @@ export enum FloatKey {
   WickRoundCap = 9,
   VolumeRadius = 10,
   LineWidth = 11,
+  LineGradientOpacity = 12,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
@@ -109,6 +110,25 @@ export type BollingerSpec = {
   fillEnabled: boolean;
   /** 0..1, multiplied into upperColor's alpha. */
   fillOpacity: number;
+};
+
+/**
+ * The volume bars, in the core's numeric encoding. The style fields carry an
+ * inherit sentinel — a negative number or a fully transparent color tells the
+ * core to fall back to the matching theme key.
+ */
+export type VolumeSpec = {
+  enabled: boolean;
+  /** Tallest bar as a fraction of the price pane. < 0 inherits 0.2. */
+  heightFrac: number;
+  /** 0..1 (1 = opaque). < 0 inherits the theme's volume opacity. */
+  opacity: number;
+  /** Top-corner radius in px. < 0 inherits the theme's volumeRadius. */
+  radiusPx: number;
+  /** Packed 0xAARRGGBB. 0 inherits the theme's accentBull. */
+  upColor: number;
+  /** Packed 0xAARRGGBB. 0 inherits the theme's accentBear. */
+  downColor: number;
 };
 
 /**
@@ -235,8 +255,9 @@ export interface VroomChartHandle {
    * 1 = line. Driven per-frame by the host; setChartType snaps both.
    */
   setMorph(collapse: number, fade: number): void;
-  // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale on
-  // the JSI handle — currently web-only.
+  // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale/
+  // getVisiblePriceEnvelope/preservePriceEnvelope/beginIntervalMorph/
+  // setIntervalMorph on the JSI handle — currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
   getVisibleRange(): { startMs: number; endMs: number };
   /**
@@ -252,6 +273,42 @@ export interface VroomChartHandle {
    * timeframe switch) so the price scale re-fits the newly visible candles.
    */
   resetPriceScale(): void;
+  /**
+   * The visible price *envelope* — the min low / max high across the currently
+   * visible candles, i.e. the extent the candles occupy rather than the (wider)
+   * axis range. Null when no candles are visible.
+   */
+  getVisiblePriceEnvelope(): { low: number; high: number } | null;
+  /**
+   * Scale lock for a same-asset data swap that re-buckets the same price action
+   * into a different high-low span (a timeframe switch). Rescales a *manual*
+   * price range so the visible envelope keeps the exact pixel height and
+   * position the given pre-swap envelope had — so candles don't suddenly shrink
+   * or grow when the interval changes.
+   *
+   * Call after setCandles + setVisibleRange, passing the envelope read by
+   * getVisiblePriceEnvelope before the swap. A no-op in auto-y mode (auto-fit is
+   * already span-invariant); falls back to resetPriceScale when either envelope
+   * is degenerate.
+   */
+  preservePriceEnvelope(prevLow: number, prevHigh: number): void;
+  /**
+   * Capture the visible candle geometry so the next data swap can animate as a
+   * reshape rather than a jump: each candle's wick and body slide and stretch
+   * into the shape of its counterpart in the new data.
+   *
+   * Candles are paired by *slot* — position counting back from the right edge of
+   * the visible window, which a timeframe switch preserves. Call before
+   * setCandles, then drive setIntervalMorph from 0 to 1.
+   */
+  beginIntervalMorph(): void;
+  /**
+   * Advance the interval morph started by beginIntervalMorph. `t` (clamped to
+   * 0..1) is the eased progress: 0 renders the captured geometry pixel-
+   * identically to the pre-swap frame, 1 renders the new candles and releases
+   * the capture. Driven per-frame by the host animation loop.
+   */
+  setIntervalMorph(t: number): void;
 
   /** Shift the visible range by dx/dy CSS px. */
   pan(dx: number, dy: number): void;
@@ -317,6 +374,18 @@ export interface VroomChartHandle {
     width: number,
   ): void;
   setBollinger(spec: BollingerSpec): void;
+  setVolume(spec: VolumeSpec): void;
+  /**
+   * Staggered volume-bar collapse: 0 = full height, 1 = all bars flat. Bars fall
+   * tallest-first and land together; drive 1 → 0 to reveal them, which plays the
+   * same cascade in reverse (shortest bar home first).
+   *
+   * Unlike setMorph, `t` must be **linear** progress — the core eases each bar
+   * over its own slice of the timeline, so the curve is applied there. `easing`
+   * indexes `linear | ease-in | ease-out | ease-in-out`. setVolume snaps this to
+   * match its `enabled`, so it's only needed while animating.
+   */
+  setVolumeCollapse(t: number, easing: number): void;
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;

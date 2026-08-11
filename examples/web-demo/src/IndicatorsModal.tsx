@@ -5,6 +5,7 @@ import type {
   MASource,
   MovingAverageOverlay,
   RSIConfig,
+  VolumeConfig,
   VWAPConfig,
 } from '@vroomchart/react';
 
@@ -13,7 +14,14 @@ import type {
 // parameter controls. The host (App) owns all state; this component only owns
 // list<->detail navigation.
 
-export type IndicatorId = 'bb' | 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
+export type IndicatorId =
+  | 'bb'
+  | 'ema'
+  | 'macd'
+  | 'ma'
+  | 'rsi'
+  | 'volume'
+  | 'vwap';
 
 export type IndicatorConfig = {
   enabled: boolean;
@@ -59,6 +67,12 @@ export const INDICATORS: IndicatorMeta[] = [
       'Relative Strength Index — a 0–100 momentum oscillator that flags overbought and oversold conditions.',
   },
   {
+    id: 'volume',
+    name: 'Volume',
+    description:
+      'Traded size per candle, drawn as bottom-anchored bars under the price. Bars auto-fit the loudest volume in view, so height reads relatively rather than absolutely.',
+  },
+  {
     id: 'vwap',
     name: 'VWAP',
     description:
@@ -72,6 +86,8 @@ export const DEFAULT_INDICATOR_STATE: IndicatorState = {
   macd: { enabled: false },
   ma: { enabled: false },
   rsi: { enabled: false },
+  // The one indicator that ships on, matching the chart's own default.
+  volume: { enabled: true },
   vwap: { enabled: false },
 };
 
@@ -166,6 +182,20 @@ export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
   fillOpacity: 0.1,
 };
 
+export type VolumeParams = {
+  opacity: number;
+  height: number;
+  radius: number;
+};
+
+// Mirrors the core's own volume defaults, so the panel opens showing what the
+// chart is already drawing.
+export const DEFAULT_VOLUME_PARAMS: VolumeParams = {
+  opacity: 0.5,
+  height: 0.2,
+  radius: 0,
+};
+
 export type OverlayEditor = {
   lines: MALineParams[];
   onChange: (index: number, patch: Partial<MALineParams>) => void;
@@ -203,6 +233,7 @@ export type IndicatorChartProps = {
   movingAverages: MovingAverageOverlay[];
   vwap: VWAPConfig;
   bollingerBands: BollingerBandsConfig;
+  volume: VolumeConfig;
 };
 
 export function deriveIndicatorProps(
@@ -213,6 +244,7 @@ export function deriveIndicatorProps(
   emaLines: MALineParams[],
   vwapParams: VWAPParams,
   bbParams: BollingerParams,
+  volumeParams: VolumeParams,
 ): IndicatorChartProps {
   const movingAverages: MovingAverageOverlay[] = [
     ...(state.ma.enabled
@@ -262,6 +294,12 @@ export function deriveIndicatorProps(
       lowerWidth: bbParams.width,
       fill: bbParams.fill,
       fillOpacity: bbParams.fillOpacity,
+    },
+    volume: {
+      enabled: state.volume.enabled,
+      opacity: volumeParams.opacity,
+      height: volumeParams.height,
+      radius: volumeParams.radius,
     },
   };
 }
@@ -325,6 +363,8 @@ export function IndicatorsModal({
   onVwapParamsChange,
   bbParams,
   onBbParamsChange,
+  volumeParams,
+  onVolumeParamsChange,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -340,6 +380,8 @@ export function IndicatorsModal({
   onVwapParamsChange: (patch: Partial<VWAPParams>) => void;
   bbParams: BollingerParams;
   onBbParamsChange: (patch: Partial<BollingerParams>) => void;
+  volumeParams: VolumeParams;
+  onVolumeParamsChange: (patch: Partial<VolumeParams>) => void;
 }) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -385,6 +427,10 @@ export function IndicatorsModal({
             bbParams={detail.id === 'bb' ? bbParams : undefined}
             onBbParamsChange={
               detail.id === 'bb' ? onBbParamsChange : undefined
+            }
+            volumeParams={detail.id === 'volume' ? volumeParams : undefined}
+            onVolumeParamsChange={
+              detail.id === 'volume' ? onVolumeParamsChange : undefined
             }
           />
         ) : (
@@ -742,6 +788,8 @@ function DetailScreen({
   onVwapParamsChange,
   bbParams,
   onBbParamsChange,
+  volumeParams,
+  onVolumeParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -756,11 +804,14 @@ function DetailScreen({
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
   bbParams?: BollingerParams;
   onBbParamsChange?: (patch: Partial<BollingerParams>) => void;
+  volumeParams?: VolumeParams;
+  onVolumeParamsChange?: (patch: Partial<VolumeParams>) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   const bb = bbParams && onBbParamsChange ? bbParams : null;
+  const vol = volumeParams && onVolumeParamsChange ? volumeParams : null;
   return (
     <>
       <div style={navBar}>
@@ -1030,6 +1081,48 @@ function DetailScreen({
                   />
                 </div>
               )}
+            </>
+          ) : vol ? (
+            <>
+              <div style={paramRow}>
+                <span style={paramLabel}>Opacity</span>
+                <Segmented
+                  options={[
+                    { label: '25%', value: 0.25 },
+                    { label: '50%', value: 0.5 },
+                    { label: '75%', value: 0.75 },
+                    { label: '100%', value: 1 },
+                  ]}
+                  value={vol.opacity}
+                  onChange={(v) => onVolumeParamsChange!({ opacity: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Height</span>
+                <Segmented
+                  options={[
+                    { label: '10%', value: 0.1 },
+                    { label: '20%', value: 0.2 },
+                    { label: '35%', value: 0.35 },
+                    { label: '50%', value: 0.5 },
+                  ]}
+                  value={vol.height}
+                  onChange={(v) => onVolumeParamsChange!({ height: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Top radius</span>
+                <Segmented
+                  options={[
+                    { label: 'Square', value: 0 },
+                    { label: '2px', value: 2 },
+                    { label: '4px', value: 4 },
+                    { label: '8px', value: 8 },
+                  ]}
+                  value={vol.radius}
+                  onChange={(v) => onVolumeParamsChange!({ radius: v })}
+                />
+              </div>
             </>
           ) : (
             <p style={{ color: '#8b949e', fontSize: 14 }}>

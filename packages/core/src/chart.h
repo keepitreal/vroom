@@ -64,6 +64,21 @@ struct VroomChart {
     float morph_collapse = 0.f;
     float morph_fade = 0.f;
 
+    // Interval morph: the outgoing candle geometry captured when a timeframe
+    // switch begins, indexed from the right of the visible slice (slot 0 =
+    // newest) — the pairing the preserved slot grid guarantees. Stored as
+    // normalized fractions so it survives the new bounds and a resize.
+    // Empty when not morphing.
+    std::vector<vroom::CandleSnapshot> morph_from;
+    float interval_morph_t = 1.f;  // 1 = not morphing
+    // The pre-switch price scale and time window. The candle capture above is
+    // normalized against these, and the axes keep rendering their old ticks from
+    // them while fading out (see labels::interval_phase), so a label is never
+    // drawn at a position it didn't already occupy.
+    vroom::PriceBounds morph_from_bounds{0.0, 1.0};
+    int64_t morph_from_start_ms = 0;
+    int64_t morph_from_end_ms = 0;
+
     // Cached y-axis width in pixels, sized to fit the widest formatted price
     // label. 0 = uncomputed; layout() falls back to a width ratio.
     float axis_width_px = 0.f;
@@ -150,6 +165,18 @@ struct VroomChart {
     std::vector<double> bb_lower_cache;
     bool bollinger_dirty = true;
 
+    // Volume bars (price pane, under the candles). On by default with every
+    // style field left on its inherit sentinel, so an untouched chart looks
+    // exactly as it did before the config existed. No cache — bar heights come
+    // straight off the visible candles' volume.
+    VroomVolume volume{1, -1.f, -1.f, -1.f, 0u, 0u};
+    // Staggered collapse of those bars, driven per-frame by the host animation
+    // loop: 0 = full height, 1 = all flat. Doubles as the visibility gate, since
+    // a fully collapsed chart draws nothing — set_volume snaps it to match
+    // `volume.enabled`, and the host overrides it while animating.
+    float volume_collapse_t = 0.f;
+    int32_t volume_collapse_easing = VROOM_EASING_IN_OUT;
+
     // --- drawings (annotations) --------------------------------------------
     // Committed drawings, anchored in data space so they track the candles on
     // pan/zoom. Drawn on the price pane above candles/overlays.
@@ -235,9 +262,9 @@ struct VroomChart {
     std::chrono::steady_clock::time_point last_anim_tick{};
     bool anim_started = false;
 
-    // dt of the current rebuild — populated by rebuild_chart_picture and
-    // consumed by the label-fade updaters. Public so the labels namespace
-    // can read it without a getter.
+    // dt of the current frame — populated by begin_frame and consumed by the
+    // label-fade updaters. Public so the labels namespace can read it without a
+    // getter.
     float last_dt_seconds = 0.f;
 
     // --- methods ------------------------------------------------------------
@@ -267,11 +294,18 @@ struct VroomChart {
     // indicator is enabled.
     void ensure_bollinger();
 
-    // The main drawing pass. Calls into the labels and candles modules.
+    // The main drawing pass. Calls into the labels and candles modules, and owns
+    // the per-frame animation clock (see begin_frame) so every host gets it —
+    // the web build draws straight through vroom_chart_draw rather than the
+    // SkPicture cache below.
     void draw_chart(SkCanvas* canvas);
 
+    // Per-frame animation bookkeeping: computes `last_dt_seconds`, which paces
+    // the label fades. Called at the top of draw_chart.
+    void begin_frame();
+
     // Re-records `chart_picture` by invoking draw_chart on a fresh
-    // SkPictureRecorder. Also computes `last_dt_seconds` for fade animation.
+    // SkPictureRecorder.
     void rebuild_chart_picture();
 
     // True if any axis label is mid-fade. Used by the JS-side animation loop

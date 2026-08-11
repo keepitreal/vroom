@@ -242,6 +242,10 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     chart->visible_start_ms = 0;
     chart->visible_end_ms = 0;
     chart->price_bounds_manual = false;
+    // An asset switch reframes wholesale, so a slot-paired morph is meaningless
+    // here — drop any capture rather than leaving it to reshape the wrong data.
+    chart->morph_from.clear();
+    chart->interval_morph_t = 1.f;
     apply_default_framing(chart);
     vroom::labels::recompute_axis_width(*chart);
     if (chart->cb.on_viewport_changed) {
@@ -255,6 +259,104 @@ extern "C" void vroom_chart_reset_price_scale(VroomChart* chart) {
     if (!chart || !chart->price_bounds_manual) return;
     chart->price_bounds_manual = false;
     vroom::labels::recompute_axis_width(*chart);
+    chart->mark_dirty();
+}
+
+extern "C" bool vroom_chart_get_visible_price_envelope(VroomChart* chart,
+                                                       double* out_low,
+                                                       double* out_high) {
+    if (!chart) return false;
+    const auto idx = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    if (idx.end <= idx.start) return false;
+    const auto env = vroom::price_bounds(chart->candles.data() + idx.start,
+                                         idx.end - idx.start);
+    if (out_low) *out_low = env.min;
+    if (out_high) *out_high = env.max;
+    return true;
+}
+
+extern "C" void vroom_chart_preserve_price_envelope(VroomChart* chart,
+                                                    double prev_low,
+                                                    double prev_high) {
+    // Auto mode already holds the envelope's pixel height constant (auto_price_
+    // bounds widens it by a fixed factor), so there is nothing to preserve.
+    if (!chart || !chart->price_bounds_manual) return;
+
+    double new_low = 0.0, new_high = 0.0;
+    const bool has_new =
+        vroom_chart_get_visible_price_envelope(chart, &new_low, &new_high);
+    if (!has_new || !(prev_high > prev_low) || !(new_high > new_low)) {
+        // Nothing to scale against — fall back to re-fitting the price scale.
+        vroom_chart_reset_price_scale(chart);
+        return;
+    }
+
+    chart->price_bounds = vroom::preserve_envelope_bounds(
+        chart->price_bounds, {prev_low, prev_high}, {new_low, new_high});
+    vroom::labels::recompute_axis_width(*chart);
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart) {
+    if (!chart) return;
+    chart->morph_from.clear();
+    chart->interval_morph_t = 1.f;
+
+    const auto lay = chart->layout();
+    const float area_w = vroom::candle_area_width(lay);
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (area_w <= 0.f || window_ms <= 0) return;
+
+    const auto idx = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const std::size_t n = idx.end - idx.start;
+    if (n == 0) return;
+    const ::VroomCandle* visible = chart->candles.data() + idx.start;
+
+    const auto bounds = chart->price_bounds_manual
+        ? chart->price_bounds
+        : vroom::auto_price_bounds(visible, n);
+
+    // Normalized so the capture is independent of both the price bounds (which
+    // the swap is about to replace) and the surface size (which may change
+    // mid-morph). Newest candle first, matching the slot indexing in
+    // candles::draw.
+    chart->morph_from.resize(n);
+    for (std::size_t k = 0; k < n; ++k) {
+        const auto& c = visible[n - 1 - k];
+        chart->morph_from[k] = vroom::CandleSnapshot{
+            vroom::candle_center_x(lay, c.time_ms, chart->candle_duration_ms,
+                                   chart->visible_start_ms, window_ms) / area_w,
+            static_cast<float>(vroom::price_fraction(bounds, c.open)),
+            static_cast<float>(vroom::price_fraction(bounds, c.high)),
+            static_cast<float>(vroom::price_fraction(bounds, c.low)),
+            static_cast<float>(vroom::price_fraction(bounds, c.close)),
+            c.close >= c.open,
+        };
+    }
+
+    // The scale the capture was taken against — the axes render their outgoing
+    // ticks from it, and it's about to be replaced on the chart itself.
+    chart->morph_from_bounds = bounds;
+    chart->morph_from_start_ms = chart->visible_start_ms;
+    chart->morph_from_end_ms = chart->visible_end_ms;
+
+    // Open the morph at 0 rather than leaving it at 1: the caller still has to
+    // push the new candles, and any frame painted in between should show the
+    // captured geometry — which is what the pre-switch frame looked like.
+    chart->interval_morph_t = 0.f;
+}
+
+extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
+    if (!chart) return;
+    chart->interval_morph_t = std::clamp(t, 0.f, 1.f);
+    if (chart->interval_morph_t >= 1.f) {
+        chart->morph_from.clear();
+        chart->morph_from.shrink_to_fit();
+    }
     chart->mark_dirty();
 }
 
@@ -1163,6 +1265,30 @@ extern "C" void vroom_chart_set_bollinger(VroomChart* chart,
                            cur.basis_kind != next.basis_kind;
     chart->bollinger = next;
     if (recompute) chart->bollinger_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_volume(VroomChart* chart,
+                                       const VroomVolume* cfg) {
+    if (!chart || !cfg) return;
+    VroomVolume next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    // Negative means "inherit", so only clamp the ranges once a value is set.
+    if (next.height_frac >= 0.f) next.height_frac = std::min(next.height_frac, 1.f);
+    if (next.opacity >= 0.f) next.opacity = std::min(next.opacity, 1.f);
+    chart->volume = next;
+    // Snap the collapse to the new target, the way set_chart_type snaps the
+    // candle↔line morph. A host that wants the toggle animated overrides this
+    // from its frame loop before the next paint.
+    chart->volume_collapse_t = next.enabled ? 0.f : 1.f;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_volume_collapse(VroomChart* chart, float t,
+                                               int32_t easing) {
+    if (!chart) return;
+    chart->volume_collapse_t = std::clamp(t, 0.f, 1.f);
+    chart->volume_collapse_easing = easing;
     chart->mark_dirty();
 }
 

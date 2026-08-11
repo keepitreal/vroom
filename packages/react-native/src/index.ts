@@ -12,7 +12,9 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,
+  VolumeConfig,
   ChartType,
+  TransitionEasing,
   PriceLine,
   PriceLinesStyle,
 } from './types';

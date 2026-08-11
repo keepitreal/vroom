@@ -10,6 +10,7 @@ import {
   type LiquidityBand,
   type LiquidityConfig,
   type PriceLine,
+  type TransitionEasing,
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
@@ -24,6 +25,7 @@ import {
   DEFAULT_EMA_LINE,
   DEFAULT_VWAP_PARAMS,
   DEFAULT_BOLLINGER_PARAMS,
+  DEFAULT_VOLUME_PARAMS,
   deriveIndicatorProps,
   enabledCount,
   type BollingerParams,
@@ -32,6 +34,7 @@ import {
   type MACDParams,
   type MALineParams,
   type RSIParams,
+  type VolumeParams,
   type VWAPParams,
 } from './IndicatorsModal';
 
@@ -40,10 +43,12 @@ const CANDLE_WIDTH_KEY = 'vroom-candle-width';
 const WICK_WIDTH_KEY = 'vroom-wick-width';
 const CANDLE_RADIUS_KEY = 'vroom-candle-radius';
 const WICK_CAP_KEY = 'vroom-wick-cap';
-const VOLUME_RADIUS_KEY = 'vroom-volume-radius';
 const CHART_TYPE_KEY = 'vroom-chart-type';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
+const TRANSITION_EASING_KEY = 'vroom-transition-easing';
 const SIDEBAR_KEY = 'vroom-sidebar';
+
+const EASINGS: readonly TransitionEasing[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
 // Generic localStorage getters for the numeric/boolean style knobs.
 function loadNum(key: string, def: number): number {
@@ -360,6 +365,13 @@ const toolBtn: CSSProperties = {
   cursor: 'pointer',
 };
 
+const toolBtnActive: CSSProperties = {
+  ...toolBtn,
+  background: '#1f6feb',
+  border: '1px solid #1f6feb',
+  color: '#fff',
+};
+
 export function App() {
   // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
   // bundled in @vroomchart/core-wasm.
@@ -392,8 +404,13 @@ export function App() {
       ? 'line'
       : 'candles',
   );
-  // Candle↔line transition duration (ms). 0 = instant snap.
+  // Duration (ms) of the candle↔line and interval-switch animations. 0 = snap.
   const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
+  const [easing, setEasing] = useState<TransitionEasing>(() => {
+    if (typeof window === 'undefined') return 'ease-in-out';
+    const v = window.localStorage.getItem(TRANSITION_EASING_KEY);
+    return EASINGS.includes(v as TransitionEasing) ? (v as TransitionEasing) : 'ease-in-out';
+  });
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -482,7 +499,6 @@ export function App() {
   const [wickWidth, setWickWidth] = useState(loadWickWidth);
   const [candleRadius, setCandleRadius] = useState(() => loadNum(CANDLE_RADIUS_KEY, 0));
   const [wickRoundCap, setWickRoundCap] = useState(() => loadBool(WICK_CAP_KEY, false));
-  const [volumeRadius, setVolumeRadius] = useState(() => loadNum(VOLUME_RADIUS_KEY, 0));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Drawing tool state. `drawMode`/`drawTool` drive the chart. Drawings are
@@ -606,6 +622,14 @@ export function App() {
 
   useEffect(() => {
     try {
+      window.localStorage.setItem(TRANSITION_EASING_KEY, easing);
+    } catch {
+      // best-effort
+    }
+  }, [easing]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? '1' : '0');
     } catch {
       // best-effort
@@ -624,24 +648,22 @@ export function App() {
   useEffect(() => {
     try {
       window.localStorage.setItem(CANDLE_RADIUS_KEY, String(candleRadius));
-      window.localStorage.setItem(VOLUME_RADIUS_KEY, String(volumeRadius));
       window.localStorage.setItem(WICK_CAP_KEY, wickRoundCap ? '1' : '0');
     } catch {
       // best-effort
     }
-  }, [candleRadius, volumeRadius, wickRoundCap]);
+  }, [candleRadius, wickRoundCap]);
 
   // Color theme plus the numeric/boolean style knobs, as one VroomTheme for the charts.
   const chartTheme = useMemo(
-    () => ({ ...theme, wickWidth, candleRadius, wickRoundCap, volumeRadius }),
-    [theme, wickWidth, candleRadius, wickRoundCap, volumeRadius],
+    () => ({ ...theme, wickWidth, candleRadius, wickRoundCap }),
+    [theme, wickWidth, candleRadius, wickRoundCap],
   );
-  const numericStyle: NumericStyle = { wickWidth, candleRadius, wickRoundCap, volumeRadius };
+  const numericStyle: NumericStyle = { wickWidth, candleRadius, wickRoundCap };
   const onNumericStyleChange = (patch: Partial<NumericStyle>) => {
     if (patch.wickWidth !== undefined) setWickWidth(patch.wickWidth);
     if (patch.candleRadius !== undefined) setCandleRadius(patch.candleRadius);
     if (patch.wickRoundCap !== undefined) setWickRoundCap(patch.wickRoundCap);
-    if (patch.volumeRadius !== undefined) setVolumeRadius(patch.volumeRadius);
   };
 
   // Indicator enable/config state lives here so it drives both chart views.
@@ -656,6 +678,9 @@ export function App() {
   const [vwapParams, setVwapParams] = useState<VWAPParams>(DEFAULT_VWAP_PARAMS);
   const [bbParams, setBbParams] = useState<BollingerParams>(
     DEFAULT_BOLLINGER_PARAMS,
+  );
+  const [volumeParams, setVolumeParams] = useState<VolumeParams>(
+    DEFAULT_VOLUME_PARAMS,
   );
 
   const patchRsi = useCallback(
@@ -673,6 +698,11 @@ export function App() {
   const patchBb = useCallback(
     (patch: Partial<BollingerParams>) =>
       setBbParams((p) => ({ ...p, ...patch })),
+    [],
+  );
+  const patchVolume = useCallback(
+    (patch: Partial<VolumeParams>) =>
+      setVolumeParams((p) => ({ ...p, ...patch })),
     [],
   );
 
@@ -705,6 +735,7 @@ export function App() {
     emaLines,
     vwapParams,
     bbParams,
+    volumeParams,
   );
   const activeCount = enabledCount(indicators);
 
@@ -726,6 +757,18 @@ export function App() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', color: '#c9d1d9', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ padding: '10px 14px', display: 'flex', gap: 16, alignItems: 'center', borderBottom: '1px solid #21262d' }}>
         <strong style={{ fontSize: 16 }}>Vroom 🏎️💨</strong>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {TIMEFRAMES.map((t) => (
+            <button
+              key={t.label}
+              onClick={() => setTf(t.stepMs)}
+              style={t.stepMs === tf ? toolBtnActive : toolBtn}
+              title={`Switch to the ${t.label} interval`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
         <span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13, opacity: 0.85 }}>{readout}</span>
         <button
           onClick={() => setSidebarOpen((o) => !o)}
@@ -747,6 +790,7 @@ export function App() {
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
+                  transitionEasing={easing}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...priceLineProps}
@@ -764,6 +808,7 @@ export function App() {
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
+                  transitionEasing={easing}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -781,6 +826,7 @@ export function App() {
                 theme={chartTheme}
                 chartType={chartType}
                 transitionMs={transitionMs}
+                transitionEasing={easing}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...priceLineProps}
@@ -793,7 +839,8 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, transitionMs, setTransitionMs }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType }}
+            animation={{ transitionMs, setTransitionMs, easing, setEasing }}
             data={{
               assets: Object.keys(ASSETS),
               asset,
@@ -851,6 +898,8 @@ export function App() {
         onVwapParamsChange={patchVwap}
         bbParams={bbParams}
         onBbParamsChange={patchBb}
+        volumeParams={volumeParams}
+        onVolumeParamsChange={patchVolume}
       />
     </div>
   );

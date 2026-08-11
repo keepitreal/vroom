@@ -54,6 +54,8 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setVolume"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setVolumeCollapse"));
   out.push_back(jsi::PropNameID::forAscii(rt, "coordAt"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLines"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestPriceLine"));
@@ -663,6 +665,57 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           cfg.fill_opacity = static_cast<float>(
               s.getProperty(rt2, "fillOpacity").asNumber());
           vroom_chart_set_bollinger(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setVolume") {
+    // setVolume({enabled, heightFrac, opacity, radiusPx, upColor, downColor})
+    // — the volume bars. Negative floats / zero colors inherit the theme. No
+    // render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setVolume"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          VroomVolume cfg{};
+          cfg.enabled = s.getProperty(rt2, "enabled").asBool() ? 1 : 0;
+          cfg.height_frac = static_cast<float>(
+              s.getProperty(rt2, "heightFrac").asNumber());
+          cfg.opacity = static_cast<float>(
+              s.getProperty(rt2, "opacity").asNumber());
+          cfg.radius_px = static_cast<float>(
+              s.getProperty(rt2, "radiusPx").asNumber());
+          cfg.up_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "upColor").asNumber());
+          cfg.down_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "downColor").asNumber());
+          vroom_chart_set_volume(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setVolumeCollapse") {
+    // setVolumeCollapse(t, easing) — staggered collapse of the volume bars. `t`
+    // is LINEAR progress; the core eases each bar over its own window.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setVolumeCollapse"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_volume_collapse(
+              chart_,
+              static_cast<float>(args[0].asNumber()),
+              static_cast<int32_t>(args[1].asNumber()));
           return jsi::Value::undefined();
         });
   }

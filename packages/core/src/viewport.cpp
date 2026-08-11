@@ -10,8 +10,7 @@ float candle_body_width(const Layout& layout,
                         int64_t window_ms,
                         int64_t candle_duration_ms) {
     if (window_ms <= 0 || candle_duration_ms <= 0) return 0.f;
-    const float usable =
-        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    const float usable = candle_area_width(layout);
     const double slot = static_cast<double>(usable) *
         (static_cast<double>(candle_duration_ms) /
          static_cast<double>(window_ms));
@@ -24,8 +23,7 @@ float candle_center_x(const Layout& layout,
                       int64_t visible_start_ms,
                       int64_t window_ms) {
     if (window_ms <= 0) return 0.f;
-    const float usable =
-        layout.width_px - layout.y_axis_width_px - layout.right_padding_px;
+    const float usable = candle_area_width(layout);
     const double center_time =
         static_cast<double>(time_ms) +
         static_cast<double>(candle_duration_ms) * 0.5;
@@ -213,19 +211,45 @@ PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count) {
     return {mid - half, mid + half};
 }
 
-float price_to_y(const Layout& layout,
-                 const PriceBounds& bounds,
-                 double price) {
+PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
+                                     const PriceBounds& old_env,
+                                     const PriceBounds& new_env) {
+    const double axis_range = old_axis.max - old_axis.min;
+    const double old_span = old_env.max - old_env.min;
+    const double new_span = new_env.max - new_env.min;
+    if (axis_range <= 0.0 || old_span <= 0.0 || new_span <= 0.0) return old_axis;
+
+    // Same span/range ratio => same pixel height for the envelope.
+    const double new_range = axis_range * (new_span / old_span);
+    // Fraction of the axis (from the bottom) where the old envelope's midpoint
+    // sat; putting the new midpoint at the same fraction pins the envelope box.
+    const double t =
+        ((old_env.min + old_env.max) * 0.5 - old_axis.min) / axis_range;
+    const double new_mid = (new_env.min + new_env.max) * 0.5;
+    return {new_mid - t * new_range, new_mid + (1.0 - t) * new_range};
+}
+
+double price_fraction(const PriceBounds& bounds, double price) {
+    const double range = bounds.max - bounds.min;
+    // Degenerate range: everything sits at the band midpoint, which keeps
+    // price_to_y's flat-series fallback intact.
+    if (range <= 0.0) return 0.5;
+    return (price - bounds.min) / range;  // 0 at min, 1 at max
+}
+
+float y_at_fraction(const Layout& layout, double frac) {
     // The candle drawing area is the full height minus the x-axis strip and
     // any below-chart indicator pane.
     const float candle_area_h = price_pane_bottom(layout);
     const float top = candle_area_h * layout.top_padding_frac;
     const float bot = candle_area_h * (1.f - layout.bottom_padding_frac);
-    const float draw_h = bot - top;
-    const double range = bounds.max - bounds.min;
-    if (range <= 0.0) return (top + bot) * 0.5f;
-    const double t = (price - bounds.min) / range;  // 0..1, 0 at min
-    return bot - static_cast<float>(t) * draw_h;    // invert: high price → low y
+    return bot - static_cast<float>(frac) * (bot - top);  // invert: high → low y
+}
+
+float price_to_y(const Layout& layout,
+                 const PriceBounds& bounds,
+                 double price) {
+    return y_at_fraction(layout, price_fraction(bounds, price));
 }
 
 double y_to_price(const Layout& layout,

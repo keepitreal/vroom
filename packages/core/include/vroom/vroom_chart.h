@@ -69,6 +69,25 @@ typedef struct VroomBollinger {
     float    fill_opacity;  // 0..1, multiplied into upper_color's alpha
 } VroomBollinger;
 
+// Volume bars on the price pane, one per candle, drawn under the candles.
+//
+// `height_frac` is a ceiling, not a reservation: raising it lets the tallest bar
+// reach further up over the candles rather than compressing them (matching
+// TradingView's built-in volume). Bar heights always auto-fit the loudest volume
+// in view, so the tallest bar sits exactly at the ceiling.
+//
+// The style fields carry an inherit sentinel so the theme keeps supplying them
+// when the consumer doesn't: a negative float or a fully transparent color falls
+// back to the corresponding theme key.
+typedef struct VroomVolume {
+    int32_t  enabled;      // 0/1 — default 1: bars draw unless turned off
+    float    height_frac;  // tallest bar as a fraction of the price pane; < 0 inherits 0.2
+    float    opacity;      // 0..1 (1 = opaque); < 0 inherits VROOM_FLOAT_VOLUME_OPACITY
+    float    radius_px;    // top-corner radius; < 0 inherits VROOM_FLOAT_VOLUME_RADIUS_PX
+    uint32_t up_color;     // 0xAARRGGBB; 0 inherits VROOM_COLOR_ACCENT_BULL
+    uint32_t down_color;   // 0xAARRGGBB; 0 inherits VROOM_COLOR_ACCENT_BEAR
+} VroomVolume;
+
 // A drawing anchor in data space (so a drawing tracks the candles on pan/zoom).
 typedef struct VroomDrawPoint {
     int64_t time_ms;  // epoch milliseconds (not snapped to a candle slot)
@@ -199,8 +218,24 @@ typedef enum {
     VROOM_FLOAT_WICK_ROUND_CAP,          // 0/1: round the wick end caps
     VROOM_FLOAT_VOLUME_RADIUS_PX,        // volume bar top-corner radius px (0 = square)
     VROOM_FLOAT_LINE_WIDTH_PX,           // line-chart-mode polyline stroke width px
+    VROOM_FLOAT_LINE_GRADIENT_OPACITY,   // fill under the line at its strongest (0 disables)
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
+
+// ---- Animation ------------------------------------------------------------
+
+// Easing curves for the animations the core paces itself. Mirrors the
+// TransitionEasing union in @vroomchart/types, index for index.
+//
+// Most animations are eased by the host before it hands the core a progress
+// value; this enum exists for the ones the core has to ease internally because
+// each element runs on its own slice of the timeline.
+typedef enum {
+    VROOM_EASING_LINEAR = 0,
+    VROOM_EASING_IN,
+    VROOM_EASING_OUT,
+    VROOM_EASING_IN_OUT,  // smoothstep; the default for unknown values
+} VroomEasing;
 
 // ---- Callbacks ------------------------------------------------------------
 
@@ -262,6 +297,45 @@ void vroom_chart_reset_view(VroomChart* chart);
 // after repositioning the window for a same-asset data swap (e.g. a timeframe
 // switch) so the price scale re-fits the newly visible candles.
 void vroom_chart_reset_price_scale(VroomChart* chart);
+
+// Reads the visible price *envelope* — the min low / max high across the
+// currently visible candles. This is the extent the candles actually occupy, not
+// the axis range (which is wider: see vroom_chart_preserve_price_envelope).
+// Returns false (out params untouched) when no candles are visible. Either out
+// pointer may be null.
+bool vroom_chart_get_visible_price_envelope(VroomChart* chart,
+                                            double* out_low, double* out_high);
+
+// "Scale lock" for a same-asset data swap that re-buckets the same price action
+// into a different high-low span (a timeframe switch). Rescales a *manual* price
+// range so the visible envelope keeps the exact pixel height and position that
+// the [prev_low, prev_high] envelope had before the swap — so candles don't
+// suddenly shrink or grow when the interval changes.
+//
+// Call after set_candles + set_visible_range, passing the envelope read by
+// vroom_chart_get_visible_price_envelope *before* the swap.
+//
+// No-op in auto mode: auto-fit already widens the envelope by a fixed factor, so
+// its pixel height is invariant. Falls back to reset_price_scale semantics when
+// either envelope is degenerate.
+void vroom_chart_preserve_price_envelope(VroomChart* chart,
+                                         double prev_low, double prev_high);
+
+// Captures the currently visible candle geometry so the next data swap can be
+// animated as a reshape rather than a jump: each candle's wick and body slide
+// and stretch into the shape of its counterpart in the new data.
+//
+// Candles are paired by *slot* — position counting back from the right edge of
+// the visible window, which a timeframe switch preserves. Call before
+// set_candles, then drive vroom_chart_set_interval_morph from 0 to 1.
+// No-op when nothing is visible.
+void vroom_chart_begin_interval_morph(VroomChart* chart);
+
+// Advances the interval morph started by vroom_chart_begin_interval_morph. `t`
+// (clamped to 0..1) is the eased progress: 0 renders the captured geometry
+// pixel-identically to the pre-swap frame, 1 renders the new candles and
+// releases the capture. Driven per-frame by the host animation loop.
+void vroom_chart_set_interval_morph(VroomChart* chart, float t);
 
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
 // Directional zoom. scale_x scales the time window around focus_x_px (>1 =
@@ -383,6 +457,24 @@ void vroom_chart_set_vwap(VroomChart* chart, bool enabled, int reset_offset_min,
 // translucent fill between the bands; no pane is reserved). Color/width/fill
 // changes only re-render; enabled/period/mult/source/basis changes recompute.
 void vroom_chart_set_bollinger(VroomChart* chart, const VroomBollinger* cfg);
+
+// Configures the volume bars. Render-only — the bars come straight off each
+// candle's volume, so nothing is recomputed. Bars are enabled by default; pass
+// a config with `enabled` 0 to hide them.
+void vroom_chart_set_volume(VroomChart* chart, const VroomVolume* cfg);
+
+// Advances the staggered volume-bar collapse: 0 leaves every bar at full height,
+// 1 has them all flat. Driven per-frame by the host animation loop.
+//
+// `t` is *linear* progress, unlike the other morph setters. Each bar falls over
+// its own slice of the timeline — the tallest starting first and every bar
+// landing at 1 — so `easing` (a VroomEasing) is applied per bar inside the core;
+// pre-easing here would compound the two curves.
+//
+// Symmetric, so driving 1 -> 0 reveals the bars: the shortest rises first and
+// the tallest arrives last. vroom_chart_set_volume snaps this to match its
+// `enabled`, so the host only needs it while animating.
+void vroom_chart_set_volume_collapse(VroomChart* chart, float t, int32_t easing);
 
 // ---- Drawings (line annotations) ------------------------------------------
 

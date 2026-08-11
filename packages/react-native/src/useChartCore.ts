@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MutableRefObject } from 'react';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import NativeVroomChart from './NativeVroomChart';
@@ -15,6 +16,7 @@ import type {
   PriceLinesStyle,
   RSIConfig,
   VisibleRange,
+  VolumeConfig,
   VroomTheme,
   VWAPConfig,
 } from './types';
@@ -67,6 +69,20 @@ function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
     lowerWidth: cfg?.lowerWidth ?? 1,
     fillEnabled: cfg?.fill ?? true,
     fillOpacity: cfg?.fillOpacity ?? 0.1,
+  };
+}
+
+// Unset style fields go down as the core's inherit sentinels (negative float,
+// transparent color) rather than as literal defaults, so the theme keys stay in
+// charge of anything the consumer didn't set.
+function volumeToSpec(cfg: VolumeConfig | undefined) {
+  return {
+    enabled: cfg?.enabled ?? true,
+    heightFrac: cfg?.height ?? -1,
+    opacity: cfg?.opacity ?? -1,
+    radiusPx: cfg?.radius ?? -1,
+    upColor: (cfg?.upColor != null ? parseColor(cfg.upColor) : null) ?? 0,
+    downColor: (cfg?.downColor != null ? parseColor(cfg.downColor) : null) ?? 0,
   };
 }
 
@@ -136,10 +152,19 @@ function ensureInstalled(): void {
   installed = true;
 }
 
+/** Progress + curve of the staggered volume-bar collapse. See setVolumeCollapse. */
+export type VolumeCollapse = { t: number; easing: number };
+
 export type ChartCoreState = {
   handle: ChartHandle | null;
   /** Picture freshly rendered after the latest data/size/range push. */
   picture: SkPicture | null;
+  /**
+   * The last volume collapse handed to the core, or null before the first push.
+   * VroomChart's animation loop owns this — it lives here only so the data effect
+   * can restore it, since setVolume snaps the scalar (see below).
+   */
+  volumeCollapseRef: MutableRefObject<VolumeCollapse | null>;
 };
 
 // Owns a ChartHandle and produces an "initial" picture whenever data, size,
@@ -158,6 +183,7 @@ export function useChartCore(
   movingAverages?: MovingAverageOverlay[],
   vwap?: VWAPConfig,
   bollingerBands?: BollingerBandsConfig,
+  volume?: VolumeConfig,
   priceLines?: PriceLinesProp,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
@@ -165,6 +191,7 @@ export function useChartCore(
   // every data change, and the core setter re-frames when candles are present,
   // so re-pushing would snap the view away from the user's pan/zoom.
   const defaultWidthAppliedRef = useRef(false);
+  const volumeCollapseRef = useRef<VolumeCollapse | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
 
   if (!handleRef.current && size.width > 0 && size.height > 0) {
@@ -188,6 +215,7 @@ export function useChartCore(
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
+  const volumeKey = volume ? JSON.stringify(volume) : '';
   const priceLinesKey = priceLines ? JSON.stringify(priceLines) : '';
 
   useEffect(() => {
@@ -239,16 +267,23 @@ export function useChartCore(
       vwap?.width ?? 1.5,
     );
     h.setBollinger(bollingerToSpec(bollingerBands));
+    h.setVolume(volumeToSpec(volume));
+    // setVolume snaps the collapse scalar to its `enabled`, which would cut a
+    // toggle animation short whenever this effect re-runs (a streaming candle, a
+    // resize). Hand the in-flight value back; VroomChart's loop drives it from
+    // there.
+    const collapse = volumeCollapseRef.current;
+    if (collapse) h.setVolumeCollapse(collapse.t, collapse.easing);
     h.setPriceLines(
       priceLines?.lines.length ? priceLinesToSpec(priceLines) : EMPTY_PRICE_LINES,
     );
     // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
     // the VroomBand structs in the JSI handle) — web-only for now.
     setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/priceLines are
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/priceLines are
     // represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, priceLinesKey]);
+  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey]);
 
-  return { handle: handleRef.current, picture };
+  return { handle: handleRef.current, picture, volumeCollapseRef };
 }

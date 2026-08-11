@@ -112,6 +112,7 @@ void VroomChart::ensure_bollinger() {
 }
 
 void VroomChart::draw_chart(SkCanvas* canvas) {
+    begin_frame();
     const auto lay = layout();
 
     // 1. Background
@@ -140,19 +141,60 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
     //    share these opacities so their animations stay in lockstep.
-    vroom::labels::update_y_fades(*this, lay, bounds);
-    vroom::labels::update_x_fades(*this, lay);
+    //    While an interval morph fades the old ticks out, the axes are still laid
+    //    out against the pre-switch scale and window so nothing appears to move;
+    //    they adopt the new ones at the midpoint, invisible. Every axis call in
+    //    the frame has to agree on which of the two it's using.
+    const auto axis_phase = vroom::labels::interval_phase(*this);
+    const auto& axis_bounds = axis_phase.outgoing ? morph_from_bounds : bounds;
+    const int64_t axis_start_ms =
+        axis_phase.outgoing ? morph_from_start_ms : visible_start_ms;
+    const int64_t axis_end_ms =
+        axis_phase.outgoing ? morph_from_end_ms : visible_end_ms;
+    vroom::labels::update_y_fades(*this, lay, axis_bounds);
+    vroom::labels::update_x_fades(*this, lay, axis_start_ms, axis_end_ms);
 
     // 4. Gridlines — drawn before candles so candle bodies overlay them.
     //    Vertical (time) gridlines are intentionally disabled for now —
     //    re-enable by adding `vroom::labels::draw_x_gridlines(canvas, *this,
-    //    candle_right, candle_area_h);` here.
-    vroom::labels::draw_y_gridlines(canvas, *this, lay, bounds,
+    //    axis_start_ms, axis_end_ms, candle_right, candle_area_h);` here.
+    vroom::labels::draw_y_gridlines(canvas, *this, lay, axis_bounds,
                                     candle_right, candle_area_h);
 
+    // 4.35. Price-series morph state, shared by the gradient fill below and the
+    //       series itself (5). `morph_fade` crossfades candles→line and
+    //       `morph_collapse` folds each candle toward its close (the line vertex);
+    //       fade 0 = pure candles, fade 1 = pure line. An interval morph
+    //       additionally reshapes each slot from the geometry it held before the
+    //       timeframe switch (see `morph_from`) — candle bodies, line vertices and
+    //       the fill alike, so every layer stays in step mid-crossfade.
+    const float fade = morph_fade;
+    const float collapse = morph_collapse;
+    const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
+    const vroom::CandleSnapshot* morph_src = morphing ? morph_from.data() : nullptr;
+    const std::size_t morph_n = morphing ? morph_from.size() : 0;
+    const float morph_t = morphing ? interval_morph_t : 1.f;
+
+    // 4.4. Line-mode gradient fill — the wash under the close polyline. Behind the
+    //      volume bars so they stay legible on top of it, which puts it at the
+    //      back of the price pane's content.
+    if (fade > 0.f) {
+        vroom::ma_overlay::draw_close_gradient(
+            canvas, lay, bounds, visible, n, window_ms,
+            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
+            theme.colors[VROOM_COLOR_LINE],
+            theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
+            fade, morph_src, morph_n, morph_t);
+    }
+
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
-    vroom::volume::draw(canvas, visible, n, lay, theme,
-                        window_ms, visible_start_ms, candle_duration_ms);
+    //      A fully collapsed chart has no bars left to draw, which is also how
+    //      "volume disabled" is represented (set_volume snaps the scalar).
+    if (volume_collapse_t < 1.f) {
+        vroom::volume::draw(canvas, visible, n, lay, theme, volume,
+                            volume_collapse_t, volume_collapse_easing,
+                            window_ms, visible_start_ms, candle_duration_ms);
+    }
 
     // 4.6. Liquidity bands (resting-order depth) — behind the candles so the
     //      candle bodies paint over the volume-driven tint. Anchored in price
@@ -178,25 +220,19 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     }
 
     // 5. Price series — candles, a close-price line, or a blend of the two during
-    //    the candle↔line morph. `morph_fade` crossfades candles→line and
-    //    `morph_collapse` folds each candle toward its close (the line vertex).
-    //    fade 0 = pure candles, fade 1 = pure line. The line reuses the MA-overlay
-    //    polyline routine, fed the visible closes and styled by theme.LINE.
-    const float fade = morph_fade;
-    const float collapse = morph_collapse;
+    //    the candle↔line morph (state hoisted to 4.35 for the gradient fill). The
+    //    line is styled by theme.LINE.
     if (fade < 1.f) {
         vroom::candles::draw(canvas, visible, n, lay, theme, bounds, window_ms,
                              visible_start_ms, candle_duration_ms, collapse,
-                             1.f - fade);
+                             1.f - fade, morph_src, morph_n, morph_t);
     }
     if (fade > 0.f) {
-        std::vector<double> closes(n);
-        for (std::size_t i = 0; i < n; ++i) closes[i] = visible[i].close;
-        vroom::ma_overlay::draw(
-            canvas, lay, bounds, visible, n, closes.data(), window_ms,
+        vroom::ma_overlay::draw_close_line(
+            canvas, lay, bounds, visible, n, window_ms,
             visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
             theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-            nullptr, fade);
+            fade, morph_src, morph_n, morph_t);
     }
 
     // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the
@@ -272,8 +308,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         axis_bg);
 
     // 7. Labels (read from y_fades / x_fades, no state mutation here)
-    vroom::labels::draw_y_labels(canvas, *this, lay, bounds);
-    vroom::labels::draw_x_labels(canvas, *this, lay);
+    vroom::labels::draw_y_labels(canvas, *this, lay, axis_bounds);
+    vroom::labels::draw_x_labels(canvas, *this, lay, axis_start_ms, axis_end_ms);
 
     // 7.5. Current-price line + box — above labels so the box covers any label
     //      it overlaps; tracks the latest close as the price scale moves.
@@ -361,19 +397,24 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     vroom::labels::gc_x_fades(*this);
 }
 
-void VroomChart::rebuild_chart_picture() {
-    // Compute dt for fade animations. We cap large gaps (resume from
-    // background, long idle) so we don't snap animations to completion.
-    auto now = std::chrono::steady_clock::now();
+void VroomChart::begin_frame() {
+    // dt for the fade animations. A large gap (resume from background, or an idle
+    // chart that a click just woke up) is clamped to a nominal frame rather than
+    // zeroed: dt == 0 means "snap" to the fade updaters, which would finish every
+    // fade in the first frame after any idle period.
+    constexpr float kNominalFrameSeconds = 1.f / 60.f;
+    const auto now = std::chrono::steady_clock::now();
     float dt = 0.f;
     if (anim_started) {
         dt = std::chrono::duration<float>(now - last_anim_tick).count();
-        if (dt > 0.1f) dt = 0.f;
+        if (dt > 0.1f) dt = kNominalFrameSeconds;
     }
     last_anim_tick = now;
     anim_started = true;
     last_dt_seconds = dt;
+}
 
+void VroomChart::rebuild_chart_picture() {
     SkPictureRecorder recorder;
     SkCanvas* canvas = recorder.beginRecording(SkRect::MakeWH(width_px, height_px));
     draw_chart(canvas);

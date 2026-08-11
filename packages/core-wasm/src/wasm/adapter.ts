@@ -13,6 +13,7 @@ import type {
   LiquiditySpec,
   OverlaySpec,
   PriceLinesSpec,
+  VolumeSpec,
   VroomChartHandle,
   VroomModule,
 } from '../handle';
@@ -37,6 +38,10 @@ interface WebChartInstance {
   getVisibleRange(): { startMs: number; endMs: number };
   resetView(): void;
   resetPriceScale(): void;
+  getVisiblePriceEnvelope(): { low: number; high: number } | null;
+  preservePriceEnvelope(prevLow: number, prevHigh: number): void;
+  beginIntervalMorph(): void;
+  setIntervalMorph(t: number): void;
   pan(dx: number, dy: number): void;
   translate(dx: number, dy: number): void;
   zoom(sx: number, sy: number, fx: number, fy: number): void;
@@ -55,6 +60,8 @@ interface WebChartInstance {
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(e: boolean, reset: number, color: number, width: number): void;
   setBollinger(spec: BollingerSpec): void;
+  setVolume(spec: VolumeSpec): void;
+  setVolumeCollapse(t: number, easing: number): void;
   setDrawings(drawings: DrawingSpec[]): void;
   setLiquidity(liquidity: LiquiditySpec): void;
   setPriceLines(priceLines: PriceLinesSpec): void;
@@ -130,6 +137,18 @@ class WasmHandle implements VroomChartHandle {
   resetPriceScale(): void {
     this.wc.resetPriceScale();
   }
+  getVisiblePriceEnvelope(): { low: number; high: number } | null {
+    return this.wc.getVisiblePriceEnvelope();
+  }
+  preservePriceEnvelope(prevLow: number, prevHigh: number): void {
+    this.wc.preservePriceEnvelope(prevLow, prevHigh);
+  }
+  beginIntervalMorph(): void {
+    this.wc.beginIntervalMorph();
+  }
+  setIntervalMorph(t: number): void {
+    this.wc.setIntervalMorph(t);
+  }
   pan(dx: number, dy: number): void {
     this.wc.pan(dx, dy);
   }
@@ -195,6 +214,16 @@ class WasmHandle implements VroomChartHandle {
       middleColor: spec.middleColor >>> 0,
       lowerColor: spec.lowerColor >>> 0,
     });
+  }
+  setVolume(spec: VolumeSpec): void {
+    this.wc.setVolume({
+      ...spec,
+      upColor: spec.upColor >>> 0,
+      downColor: spec.downColor >>> 0,
+    });
+  }
+  setVolumeCollapse(t: number, easing: number): void {
+    this.wc.setVolumeCollapse(t, easing);
   }
   setDrawings(drawings: DrawingSpec[]): void {
     this.wc.setDrawings(

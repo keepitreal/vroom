@@ -140,6 +140,24 @@ class WebChart {
   }
   void resetView() { vroom_chart_reset_view(chart_); }
   void resetPriceScale() { vroom_chart_reset_price_scale(chart_); }
+  // Returns the visible {low, high} candle envelope, or null when nothing is
+  // visible.
+  em::val getVisiblePriceEnvelope() {
+    double low = 0.0, high = 0.0;
+    if (!vroom_chart_get_visible_price_envelope(chart_, &low, &high))
+      return em::val::null();
+    em::val o = em::val::object();
+    o.set("low", low);
+    o.set("high", high);
+    return o;
+  }
+  void preservePriceEnvelope(double prev_low, double prev_high) {
+    vroom_chart_preserve_price_envelope(chart_, prev_low, prev_high);
+  }
+  void beginIntervalMorph() { vroom_chart_begin_interval_morph(chart_); }
+  void setIntervalMorph(double t) {
+    vroom_chart_set_interval_morph(chart_, static_cast<float>(t));
+  }
   void pan(float dx, float dy) { vroom_chart_pan(chart_, dx, dy); }
   void translate(float dx, float dy) { vroom_chart_translate(chart_, dx, dy); }
   void zoom(float sx, float sy, float fx, float fy) {
@@ -190,6 +208,22 @@ class WebChart {
     cfg.fill_enabled = s["fillEnabled"].as<bool>() ? 1 : 0;
     cfg.fill_opacity = s["fillOpacity"].as<float>();
     vroom_chart_set_bollinger(chart_, &cfg);
+  }
+  // `s` is a JS object {enabled, heightFrac, opacity, radiusPx, upColor,
+  // downColor}. Negative floats / zero colors mean "inherit the theme".
+  void setVolume(const em::val& s) {
+    VroomVolume cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.height_frac = s["heightFrac"].as<float>();
+    cfg.opacity = s["opacity"].as<float>();
+    cfg.radius_px = s["radiusPx"].as<float>();
+    cfg.up_color = s["upColor"].as<uint32_t>();
+    cfg.down_color = s["downColor"].as<uint32_t>();
+    vroom_chart_set_volume(chart_, &cfg);
+  }
+  // `t` is linear progress; the core eases each bar over its own window.
+  void setVolumeCollapse(double t, int easing) {
+    vroom_chart_set_volume_collapse(chart_, static_cast<float>(t), easing);
   }
   // `overlays` is a JS array of {kind, period, source, color, width}.
   void setOverlays(const em::val& overlays) {
@@ -519,6 +553,10 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("getVisibleRange", &WebChart::getVisibleRange)
       .function("resetView", &WebChart::resetView)
       .function("resetPriceScale", &WebChart::resetPriceScale)
+      .function("getVisiblePriceEnvelope", &WebChart::getVisiblePriceEnvelope)
+      .function("preservePriceEnvelope", &WebChart::preservePriceEnvelope)
+      .function("beginIntervalMorph", &WebChart::beginIntervalMorph)
+      .function("setIntervalMorph", &WebChart::setIntervalMorph)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)
       .function("zoom", &WebChart::zoom)
@@ -537,6 +575,8 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
       .function("setBollinger", &WebChart::setBollinger)
+      .function("setVolume", &WebChart::setVolume)
+      .function("setVolumeCollapse", &WebChart::setVolumeCollapse)
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setPriceLines", &WebChart::setPriceLines)

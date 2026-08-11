@@ -8,16 +8,21 @@ import type { VroomTheme } from '@vroomchart/react';
 // separately by the demo, so the color state excludes them.
 type ColorField = Exclude<
   keyof VroomTheme,
-  'wickWidth' | 'candleRadius' | 'wickRoundCap' | 'volumeRadius' | 'lineWidth'
+  | 'wickWidth'
+  | 'candleRadius'
+  | 'wickRoundCap'
+  | 'volumeRadius'
+  | 'lineWidth'
+  | 'lineGradientOpacity'
 >;
 export type ThemeState = Record<ColorField, string>;
 
-// Non-color candle/volume styling the demo bundles alongside the color theme.
+// Non-color candle styling the demo bundles alongside the color theme. Volume
+// styling lives on the `volume` prop instead, edited from the Indicators panel.
 export type NumericStyle = {
   wickWidth: number;
   candleRadius: number;
   wickRoundCap: boolean;
-  volumeRadius: number;
 };
 
 const INHERIT = '#00000000';
@@ -36,7 +41,7 @@ export const DEFAULT_THEME: ThemeState = {
   axisText: '#c9d1d9',
   crosshair: '#303741',
   crosshairTarget: '#3e4855',
-  lineColor: '#c9d1d9',
+  lineColor: '#8957e5',
 };
 
 // Fields whose default is "inherit the candle body fill". Each gets an
@@ -418,17 +423,6 @@ export function SettingsModal({
                     onChange={(v) => onNumericStyleChange({ wickRoundCap: v })}
                   />
                 </>
-              )}
-              {section.title === 'Price & volume' && (
-                <StyleSlider
-                  label="Volume radius"
-                  title="Corner radius (px) of the top of volume bars."
-                  value={numericStyle.volumeRadius}
-                  min={0}
-                  max={8}
-                  step={0.5}
-                  onChange={(v) => onNumericStyleChange({ volumeRadius: v })}
-                />
               )}
               {section.fields.map((field) => {
                 const canInherit = INHERIT_FIELDS.has(field);

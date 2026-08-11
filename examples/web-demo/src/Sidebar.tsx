@@ -1,5 +1,11 @@
 import { type CSSProperties, type ReactNode, useState } from 'react';
-import type { ChartMode, ChartType, DrawTool, UndoRedoState } from '@vroomchart/react';
+import type {
+  ChartMode,
+  ChartType,
+  DrawTool,
+  TransitionEasing,
+  UndoRedoState,
+} from '@vroomchart/react';
 
 // GitHub-dark palette (matches the rest of the demo's inline styling).
 const PANEL = '#161b22';
@@ -29,6 +35,12 @@ const numInput: CSSProperties = {
   padding: '3px 6px',
   fontSize: 12,
   fontFamily: 'ui-monospace, monospace',
+};
+
+const select: CSSProperties = {
+  ...numInput,
+  width: 120,
+  fontFamily: 'inherit',
 };
 
 const badge: CSSProperties = {
@@ -170,8 +182,12 @@ export type SidebarProps = {
     setCandleWidth: (v: number) => void;
     chartType: ChartType;
     setChartType: (v: ChartType) => void;
+  };
+  animation: {
     transitionMs: number;
     setTransitionMs: (v: number) => void;
+    easing: TransitionEasing;
+    setEasing: (v: TransitionEasing) => void;
   };
   data: {
     assets: readonly string[];
@@ -220,7 +236,15 @@ export type SidebarProps = {
   onCollapse: () => void;
 };
 
-export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse }: SidebarProps) {
+export function Sidebar({
+  layout,
+  animation,
+  data,
+  streaming,
+  overlays,
+  panels,
+  onCollapse,
+}: SidebarProps) {
   const drawing = overlays.drawMode === 'draw';
   return (
     <aside
@@ -264,17 +288,6 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             onChange={layout.setChartType}
           />
         </Field>
-        <Row label={`Transition ${layout.transitionMs}ms`}>
-          <input
-            type="range"
-            min={0}
-            max={1000}
-            step={50}
-            value={layout.transitionMs}
-            onChange={(e) => layout.setTransitionMs(Number(e.target.value))}
-            style={{ width: 120 }}
-          />
-        </Row>
         <ToggleRow
           label="Two panes"
           checked={layout.twoPane}
@@ -291,6 +304,33 @@ export function Sidebar({ layout, data, streaming, overlays, panels, onCollapse 
             onChange={(e) => layout.setCandleWidth(Number(e.target.value))}
             style={numInput}
           />
+        </Row>
+      </Section>
+
+      <Section title="Animations">
+        <Row label={`Duration ${animation.transitionMs}ms`}>
+          <input
+            type="range"
+            min={0}
+            max={1000}
+            step={50}
+            value={animation.transitionMs}
+            onChange={(e) => animation.setTransitionMs(Number(e.target.value))}
+            style={{ width: 120 }}
+          />
+        </Row>
+        <Row label="Easing">
+          <select
+            value={animation.easing}
+            onChange={(e) => animation.setEasing(e.target.value as TransitionEasing)}
+            style={select}
+          >
+            {(['linear', 'ease-in', 'ease-out', 'ease-in-out'] as TransitionEasing[]).map((e) => (
+              <option key={e} value={e}>
+                {e}
+              </option>
+            ))}
+          </select>
         </Row>
       </Section>
 

@@ -13,6 +13,7 @@ import {
   type LoadVroomOptions,
   type OverlaySpec,
   type BollingerSpec,
+  type VolumeSpec,
   type DrawingSpec,
   type LiquiditySpec,
   type PriceLinesSpec,
@@ -22,14 +23,23 @@ import {
   PRICE_LINE_DRAGGABLE,
   PRICE_LINE_EXTEND_LEFT,
 } from '@vroomchart/core-wasm';
-import type { VroomChartCoreProps } from '@vroomchart/types';
+import type { TransitionEasing, VroomChartCoreProps } from '@vroomchart/types';
 import {
   classifyTransition,
   inferStepMs,
   timeframeWindow,
   type DataTransition,
 } from './dataTransitions';
+import { ease, easingIndex } from './easing';
 import { isValidDrawing } from './drawingStorage';
+
+function prefersReducedMotion(): boolean {
+  return !!(
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
 
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;
@@ -72,6 +82,20 @@ function bollingerToSpec(
     lowerWidth: cfg?.lowerWidth ?? 1,
     fillEnabled: cfg?.fill ?? true,
     fillOpacity: cfg?.fillOpacity ?? 0.1,
+  };
+}
+
+// Unset style fields go down as the core's inherit sentinels (negative float,
+// transparent color) rather than as literal defaults, so the theme keys stay in
+// charge of anything the consumer didn't set.
+function volumeToSpec(cfg: VroomChartCoreProps['volume']): VolumeSpec {
+  return {
+    enabled: cfg?.enabled ?? true,
+    heightFrac: cfg?.height ?? -1,
+    opacity: cfg?.opacity ?? -1,
+    radiusPx: cfg?.radius ?? -1,
+    upColor: (cfg?.upColor != null ? parseColor(cfg.upColor) : null) ?? 0,
+    downColor: (cfg?.downColor != null ? parseColor(cfg.downColor) : null) ?? 0,
   };
 }
 
@@ -208,12 +232,14 @@ export function useChartCore(
     defaultCandleWidth,
     chartType,
     transitionMs,
+    transitionEasing,
     theme,
     rsi,
     macd,
     movingAverages,
     vwap,
     bollingerBands,
+    volume,
     drawings,
     liquidity,
     priceLines,
@@ -232,8 +258,22 @@ export function useChartCore(
     seriesKey?: string;
   } | null>(null);
   const rafRef = useRef<number | null>(null);
+  const intervalMorphRafRef = useRef<number | null>(null);
+  // Volume-bar collapse: the last value handed to the core (null until the first
+  // sync), so the data effect can restore it and a toggle mid-animation can
+  // reverse from where it is. Declared up here because the data effect reads it.
+  const volumeCollapseRef = useRef<number | null>(null);
   const [ready, setReady] = useState(false);
   const [measured, setMeasured] = useState({ width: 0, height: 0 });
+
+  // Animation config in a ref, refreshed each render, so changing the duration
+  // or easing doesn't re-run the data-push effect below (which would re-push
+  // every candle).
+  const animRef = useRef<{ ms: number; easing: TransitionEasing | undefined }>({
+    ms: 300,
+    easing: undefined,
+  });
+  animRef.current = { ms: Math.max(0, transitionMs ?? 300), easing: transitionEasing };
 
   // Captured at mount: which core to load (stub vs Skia-WASM). Changing it after
   // mount has no effect — the core is created once and shared process-wide.
@@ -254,6 +294,29 @@ export function useChartCore(
     });
   }, []);
 
+  // Stop an in-flight interval morph and land the core on the new candles.
+  const endIntervalMorph = useCallback(() => {
+    if (intervalMorphRafRef.current != null) {
+      cancelAnimationFrame(intervalMorphRafRef.current);
+      intervalMorphRafRef.current = null;
+    }
+    handleRef.current?.setIntervalMorph(1);
+  }, []);
+
+  // Runs the interval morph clock. The core holds the pre-swap geometry (see
+  // beginIntervalMorph) and reshapes each candle slot toward its new counterpart.
+  const startIntervalMorph = useCallback((h: VroomChartHandle) => {
+    const { ms, easing } = animRef.current;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / ms);
+      h.setIntervalMorph(p < 1 ? ease(easing, p) : 1);
+      h.present();
+      intervalMorphRafRef.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    intervalMorphRafRef.current = requestAnimationFrame(step);
+  }, []);
+
   // Create the handle once the canvas exists; destroy on unmount.
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -268,6 +331,8 @@ export function useChartCore(
       disposed = true;
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+      if (intervalMorphRafRef.current != null) cancelAnimationFrame(intervalMorphRafRef.current);
+      intervalMorphRafRef.current = null;
       handleRef.current?.destroy();
       handleRef.current = null;
       setReady(false);
@@ -296,6 +361,7 @@ export function useChartCore(
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
+  const volumeKey = volume ? JSON.stringify(volume) : '';
   const drawingsKey = drawings ? JSON.stringify(drawings) : '';
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
   // Whether a close handler exists is part of the rendered output (it gates the
@@ -330,12 +396,28 @@ export function useChartCore(
         // period from the new data.
         let tfArgs: { oldWindow: { startMs: number; endMs: number }; oldStepMs: number; oldLastMs: number } | null =
           null;
+        // The pre-swap candle envelope, used to scale-lock the y-axis below.
+        let prevEnvelope: { low: number; high: number } | null = null;
+        let willMorph = false;
         if (transition === 'timeframe' && prev != null) {
           const oldWindow = h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
           if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
             tfArgs = { oldWindow, oldStepMs, oldLastMs: prev.candles[prev.candles.length - 1].timeMs };
           }
+          prevEnvelope = h.getVisiblePriceEnvelope();
+          // Capture the outgoing candle geometry, but only when it will actually
+          // be animated so a disabled animation costs no snapshot. A switch
+          // during a morph restarts from the data the core currently holds.
+          willMorph = animRef.current.ms > 0 && !prefersReducedMotion();
+          if (willMorph) {
+            endIntervalMorph();
+            h.beginIntervalMorph();
+          }
+        } else if (transition === 'initial' || transition === 'reset') {
+          // Wholesale reframing — the slot pairing no longer holds, so land any
+          // in-flight morph rather than reshaping into unrelated data.
+          endIntervalMorph();
         }
 
         // Drive the initial zoom from a target candle width, but only on a
@@ -365,7 +447,16 @@ export function useChartCore(
             );
             h.setVisibleRange(w.startMs, w.endMs);
           }
-          h.resetPriceScale();
+          // Scale-lock the y-axis: the same price action re-buckets into a
+          // smaller/larger high-low span, so a manual price range is rescaled to
+          // keep the candle envelope at the pixel height it just had instead of
+          // snapping back to auto-fit. A no-op in auto-y mode, which is already
+          // span-invariant.
+          if (prevEnvelope) h.preservePriceEnvelope(prevEnvelope.low, prevEnvelope.high);
+          else h.resetPriceScale();
+          // Started after the new bounds are in place: the snapshot is in band
+          // fractions, so frame 0 still matches the pre-switch pixels exactly.
+          if (willMorph) startIntervalMorph(h);
         } else if (transition === 'reset') {
           h.resetView();
         }
@@ -391,6 +482,15 @@ export function useChartCore(
       vwap?.width ?? 1.5,
     );
     h.setBollinger(bollingerToSpec(bollingerBands));
+    h.setVolume(volumeToSpec(volume));
+    // setVolume snaps the collapse scalar to its `enabled`, which would cut a
+    // toggle animation short whenever this effect re-runs (a streaming candle,
+    // a resize). Hand the in-flight value back. On the toggle itself this runs
+    // before the driver effect below, so what lands here is the pre-toggle value
+    // the animation starts from — no flash either way.
+    if (volumeCollapseRef.current != null) {
+      h.setVolumeCollapse(volumeCollapseRef.current, easingIndex(animRef.current.easing));
+    }
     // The controlled `drawings` prop is consumer-supplied — filter malformed
     // entries (wrong arity, non-finite anchors) before they reach the WASM
     // boundary, matching the validation the managed store path already does.
@@ -404,10 +504,10 @@ export function useChartCore(
         : EMPTY_PRICE_LINES,
     );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/drawings/liquidity/
-    // priceLines tracked via *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/drawings/
+    // liquidity/priceLines tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here
@@ -433,11 +533,7 @@ export function useChartCore(
     }
     if (morphFadeRef.current === target) return;
 
-    const reduce = !!(
-      typeof window !== 'undefined' &&
-      window.matchMedia &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    );
+    const reduce = prefersReducedMotion();
     const dur = Math.max(0, transitionMs ?? 300);
 
     if (morphRafRef.current != null) {
@@ -455,8 +551,7 @@ export function useChartCore(
     const start = performance.now();
     const step = (now: number) => {
       const p = Math.min(1, (now - start) / dur);
-      const e = p * p * (3 - 2 * p); // smoothstep ease-in-out
-      const fade = from + (target - from) * e;
+      const fade = from + (target - from) * ease(animRef.current.easing, p);
       morphFadeRef.current = fade;
       h.setMorph(reduce ? 0 : fade, fade);
       h.present();
@@ -478,6 +573,63 @@ export function useChartCore(
       }
     };
   }, [ready, chartType, transitionMs, scheduleRender]);
+
+  // Animate the volume bars in and out when `volume.enabled` flips. The core
+  // staggers the bars itself — tallest falling first, all landing together — so
+  // unlike the loops above this one hands it *linear* progress plus the curve;
+  // pre-easing here would compound the two. Hiding drives 0→1, revealing 1→0,
+  // which is the same cascade backwards.
+  const volumeRafRef = useRef<number | null>(null);
+  const volumeHandleRef = useRef<VroomChartHandle | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    const target = (volume?.enabled ?? true) ? 0 : 1;
+
+    // Fresh handle (first load or remount): the data effect's setVolume already
+    // snapped it, so a chart that mounts with bars doesn't animate them in.
+    if (volumeHandleRef.current !== h || volumeCollapseRef.current == null) {
+      volumeHandleRef.current = h;
+      volumeCollapseRef.current = target;
+      return;
+    }
+    if (volumeCollapseRef.current === target) return;
+
+    if (volumeRafRef.current != null) {
+      cancelAnimationFrame(volumeRafRef.current);
+      volumeRafRef.current = null;
+    }
+
+    const dur = Math.max(0, transitionMs ?? 300);
+    if (dur === 0 || prefersReducedMotion()) {
+      volumeCollapseRef.current = target;
+      h.setVolumeCollapse(target, easingIndex(animRef.current.easing));
+      scheduleRender();
+      return;
+    }
+
+    // From wherever the last frame left off, so toggling mid-flight reverses
+    // instead of jumping. A partial trip covers less ground in the same time.
+    const from = volumeCollapseRef.current;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const t = p < 1 ? from + (target - from) * p : target;
+      volumeCollapseRef.current = t;
+      h.setVolumeCollapse(t, easingIndex(animRef.current.easing));
+      h.present();
+      volumeRafRef.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    volumeRafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (volumeRafRef.current != null) {
+        cancelAnimationFrame(volumeRafRef.current);
+        volumeRafRef.current = null;
+      }
+    };
+  }, [ready, volume?.enabled, transitionMs, scheduleRender]);
 
   return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
 }

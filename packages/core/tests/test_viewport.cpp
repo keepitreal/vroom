@@ -319,6 +319,64 @@ TEST_CASE("auto_price_bounds") {
     }
 }
 
+TEST_CASE("preserve_envelope_bounds") {
+    SUBCASE("a halved envelope halves the axis range") {
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds old_env{40.0, 60.0};  // span 20, mid 50 -> t = 0.5
+        PriceBounds new_env{45.0, 55.0};  // span 10, mid 50
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, old_env, new_env);
+        CHECK(b.min == doctest::Approx(25.0));
+        CHECK(b.max == doctest::Approx(75.0));
+    }
+
+    SUBCASE("a doubled envelope doubles the axis range") {
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds old_env{45.0, 55.0};  // span 10, mid 50 -> t = 0.5
+        PriceBounds new_env{40.0, 60.0};  // span 20
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, old_env, new_env);
+        CHECK(b.min == doctest::Approx(-50.0));
+        CHECK(b.max == doctest::Approx(150.0));
+    }
+
+    SUBCASE("keeps the envelope's pixel height and position") {
+        Layout l = make_layout();  // 1000px draw band, no padding
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds old_env{70.0, 90.0};  // off-center, near the top
+        PriceBounds new_env{20.0, 25.0};  // tighter and much lower
+        const float old_top = vroom::price_to_y(l, axis, old_env.max);
+        const float old_bot = vroom::price_to_y(l, axis, old_env.min);
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, old_env, new_env);
+        CHECK(vroom::price_to_y(l, b, new_env.max) == doctest::Approx(old_top));
+        CHECK(vroom::price_to_y(l, b, new_env.min) == doctest::Approx(old_bot));
+    }
+
+    SUBCASE("an unchanged envelope is the identity") {
+        PriceBounds axis{10.0, 20.0};
+        PriceBounds env{12.0, 18.0};
+        PriceBounds b = vroom::preserve_envelope_bounds(axis, env, env);
+        CHECK(b.min == doctest::Approx(10.0));
+        CHECK(b.max == doctest::Approx(20.0));
+    }
+
+    SUBCASE("degenerate spans return the axis unchanged") {
+        PriceBounds axis{0.0, 100.0};
+        PriceBounds env{40.0, 60.0};
+        PriceBounds flat{50.0, 50.0};
+
+        PriceBounds no_old = vroom::preserve_envelope_bounds(axis, flat, env);
+        CHECK(no_old.min == doctest::Approx(0.0));
+        CHECK(no_old.max == doctest::Approx(100.0));
+
+        PriceBounds no_new = vroom::preserve_envelope_bounds(axis, env, flat);
+        CHECK(no_new.min == doctest::Approx(0.0));
+        CHECK(no_new.max == doctest::Approx(100.0));
+
+        PriceBounds flat_axis = vroom::preserve_envelope_bounds(flat, env, env);
+        CHECK(flat_axis.min == doctest::Approx(50.0));
+        CHECK(flat_axis.max == doctest::Approx(50.0));
+    }
+}
+
 TEST_CASE("price_to_y") {
     Layout l = make_layout();  // candle area = full 1000px height, no padding
     PriceBounds b{0.0, 100.0};
@@ -345,6 +403,51 @@ TEST_CASE("price_to_y") {
         l.x_axis_height_px = 200.f;  // candle area = 800px
         CHECK(vroom::price_to_y(l, b, 0.0) == doctest::Approx(800.f));
         CHECK(vroom::price_to_y(l, b, 100.0) == doctest::Approx(0.f));
+    }
+}
+
+TEST_CASE("price_fraction / y_at_fraction") {
+    Layout l = make_layout();  // candle area = full 1000px height, no padding
+
+    SUBCASE("fractions land on the band bottom / middle / top") {
+        CHECK(vroom::y_at_fraction(l, 0.0) == doctest::Approx(1000.f));
+        CHECK(vroom::y_at_fraction(l, 0.5) == doctest::Approx(500.f));
+        CHECK(vroom::y_at_fraction(l, 1.0) == doctest::Approx(0.f));
+    }
+
+    SUBCASE("honors padding and the x-axis strip like price_to_y") {
+        l.top_padding_frac = 0.1f;
+        l.bottom_padding_frac = 0.1f;
+        l.x_axis_height_px = 200.f;  // candle area 800 -> band 80..720
+        CHECK(vroom::y_at_fraction(l, 0.0) == doctest::Approx(720.f));
+        CHECK(vroom::y_at_fraction(l, 1.0) == doctest::Approx(80.f));
+    }
+
+    SUBCASE("price_fraction maps min/mid/max to 0/0.5/1") {
+        PriceBounds b{10.0, 30.0};
+        CHECK(vroom::price_fraction(b, 10.0) == doctest::Approx(0.0));
+        CHECK(vroom::price_fraction(b, 20.0) == doctest::Approx(0.5));
+        CHECK(vroom::price_fraction(b, 30.0) == doctest::Approx(1.0));
+    }
+
+    SUBCASE("degenerate range collapses to the band midpoint") {
+        PriceBounds flat{50.0, 50.0};
+        CHECK(vroom::price_fraction(flat, 50.0) == doctest::Approx(0.5));
+        CHECK(vroom::price_fraction(flat, 999.0) == doctest::Approx(0.5));
+    }
+
+    SUBCASE("composes back into price_to_y") {
+        l.top_padding_frac = 0.08f;
+        l.bottom_padding_frac = 0.12f;
+        for (const PriceBounds b : {PriceBounds{0.0, 100.0},
+                                    PriceBounds{-5.0, 5.0},
+                                    PriceBounds{54000.0, 61000.0},
+                                    PriceBounds{50.0, 50.0}}) {
+            for (const double p : {-20.0, 0.0, 49.5, 50.0, 55000.0, 120.0}) {
+                CHECK(vroom::y_at_fraction(l, vroom::price_fraction(b, p)) ==
+                      doctest::Approx(vroom::price_to_y(l, b, p)));
+            }
+        }
     }
 }
 
