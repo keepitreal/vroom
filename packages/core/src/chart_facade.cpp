@@ -63,6 +63,13 @@ int64_t damp_future_delta(int64_t delta_ms, int64_t cur_future,
 void apply_default_framing(VroomChart* chart) {
     if (chart->candles.empty()) return;
 
+    // A candle occupies the slot [time_ms, time_ms + duration) and draws centered
+    // in it, so the right edge of the view is the last slot's *end*. Pinning it to
+    // the last candle's time_ms instead puts that candle's center half a slot past
+    // the plot area, hiding the newest candle behind the y-axis strip.
+    const int64_t right_edge_ms =
+        chart->candles.back().time_ms + chart->candle_duration_ms;
+
     // Px-driven framing. Reuses the inversion from vroom_chart_scale_time_axis:
     // body_w = usable × (dur / window) × ratio  →  window = usable × dur × ratio / body_w.
     // Needs a valid layout (width_px); until size is known it falls through to
@@ -81,7 +88,7 @@ void apply_default_framing(VroomChart* chart) {
                 chart->candles.back().time_ms - chart->candles.front().time_ms;
             window_ms = std::clamp<int64_t>(window_ms, chart->candle_duration_ms,
                                             span > 0 ? span : window_ms);
-            chart->visible_end_ms = chart->candles.back().time_ms;
+            chart->visible_end_ms = right_edge_ms;
             chart->visible_start_ms = chart->visible_end_ms - window_ms;
             return;
         }
@@ -92,7 +99,7 @@ void apply_default_framing(VroomChart* chart) {
         ? chart->candles.size() - kDefaultVisible
         : 0;
     chart->visible_start_ms = chart->candles[start_idx].time_ms;
-    chart->visible_end_ms = chart->candles.back().time_ms;
+    chart->visible_end_ms = right_edge_ms;
 }
 
 // On the first manual-y gesture, adopt the on-screen auto-fit bounds so the

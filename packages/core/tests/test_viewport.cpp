@@ -82,6 +82,35 @@ TEST_CASE("candle_center_x") {
     }
 }
 
+TEST_CASE("the newest candle fits when the view ends at its slot end") {
+    // Realistic reservations: usable = 1000 - 60 - 6 = 934.
+    Layout l = make_layout();
+    l.y_axis_width_px = 60.f;
+    l.right_padding_px = 6.f;
+    l.candle_width_ratio = 0.68f;
+    const float usable = vroom::candle_area_width(l);
+
+    // 10 candles at t = 0..900, duration 100.
+    constexpr int64_t kDur = 100;
+    constexpr int64_t kLast = 900;
+
+    SUBCASE("ending at the last candle's time_ms hides it behind the y-axis") {
+        // window [0, 900]: the candle draws about its slot midpoint (950), which
+        // is past the end of the window entirely.
+        const float center = vroom::candle_center_x(l, kLast, kDur, 0, kLast);
+        const float half = vroom::candle_body_width(l, kLast, kDur) * 0.5f;
+        CHECK(center - half > usable);  // whole body sits under the axis strip
+    }
+
+    SUBCASE("ending at the slot end keeps the whole body in the plot area") {
+        const int64_t end = kLast + kDur;
+        const float center = vroom::candle_center_x(l, kLast, kDur, 0, end);
+        const float half = vroom::candle_body_width(l, end, kDur) * 0.5f;
+        CHECK(center + half <= usable);
+        CHECK(center - half > 0.f);
+    }
+}
+
 TEST_CASE("snap_x_to_candle") {
     Layout l = make_layout();
     // 10 candles at t = 0,100,...,900; duration 100; window 1000; usable 1000.
