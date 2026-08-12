@@ -507,15 +507,67 @@ export type PriceLinesStyle = {
   hoverBoost?: number;
 };
 
-/** MACD indicator config. Rendered in its own pane below the candles. */
+/**
+ * MACD indicator config. Rendered in its own pane below the candles: the gap
+ * between a fast and a slow moving average, a signal line smoothing that gap,
+ * and a histogram of the distance between the two.
+ *
+ * Every style field is optional and falls back to the stock look, so an
+ * untouched config renders exactly as it always has.
+ */
 export type MACDConfig = {
   enabled?: boolean;
-  /** Fast EMA length. Default 12. */
+  /** Fast moving-average length. Default 12. */
   fast?: number;
-  /** Slow EMA length (forced > fast). Default 26. */
+  /** Slow moving-average length (forced > fast). Default 26. */
   slow?: number;
-  /** Signal-line EMA length. Default 9. */
+  /** Signal-line length. Default 9. */
   signal?: number;
+  /** Price source for the fast/slow legs. Default 'close'. */
+  source?: MASource;
+  /** Averaging used for the fast and slow legs. Default 'ema'. */
+  maType?: 'sma' | 'ema';
+  /** Averaging applied to the MACD series for the signal line. Default 'ema'. */
+  signalMaType?: 'sma' | 'ema';
+
+  /** MACD line color (hex string or packed ARGB number). Default blue. */
+  macdColor?: string | number;
+  /** MACD line stroke width in px. Default 1.5. */
+  macdWidth?: number;
+  /** Draw the MACD line. Default true. */
+  macdVisible?: boolean;
+  /** Signal line color. Default orange. */
+  signalColor?: string | number;
+  /** Signal line stroke width in px. Default 1.5. */
+  signalWidth?: number;
+  /** Draw the signal line. Default true. */
+  signalVisible?: boolean;
+
+  /** Draw the histogram bars. Default true. */
+  histogramVisible?: boolean;
+  /**
+   * Bars above zero that are still growing away from it. Defaults to
+   * `theme.accentBull`. Set all four histogram colors alike for a flat,
+   * single-color histogram.
+   */
+  histogramUpColor?: string | number;
+  /**
+   * Bars above zero that are falling back toward it, i.e. momentum easing.
+   * Defaults to `histogramUpColor` at half opacity.
+   */
+  histogramUpFadingColor?: string | number;
+  /** Bars below zero still growing away from it. Defaults to `theme.accentBear`. */
+  histogramDownColor?: string | number;
+  /**
+   * Bars below zero rising back toward it. Defaults to `histogramDownColor` at
+   * half opacity.
+   */
+  histogramDownFadingColor?: string | number;
+
+  /** Zero-reference line color. Default gray. */
+  zeroLineColor?: string | number;
+  /** Draw the zero-reference line. Default true. */
+  zeroLineVisible?: boolean;
 };
 
 /**

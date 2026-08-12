@@ -21,14 +21,55 @@ Defaults: `period` 14, `upperBand` 70, `lowerBand` 30, trendline on at length 14
 
 ## MACD
 
-MACD (fast/slow/signal EMAs) in its own pane below the candles. See
-[`MACDConfig`](../reference/index.md).
+MACD in its own pane below the candles: the gap between a fast and a slow moving
+average, a signal line smoothing that gap, and a histogram of the distance
+between the two. See [`MACDConfig`](../reference/index.md).
 
 ```tsx
 <VroomChart candles={candles} macd={{ enabled: true, fast: 12, slow: 26, signal: 9 }} />
 ```
 
 Defaults: `fast` 12, `slow` 26 (forced greater than `fast`), `signal` 9.
+
+### Inputs
+
+- `source` — price input ([`MASource`](../reference/index.md)) for the fast and
+  slow legs: `close` (default), `open`, `high`, `low`, `hl2`, `hlc3`, `ohlc4`.
+- `maType` — `'ema'` (default) or `'sma'` for both legs.
+- `signalMaType` — `'ema'` (default) or `'sma'` for the signal line.
+
+### Styling
+
+Each series carries its own color, width, and visibility, and the histogram
+takes four colors: one pair for bars above zero and one for bars below, each
+split into a shade for bars growing away from zero and a lighter shade for bars
+falling back toward it.
+
+```tsx
+<VroomChart
+  candles={candles}
+  macd={{
+    enabled: true,
+    macdColor: '#2962ff',
+    macdWidth: 2,
+    signalColor: '#ff6d00',
+    signalWidth: 2,
+    histogramUpColor: '#26a69a',
+    histogramUpFadingColor: '#b2dfdb',
+    histogramDownColor: '#ef5350',
+    histogramDownFadingColor: '#ffcdd2',
+    zeroLineColor: '#484f58',
+  }}
+/>
+```
+
+Every style field is optional. Leave the histogram colors unset and the bars
+follow `theme.accentBull` / `theme.accentBear`; leave a fading color unset and it
+derives from its base color at half opacity. Set all four histogram colors alike
+for a flat, single-color histogram.
+
+Hide any part with `macdVisible`, `signalVisible`, `histogramVisible`, or
+`zeroLineVisible` — the pane rescales to fit whatever is left on show.
 
 > When both RSI and MACD are enabled, both panes stack below the chart; the most
 > recently enabled one is appended at the bottom.

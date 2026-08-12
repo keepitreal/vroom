@@ -69,6 +69,41 @@ typedef struct VroomBollinger {
     float    fill_opacity;  // 0..1, multiplied into upper_color's alpha
 } VroomBollinger;
 
+// MACD, drawn in its own pane below the candles: the difference between a fast
+// and a slow moving average of `source`, a signal line smoothing that
+// difference, and a histogram of the gap between the two.
+//
+// The style fields carry an inherit sentinel so an untouched config renders the
+// stock look: a fully transparent color falls back to the theme (histogram) or
+// to the built-in default (lines), and a non-positive width falls back to 1.5.
+// The two `fading` histogram colors — used when a bar moves back toward zero,
+// i.e. momentum is easing — fall back to their base color at half alpha.
+typedef struct VroomMACD {
+    int32_t  enabled;         // 0/1
+    int32_t  fast;            // fast MA length (clamped >= 1; default 12)
+    int32_t  slow;            // slow MA length (forced > fast; default 26)
+    int32_t  signal;          // signal MA length (clamped >= 1; default 9)
+    int32_t  source;          // 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4
+    int32_t  ma_kind;         // fast/slow legs: 0 = SMA, 1 = EMA
+    int32_t  signal_ma_kind;  // signal line: 0 = SMA, 1 = EMA
+
+    uint32_t macd_color;    // 0xAARRGGBB; 0 inherits the default blue
+    float    macd_width;    // stroke px; <= 0 inherits 1.5
+    int32_t  macd_visible;  // 0/1
+    uint32_t signal_color;  // 0 inherits the default orange
+    float    signal_width;
+    int32_t  signal_visible;
+
+    int32_t  hist_visible;
+    uint32_t hist_up_color;           // 0 inherits VROOM_COLOR_ACCENT_BULL
+    uint32_t hist_up_fading_color;    // 0 inherits hist_up_color at half alpha
+    uint32_t hist_down_color;         // 0 inherits VROOM_COLOR_ACCENT_BEAR
+    uint32_t hist_down_fading_color;  // 0 inherits hist_down_color at half alpha
+
+    uint32_t zero_color;    // 0 inherits the default gray
+    int32_t  zero_visible;  // 0/1
+} VroomMACD;
+
 // Volume bars on the price pane, one per candle, drawn under the candles.
 //
 // `height_frac` is a ceiling, not a reservation: raising it lets the tallest bar
@@ -435,12 +470,11 @@ void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
                          double upper_band, double lower_band,
                          bool ma_enabled, int ma_period);
 
-// Configures the MACD indicator (its own pane below the candles). `fast`/`slow`
-// are the EMA lengths (clamped >= 1, slow forced > fast; default 12/26) and
-// `signal` is the signal-line EMA length (clamped >= 1; default 9). Panes stack
-// in enable order, most recently enabled at the bottom.
-void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast, int slow,
-                          int signal);
+// Configures the MACD indicator (its own pane below the candles). Panes stack
+// in enable order, most recently enabled at the bottom. Length, source, and MA
+// kind changes recompute the series; color, width, and visibility changes only
+// re-render.
+void vroom_chart_set_macd(VroomChart* chart, const VroomMACD* cfg);
 
 // Replaces the full set of moving-average overlay lines (SMA/EMA) drawn on the
 // price pane. Pass count 0 to clear them. Overlays don't reserve a pane.

@@ -11,6 +11,7 @@ import type {
   CrosshairInfo,
   DrawingSpec,
   LiquiditySpec,
+  MACDSpec,
   OverlaySpec,
   PriceLinesSpec,
   VolumeSpec,
@@ -56,7 +57,7 @@ interface WebChartInstance {
   getCrosshairCandle(): CrosshairCandle | null;
   getCrosshairInfo(): CrosshairInfo | null;
   setRSI(e: boolean, p: number, u: number, l: number, mae: boolean, map: number): void;
-  setMACD(e: boolean, f: number, s: number, sig: number): void;
+  setMACD(spec: MACDSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(e: boolean, reset: number, color: number, width: number): void;
   setBollinger(spec: BollingerSpec): void;
@@ -198,8 +199,17 @@ class WasmHandle implements VroomChartHandle {
   ): void {
     this.wc.setRSI(enabled, period, upperBand, lowerBand, maEnabled, maPeriod);
   }
-  setMACD(enabled: boolean, fast: number, slow: number, signal: number): void {
-    this.wc.setMACD(enabled, fast, slow, signal);
+  setMACD(spec: MACDSpec): void {
+    this.wc.setMACD({
+      ...spec,
+      macdColor: spec.macdColor >>> 0,
+      signalColor: spec.signalColor >>> 0,
+      histUpColor: spec.histUpColor >>> 0,
+      histUpFadingColor: spec.histUpFadingColor >>> 0,
+      histDownColor: spec.histDownColor >>> 0,
+      histDownFadingColor: spec.histDownFadingColor >>> 0,
+      zeroColor: spec.zeroColor >>> 0,
+    });
   }
   setOverlays(overlays: OverlaySpec[]): void {
     this.wc.setOverlays(overlays);

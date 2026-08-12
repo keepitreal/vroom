@@ -114,10 +114,32 @@ export interface ChartHandle {
     maPeriod: number,
   ): void;
   /**
-   * Configures the MACD pane: enable, fast/slow EMA lengths (slow forced > fast)
-   * and the signal-line length. Defaults 12/26/9.
+   * Configures the MACD pane. source/maKind mirror setOverlays' encodings;
+   * colors are packed 0xAARRGGBB where 0 means inherit, and a non-positive
+   * width inherits the default stroke.
    */
-  setMACD(enabled: boolean, fast: number, slow: number, signal: number): void;
+  setMACD(spec: {
+    enabled: boolean;
+    fast: number;
+    slow: number;
+    signal: number;
+    source: number;
+    maKind: number;
+    signalMaKind: number;
+    macdColor: number;
+    macdWidth: number;
+    macdVisible: boolean;
+    signalColor: number;
+    signalWidth: number;
+    signalVisible: boolean;
+    histVisible: boolean;
+    histUpColor: number;
+    histUpFadingColor: number;
+    histDownColor: number;
+    histDownFadingColor: number;
+    zeroColor: number;
+    zeroVisible: boolean;
+  }): void;
   /**
    * Replaces the full set of MA/EMA overlay lines drawn on the price pane.
    * kind: 0=SMA, 1=EMA; source: 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4;

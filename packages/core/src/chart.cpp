@@ -49,7 +49,7 @@ vroom::Layout VroomChart::layout() const {
     const float axis_w = axis_width_px > 0.f
         ? axis_width_px
         : width_px * theme.floats[VROOM_FLOAT_Y_AXIS_WIDTH_RATIO];
-    const int pane_count = (rsi_enabled ? 1 : 0) + (macd_enabled ? 1 : 0);
+    const int pane_count = (rsi_enabled ? 1 : 0) + (macd.enabled ? 1 : 0);
     const float indicator_h = static_cast<float>(pane_count) * height_px *
                               theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
     return vroom::Layout{
@@ -77,9 +77,10 @@ void VroomChart::ensure_rsi() {
 }
 
 void VroomChart::ensure_macd() {
-    if (!macd_enabled || !macd_dirty) return;
-    vroom::macd::compute(candles.data(), candles.size(), macd_fast, macd_slow,
-                         macd_signal, macd_cache, macd_signal_cache,
+    if (!macd.enabled || !macd_dirty) return;
+    vroom::macd::compute(candles.data(), candles.size(), macd.fast, macd.slow,
+                         macd.signal, macd.source, macd.ma_kind,
+                         macd.signal_ma_kind, macd_cache, macd_signal_cache,
                          macd_hist_cache);
     macd_dirty = false;
 }
@@ -331,7 +332,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         ActivePane panes[2];
         int count = 0;
         if (rsi_enabled) panes[count++] = {rsi_order, 0};
-        if (macd_enabled) panes[count++] = {macd_order, 1};
+        if (macd.enabled) panes[count++] = {macd_order, 1};
         if (count == 2 && panes[0].order > panes[1].order) {
             const ActivePane tmp = panes[0];
             panes[0] = panes[1];

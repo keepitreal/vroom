@@ -115,12 +115,37 @@ export type MACDParams = {
   fast: number;
   slow: number;
   signal: number;
+  source: MASource;
+  maType: 'sma' | 'ema';
+  signalMaType: 'sma' | 'ema';
+  macdColor: string;
+  macdVisible: boolean;
+  signalColor: string;
+  signalVisible: boolean;
+  /** One stroke width for both lines, to keep the panel compact. */
+  width: number;
+  histogramVisible: boolean;
+  histogramUpColor: string;
+  histogramDownColor: string;
+  zeroLineVisible: boolean;
 };
 
 export const DEFAULT_MACD_PARAMS: MACDParams = {
   fast: 12,
   slow: 26,
   signal: 9,
+  source: 'close',
+  maType: 'ema',
+  signalMaType: 'ema',
+  macdColor: '#2962ff',
+  macdVisible: true,
+  signalColor: '#ff9800',
+  signalVisible: true,
+  width: 1.5,
+  histogramVisible: true,
+  histogramUpColor: '#26a69a',
+  histogramDownColor: '#f85149',
+  zeroLineVisible: true,
 };
 
 export type MALineParams = {
@@ -225,6 +250,25 @@ const MA_WIDTHS = [
   { label: 'Med', value: 1.5 },
   { label: 'Thick', value: 2.5 },
 ];
+const MA_KINDS = [
+  { label: 'SMA', value: 0 },
+  { label: 'EMA', value: 1 },
+];
+
+// Tap-to-cycle button used by the enum rows (price source).
+const cycleButton: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 12px',
+  borderRadius: 8,
+  background: '#161b22',
+  border: '1px solid #30363d',
+  color: '#c9d1d9',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
 
 // The chart props derived from the indicator state — shared by both demo views.
 export type IndicatorChartProps = {
@@ -272,7 +316,25 @@ export function deriveIndicatorProps(
   ];
   return {
     rsi: { enabled: state.rsi.enabled, ...rsiParams },
-    macd: { enabled: state.macd.enabled, ...macdParams },
+    macd: {
+      enabled: state.macd.enabled,
+      fast: macdParams.fast,
+      slow: macdParams.slow,
+      signal: macdParams.signal,
+      source: macdParams.source,
+      maType: macdParams.maType,
+      signalMaType: macdParams.signalMaType,
+      macdColor: macdParams.macdColor,
+      macdWidth: macdParams.width,
+      macdVisible: macdParams.macdVisible,
+      signalColor: macdParams.signalColor,
+      signalWidth: macdParams.width,
+      signalVisible: macdParams.signalVisible,
+      histogramVisible: macdParams.histogramVisible,
+      histogramUpColor: macdParams.histogramUpColor,
+      histogramDownColor: macdParams.histogramDownColor,
+      zeroLineVisible: macdParams.zeroLineVisible,
+    },
     movingAverages,
     vwap: {
       enabled: state.vwap.enabled,
@@ -918,6 +980,119 @@ function DetailScreen({
                 max={50}
                 onChange={(n) => onMacdParamsChange!({ signal: n })}
               />
+              <div style={paramRow}>
+                <span style={paramLabel}>Source</span>
+                <button
+                  onClick={() => {
+                    const i = MA_SOURCES.indexOf(macd.source);
+                    onMacdParamsChange!({
+                      source: MA_SOURCES[(i + 1) % MA_SOURCES.length],
+                    });
+                  }}
+                  style={cycleButton}
+                >
+                  {macd.source}
+                  <span style={{ color: '#6e7681', fontSize: 13 }}>⟳</span>
+                </button>
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Averaging</span>
+                <Segmented
+                  options={MA_KINDS}
+                  value={macd.maType === 'ema' ? 1 : 0}
+                  onChange={(v) =>
+                    onMacdParamsChange!({ maType: v === 1 ? 'ema' : 'sma' })
+                  }
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Signal averaging</span>
+                <Segmented
+                  options={MA_KINDS}
+                  value={macd.signalMaType === 'ema' ? 1 : 0}
+                  onChange={(v) =>
+                    onMacdParamsChange!({
+                      signalMaType: v === 1 ? 'ema' : 'sma',
+                    })
+                  }
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>MACD line</span>
+                <Toggle
+                  value={macd.macdVisible}
+                  onChange={(v) => onMacdParamsChange!({ macdVisible: v })}
+                />
+              </div>
+              {macd.macdVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>MACD color</span>
+                  <Swatches
+                    value={macd.macdColor}
+                    onChange={(c) => onMacdParamsChange!({ macdColor: c })}
+                  />
+                </div>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Signal line</span>
+                <Toggle
+                  value={macd.signalVisible}
+                  onChange={(v) => onMacdParamsChange!({ signalVisible: v })}
+                />
+              </div>
+              {macd.signalVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>Signal color</span>
+                  <Swatches
+                    value={macd.signalColor}
+                    onChange={(c) => onMacdParamsChange!({ signalColor: c })}
+                  />
+                </div>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Line width</span>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={macd.width}
+                  onChange={(w) => onMacdParamsChange!({ width: w })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Histogram</span>
+                <Toggle
+                  value={macd.histogramVisible}
+                  onChange={(v) => onMacdParamsChange!({ histogramVisible: v })}
+                />
+              </div>
+              {macd.histogramVisible && (
+                <>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Above zero</span>
+                    <Swatches
+                      value={macd.histogramUpColor}
+                      onChange={(c) =>
+                        onMacdParamsChange!({ histogramUpColor: c })
+                      }
+                    />
+                  </div>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Below zero</span>
+                    <Swatches
+                      value={macd.histogramDownColor}
+                      onChange={(c) =>
+                        onMacdParamsChange!({ histogramDownColor: c })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Zero line</span>
+                <Toggle
+                  value={macd.zeroLineVisible}
+                  onChange={(v) => onMacdParamsChange!({ zeroLineVisible: v })}
+                />
+              </div>
             </>
           ) : editor ? (
             <>
@@ -999,10 +1174,7 @@ function DetailScreen({
               <div style={paramRow}>
                 <span style={paramLabel}>Basis</span>
                 <Segmented
-                  options={[
-                    { label: 'SMA', value: 0 },
-                    { label: 'EMA', value: 1 },
-                  ]}
+                  options={MA_KINDS}
                   value={bb.basis === 'ema' ? 1 : 0}
                   onChange={(v) =>
                     onBbParamsChange!({ basis: v === 1 ? 'ema' : 'sma' })
@@ -1018,19 +1190,7 @@ function DetailScreen({
                       source: MA_SOURCES[(i + 1) % MA_SOURCES.length],
                     });
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    background: '#161b22',
-                    border: '1px solid #30363d',
-                    color: '#c9d1d9',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  style={cycleButton}
                 >
                   {bb.source}
                   <span style={{ color: '#6e7681', fontSize: 13 }}>⟳</span>

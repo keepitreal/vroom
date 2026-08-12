@@ -72,6 +72,34 @@ function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
   };
 }
 
+function macdToSpec(cfg: MACDConfig | undefined) {
+  const srcIdx = cfg?.source ? MA_SOURCES.indexOf(cfg.source) : 0;
+  const color = (v: string | number | undefined): number =>
+    (v != null ? parseColor(v) : null) ?? 0;
+  return {
+    enabled: cfg?.enabled ?? false,
+    fast: cfg?.fast ?? 12,
+    slow: cfg?.slow ?? 26,
+    signal: cfg?.signal ?? 9,
+    source: srcIdx < 0 ? 0 : srcIdx,
+    maKind: cfg?.maType === 'sma' ? 0 : 1,
+    signalMaKind: cfg?.signalMaType === 'sma' ? 0 : 1,
+    macdColor: color(cfg?.macdColor),
+    macdWidth: cfg?.macdWidth ?? -1,
+    macdVisible: cfg?.macdVisible ?? true,
+    signalColor: color(cfg?.signalColor),
+    signalWidth: cfg?.signalWidth ?? -1,
+    signalVisible: cfg?.signalVisible ?? true,
+    histVisible: cfg?.histogramVisible ?? true,
+    histUpColor: color(cfg?.histogramUpColor),
+    histUpFadingColor: color(cfg?.histogramUpFadingColor),
+    histDownColor: color(cfg?.histogramDownColor),
+    histDownFadingColor: color(cfg?.histogramDownFadingColor),
+    zeroColor: color(cfg?.zeroLineColor),
+    zeroVisible: cfg?.zeroLineVisible ?? true,
+  };
+}
+
 // Unset style fields go down as the core's inherit sentinels (negative float,
 // transparent color) rather than as literal defaults, so the theme keys stay in
 // charge of anything the consumer didn't set.
@@ -253,12 +281,7 @@ export function useChartCore(
       rsi?.maEnabled ?? true,
       rsi?.maPeriod ?? 14,
     );
-    h.setMACD(
-      macd?.enabled ?? false,
-      macd?.fast ?? 12,
-      macd?.slow ?? 26,
-      macd?.signal ?? 9,
-    );
+    h.setMACD(macdToSpec(macd));
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
     h.setVWAP(
       vwap?.enabled ?? false,

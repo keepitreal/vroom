@@ -115,10 +115,13 @@ struct VroomChart {
     double rsi_y_scale = 1.0;
 
     // MACD, drawn in its own pane. Caches aligned to `candles` (NaN warmup).
-    bool macd_enabled = false;
-    int  macd_fast = 12;
-    int  macd_slow = 26;
-    int  macd_signal = 9;
+    // Defaults: 12/26/9 EMAs of close, every style field on its inherit
+    // sentinel so an untouched chart keeps the stock look.
+    VroomMACD macd{0, 12, 26, 9, 0, 1, 1,
+                   0u, -1.f, 1,  // MACD line
+                   0u, -1.f, 1,  // signal line
+                   1, 0u, 0u, 0u, 0u,  // histogram
+                   0u, 1};             // zero line
     std::vector<double> macd_cache;
     std::vector<double> macd_signal_cache;
     std::vector<double> macd_hist_cache;

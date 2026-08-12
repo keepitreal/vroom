@@ -113,6 +113,40 @@ export type BollingerSpec = {
 };
 
 /**
+ * The MACD pane, in the core's numeric encoding. The style fields carry an
+ * inherit sentinel — a non-positive width or a fully transparent color tells
+ * the core to fall back to its default (or, for the histogram, to the theme
+ * accent, and for the fading shades to their base color at half alpha).
+ */
+export type MACDSpec = {
+  enabled: boolean;
+  fast: number;
+  slow: number;
+  signal: number;
+  /** 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4 */
+  source: number;
+  /** Fast/slow legs: 0 = SMA, 1 = EMA. */
+  maKind: number;
+  /** Signal line: 0 = SMA, 1 = EMA. */
+  signalMaKind: number;
+  /** Packed 0xAARRGGBB. */
+  macdColor: number;
+  /** Stroke width in px. */
+  macdWidth: number;
+  macdVisible: boolean;
+  signalColor: number;
+  signalWidth: number;
+  signalVisible: boolean;
+  histVisible: boolean;
+  histUpColor: number;
+  histUpFadingColor: number;
+  histDownColor: number;
+  histDownFadingColor: number;
+  zeroColor: number;
+  zeroVisible: boolean;
+};
+
+/**
  * The volume bars, in the core's numeric encoding. The style fields carry an
  * inherit sentinel — a negative number or a fully transparent color tells the
  * core to fall back to the matching theme key.
@@ -365,7 +399,7 @@ export interface VroomChartHandle {
     maEnabled: boolean,
     maPeriod: number,
   ): void;
-  setMACD(enabled: boolean, fast: number, slow: number, signal: number): void;
+  setMACD(spec: MACDSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(
     enabled: boolean,

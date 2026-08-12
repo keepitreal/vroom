@@ -590,7 +590,7 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
 extern "C" void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px) {
     if (!chart || dy_px == 0.f) return;
 
-    const int pane_count = (chart->rsi_enabled ? 1 : 0) + (chart->macd_enabled ? 1 : 0);
+    const int pane_count = (chart->rsi_enabled ? 1 : 0) + (chart->macd.enabled ? 1 : 0);
     if (pane_count == 0) return;  // nothing below the chart to resize
 
     const auto lay = chart->layout();
@@ -645,7 +645,7 @@ extern "C" void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px,
     ActivePane panes[2];
     int count = 0;
     if (chart->rsi_enabled) panes[count++] = {chart->rsi_order, 0};
-    if (chart->macd_enabled) panes[count++] = {chart->macd_order, 1};
+    if (chart->macd.enabled) panes[count++] = {chart->macd_order, 1};
     if (count == 0) return;
     if (count == 2 && panes[0].order > panes[1].order) {
         const ActivePane tmp = panes[0];
@@ -1201,28 +1201,35 @@ extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
     chart->mark_dirty();
 }
 
-extern "C" void vroom_chart_set_macd(VroomChart* chart, bool enabled, int fast,
-                                     int slow, int signal) {
-    if (!chart) return;
-    if (fast < 1) fast = 1;
-    if (slow < 1) slow = 1;
-    if (slow <= fast) slow = fast + 1;
-    if (signal < 1) signal = 1;
+extern "C" void vroom_chart_set_macd(VroomChart* chart, const VroomMACD* cfg) {
+    if (!chart || !cfg) return;
+    VroomMACD next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    next.macd_visible = next.macd_visible ? 1 : 0;
+    next.signal_visible = next.signal_visible ? 1 : 0;
+    next.hist_visible = next.hist_visible ? 1 : 0;
+    next.zero_visible = next.zero_visible ? 1 : 0;
+    if (next.fast < 1) next.fast = 1;
+    if (next.slow < 1) next.slow = 1;
+    if (next.slow <= next.fast) next.slow = next.fast + 1;
+    if (next.signal < 1) next.signal = 1;
 
-    const bool recompute = chart->macd_enabled != enabled ||
-                           chart->macd_fast != fast ||
-                           chart->macd_slow != slow ||
-                           chart->macd_signal != signal;
-    if (!recompute) return;
+    // Only the series-affecting fields force a recompute; color, width, and
+    // visibility changes are render-only.
+    const VroomMACD& cur = chart->macd;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.fast != next.fast ||
+                           cur.slow != next.slow ||
+                           cur.signal != next.signal ||
+                           cur.source != next.source ||
+                           cur.ma_kind != next.ma_kind ||
+                           cur.signal_ma_kind != next.signal_ma_kind;
 
-    if (enabled && !chart->macd_enabled) chart->macd_order = chart->pane_seq++;
-    else if (!enabled) chart->macd_order = -1;
+    if (next.enabled && !cur.enabled) chart->macd_order = chart->pane_seq++;
+    else if (!next.enabled) chart->macd_order = -1;
 
-    chart->macd_enabled = enabled;
-    chart->macd_fast = fast;
-    chart->macd_slow = slow;
-    chart->macd_signal = signal;
-    chart->macd_dirty = true;
+    chart->macd = next;
+    if (recompute) chart->macd_dirty = true;
     chart->mark_dirty();
 }
 
