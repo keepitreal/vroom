@@ -19,7 +19,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { MASource } from 'react-native-vroom-chart';
+import type { MAKind, MASource } from 'react-native-vroom-chart';
 
 export type IndicatorId = 'bb' | 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
 
@@ -94,7 +94,7 @@ export type RSIParams = {
   period: number;
   upperBand: number;
   lowerBand: number;
-  maEnabled: boolean;
+  maVisible: boolean;
   maPeriod: number;
 };
 
@@ -102,7 +102,7 @@ export const DEFAULT_RSI_PARAMS: RSIParams = {
   period: 14,
   upperBand: 70,
   lowerBand: 30,
-  maEnabled: true,
+  maVisible: true,
   maPeriod: 14,
 };
 
@@ -118,23 +118,24 @@ export const DEFAULT_MACD_PARAMS: MACDParams = {
   signal: 9,
 };
 
-// One moving-average overlay line (kind is implied by which list it's in).
+// One moving-average overlay line (the MA type is implied by which list it's
+// in).
 export type MALineParams = {
-  length: number;
+  period: number;
   source: MASource;
   color: string;
   width: number;
 };
 
 export const DEFAULT_MA_LINE: MALineParams = {
-  length: 9,
+  period: 9,
   source: 'close',
   color: '#2962ff',
   width: 1.5,
 };
 
 export const DEFAULT_EMA_LINE: MALineParams = {
-  length: 9,
+  period: 9,
   source: 'close',
   color: '#ff9800',
   width: 1.5,
@@ -159,12 +160,12 @@ export type BollingerParams = {
   period: number;
   stdDev: number;
   source: MASource;
-  basis: 'sma' | 'ema';
+  maType: MAKind;
   upperColor: string;
   middleColor: string;
   lowerColor: string;
   width: number;
-  fill: boolean;
+  fillVisible: boolean;
   fillOpacity: number;
 };
 
@@ -172,12 +173,12 @@ export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
   period: 20,
   stdDev: 2,
   source: 'close',
-  basis: 'sma',
+  maType: 'sma',
   upperColor: '#2962ff',
   middleColor: '#ff6d00',
   lowerColor: '#2962ff',
   width: 1,
-  fill: true,
+  fillVisible: true,
   fillOpacity: 0.1,
 };
 
@@ -461,11 +462,11 @@ function OverlayLineEditor({
         </Pressable>
       </View>
       <Stepper
-        label="Length"
-        value={line.length}
+        label="Period"
+        value={line.period}
         min={1}
         max={400}
-        onChange={(n) => onChange({ length: n })}
+        onChange={(n) => onChange({ period: n })}
       />
       <View style={styles.paramRow}>
         <Text style={styles.paramLabel}>Source</Text>
@@ -574,16 +575,16 @@ function DetailScreen({
               <View style={styles.paramRow}>
                 <Text style={styles.paramLabel}>Trendline (RSI MA)</Text>
                 <Switch
-                  value={rsi.maEnabled}
-                  onValueChange={(v) => onRsiParamsChange!({ maEnabled: v })}
+                  value={rsi.maVisible}
+                  onValueChange={(v) => onRsiParamsChange!({ maVisible: v })}
                   trackColor={{ true: '#238636', false: '#30363d' }}
                   thumbColor="#f0f6fc"
                   ios_backgroundColor="#30363d"
                 />
               </View>
-              {rsi.maEnabled ? (
+              {rsi.maVisible ? (
                 <Stepper
-                  label="Trendline length"
+                  label="Trendline period"
                   value={rsi.maPeriod}
                   min={1}
                   max={50}
@@ -679,15 +680,15 @@ function DetailScreen({
                 />
               </View>
               <View style={styles.paramRow}>
-                <Text style={styles.paramLabel}>Basis</Text>
+                <Text style={styles.paramLabel}>Basis averaging</Text>
                 <Segmented
                   options={[
                     { label: 'SMA', value: 0 },
                     { label: 'EMA', value: 1 },
                   ]}
-                  value={bb.basis === 'ema' ? 1 : 0}
+                  value={bb.maType === 'ema' ? 1 : 0}
                   onChange={(v) =>
-                    onBbParamsChange!({ basis: v === 1 ? 'ema' : 'sma' })
+                    onBbParamsChange!({ maType: v === 1 ? 'ema' : 'sma' })
                   }
                 />
               </View>
@@ -733,14 +734,14 @@ function DetailScreen({
               <View style={styles.paramRow}>
                 <Text style={styles.paramLabel}>Fill</Text>
                 <Switch
-                  value={bb.fill}
-                  onValueChange={(v) => onBbParamsChange!({ fill: v })}
+                  value={bb.fillVisible}
+                  onValueChange={(v) => onBbParamsChange!({ fillVisible: v })}
                   trackColor={{ true: '#238636', false: '#30363d' }}
                   thumbColor="#f0f6fc"
                   ios_backgroundColor="#30363d"
                 />
               </View>
-              {bb.fill ? (
+              {bb.fillVisible ? (
                 <View style={styles.paramRow}>
                   <Text style={styles.paramLabel}>Fill opacity</Text>
                   <Segmented

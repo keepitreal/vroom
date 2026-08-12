@@ -178,16 +178,63 @@ class WebChart {
   }
   void clearCrosshair() { vroom_chart_clear_crosshair(chart_); }
 
-  void setRSI(bool enabled, int period, double upper, double lower,
-              bool ma_enabled, int ma_period) {
-    vroom_chart_set_rsi(chart_, enabled, period, upper, lower, ma_enabled,
-                        ma_period);
+  // `s` is a JS object {enabled, period, upperBand, lowerBand, maPeriod,
+  // maKind, maVisible, lineColor, lineWidth, lineVisible, maColor, maWidth,
+  // bandColor, bandsVisible}.
+  void setRSI(const em::val& s) {
+    VroomRSI cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.period = s["period"].as<int32_t>();
+    cfg.upper_band = s["upperBand"].as<double>();
+    cfg.lower_band = s["lowerBand"].as<double>();
+    cfg.ma_period = s["maPeriod"].as<int32_t>();
+    cfg.ma_kind = s["maKind"].as<int32_t>();
+    cfg.ma_visible = s["maVisible"].as<bool>() ? 1 : 0;
+    cfg.line_color = s["lineColor"].as<uint32_t>();
+    cfg.line_width = s["lineWidth"].as<float>();
+    cfg.line_visible = s["lineVisible"].as<bool>() ? 1 : 0;
+    cfg.ma_color = s["maColor"].as<uint32_t>();
+    cfg.ma_width = s["maWidth"].as<float>();
+    cfg.band_color = s["bandColor"].as<uint32_t>();
+    cfg.bands_visible = s["bandsVisible"].as<bool>() ? 1 : 0;
+    vroom_chart_set_rsi(chart_, &cfg);
   }
-  void setMACD(bool enabled, int fast, int slow, int signal) {
-    vroom_chart_set_macd(chart_, enabled, fast, slow, signal);
+  // `s` is a JS object {enabled, fast, slow, signal, source, maKind,
+  // signalMaKind, lineColor, lineWidth, lineVisible, signalColor, signalWidth,
+  // signalVisible, histVisible, histUpColor, histUpFadingColor, histDownColor,
+  // histDownFadingColor, zeroColor, zeroVisible}.
+  void setMACD(const em::val& s) {
+    VroomMACD cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.fast = s["fast"].as<int32_t>();
+    cfg.slow = s["slow"].as<int32_t>();
+    cfg.signal = s["signal"].as<int32_t>();
+    cfg.source = s["source"].as<int32_t>();
+    cfg.ma_kind = s["maKind"].as<int32_t>();
+    cfg.signal_ma_kind = s["signalMaKind"].as<int32_t>();
+    cfg.line_color = s["lineColor"].as<uint32_t>();
+    cfg.line_width = s["lineWidth"].as<float>();
+    cfg.line_visible = s["lineVisible"].as<bool>() ? 1 : 0;
+    cfg.signal_color = s["signalColor"].as<uint32_t>();
+    cfg.signal_width = s["signalWidth"].as<float>();
+    cfg.signal_visible = s["signalVisible"].as<bool>() ? 1 : 0;
+    cfg.hist_visible = s["histVisible"].as<bool>() ? 1 : 0;
+    cfg.hist_up_color = s["histUpColor"].as<uint32_t>();
+    cfg.hist_up_fading_color = s["histUpFadingColor"].as<uint32_t>();
+    cfg.hist_down_color = s["histDownColor"].as<uint32_t>();
+    cfg.hist_down_fading_color = s["histDownFadingColor"].as<uint32_t>();
+    cfg.zero_color = s["zeroColor"].as<uint32_t>();
+    cfg.zero_visible = s["zeroVisible"].as<bool>() ? 1 : 0;
+    vroom_chart_set_macd(chart_, &cfg);
   }
-  void setVWAP(bool enabled, int reset_offset_min, uint32_t color, float width) {
-    vroom_chart_set_vwap(chart_, enabled, reset_offset_min, color, width);
+  // `s` is a JS object {enabled, resetOffsetMin, color, width}.
+  void setVWAP(const em::val& s) {
+    VroomVWAP cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.reset_offset_min = s["resetOffsetMin"].as<int32_t>();
+    cfg.color = s["color"].as<uint32_t>();
+    cfg.width = s["width"].as<float>();
+    vroom_chart_set_vwap(chart_, &cfg);
   }
   // `s` is a JS object {enabled, period, mult, source, basisKind, upperColor,
   // upperWidth, middleColor, middleWidth, lowerColor, lowerWidth, fillEnabled,

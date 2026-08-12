@@ -102,22 +102,53 @@ export interface ChartHandle {
     } | null;
   } | null;
   /**
-   * Configures the RSI pane: enable, period (>=2), overbought/oversold band
-   * levels (0..100), and the RSI-based MA trendline (toggle + length >=1).
+   * Configures the RSI pane. maKind mirrors setOverlays' kind encoding; colors
+   * are packed 0xAARRGGBB where 0 means inherit, and a non-positive width
+   * inherits the default stroke.
    */
-  setRSI(
-    enabled: boolean,
-    period: number,
-    upperBand: number,
-    lowerBand: number,
-    maEnabled: boolean,
-    maPeriod: number,
-  ): void;
+  setRSI(spec: {
+    enabled: boolean;
+    period: number;
+    upperBand: number;
+    lowerBand: number;
+    maPeriod: number;
+    maKind: number;
+    maVisible: boolean;
+    lineColor: number;
+    lineWidth: number;
+    lineVisible: boolean;
+    maColor: number;
+    maWidth: number;
+    bandColor: number;
+    bandsVisible: boolean;
+  }): void;
   /**
-   * Configures the MACD pane: enable, fast/slow EMA lengths (slow forced > fast)
-   * and the signal-line length. Defaults 12/26/9.
+   * Configures the MACD pane. source/maKind mirror setOverlays' encodings;
+   * colors are packed 0xAARRGGBB where 0 means inherit, and a non-positive
+   * width inherits the default stroke.
    */
-  setMACD(enabled: boolean, fast: number, slow: number, signal: number): void;
+  setMACD(spec: {
+    enabled: boolean;
+    fast: number;
+    slow: number;
+    signal: number;
+    source: number;
+    maKind: number;
+    signalMaKind: number;
+    lineColor: number;
+    lineWidth: number;
+    lineVisible: boolean;
+    signalColor: number;
+    signalWidth: number;
+    signalVisible: boolean;
+    histVisible: boolean;
+    histUpColor: number;
+    histUpFadingColor: number;
+    histDownColor: number;
+    histDownFadingColor: number;
+    zeroColor: number;
+    zeroVisible: boolean;
+  }): void;
   /**
    * Replaces the full set of MA/EMA overlay lines drawn on the price pane.
    * kind: 0=SMA, 1=EMA; source: 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4;
@@ -136,12 +167,12 @@ export interface ChartHandle {
    * Configures the session VWAP overlay. `resetOffsetMin` shifts the session
    * boundary from UTC midnight (minutes); `color` is packed 0xAARRGGBB.
    */
-  setVWAP(
-    enabled: boolean,
-    resetOffsetMin: number,
-    color: number,
-    width: number,
-  ): void;
+  setVWAP(spec: {
+    enabled: boolean;
+    resetOffsetMin: number;
+    color: number;
+    width: number;
+  }): void;
   /**
    * Configures the Bollinger Bands overlay (three price-pane lines + optional
    * fill between the bands). source/basisKind mirror setOverlays' encodings;

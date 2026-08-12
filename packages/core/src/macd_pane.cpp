@@ -20,17 +20,29 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "style_inherit.h"
 #include "theme.h"
 #include "viewport.h"
 
 namespace vroom::macd_pane {
 
 namespace {
+using vroom::style::color_or;
+using vroom::style::width_or;
+
 constexpr SkColor kMacdLine = 0xff2962ff;    // blue MACD line
 constexpr SkColor kSignalLine = 0xffff6d00;  // orange signal line
 constexpr SkColor kZeroLine = 0xff484f58;    // zero reference
 constexpr SkColor kDivider = 0xff21262d;     // pane separator
 constexpr float kPadFrac = 0.85f;            // keep curves off the band edges
+constexpr float kLineWidth = 1.5f;           // default stroke for both lines
+constexpr float kFadedAlpha = 0.5f;          // easing histogram bars
+
+// The easing histogram bars default to their own base color dimmed, which is
+// how the pane read before the colors were configurable.
+SkColor faded_or(uint32_t configured, SkColor base) {
+    return vroom::style::faded_or(configured, base, kFadedAlpha);
+}
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -51,23 +63,25 @@ void draw(SkCanvas* canvas,
     const float band_h = pane_bottom - pane_top;
     if (band_h <= 0.f) return;
 
+    const VroomMACD& cfg = chart.macd;
     const float mid = (pane_top + pane_bottom) * 0.5f;
     // User y-zoom scales the amplitude about the zero line (mid). 1.0 = the
     // default auto-fit; >1 zooms in, <1 zooms out.
     const float half =
         band_h * 0.5f * kPadFrac * static_cast<float>(chart.macd_y_scale);
 
-    // Auto-scale symmetric about zero across all visible finite values.
+    // Auto-scale symmetric about zero across the finite values on show, so
+    // hiding a series lets the rest fill the pane.
     double scale = 0.0;
-    auto track = [&](const double* s) {
-        if (!s) return;
+    auto track = [&](const double* s, bool shown) {
+        if (!s || !shown) return;
         for (std::size_t i = 0; i < n; ++i) {
             if (std::isfinite(s[i])) scale = std::max(scale, std::abs(s[i]));
         }
     };
-    track(macd_visible);
-    track(signal_visible);
-    track(hist_visible);
+    track(macd_visible, cfg.line_visible != 0);
+    track(signal_visible, cfg.signal_visible != 0);
+    track(hist_visible, cfg.hist_visible != 0);
 
     auto y_for = [&](double v) -> float {
         if (scale <= 0.0) return mid;
@@ -90,34 +104,44 @@ void draw(SkCanvas* canvas,
     canvas->clipRect(SkRect::MakeLTRB(0.f, pane_top, candle_right, pane_bottom));
 
     // Zero line.
-    SkPaint zero;
-    zero.setAntiAlias(true);
-    zero.setColor(kZeroLine);
-    zero.setStrokeWidth(1.f);
-    canvas->drawLine(0.f, mid, candle_right, mid, zero);
+    if (cfg.zero_visible) {
+        SkPaint zero;
+        zero.setAntiAlias(true);
+        zero.setColor(color_or(cfg.zero_color, kZeroLine));
+        zero.setStrokeWidth(1.f);
+        canvas->drawLine(0.f, mid, candle_right, mid, zero);
+    }
 
-    // Histogram bars: from the zero line to y_for(hist), 4-color (green above /
-    // red below, full alpha when accelerating, half when decelerating).
-    if (hist_visible) {
+    // Histogram bars: from the zero line to y_for(hist), 4-color — above or
+    // below zero, each in a building and an easing shade. A bar is building
+    // while it grows away from zero and easing while it falls back toward it.
+    if (hist_visible && cfg.hist_visible) {
         const float body_w =
             vroom::candle_body_width(lay, window_ms, candle_duration_ms);
         const float half_body = body_w * 0.5f;
         const float zero_y = y_for(0.0);
-        const SkColor bull = chart.theme.colors[VROOM_COLOR_ACCENT_BULL];
-        const SkColor bear = chart.theme.colors[VROOM_COLOR_ACCENT_BEAR];
+        const SkColor up =
+            color_or(cfg.hist_up_color, chart.theme.colors[VROOM_COLOR_ACCENT_BULL]);
+        const SkColor down =
+            color_or(cfg.hist_down_color, chart.theme.colors[VROOM_COLOR_ACCENT_BEAR]);
+        const SkColor up_easing = faded_or(cfg.hist_up_fading_color, up);
+        const SkColor down_easing = faded_or(cfg.hist_down_fading_color, down);
         for (std::size_t i = 0; i < n; ++i) {
             const double h = hist_visible[i];
             if (!std::isfinite(h)) continue;
             const bool have_prev = i > 0 && std::isfinite(hist_visible[i - 1]);
             const double prev = have_prev ? hist_visible[i - 1] : h;
-            bool accelerating = true;
+            bool building = true;
             if (have_prev) {
-                accelerating = h >= 0.0 ? h >= prev : h <= prev;
+                building = h >= 0.0 ? h >= prev : h <= prev;
             }
             SkPaint bar;
             bar.setAntiAlias(true);
-            bar.setColor(h >= 0.0 ? bull : bear);
-            bar.setAlphaf(accelerating ? 1.0f : 0.5f);
+            if (h >= 0.0) {
+                bar.setColor(building ? up : up_easing);
+            } else {
+                bar.setColor(building ? down : down_easing);
+            }
             const float cx = vroom::candle_center_x(
                 lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
                 window_ms);
@@ -130,7 +154,7 @@ void draw(SkCanvas* canvas,
     }
 
     // MACD + signal lines.
-    auto stroke_series = [&](const double* series, SkColor color) {
+    auto stroke_series = [&](const double* series, SkColor color, float width) {
         if (!series) return;
         SkPathBuilder path;
         bool pen_down = false;
@@ -155,11 +179,17 @@ void draw(SkCanvas* canvas,
         line.setAntiAlias(true);
         line.setColor(color);
         line.setStyle(SkPaint::kStroke_Style);
-        line.setStrokeWidth(1.5f);
+        line.setStrokeWidth(width);
         canvas->drawPath(path.detach(), line);
     };
-    stroke_series(signal_visible, kSignalLine);
-    stroke_series(macd_visible, kMacdLine);  // MACD over signal
+    if (cfg.signal_visible) {
+        stroke_series(signal_visible, color_or(cfg.signal_color, kSignalLine),
+                      width_or(cfg.signal_width, kLineWidth));
+    }
+    if (cfg.line_visible) {  // MACD over signal
+        stroke_series(macd_visible, color_or(cfg.line_color, kMacdLine),
+                      width_or(cfg.line_width, kLineWidth));
+    }
 
     // Caption, top-left of the pane.
     auto tf = vroom::axis_typeface();
@@ -168,8 +198,8 @@ void draw(SkCanvas* canvas,
         font.setSubpixel(true);
         font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
         char caption[40];
-        std::snprintf(caption, sizeof(caption), "MACD %d %d %d", chart.macd_fast,
-                      chart.macd_slow, chart.macd_signal);
+        std::snprintf(caption, sizeof(caption), "MACD %d %d %d", cfg.fast,
+                      cfg.slow, cfg.signal);
         SkRect cb;
         font.measureText(caption, std::strlen(caption), SkTextEncoding::kUTF8,
                          &cb);

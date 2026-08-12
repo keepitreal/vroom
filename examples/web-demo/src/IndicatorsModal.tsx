@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type {
   BollingerBandsConfig,
   MACDConfig,
+  MAKind,
   MASource,
   MovingAverageOverlay,
   RSIConfig,
@@ -99,46 +100,86 @@ export type RSIParams = {
   period: number;
   upperBand: number;
   lowerBand: number;
-  maEnabled: boolean;
+  maVisible: boolean;
   maPeriod: number;
+  maType: MAKind;
+  lineColor: string;
+  lineVisible: boolean;
+  maColor: string;
+  /** One stroke width for both lines, to keep the panel compact. */
+  width: number;
+  bandColor: string;
+  bandsVisible: boolean;
 };
 
 export const DEFAULT_RSI_PARAMS: RSIParams = {
   period: 14,
   upperBand: 70,
   lowerBand: 30,
-  maEnabled: true,
+  maVisible: true,
   maPeriod: 14,
+  maType: 'sma',
+  lineColor: '#8957e5',
+  lineVisible: true,
+  maColor: '#d29922',
+  width: 1.5,
+  bandColor: '#30363d',
+  bandsVisible: true,
 };
 
 export type MACDParams = {
   fast: number;
   slow: number;
   signal: number;
+  source: MASource;
+  maType: MAKind;
+  signalMaType: MAKind;
+  lineColor: string;
+  lineVisible: boolean;
+  signalColor: string;
+  signalVisible: boolean;
+  /** One stroke width for both lines, to keep the panel compact. */
+  width: number;
+  histogramVisible: boolean;
+  histogramUpColor: string;
+  histogramDownColor: string;
+  zeroLineVisible: boolean;
 };
 
 export const DEFAULT_MACD_PARAMS: MACDParams = {
   fast: 12,
   slow: 26,
   signal: 9,
+  source: 'close',
+  maType: 'ema',
+  signalMaType: 'ema',
+  lineColor: '#2962ff',
+  lineVisible: true,
+  signalColor: '#ff9800',
+  signalVisible: true,
+  width: 1.5,
+  histogramVisible: true,
+  histogramUpColor: '#26a69a',
+  histogramDownColor: '#f85149',
+  zeroLineVisible: true,
 };
 
 export type MALineParams = {
-  length: number;
+  period: number;
   source: MASource;
   color: string;
   width: number;
 };
 
 export const DEFAULT_MA_LINE: MALineParams = {
-  length: 9,
+  period: 9,
   source: 'close',
   color: '#2962ff',
   width: 1.5,
 };
 
 export const DEFAULT_EMA_LINE: MALineParams = {
-  length: 9,
+  period: 9,
   source: 'close',
   color: '#ff9800',
   width: 1.5,
@@ -160,12 +201,12 @@ export type BollingerParams = {
   period: number;
   stdDev: number;
   source: MASource;
-  basis: 'sma' | 'ema';
+  maType: MAKind;
   upperColor: string;
   middleColor: string;
   lowerColor: string;
   width: number;
-  fill: boolean;
+  fillVisible: boolean;
   fillOpacity: number;
 };
 
@@ -173,12 +214,12 @@ export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
   period: 20,
   stdDev: 2,
   source: 'close',
-  basis: 'sma',
+  maType: 'sma',
   upperColor: '#2962ff',
   middleColor: '#ff6d00',
   lowerColor: '#2962ff',
   width: 1,
-  fill: true,
+  fillVisible: true,
   fillOpacity: 0.1,
 };
 
@@ -225,6 +266,25 @@ const MA_WIDTHS = [
   { label: 'Med', value: 1.5 },
   { label: 'Thick', value: 2.5 },
 ];
+const MA_KINDS = [
+  { label: 'SMA', value: 0 },
+  { label: 'EMA', value: 1 },
+];
+
+// Tap-to-cycle button used by the enum rows (price source).
+const cycleButton: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '6px 12px',
+  borderRadius: 8,
+  background: '#161b22',
+  border: '1px solid #30363d',
+  color: '#c9d1d9',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
 
 // The chart props derived from the indicator state — shared by both demo views.
 export type IndicatorChartProps = {
@@ -250,8 +310,8 @@ export function deriveIndicatorProps(
     ...(state.ma.enabled
       ? maLines.map(
           (l): MovingAverageOverlay => ({
-            kind: 'sma',
-            length: l.length,
+            maType: 'sma',
+            period: l.period,
             source: l.source,
             color: l.color,
             width: l.width,
@@ -261,8 +321,8 @@ export function deriveIndicatorProps(
     ...(state.ema.enabled
       ? emaLines.map(
           (l): MovingAverageOverlay => ({
-            kind: 'ema',
-            length: l.length,
+            maType: 'ema',
+            period: l.period,
             source: l.source,
             color: l.color,
             width: l.width,
@@ -271,8 +331,41 @@ export function deriveIndicatorProps(
       : []),
   ];
   return {
-    rsi: { enabled: state.rsi.enabled, ...rsiParams },
-    macd: { enabled: state.macd.enabled, ...macdParams },
+    rsi: {
+      enabled: state.rsi.enabled,
+      period: rsiParams.period,
+      upperBand: rsiParams.upperBand,
+      lowerBand: rsiParams.lowerBand,
+      maPeriod: rsiParams.maPeriod,
+      maType: rsiParams.maType,
+      maVisible: rsiParams.maVisible,
+      lineColor: rsiParams.lineColor,
+      lineWidth: rsiParams.width,
+      lineVisible: rsiParams.lineVisible,
+      maColor: rsiParams.maColor,
+      maWidth: rsiParams.width,
+      bandColor: rsiParams.bandColor,
+      bandsVisible: rsiParams.bandsVisible,
+    },
+    macd: {
+      enabled: state.macd.enabled,
+      fast: macdParams.fast,
+      slow: macdParams.slow,
+      signal: macdParams.signal,
+      source: macdParams.source,
+      maType: macdParams.maType,
+      signalMaType: macdParams.signalMaType,
+      lineColor: macdParams.lineColor,
+      lineWidth: macdParams.width,
+      lineVisible: macdParams.lineVisible,
+      signalColor: macdParams.signalColor,
+      signalWidth: macdParams.width,
+      signalVisible: macdParams.signalVisible,
+      histogramVisible: macdParams.histogramVisible,
+      histogramUpColor: macdParams.histogramUpColor,
+      histogramDownColor: macdParams.histogramDownColor,
+      zeroLineVisible: macdParams.zeroLineVisible,
+    },
     movingAverages,
     vwap: {
       enabled: state.vwap.enabled,
@@ -285,14 +378,14 @@ export function deriveIndicatorProps(
       period: bbParams.period,
       stdDev: bbParams.stdDev,
       source: bbParams.source,
-      basis: bbParams.basis,
+      maType: bbParams.maType,
       upperColor: bbParams.upperColor,
       upperWidth: bbParams.width,
       middleColor: bbParams.middleColor,
       middleWidth: bbParams.width,
       lowerColor: bbParams.lowerColor,
       lowerWidth: bbParams.width,
-      fill: bbParams.fill,
+      fillVisible: bbParams.fillVisible,
       fillOpacity: bbParams.fillOpacity,
     },
     volume: {
@@ -722,11 +815,11 @@ function OverlayLineEditor({
         </button>
       </div>
       <Stepper
-        label="Length"
-        value={line.length}
+        label="Period"
+        value={line.period}
         min={1}
         max={400}
-        onChange={(n) => onChange({ length: n })}
+        onChange={(n) => onChange({ period: n })}
       />
       <div style={paramRow}>
         <span style={paramLabel}>Source</span>
@@ -773,6 +866,23 @@ const paramRow: React.CSSProperties = {
   padding: '8px 0',
 };
 const paramLabel: React.CSSProperties = { color: '#c9d1d9', fontSize: 14 };
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        color: '#6e7681',
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: 0.5,
+        marginTop: 20,
+        marginBottom: 4,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 function DetailScreen({
   meta,
@@ -881,18 +991,80 @@ function DetailScreen({
               <div style={paramRow}>
                 <span style={paramLabel}>Trendline (RSI MA)</span>
                 <Toggle
-                  value={rsi.maEnabled}
-                  onChange={(v) => onRsiParamsChange!({ maEnabled: v })}
+                  value={rsi.maVisible}
+                  onChange={(v) => onRsiParamsChange!({ maVisible: v })}
                 />
               </div>
-              {rsi.maEnabled && (
-                <Stepper
-                  label="Trendline length"
-                  value={rsi.maPeriod}
-                  min={1}
-                  max={50}
-                  onChange={(n) => onRsiParamsChange!({ maPeriod: n })}
+              {rsi.maVisible && (
+                <>
+                  <Stepper
+                    label="Trendline period"
+                    value={rsi.maPeriod}
+                    min={1}
+                    max={50}
+                    onChange={(n) => onRsiParamsChange!({ maPeriod: n })}
+                  />
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Trendline averaging</span>
+                    <Segmented
+                      options={MA_KINDS}
+                      value={rsi.maType === 'ema' ? 1 : 0}
+                      onChange={(v) =>
+                        onRsiParamsChange!({ maType: v === 1 ? 'ema' : 'sma' })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+              <SectionLabel>STYLE</SectionLabel>
+              <div style={paramRow}>
+                <span style={paramLabel}>RSI line</span>
+                <Toggle
+                  value={rsi.lineVisible}
+                  onChange={(v) => onRsiParamsChange!({ lineVisible: v })}
                 />
+              </div>
+              {rsi.lineVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>RSI color</span>
+                  <Swatches
+                    value={rsi.lineColor}
+                    onChange={(c) => onRsiParamsChange!({ lineColor: c })}
+                  />
+                </div>
+              )}
+              {rsi.maVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>Trendline color</span>
+                  <Swatches
+                    value={rsi.maColor}
+                    onChange={(c) => onRsiParamsChange!({ maColor: c })}
+                  />
+                </div>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Line width</span>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={rsi.width}
+                  onChange={(w) => onRsiParamsChange!({ width: w })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Band rules</span>
+                <Toggle
+                  value={rsi.bandsVisible}
+                  onChange={(v) => onRsiParamsChange!({ bandsVisible: v })}
+                />
+              </div>
+              {rsi.bandsVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>Band color</span>
+                  <Swatches
+                    value={rsi.bandColor}
+                    onChange={(c) => onRsiParamsChange!({ bandColor: c })}
+                  />
+                </div>
               )}
             </>
           ) : macd ? (
@@ -918,6 +1090,120 @@ function DetailScreen({
                 max={50}
                 onChange={(n) => onMacdParamsChange!({ signal: n })}
               />
+              <div style={paramRow}>
+                <span style={paramLabel}>Source</span>
+                <button
+                  onClick={() => {
+                    const i = MA_SOURCES.indexOf(macd.source);
+                    onMacdParamsChange!({
+                      source: MA_SOURCES[(i + 1) % MA_SOURCES.length],
+                    });
+                  }}
+                  style={cycleButton}
+                >
+                  {macd.source}
+                  <span style={{ color: '#6e7681', fontSize: 13 }}>⟳</span>
+                </button>
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Averaging</span>
+                <Segmented
+                  options={MA_KINDS}
+                  value={macd.maType === 'ema' ? 1 : 0}
+                  onChange={(v) =>
+                    onMacdParamsChange!({ maType: v === 1 ? 'ema' : 'sma' })
+                  }
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Signal averaging</span>
+                <Segmented
+                  options={MA_KINDS}
+                  value={macd.signalMaType === 'ema' ? 1 : 0}
+                  onChange={(v) =>
+                    onMacdParamsChange!({
+                      signalMaType: v === 1 ? 'ema' : 'sma',
+                    })
+                  }
+                />
+              </div>
+              <SectionLabel>STYLE</SectionLabel>
+              <div style={paramRow}>
+                <span style={paramLabel}>MACD line</span>
+                <Toggle
+                  value={macd.lineVisible}
+                  onChange={(v) => onMacdParamsChange!({ lineVisible: v })}
+                />
+              </div>
+              {macd.lineVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>MACD color</span>
+                  <Swatches
+                    value={macd.lineColor}
+                    onChange={(c) => onMacdParamsChange!({ lineColor: c })}
+                  />
+                </div>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Signal line</span>
+                <Toggle
+                  value={macd.signalVisible}
+                  onChange={(v) => onMacdParamsChange!({ signalVisible: v })}
+                />
+              </div>
+              {macd.signalVisible && (
+                <div style={paramRow}>
+                  <span style={paramLabel}>Signal color</span>
+                  <Swatches
+                    value={macd.signalColor}
+                    onChange={(c) => onMacdParamsChange!({ signalColor: c })}
+                  />
+                </div>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Line width</span>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={macd.width}
+                  onChange={(w) => onMacdParamsChange!({ width: w })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Histogram</span>
+                <Toggle
+                  value={macd.histogramVisible}
+                  onChange={(v) => onMacdParamsChange!({ histogramVisible: v })}
+                />
+              </div>
+              {macd.histogramVisible && (
+                <>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Above zero</span>
+                    <Swatches
+                      value={macd.histogramUpColor}
+                      onChange={(c) =>
+                        onMacdParamsChange!({ histogramUpColor: c })
+                      }
+                    />
+                  </div>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Below zero</span>
+                    <Swatches
+                      value={macd.histogramDownColor}
+                      onChange={(c) =>
+                        onMacdParamsChange!({ histogramDownColor: c })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Zero line</span>
+                <Toggle
+                  value={macd.zeroLineVisible}
+                  onChange={(v) => onMacdParamsChange!({ zeroLineVisible: v })}
+                />
+              </div>
             </>
           ) : editor ? (
             <>
@@ -997,15 +1283,12 @@ function DetailScreen({
                 />
               </div>
               <div style={paramRow}>
-                <span style={paramLabel}>Basis</span>
+                <span style={paramLabel}>Basis averaging</span>
                 <Segmented
-                  options={[
-                    { label: 'SMA', value: 0 },
-                    { label: 'EMA', value: 1 },
-                  ]}
-                  value={bb.basis === 'ema' ? 1 : 0}
+                  options={MA_KINDS}
+                  value={bb.maType === 'ema' ? 1 : 0}
                   onChange={(v) =>
-                    onBbParamsChange!({ basis: v === 1 ? 'ema' : 'sma' })
+                    onBbParamsChange!({ maType: v === 1 ? 'ema' : 'sma' })
                   }
                 />
               </div>
@@ -1018,19 +1301,7 @@ function DetailScreen({
                       source: MA_SOURCES[(i + 1) % MA_SOURCES.length],
                     });
                   }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '6px 12px',
-                    borderRadius: 8,
-                    background: '#161b22',
-                    border: '1px solid #30363d',
-                    color: '#c9d1d9',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  style={cycleButton}
                 >
                   {bb.source}
                   <span style={{ color: '#6e7681', fontSize: 13 }}>⟳</span>
@@ -1063,11 +1334,11 @@ function DetailScreen({
               <div style={paramRow}>
                 <span style={paramLabel}>Fill</span>
                 <Toggle
-                  value={bb.fill}
-                  onChange={(v) => onBbParamsChange!({ fill: v })}
+                  value={bb.fillVisible}
+                  onChange={(v) => onBbParamsChange!({ fillVisible: v })}
                 />
               </div>
-              {bb.fill && (
+              {bb.fillVisible && (
                 <div style={paramRow}>
                   <span style={paramLabel}>Fill opacity</span>
                   <Segmented

@@ -9,6 +9,7 @@ export type {
   RSIConfig,
   MACDConfig,
   MASource,
+  MAKind,
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,

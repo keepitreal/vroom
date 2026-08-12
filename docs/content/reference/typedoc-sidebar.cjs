@@ -33,6 +33,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/MAKind",
+          label: "MAKind"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/MASource",
           label: "MASource"
         },

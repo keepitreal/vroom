@@ -521,46 +521,106 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "setRSI") {
-    // setRSI(enabled, period, upperBand, lowerBand, maEnabled, maPeriod) —
-    // configures the RSI pane. No render; the next render() picks it up.
+    // setRSI({enabled, period, upperBand, lowerBand, maPeriod, maKind,
+    // maVisible, lineColor, lineWidth, lineVisible, maColor, maWidth,
+    // bandColor, bandsVisible}) — configures the RSI pane. No render; the next
+    // render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setRSI"),
-        6,
-        [this](jsi::Runtime& /*rt2*/,
+        1,
+        [this](jsi::Runtime& rt2,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* args,
                size_t count) -> jsi::Value {
-          if (count < 6) return jsi::Value::undefined();
-          const bool enabled = args[0].asBool();
-          const int period = static_cast<int>(args[1].asNumber());
-          const double upper = args[2].asNumber();
-          const double lower = args[3].asNumber();
-          const bool ma_enabled = args[4].asBool();
-          const int ma_period = static_cast<int>(args[5].asNumber());
-          vroom_chart_set_rsi(chart_, enabled, period, upper, lower, ma_enabled,
-                              ma_period);
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          VroomRSI cfg{};
+          cfg.enabled = s.getProperty(rt2, "enabled").asBool() ? 1 : 0;
+          cfg.period = static_cast<int32_t>(
+              s.getProperty(rt2, "period").asNumber());
+          cfg.upper_band = s.getProperty(rt2, "upperBand").asNumber();
+          cfg.lower_band = s.getProperty(rt2, "lowerBand").asNumber();
+          cfg.ma_period = static_cast<int32_t>(
+              s.getProperty(rt2, "maPeriod").asNumber());
+          cfg.ma_kind = static_cast<int32_t>(
+              s.getProperty(rt2, "maKind").asNumber());
+          cfg.ma_visible = s.getProperty(rt2, "maVisible").asBool() ? 1 : 0;
+          cfg.line_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "lineColor").asNumber());
+          cfg.line_width = static_cast<float>(
+              s.getProperty(rt2, "lineWidth").asNumber());
+          cfg.line_visible = s.getProperty(rt2, "lineVisible").asBool() ? 1 : 0;
+          cfg.ma_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "maColor").asNumber());
+          cfg.ma_width = static_cast<float>(
+              s.getProperty(rt2, "maWidth").asNumber());
+          cfg.band_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "bandColor").asNumber());
+          cfg.bands_visible =
+              s.getProperty(rt2, "bandsVisible").asBool() ? 1 : 0;
+          vroom_chart_set_rsi(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }
 
   if (name == "setMACD") {
-    // setMACD(enabled, fast, slow, signal) — configures the MACD pane. No
-    // render; the next render() picks it up.
+    // setMACD({enabled, fast, slow, signal, source, maKind, signalMaKind,
+    // lineColor, lineWidth, lineVisible, signalColor, signalWidth,
+    // signalVisible, histVisible, histUpColor, histUpFadingColor,
+    // histDownColor, histDownFadingColor, zeroColor, zeroVisible}) — configures
+    // the MACD pane. No render; the next render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setMACD"),
-        4,
-        [this](jsi::Runtime& /*rt2*/,
+        1,
+        [this](jsi::Runtime& rt2,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* args,
                size_t count) -> jsi::Value {
-          if (count < 4) return jsi::Value::undefined();
-          const bool enabled = args[0].asBool();
-          const int fast = static_cast<int>(args[1].asNumber());
-          const int slow = static_cast<int>(args[2].asNumber());
-          const int signal = static_cast<int>(args[3].asNumber());
-          vroom_chart_set_macd(chart_, enabled, fast, slow, signal);
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          VroomMACD cfg{};
+          cfg.enabled = s.getProperty(rt2, "enabled").asBool() ? 1 : 0;
+          cfg.fast = static_cast<int32_t>(
+              s.getProperty(rt2, "fast").asNumber());
+          cfg.slow = static_cast<int32_t>(
+              s.getProperty(rt2, "slow").asNumber());
+          cfg.signal = static_cast<int32_t>(
+              s.getProperty(rt2, "signal").asNumber());
+          cfg.source = static_cast<int32_t>(
+              s.getProperty(rt2, "source").asNumber());
+          cfg.ma_kind = static_cast<int32_t>(
+              s.getProperty(rt2, "maKind").asNumber());
+          cfg.signal_ma_kind = static_cast<int32_t>(
+              s.getProperty(rt2, "signalMaKind").asNumber());
+          cfg.line_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "lineColor").asNumber());
+          cfg.line_width = static_cast<float>(
+              s.getProperty(rt2, "lineWidth").asNumber());
+          cfg.line_visible =
+              s.getProperty(rt2, "lineVisible").asBool() ? 1 : 0;
+          cfg.signal_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "signalColor").asNumber());
+          cfg.signal_width = static_cast<float>(
+              s.getProperty(rt2, "signalWidth").asNumber());
+          cfg.signal_visible =
+              s.getProperty(rt2, "signalVisible").asBool() ? 1 : 0;
+          cfg.hist_visible =
+              s.getProperty(rt2, "histVisible").asBool() ? 1 : 0;
+          cfg.hist_up_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "histUpColor").asNumber());
+          cfg.hist_up_fading_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "histUpFadingColor").asNumber());
+          cfg.hist_down_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "histDownColor").asNumber());
+          cfg.hist_down_fading_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "histDownFadingColor").asNumber());
+          cfg.zero_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "zeroColor").asNumber());
+          cfg.zero_visible =
+              s.getProperty(rt2, "zeroVisible").asBool() ? 1 : 0;
+          vroom_chart_set_macd(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }
@@ -604,21 +664,26 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "setVWAP") {
-    // setVWAP(enabled, resetOffsetMin, color, width) — session VWAP overlay.
+    // setVWAP({enabled, resetOffsetMin, color, width}) — session VWAP overlay.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setVWAP"),
-        4,
-        [this](jsi::Runtime& /*rt2*/,
+        1,
+        [this](jsi::Runtime& rt2,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* args,
                size_t count) -> jsi::Value {
-          if (count < 4) return jsi::Value::undefined();
-          const bool enabled = args[0].asBool();
-          const int reset = static_cast<int>(args[1].asNumber());
-          const uint32_t color = static_cast<uint32_t>(args[2].asNumber());
-          const float width = static_cast<float>(args[3].asNumber());
-          vroom_chart_set_vwap(chart_, enabled, reset, color, width);
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          VroomVWAP cfg{};
+          cfg.enabled = s.getProperty(rt2, "enabled").asBool() ? 1 : 0;
+          cfg.reset_offset_min = static_cast<int32_t>(
+              s.getProperty(rt2, "resetOffsetMin").asNumber());
+          cfg.color = static_cast<uint32_t>(
+              s.getProperty(rt2, "color").asNumber());
+          cfg.width = static_cast<float>(
+              s.getProperty(rt2, "width").asNumber());
+          vroom_chart_set_vwap(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }

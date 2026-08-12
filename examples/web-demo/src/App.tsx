@@ -14,7 +14,7 @@ import {
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
-import { Sidebar } from './Sidebar';
+import { Sidebar, type PriceLineStyleChoice } from './Sidebar';
 import { SettingsModal, DEFAULT_THEME, type ThemeState, type NumericStyle } from './SettingsModal';
 import {
   IndicatorsModal,
@@ -315,7 +315,8 @@ const priceLineText = (label: string, price: number) => `${label} @ ${price.toFi
 // Sample order/position lines anchored around the latest close: a draggable
 // resting limit buy under spot (with a size pill and a cancel button), the
 // take-profit it pairs with above, and a fixed liquidation level the user can
-// neither move nor dismiss.
+// neither move nor dismiss. Each takes a different lineStyle (the take-profit
+// leaves it unset for the dotted default) so all three render at once.
 function makePriceLines(candles: Candle[]): DemoPriceLine[] {
   if (candles.length === 0) return [];
   // Spread the samples across the price range of the candles that are roughly
@@ -341,6 +342,7 @@ function makePriceLines(candles: Candle[]): DemoPriceLine[] {
       quantity: '0.75',
       color: '#26a69a',
       draggable: true,
+      lineStyle: 'dashed',
     }),
     line('take-profit', 'Take Profit', at(0.78), {
       quantity: 'Full',
@@ -350,6 +352,7 @@ function makePriceLines(candles: Candle[]): DemoPriceLine[] {
     line('liquidation', 'Liquidation', at(0.08), {
       color: '#f0a020',
       closable: false,
+      lineStyle: 'solid',
     }),
   ];
 }
@@ -448,8 +451,25 @@ export function App() {
     setReadout(`cancelled ${id}`);
     setPriceLines((prev) => prev.filter((l) => l.id !== id));
   }, []);
+  // Forces one style onto every line so the three can be compared directly;
+  // 'mixed' leaves each sample's own lineStyle alone. Applied on the way out
+  // rather than to the state above, so switching styles mid-drag doesn't
+  // overwrite the price being dragged.
+  const [priceLineStyle, setPriceLineStyle] = useState<PriceLineStyleChoice>('mixed');
+  const styledPriceLines = useMemo(
+    () =>
+      priceLineStyle === 'mixed'
+        ? priceLines
+        : priceLines.map((l) => ({ ...l, lineStyle: priceLineStyle })),
+    [priceLines, priceLineStyle],
+  );
   const priceLineProps = showPriceLines
-    ? { priceLines, onPriceLineDrag, onPriceLineDragEnd, onPriceLineClose }
+    ? {
+        priceLines: styledPriceLines,
+        onPriceLineDrag,
+        onPriceLineDragEnd,
+        onPriceLineClose,
+      }
     : {};
 
   // Layout: single chart, or two stacked crosshair-linked panes (replaces the
@@ -864,7 +884,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

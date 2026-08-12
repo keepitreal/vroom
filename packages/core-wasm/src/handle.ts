@@ -88,6 +88,46 @@ export type OverlaySpec = {
   width: number;
 };
 
+/**
+ * The RSI pane, in the core's numeric encoding. The style fields carry an
+ * inherit sentinel — a non-positive width or a fully transparent color tells
+ * the core to fall back to its default.
+ */
+export type RSISpec = {
+  enabled: boolean;
+  period: number;
+  upperBand: number;
+  lowerBand: number;
+  maPeriod: number;
+  /** Trendline: 0 = SMA, 1 = EMA. */
+  maKind: number;
+  maVisible: boolean;
+  /** Packed 0xAARRGGBB. */
+  lineColor: number;
+  /** Stroke width in px. */
+  lineWidth: number;
+  lineVisible: boolean;
+  maColor: number;
+  maWidth: number;
+  /** Shared by both dashed band rules. */
+  bandColor: number;
+  bandsVisible: boolean;
+};
+
+/**
+ * The session VWAP overlay, in the core's numeric encoding. Color and width
+ * carry the same inherit sentinel as the other indicators.
+ */
+export type VWAPSpec = {
+  enabled: boolean;
+  /** Session reset offset from UTC midnight, in minutes. */
+  resetOffsetMin: number;
+  /** Packed 0xAARRGGBB. */
+  color: number;
+  /** Stroke width in px. */
+  width: number;
+};
+
 /** The Bollinger Bands overlay, in the core's numeric encoding. */
 export type BollingerSpec = {
   enabled: boolean;
@@ -110,6 +150,40 @@ export type BollingerSpec = {
   fillEnabled: boolean;
   /** 0..1, multiplied into upperColor's alpha. */
   fillOpacity: number;
+};
+
+/**
+ * The MACD pane, in the core's numeric encoding. The style fields carry an
+ * inherit sentinel — a non-positive width or a fully transparent color tells
+ * the core to fall back to its default (or, for the histogram, to the theme
+ * accent, and for the fading shades to their base color at half alpha).
+ */
+export type MACDSpec = {
+  enabled: boolean;
+  fast: number;
+  slow: number;
+  signal: number;
+  /** 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4 */
+  source: number;
+  /** Fast/slow legs: 0 = SMA, 1 = EMA. */
+  maKind: number;
+  /** Signal line: 0 = SMA, 1 = EMA. */
+  signalMaKind: number;
+  /** MACD line, packed 0xAARRGGBB. */
+  lineColor: number;
+  /** Stroke width in px. */
+  lineWidth: number;
+  lineVisible: boolean;
+  signalColor: number;
+  signalWidth: number;
+  signalVisible: boolean;
+  histVisible: boolean;
+  histUpColor: number;
+  histUpFadingColor: number;
+  histDownColor: number;
+  histDownFadingColor: number;
+  zeroColor: number;
+  zeroVisible: boolean;
 };
 
 /**
@@ -357,22 +431,10 @@ export interface VroomChartHandle {
    */
   getCrosshairInfo(): CrosshairInfo | null;
 
-  setRSI(
-    enabled: boolean,
-    period: number,
-    upperBand: number,
-    lowerBand: number,
-    maEnabled: boolean,
-    maPeriod: number,
-  ): void;
-  setMACD(enabled: boolean, fast: number, slow: number, signal: number): void;
+  setRSI(spec: RSISpec): void;
+  setMACD(spec: MACDSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
-  setVWAP(
-    enabled: boolean,
-    resetOffsetMin: number,
-    color: number,
-    width: number,
-  ): void;
+  setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
   setVolume(spec: VolumeSpec): void;
   /**

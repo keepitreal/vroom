@@ -63,6 +63,7 @@ if(VROOM_BUILD_TESTS)
         src/rsi.cpp
         src/macd.cpp
         src/ma.cpp
+        src/series_ma.cpp
         src/vwap.cpp
         src/bollinger.cpp
         src/volume_anim.cpp

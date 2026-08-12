@@ -263,20 +263,26 @@ export type UndoRedoControls = {
   clearHistory: () => void;
 };
 
-/** RSI indicator config. Rendered in a pane below the candles when enabled. */
-export type RSIConfig = {
-  enabled?: boolean;
-  /** Lookback period in candle counts. Default 14, clamped to >= 2. */
-  period?: number;
-  /** Overbought band level (0..100). Default 70. */
-  upperBand?: number;
-  /** Oversold band level (0..100). Default 30. */
-  lowerBand?: number;
-  /** Show the RSI-based moving-average trendline. Default true. */
-  maEnabled?: boolean;
-  /** Trendline (MA of RSI) length. Default 14, clamped to >= 1. */
-  maPeriod?: number;
-};
+/*
+ * Indicator configs
+ * -----------------
+ * The six indicator configs below follow one set of conventions, so a field
+ * name means the same thing wherever it appears:
+ *
+ * - `enabled` turns the whole indicator on or off.
+ * - `<element>Visible` hides a single drawn element of an indicator that draws
+ *   several (the MACD histogram, the RSI trendline, the Bollinger fill).
+ * - An indicator that draws one line takes a bare `color` / `width`; one that
+ *   draws several prefixes them per element, with its primary series under
+ *   `lineColor` / `lineWidth` / `lineVisible`.
+ * - A lookback is a `period`, except where a series has several and each needs
+ *   its own name (`fast`, `slow`, `signal`, `maPeriod`).
+ * - The choice between a simple and an exponential average is always `maType`
+ *   (or `<series>MaType`), typed {@link MAKind}.
+ * - Every style field is optional. Leaving one unset keeps the stock look
+ *   rather than freezing in a literal, so the theme stays in charge of the
+ *   colors it owns.
+ */
 
 /** Price source for a moving average. */
 export type MASource =
@@ -288,16 +294,60 @@ export type MASource =
   | 'hlc3'
   | 'ohlc4';
 
+/** Averaging used by a moving average: simple or exponential. */
+export type MAKind = 'sma' | 'ema';
+
+/**
+ * RSI indicator config. Rendered in a pane below the candles when enabled: the
+ * RSI line, an optional moving-average trendline over it, and two dashed rules
+ * at the overbought and oversold levels.
+ *
+ * RSI reads closes only — Wilder's definition is built on close-to-close
+ * change — so unlike the moving-average, Bollinger, and MACD configs it takes
+ * no {@link MASource}.
+ */
+export type RSIConfig = {
+  /** Draw the pane. Default false. */
+  enabled?: boolean;
+  /** Lookback period in candle counts. Default 14, clamped to >= 2. */
+  period?: number;
+  /** Overbought band level (0..100). Default 70. */
+  upperBand?: number;
+  /** Oversold band level (0..100). Default 30. */
+  lowerBand?: number;
+  /** Trendline (MA of RSI) length. Default 14, clamped to >= 1. */
+  maPeriod?: number;
+  /** Averaging used for the trendline ({@link MAKind}). Default 'sma'. */
+  maType?: MAKind;
+  /** Draw the moving-average trendline. Default true. */
+  maVisible?: boolean;
+
+  /** RSI line color (hex string or packed ARGB number). Default violet. */
+  lineColor?: string | number;
+  /** RSI line stroke width in px. Default 1.5. */
+  lineWidth?: number;
+  /** Draw the RSI line. Default true. */
+  lineVisible?: boolean;
+  /** Trendline color. Default amber. */
+  maColor?: string | number;
+  /** Trendline stroke width in px. Default 1.5. */
+  maWidth?: number;
+  /** Color of both dashed band rules. Default gray. */
+  bandColor?: string | number;
+  /** Draw the overbought/oversold rules. Default true. */
+  bandsVisible?: boolean;
+};
+
 /**
  * A moving-average overlay line drawn on the price pane. Provide an array of
  * these via `movingAverages` to render a ribbon of SMA/EMA lines.
  */
 export type MovingAverageOverlay = {
-  /** 'sma' (simple) or 'ema' (exponential). */
-  kind: 'sma' | 'ema';
+  /** Averaging for this line ({@link MAKind}). */
+  maType: MAKind;
   /** Lookback in candles. */
-  length: number;
-  /** Price source. Default 'close'. */
+  period: number;
+  /** Price source ({@link MASource}). Default 'close'. */
   source?: MASource;
   /** Line color (hex string or packed ARGB number). */
   color?: string | number;
@@ -310,6 +360,7 @@ export type MovingAverageOverlay = {
  * pane, resetting each session.
  */
 export type VWAPConfig = {
+  /** Draw the line. Default false. */
   enabled?: boolean;
   /** Session reset offset from UTC midnight, in minutes (default 0). */
   resetMinutes?: number;
@@ -326,18 +377,20 @@ export type VWAPConfig = {
  * fill between the bands. No pane is reserved.
  */
 export type BollingerBandsConfig = {
+  /** Draw the bands. Default false. */
   enabled?: boolean;
   /** Lookback in candles. Default 20, clamped to >= 1. */
   period?: number;
   /** Standard-deviation multiplier. Default 2. */
   stdDev?: number;
-  /** Price source. Default 'close'. */
+  /** Price source ({@link MASource}). Default 'close'. */
   source?: MASource;
   /**
-   * Basis (middle) line type. Default 'sma'. The stdev always uses the
-   * window's arithmetic mean, even with an EMA basis (the standard semantics).
+   * Averaging for the basis (middle) line ({@link MAKind}). Default 'sma'. The
+   * stdev always uses the window's arithmetic mean, even with an EMA basis
+   * (the standard semantics).
    */
-  basis?: 'sma' | 'ema';
+  maType?: MAKind;
   /** Upper band color (hex string or packed ARGB number). Default blue. */
   upperColor?: string | number;
   /** Upper band stroke width in px. Default 1. */
@@ -350,8 +403,8 @@ export type BollingerBandsConfig = {
   lowerColor?: string | number;
   /** Lower band stroke width in px. Default 1. */
   lowerWidth?: number;
-  /** Translucent fill between the bands. Default true. */
-  fill?: boolean;
+  /** Draw the translucent fill between the bands. Default true. */
+  fillVisible?: boolean;
   /** Fill opacity 0..1, applied to the upper band color. Default 0.1. */
   fillOpacity?: number;
 };
@@ -507,15 +560,68 @@ export type PriceLinesStyle = {
   hoverBoost?: number;
 };
 
-/** MACD indicator config. Rendered in its own pane below the candles. */
+/**
+ * MACD indicator config. Rendered in its own pane below the candles: the gap
+ * between a fast and a slow moving average, a signal line smoothing that gap,
+ * and a histogram of the distance between the two.
+ *
+ * Every style field is optional and falls back to the stock look, so an
+ * untouched config renders exactly as it always has.
+ */
 export type MACDConfig = {
+  /** Draw the pane. Default false. */
   enabled?: boolean;
-  /** Fast EMA length. Default 12. */
+  /** Fast moving-average length. Default 12. */
   fast?: number;
-  /** Slow EMA length (forced > fast). Default 26. */
+  /** Slow moving-average length (forced > fast). Default 26. */
   slow?: number;
-  /** Signal-line EMA length. Default 9. */
+  /** Signal-line length. Default 9. */
   signal?: number;
+  /** Price source for the fast/slow legs ({@link MASource}). Default 'close'. */
+  source?: MASource;
+  /** Averaging used for the fast and slow legs ({@link MAKind}). Default 'ema'. */
+  maType?: MAKind;
+  /** Averaging applied to the MACD series for the signal line. Default 'ema'. */
+  signalMaType?: MAKind;
+
+  /** MACD line color (hex string or packed ARGB number). Default blue. */
+  lineColor?: string | number;
+  /** MACD line stroke width in px. Default 1.5. */
+  lineWidth?: number;
+  /** Draw the MACD line. Default true. */
+  lineVisible?: boolean;
+  /** Signal line color. Default orange. */
+  signalColor?: string | number;
+  /** Signal line stroke width in px. Default 1.5. */
+  signalWidth?: number;
+  /** Draw the signal line. Default true. */
+  signalVisible?: boolean;
+
+  /** Draw the histogram bars. Default true. */
+  histogramVisible?: boolean;
+  /**
+   * Bars above zero that are still growing away from it. Defaults to
+   * `theme.accentBull`. Set all four histogram colors alike for a flat,
+   * single-color histogram.
+   */
+  histogramUpColor?: string | number;
+  /**
+   * Bars above zero that are falling back toward it, i.e. momentum easing.
+   * Defaults to `histogramUpColor` at half opacity.
+   */
+  histogramUpFadingColor?: string | number;
+  /** Bars below zero still growing away from it. Defaults to `theme.accentBear`. */
+  histogramDownColor?: string | number;
+  /**
+   * Bars below zero rising back toward it. Defaults to `histogramDownColor` at
+   * half opacity.
+   */
+  histogramDownFadingColor?: string | number;
+
+  /** Zero-reference line color. Default gray. */
+  zeroLineColor?: string | number;
+  /** Draw the zero-reference line. Default true. */
+  zeroLineVisible?: boolean;
 };
 
 /**

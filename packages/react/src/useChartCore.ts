@@ -13,6 +13,9 @@ import {
   type LoadVroomOptions,
   type OverlaySpec,
   type BollingerSpec,
+  type MACDSpec,
+  type RSISpec,
+  type VWAPSpec,
   type VolumeSpec,
   type DrawingSpec,
   type LiquiditySpec,
@@ -44,16 +47,48 @@ function prefersReducedMotion(): boolean {
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;
 
+// An unset style color marshals as the core's transparent inherit sentinel.
+const inheritColor = (v: string | number | undefined): number =>
+  (v != null ? parseColor(v) : null) ?? 0;
+
 function overlayToNumeric(
   o: NonNullable<VroomChartCoreProps['movingAverages']>[number],
 ): OverlaySpec {
   const srcIdx = o.source ? MA_SOURCES.indexOf(o.source) : 0;
   return {
-    kind: o.kind === 'ema' ? 1 : 0,
-    period: o.length,
+    kind: o.maType === 'ema' ? 1 : 0,
+    period: o.period,
     source: srcIdx < 0 ? 0 : srcIdx,
     color: (o.color != null ? parseColor(o.color) : null) ?? 0xff2962ff,
     width: o.width ?? 1.5,
+  };
+}
+
+function rsiToSpec(cfg: VroomChartCoreProps['rsi']): RSISpec {
+  return {
+    enabled: cfg?.enabled ?? false,
+    period: cfg?.period ?? 14,
+    upperBand: cfg?.upperBand ?? 70,
+    lowerBand: cfg?.lowerBand ?? 30,
+    maPeriod: cfg?.maPeriod ?? 14,
+    maKind: cfg?.maType === 'ema' ? 1 : 0,
+    maVisible: cfg?.maVisible ?? true,
+    lineColor: inheritColor(cfg?.lineColor),
+    lineWidth: cfg?.lineWidth ?? -1,
+    lineVisible: cfg?.lineVisible ?? true,
+    maColor: inheritColor(cfg?.maColor),
+    maWidth: cfg?.maWidth ?? -1,
+    bandColor: inheritColor(cfg?.bandColor),
+    bandsVisible: cfg?.bandsVisible ?? true,
+  };
+}
+
+function vwapToSpec(cfg: VroomChartCoreProps['vwap']): VWAPSpec {
+  return {
+    enabled: cfg?.enabled ?? false,
+    resetOffsetMin: cfg?.resetMinutes ?? 0,
+    color: inheritColor(cfg?.color),
+    width: cfg?.width ?? -1,
   };
 }
 
@@ -70,7 +105,7 @@ function bollingerToSpec(
     period: cfg?.period ?? 20,
     mult: cfg?.stdDev ?? 2,
     source: srcIdx < 0 ? 0 : srcIdx,
-    basisKind: cfg?.basis === 'ema' ? 1 : 0,
+    basisKind: cfg?.maType === 'ema' ? 1 : 0,
     upperColor:
       (cfg?.upperColor != null ? parseColor(cfg.upperColor) : null) ?? DEFAULT_BB_BAND_COLOR,
     upperWidth: cfg?.upperWidth ?? 1,
@@ -80,8 +115,34 @@ function bollingerToSpec(
     lowerColor:
       (cfg?.lowerColor != null ? parseColor(cfg.lowerColor) : null) ?? DEFAULT_BB_BAND_COLOR,
     lowerWidth: cfg?.lowerWidth ?? 1,
-    fillEnabled: cfg?.fill ?? true,
+    fillEnabled: cfg?.fillVisible ?? true,
     fillOpacity: cfg?.fillOpacity ?? 0.1,
+  };
+}
+
+function macdToSpec(cfg: VroomChartCoreProps['macd']): MACDSpec {
+  const srcIdx = cfg?.source ? MA_SOURCES.indexOf(cfg.source) : 0;
+  return {
+    enabled: cfg?.enabled ?? false,
+    fast: cfg?.fast ?? 12,
+    slow: cfg?.slow ?? 26,
+    signal: cfg?.signal ?? 9,
+    source: srcIdx < 0 ? 0 : srcIdx,
+    maKind: cfg?.maType === 'sma' ? 0 : 1,
+    signalMaKind: cfg?.signalMaType === 'sma' ? 0 : 1,
+    lineColor: inheritColor(cfg?.lineColor),
+    lineWidth: cfg?.lineWidth ?? -1,
+    lineVisible: cfg?.lineVisible ?? true,
+    signalColor: inheritColor(cfg?.signalColor),
+    signalWidth: cfg?.signalWidth ?? -1,
+    signalVisible: cfg?.signalVisible ?? true,
+    histVisible: cfg?.histogramVisible ?? true,
+    histUpColor: inheritColor(cfg?.histogramUpColor),
+    histUpFadingColor: inheritColor(cfg?.histogramUpFadingColor),
+    histDownColor: inheritColor(cfg?.histogramDownColor),
+    histDownFadingColor: inheritColor(cfg?.histogramDownFadingColor),
+    zeroColor: inheritColor(cfg?.zeroLineColor),
+    zeroVisible: cfg?.zeroLineVisible ?? true,
   };
 }
 
@@ -465,22 +526,10 @@ export function useChartCore(
     }
     if (explicit) h.setVisibleRange(startMs, endMs);
     if (theme) applyTheme(h, theme);
-    h.setRSI(
-      rsi?.enabled ?? false,
-      rsi?.period ?? 14,
-      rsi?.upperBand ?? 70,
-      rsi?.lowerBand ?? 30,
-      rsi?.maEnabled ?? true,
-      rsi?.maPeriod ?? 14,
-    );
-    h.setMACD(macd?.enabled ?? false, macd?.fast ?? 12, macd?.slow ?? 26, macd?.signal ?? 9);
+    h.setRSI(rsiToSpec(rsi));
+    h.setMACD(macdToSpec(macd));
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
-    h.setVWAP(
-      vwap?.enabled ?? false,
-      vwap?.resetMinutes ?? 0,
-      (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
-      vwap?.width ?? 1.5,
-    );
+    h.setVWAP(vwapToSpec(vwap));
     h.setBollinger(bollingerToSpec(bollingerBands));
     h.setVolume(volumeToSpec(volume));
     // setVolume snaps the collapse scalar to its `enabled`, which would cut a
