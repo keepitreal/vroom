@@ -61,10 +61,10 @@
     "react-dom": ">=18"
   },
   "devDependencies": {
-    "@types/react": "~19.1.0",
+    "@types/react": "~19.2.4",
     "@types/react-dom": "~19.2.4",
     "@vroomchart/types": "workspace:*",
-    "react": "19.1.0",
+    "react": "19.2.8",
     "react-dom": "19.2.8",
     "tsup": "^8.5.1",
     "typescript": "~5.9.2",
