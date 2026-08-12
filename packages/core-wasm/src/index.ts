@@ -39,6 +39,8 @@ export type {
   OverlaySpec,
   BollingerSpec,
   MACDSpec,
+  RSISpec,
+  VWAPSpec,
   VolumeSpec,
   DrawingSpec,
   BandSpec,

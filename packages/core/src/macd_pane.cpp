@@ -20,12 +20,16 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "style_inherit.h"
 #include "theme.h"
 #include "viewport.h"
 
 namespace vroom::macd_pane {
 
 namespace {
+using vroom::style::color_or;
+using vroom::style::width_or;
+
 constexpr SkColor kMacdLine = 0xff2962ff;    // blue MACD line
 constexpr SkColor kSignalLine = 0xffff6d00;  // orange signal line
 constexpr SkColor kZeroLine = 0xff484f58;    // zero reference
@@ -34,20 +38,10 @@ constexpr float kPadFrac = 0.85f;            // keep curves off the band edges
 constexpr float kLineWidth = 1.5f;           // default stroke for both lines
 constexpr float kFadedAlpha = 0.5f;          // easing histogram bars
 
-// A fully transparent config color means "inherit", so fall back to `fallback`.
-SkColor color_or(uint32_t configured, SkColor fallback) {
-    return SkColorGetA(configured) == 0 ? fallback : configured;
-}
-
-// Same, for the easing histogram bars: they default to their own base color
-// dimmed, which is how the pane read before the colors were configurable.
+// The easing histogram bars default to their own base color dimmed, which is
+// how the pane read before the colors were configurable.
 SkColor faded_or(uint32_t configured, SkColor base) {
-    if (SkColorGetA(configured) != 0) return configured;
-    return SkColorSetA(base, static_cast<U8CPU>(SkColorGetA(base) * kFadedAlpha));
-}
-
-float width_or(float configured, float fallback) {
-    return configured > 0.f ? configured : fallback;
+    return vroom::style::faded_or(configured, base, kFadedAlpha);
 }
 }  // namespace
 
@@ -85,7 +79,7 @@ void draw(SkCanvas* canvas,
             if (std::isfinite(s[i])) scale = std::max(scale, std::abs(s[i]));
         }
     };
-    track(macd_visible, cfg.macd_visible != 0);
+    track(macd_visible, cfg.line_visible != 0);
     track(signal_visible, cfg.signal_visible != 0);
     track(hist_visible, cfg.hist_visible != 0);
 
@@ -192,9 +186,9 @@ void draw(SkCanvas* canvas,
         stroke_series(signal_visible, color_or(cfg.signal_color, kSignalLine),
                       width_or(cfg.signal_width, kLineWidth));
     }
-    if (cfg.macd_visible) {  // MACD over signal
-        stroke_series(macd_visible, color_or(cfg.macd_color, kMacdLine),
-                      width_or(cfg.macd_width, kLineWidth));
+    if (cfg.line_visible) {  // MACD over signal
+        stroke_series(macd_visible, color_or(cfg.line_color, kMacdLine),
+                      width_or(cfg.line_width, kLineWidth));
     }
 
     // Caption, top-left of the pane.

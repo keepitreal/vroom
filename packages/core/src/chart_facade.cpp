@@ -590,7 +590,7 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
 extern "C" void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px) {
     if (!chart || dy_px == 0.f) return;
 
-    const int pane_count = (chart->rsi_enabled ? 1 : 0) + (chart->macd.enabled ? 1 : 0);
+    const int pane_count = (chart->rsi.enabled ? 1 : 0) + (chart->macd.enabled ? 1 : 0);
     if (pane_count == 0) return;  // nothing below the chart to resize
 
     const auto lay = chart->layout();
@@ -644,7 +644,7 @@ extern "C" void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px,
     struct ActivePane { int order; int type; };  // type: 0 = RSI, 1 = MACD
     ActivePane panes[2];
     int count = 0;
-    if (chart->rsi_enabled) panes[count++] = {chart->rsi_order, 0};
+    if (chart->rsi.enabled) panes[count++] = {chart->rsi_order, 0};
     if (chart->macd.enabled) panes[count++] = {chart->macd_order, 1};
     if (count == 0) return;
     if (count == 2 && panes[0].order > panes[1].order) {
@@ -1168,35 +1168,33 @@ extern "C" void vroom_chart_translate_drawing(VroomChart* chart, int32_t index,
 
 // ---- Indicators -----------------------------------------------------------
 
-extern "C" void vroom_chart_set_rsi(VroomChart* chart, bool enabled, int period,
-                                    double upper_band, double lower_band,
-                                    bool ma_enabled, int ma_period) {
-    if (!chart) return;
-    if (period < 2) period = 2;
-    if (ma_period < 1) ma_period = 1;
-    upper_band = std::clamp(upper_band, 0.0, 100.0);
-    lower_band = std::clamp(lower_band, 0.0, 100.0);
+extern "C" void vroom_chart_set_rsi(VroomChart* chart, const VroomRSI* cfg) {
+    if (!chart || !cfg) return;
+    VroomRSI next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    next.ma_visible = next.ma_visible ? 1 : 0;
+    next.line_visible = next.line_visible ? 1 : 0;
+    next.bands_visible = next.bands_visible ? 1 : 0;
+    if (next.period < 2) next.period = 2;
+    if (next.ma_period < 1) next.ma_period = 1;
+    next.upper_band = std::clamp(next.upper_band, 0.0, 100.0);
+    next.lower_band = std::clamp(next.lower_band, 0.0, 100.0);
 
-    // Only the series-affecting fields force a recompute; band changes are
-    // render-only.
-    const bool recompute = chart->rsi_enabled != enabled ||
-                           chart->rsi_period != period ||
-                           chart->rsi_ma_enabled != ma_enabled ||
-                           chart->rsi_ma_period != ma_period;
-    const bool changed = recompute || chart->rsi_upper != upper_band ||
-                         chart->rsi_lower != lower_band;
-    if (!changed) return;
+    // Only the series-affecting fields force a recompute; band levels, color,
+    // width, and visibility changes are render-only. The trendline is one of
+    // them: it isn't computed while hidden, so revealing it needs a recompute.
+    const VroomRSI& cur = chart->rsi;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.period != next.period ||
+                           cur.ma_visible != next.ma_visible ||
+                           cur.ma_period != next.ma_period ||
+                           cur.ma_kind != next.ma_kind;
 
     // Pane order: claim the next slot on an off->on transition, release on off.
-    if (enabled && !chart->rsi_enabled) chart->rsi_order = chart->pane_seq++;
-    else if (!enabled) chart->rsi_order = -1;
+    if (next.enabled && !cur.enabled) chart->rsi_order = chart->pane_seq++;
+    else if (!next.enabled) chart->rsi_order = -1;
 
-    chart->rsi_enabled = enabled;
-    chart->rsi_period = period;
-    chart->rsi_upper = upper_band;
-    chart->rsi_lower = lower_band;
-    chart->rsi_ma_enabled = ma_enabled;
-    chart->rsi_ma_period = ma_period;
+    chart->rsi = next;
     if (recompute) chart->rsi_dirty = true;
     chart->mark_dirty();
 }
@@ -1205,7 +1203,7 @@ extern "C" void vroom_chart_set_macd(VroomChart* chart, const VroomMACD* cfg) {
     if (!chart || !cfg) return;
     VroomMACD next = *cfg;
     next.enabled = next.enabled ? 1 : 0;
-    next.macd_visible = next.macd_visible ? 1 : 0;
+    next.line_visible = next.line_visible ? 1 : 0;
     next.signal_visible = next.signal_visible ? 1 : 0;
     next.hist_visible = next.hist_visible ? 1 : 0;
     next.zero_visible = next.zero_visible ? 1 : 0;
@@ -1242,19 +1240,21 @@ extern "C" void vroom_chart_set_overlays(VroomChart* chart,
     chart->mark_dirty();
 }
 
-extern "C" void vroom_chart_set_vwap(VroomChart* chart, bool enabled,
-                                     int reset_offset_min, uint32_t color,
-                                     float width) {
-    if (!chart) return;
+extern "C" void vroom_chart_set_vwap(VroomChart* chart, const VroomVWAP* cfg) {
+    if (!chart || !cfg) return;
+    VroomVWAP next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
     // Keep the offset within a day [0, 1440).
-    int off = reset_offset_min % 1440;
-    if (off < 0) off += 1440;
-    const bool recompute =
-        chart->vwap_enabled != enabled || chart->vwap_reset_offset_min != off;
-    chart->vwap_enabled = enabled;
-    chart->vwap_reset_offset_min = off;
-    chart->vwap_color = color;
-    chart->vwap_width = width;
+    next.reset_offset_min %= 1440;
+    if (next.reset_offset_min < 0) next.reset_offset_min += 1440;
+
+    // Only the series-affecting fields force a recompute; color and width
+    // changes are render-only.
+    const VroomVWAP& cur = chart->vwap;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.reset_offset_min != next.reset_offset_min;
+
+    chart->vwap = next;
     if (recompute) chart->vwap_dirty = true;
     chart->mark_dirty();
 }

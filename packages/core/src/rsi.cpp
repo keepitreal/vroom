@@ -2,6 +2,8 @@
 
 #include <cmath>  // std::nan, std::isfinite
 
+#include "series_ma.h"
+
 namespace vroom::rsi {
 
 namespace {
@@ -46,25 +48,9 @@ void compute(const ::VroomCandle* candles, std::size_t n, int period,
     }
 }
 
-void compute_ma(const std::vector<double>& rsi, int ma_period,
+void compute_ma(const std::vector<double>& rsi, int ma_period, int kind,
                 std::vector<double>& out) {
-    const std::size_t n = rsi.size();
-    out.assign(n, std::nan(""));
-    if (ma_period < 1) return;
-    const std::size_t P = static_cast<std::size_t>(ma_period);
-    if (n < P) return;
-    for (std::size_t i = P - 1; i < n; ++i) {
-        double sum = 0.0;
-        bool ok = true;
-        for (std::size_t k = i + 1 - P; k <= i; ++k) {
-            if (!std::isfinite(rsi[k])) {
-                ok = false;
-                break;
-            }
-            sum += rsi[k];
-        }
-        if (ok) out[i] = sum / static_cast<double>(P);
-    }
+    vroom::series_ma::smooth(rsi, kind, ma_period, out);
 }
 
 }  // namespace vroom::rsi

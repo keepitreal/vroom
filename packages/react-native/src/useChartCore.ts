@@ -32,14 +32,46 @@ const MA_SOURCES = [
   'ohlc4',
 ] as const;
 
+// An unset style color marshals as the core's transparent inherit sentinel.
+const inheritColor = (v: string | number | undefined): number =>
+  (v != null ? parseColor(v) : null) ?? 0;
+
 function overlayToNumeric(o: MovingAverageOverlay) {
   const srcIdx = o.source ? MA_SOURCES.indexOf(o.source) : 0;
   return {
-    kind: o.kind === 'ema' ? 1 : 0,
-    period: o.length,
+    kind: o.maType === 'ema' ? 1 : 0,
+    period: o.period,
     source: srcIdx < 0 ? 0 : srcIdx,
     color: (o.color != null ? parseColor(o.color) : null) ?? 0xff2962ff,
     width: o.width ?? 1.5,
+  };
+}
+
+function rsiToSpec(cfg: RSIConfig | undefined) {
+  return {
+    enabled: cfg?.enabled ?? false,
+    period: cfg?.period ?? 14,
+    upperBand: cfg?.upperBand ?? 70,
+    lowerBand: cfg?.lowerBand ?? 30,
+    maPeriod: cfg?.maPeriod ?? 14,
+    maKind: cfg?.maType === 'ema' ? 1 : 0,
+    maVisible: cfg?.maVisible ?? true,
+    lineColor: inheritColor(cfg?.lineColor),
+    lineWidth: cfg?.lineWidth ?? -1,
+    lineVisible: cfg?.lineVisible ?? true,
+    maColor: inheritColor(cfg?.maColor),
+    maWidth: cfg?.maWidth ?? -1,
+    bandColor: inheritColor(cfg?.bandColor),
+    bandsVisible: cfg?.bandsVisible ?? true,
+  };
+}
+
+function vwapToSpec(cfg: VWAPConfig | undefined) {
+  return {
+    enabled: cfg?.enabled ?? false,
+    resetOffsetMin: cfg?.resetMinutes ?? 0,
+    color: inheritColor(cfg?.color),
+    width: cfg?.width ?? -1,
   };
 }
 
@@ -54,7 +86,7 @@ function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
     period: cfg?.period ?? 20,
     mult: cfg?.stdDev ?? 2,
     source: srcIdx < 0 ? 0 : srcIdx,
-    basisKind: cfg?.basis === 'ema' ? 1 : 0,
+    basisKind: cfg?.maType === 'ema' ? 1 : 0,
     upperColor:
       (cfg?.upperColor != null ? parseColor(cfg.upperColor) : null) ??
       DEFAULT_BB_BAND_COLOR,
@@ -67,15 +99,13 @@ function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
       (cfg?.lowerColor != null ? parseColor(cfg.lowerColor) : null) ??
       DEFAULT_BB_BAND_COLOR,
     lowerWidth: cfg?.lowerWidth ?? 1,
-    fillEnabled: cfg?.fill ?? true,
+    fillEnabled: cfg?.fillVisible ?? true,
     fillOpacity: cfg?.fillOpacity ?? 0.1,
   };
 }
 
 function macdToSpec(cfg: MACDConfig | undefined) {
   const srcIdx = cfg?.source ? MA_SOURCES.indexOf(cfg.source) : 0;
-  const color = (v: string | number | undefined): number =>
-    (v != null ? parseColor(v) : null) ?? 0;
   return {
     enabled: cfg?.enabled ?? false,
     fast: cfg?.fast ?? 12,
@@ -84,18 +114,18 @@ function macdToSpec(cfg: MACDConfig | undefined) {
     source: srcIdx < 0 ? 0 : srcIdx,
     maKind: cfg?.maType === 'sma' ? 0 : 1,
     signalMaKind: cfg?.signalMaType === 'sma' ? 0 : 1,
-    macdColor: color(cfg?.macdColor),
-    macdWidth: cfg?.macdWidth ?? -1,
-    macdVisible: cfg?.macdVisible ?? true,
-    signalColor: color(cfg?.signalColor),
+    lineColor: inheritColor(cfg?.lineColor),
+    lineWidth: cfg?.lineWidth ?? -1,
+    lineVisible: cfg?.lineVisible ?? true,
+    signalColor: inheritColor(cfg?.signalColor),
     signalWidth: cfg?.signalWidth ?? -1,
     signalVisible: cfg?.signalVisible ?? true,
     histVisible: cfg?.histogramVisible ?? true,
-    histUpColor: color(cfg?.histogramUpColor),
-    histUpFadingColor: color(cfg?.histogramUpFadingColor),
-    histDownColor: color(cfg?.histogramDownColor),
-    histDownFadingColor: color(cfg?.histogramDownFadingColor),
-    zeroColor: color(cfg?.zeroLineColor),
+    histUpColor: inheritColor(cfg?.histogramUpColor),
+    histUpFadingColor: inheritColor(cfg?.histogramUpFadingColor),
+    histDownColor: inheritColor(cfg?.histogramDownColor),
+    histDownFadingColor: inheritColor(cfg?.histogramDownFadingColor),
+    zeroColor: inheritColor(cfg?.zeroLineColor),
     zeroVisible: cfg?.zeroLineVisible ?? true,
   };
 }
@@ -273,22 +303,10 @@ export function useChartCore(
     if (theme) {
       applyTheme(h, theme);
     }
-    h.setRSI(
-      rsi?.enabled ?? false,
-      rsi?.period ?? 14,
-      rsi?.upperBand ?? 70,
-      rsi?.lowerBand ?? 30,
-      rsi?.maEnabled ?? true,
-      rsi?.maPeriod ?? 14,
-    );
+    h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
-    h.setVWAP(
-      vwap?.enabled ?? false,
-      vwap?.resetMinutes ?? 0,
-      (vwap?.color != null ? parseColor(vwap.color) : null) ?? 0xff00bcd4,
-      vwap?.width ?? 1.5,
-    );
+    h.setVWAP(vwapToSpec(vwap));
     h.setBollinger(bollingerToSpec(bollingerBands));
     h.setVolume(volumeToSpec(volume));
     // setVolume snaps the collapse scalar to its `enabled`, which would cut a

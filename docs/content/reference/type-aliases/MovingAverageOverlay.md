@@ -3,14 +3,14 @@
 ```ts
 type MovingAverageOverlay = {
   color?: string | number;
-  kind: "sma" | "ema";
-  length: number;
+  maType: MAKind;
+  period: number;
   source?: MASource;
   width?: number;
 };
 ```
 
-Source: [types/src/index.ts:295](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L295)
+Source: [types/src/index.ts:345](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L345)
 
 A moving-average overlay line drawn on the price pane. Provide an array of
 these via `movingAverages` to render a ribbon of SMA/EMA lines.
@@ -23,31 +23,31 @@ these via `movingAverages` to render a ribbon of SMA/EMA lines.
 optional color?: string | number;
 ```
 
-Source: [types/src/index.ts:303](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L303)
+Source: [types/src/index.ts:353](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L353)
 
 Line color (hex string or packed ARGB number).
 
 ---
 
-### kind
+### maType
 
 ```ts
-kind: "sma" | "ema";
+maType: MAKind;
 ```
 
-Source: [types/src/index.ts:297](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L297)
+Source: [types/src/index.ts:347](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L347)
 
-'sma' (simple) or 'ema' (exponential).
+Averaging for this line ([MAKind](MAKind.md)).
 
 ---
 
-### length
+### period
 
 ```ts
-length: number;
+period: number;
 ```
 
-Source: [types/src/index.ts:299](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L299)
+Source: [types/src/index.ts:349](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L349)
 
 Lookback in candles.
 
@@ -59,9 +59,9 @@ Lookback in candles.
 optional source?: MASource;
 ```
 
-Source: [types/src/index.ts:301](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L301)
+Source: [types/src/index.ts:351](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L351)
 
-Price source. Default 'close'.
+Price source ([MASource](MASource.md)). Default 'close'.
 
 ---
 
@@ -71,6 +71,6 @@ Price source. Default 'close'.
 optional width?: number;
 ```
 
-Source: [types/src/index.ts:305](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L305)
+Source: [types/src/index.ts:355](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L355)
 
 Stroke width in px. Default 1.5.

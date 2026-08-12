@@ -12,6 +12,7 @@ export type {
   VisibleRange,
   RSIConfig,
   MASource,
+  MAKind,
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,

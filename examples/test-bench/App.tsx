@@ -316,8 +316,8 @@ export default function App() {
     ...(indicators.ma.enabled
       ? maLines.map(
           (l): MovingAverageOverlay => ({
-            kind: 'sma',
-            length: l.length,
+            maType: 'sma',
+            period: l.period,
             source: l.source,
             color: l.color,
             width: l.width,
@@ -327,8 +327,8 @@ export default function App() {
     ...(indicators.ema.enabled
       ? emaLines.map(
           (l): MovingAverageOverlay => ({
-            kind: 'ema',
-            length: l.length,
+            maType: 'ema',
+            period: l.period,
             source: l.source,
             color: l.color,
             width: l.width,
@@ -382,14 +382,14 @@ export default function App() {
               period: bbParams.period,
               stdDev: bbParams.stdDev,
               source: bbParams.source,
-              basis: bbParams.basis,
+              maType: bbParams.maType,
               upperColor: bbParams.upperColor,
               upperWidth: bbParams.width,
               middleColor: bbParams.middleColor,
               middleWidth: bbParams.width,
               lowerColor: bbParams.lowerColor,
               lowerWidth: bbParams.width,
-              fill: bbParams.fill,
+              fillVisible: bbParams.fillVisible,
               fillOpacity: bbParams.fillOpacity,
             }}
             priceLines={showPriceLines ? priceLines : undefined}

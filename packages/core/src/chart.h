@@ -101,14 +101,14 @@ struct VroomChart {
     // RSI, drawn in a pane below the candles. rsi_cache is aligned to `candles`
     // (one value per candle, NaN where undefined) and recomputed lazily by
     // ensure_rsi() when rsi_dirty (set on any data or config change).
-    bool rsi_enabled = false;
-    int  rsi_period = 14;
-    double rsi_upper = 70.0;   // overbought band
-    double rsi_lower = 30.0;   // oversold band
-    bool rsi_ma_enabled = true;  // RSI-based moving average (trendline)
-    int  rsi_ma_period = 14;
+    // Defaults: 14-period RSI with 70/30 bands and a 14-period SMA trendline,
+    // every style field on its inherit sentinel.
+    VroomRSI rsi{0, 14, 70.0, 30.0, 14, 0, 1,
+                 0u, -1.f, 1,  // RSI line
+                 0u, -1.f,     // trendline
+                 0u, 1};       // band rules
     std::vector<double> rsi_cache;     // RSI per candle (NaN where undefined)
-    std::vector<double> rsi_ma_cache;  // SMA of rsi_cache (empty if MA off)
+    std::vector<double> rsi_ma_cache;  // MA of rsi_cache (empty if MA off)
     bool rsi_dirty = true;
     // User y-axis zoom for the RSI pane (drag on its y-axis strip). 1.0 = the
     // default 0..100 fit; >1 zooms in (taller), <1 zooms out. Anchored at 50.
@@ -146,10 +146,8 @@ struct VroomChart {
 
     // VWAP overlay (session anchor, configurable reset time). Single line on the
     // price pane; vwap_breaks marks session resets so the line lifts the pen.
-    bool vwap_enabled = false;
-    int  vwap_reset_offset_min = 0;       // session boundary offset from UTC midnight
-    uint32_t vwap_color = 0xff00bcd4;     // cyan
-    float vwap_width = 1.5f;
+    // Style fields sit on their inherit sentinel (cyan, 1.5px).
+    VroomVWAP vwap{0, 0, 0u, -1.f};
     std::vector<double> vwap_cache;
     std::vector<unsigned char> vwap_breaks;
     bool vwap_dirty = true;

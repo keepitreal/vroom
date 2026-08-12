@@ -88,6 +88,46 @@ export type OverlaySpec = {
   width: number;
 };
 
+/**
+ * The RSI pane, in the core's numeric encoding. The style fields carry an
+ * inherit sentinel — a non-positive width or a fully transparent color tells
+ * the core to fall back to its default.
+ */
+export type RSISpec = {
+  enabled: boolean;
+  period: number;
+  upperBand: number;
+  lowerBand: number;
+  maPeriod: number;
+  /** Trendline: 0 = SMA, 1 = EMA. */
+  maKind: number;
+  maVisible: boolean;
+  /** Packed 0xAARRGGBB. */
+  lineColor: number;
+  /** Stroke width in px. */
+  lineWidth: number;
+  lineVisible: boolean;
+  maColor: number;
+  maWidth: number;
+  /** Shared by both dashed band rules. */
+  bandColor: number;
+  bandsVisible: boolean;
+};
+
+/**
+ * The session VWAP overlay, in the core's numeric encoding. Color and width
+ * carry the same inherit sentinel as the other indicators.
+ */
+export type VWAPSpec = {
+  enabled: boolean;
+  /** Session reset offset from UTC midnight, in minutes. */
+  resetOffsetMin: number;
+  /** Packed 0xAARRGGBB. */
+  color: number;
+  /** Stroke width in px. */
+  width: number;
+};
+
 /** The Bollinger Bands overlay, in the core's numeric encoding. */
 export type BollingerSpec = {
   enabled: boolean;
@@ -129,11 +169,11 @@ export type MACDSpec = {
   maKind: number;
   /** Signal line: 0 = SMA, 1 = EMA. */
   signalMaKind: number;
-  /** Packed 0xAARRGGBB. */
-  macdColor: number;
+  /** MACD line, packed 0xAARRGGBB. */
+  lineColor: number;
   /** Stroke width in px. */
-  macdWidth: number;
-  macdVisible: boolean;
+  lineWidth: number;
+  lineVisible: boolean;
   signalColor: number;
   signalWidth: number;
   signalVisible: boolean;
@@ -391,22 +431,10 @@ export interface VroomChartHandle {
    */
   getCrosshairInfo(): CrosshairInfo | null;
 
-  setRSI(
-    enabled: boolean,
-    period: number,
-    upperBand: number,
-    lowerBand: number,
-    maEnabled: boolean,
-    maPeriod: number,
-  ): void;
+  setRSI(spec: RSISpec): void;
   setMACD(spec: MACDSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
-  setVWAP(
-    enabled: boolean,
-    resetOffsetMin: number,
-    color: number,
-    width: number,
-  ): void;
+  setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
   setVolume(spec: VolumeSpec): void;
   /**

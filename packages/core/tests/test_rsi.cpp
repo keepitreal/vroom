@@ -3,6 +3,7 @@
 #include <cmath>
 #include <vector>
 
+#include "ma.h"
 #include "rsi.h"
 
 namespace {
@@ -81,7 +82,7 @@ TEST_CASE("rsi::compute_ma") {
 
     std::vector<double> ma;
     SUBCASE("SMA of RSI, NaN until the window is full of valid values") {
-        vroom::rsi::compute_ma(rsi, 2, ma);
+        vroom::rsi::compute_ma(rsi, 2, vroom::ma::KIND_SMA, ma);
         REQUIRE(ma.size() == 5);
         CHECK(std::isnan(ma[0]));
         CHECK(std::isnan(ma[1]));
@@ -91,9 +92,19 @@ TEST_CASE("rsi::compute_ma") {
     }
 
     SUBCASE("ma_period 1 is the identity") {
-        vroom::rsi::compute_ma(rsi, 1, ma);
+        vroom::rsi::compute_ma(rsi, 1, vroom::ma::KIND_SMA, ma);
         CHECK(std::isnan(ma[1]));
         CHECK(ma[2] == doctest::Approx(50.0));
         CHECK(ma[4] == doctest::Approx(37.5));
+    }
+
+    SUBCASE("EMA trendline seeds on the same index as the SMA") {
+        // Seed@3 = mean(50,75) = 62.5, matching the SMA; then
+        // @4 = (2/3)*37.5 + (1/3)*62.5 = 45.833…, where the SMA gives 56.25.
+        vroom::rsi::compute_ma(rsi, 2, vroom::ma::KIND_EMA, ma);
+        REQUIRE(ma.size() == 5);
+        CHECK(std::isnan(ma[2]));
+        CHECK(ma[3] == doctest::Approx(62.5));
+        CHECK(ma[4] == doctest::Approx(45.8333333));
     }
 }

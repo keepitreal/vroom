@@ -33,10 +33,15 @@
 #include "price_lines.h"
 #include "rsi.h"
 #include "rsi_pane.h"
+#include "style_inherit.h"
 #include "volume.h"
 #include "vwap.h"
 #include "theme.h"
 #include "viewport.h"
+
+namespace {
+constexpr SkColor kVwapLine = 0xff00bcd4;  // cyan
+}  // namespace
 
 VroomChart::VroomChart() : theme(vroom::default_theme()) {}
 
@@ -49,7 +54,7 @@ vroom::Layout VroomChart::layout() const {
     const float axis_w = axis_width_px > 0.f
         ? axis_width_px
         : width_px * theme.floats[VROOM_FLOAT_Y_AXIS_WIDTH_RATIO];
-    const int pane_count = (rsi_enabled ? 1 : 0) + (macd.enabled ? 1 : 0);
+    const int pane_count = (rsi.enabled ? 1 : 0) + (macd.enabled ? 1 : 0);
     const float indicator_h = static_cast<float>(pane_count) * height_px *
                               theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
     return vroom::Layout{
@@ -66,10 +71,11 @@ vroom::Layout VroomChart::layout() const {
 }
 
 void VroomChart::ensure_rsi() {
-    if (!rsi_enabled || !rsi_dirty) return;
-    vroom::rsi::compute(candles.data(), candles.size(), rsi_period, rsi_cache);
-    if (rsi_ma_enabled) {
-        vroom::rsi::compute_ma(rsi_cache, rsi_ma_period, rsi_ma_cache);
+    if (!rsi.enabled || !rsi_dirty) return;
+    vroom::rsi::compute(candles.data(), candles.size(), rsi.period, rsi_cache);
+    if (rsi.ma_visible) {
+        vroom::rsi::compute_ma(rsi_cache, rsi.ma_period, rsi.ma_kind,
+                               rsi_ma_cache);
     } else {
         rsi_ma_cache.clear();
     }
@@ -97,8 +103,8 @@ void VroomChart::ensure_overlays() {
 }
 
 void VroomChart::ensure_vwap() {
-    if (!vwap_enabled || !vwap_dirty) return;
-    vroom::vwap::compute(candles.data(), candles.size(), vwap_reset_offset_min,
+    if (!vwap.enabled || !vwap_dirty) return;
+    vroom::vwap::compute(candles.data(), candles.size(), vwap.reset_offset_min,
                          vwap_cache, vwap_breaks);
     vwap_dirty = false;
 }
@@ -253,7 +259,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     // 5.6. VWAP overlay (session, configurable reset) — a single price-pane line
     //      that breaks at each session reset (vwap_breaks).
-    if (vwap_enabled) {
+    if (vwap.enabled) {
         ensure_vwap();
         if (vwap_cache.size() == candles.size()) {
             const double* vis = vwap_cache.data() + range.start;
@@ -263,7 +269,10 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             vroom::ma_overlay::draw(canvas, lay, bounds, visible, n, vis,
                                     window_ms, visible_start_ms,
                                     candle_duration_ms, candle_right,
-                                    candle_area_h, vwap_color, vwap_width, brk);
+                                    candle_area_h,
+                                    vroom::style::color_or(vwap.color, kVwapLine),
+                                    vroom::style::width_or(vwap.width, 1.5f),
+                                    brk);
         }
     }
 
@@ -331,7 +340,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         struct ActivePane { int order; int type; };  // type: 0 = RSI, 1 = MACD
         ActivePane panes[2];
         int count = 0;
-        if (rsi_enabled) panes[count++] = {rsi_order, 0};
+        if (rsi.enabled) panes[count++] = {rsi_order, 0};
         if (macd.enabled) panes[count++] = {macd_order, 1};
         if (count == 2 && panes[0].order > panes[1].order) {
             const ActivePane tmp = panes[0];
@@ -349,7 +358,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                 const double* rsi_vis = rsi_cache.size() == candles.size()
                     ? rsi_cache.data() + range.start : nullptr;
                 const double* rsi_ma_vis =
-                    (rsi_ma_enabled && rsi_ma_cache.size() == candles.size())
+                    (rsi.ma_visible && rsi_ma_cache.size() == candles.size())
                         ? rsi_ma_cache.data() + range.start : nullptr;
                 vroom::rsi_pane::draw(canvas, *this, lay, visible, n, rsi_vis,
                                       rsi_ma_vis, window_ms, visible_start_ms,

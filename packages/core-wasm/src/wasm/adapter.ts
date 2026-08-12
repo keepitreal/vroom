@@ -14,7 +14,9 @@ import type {
   MACDSpec,
   OverlaySpec,
   PriceLinesSpec,
+  RSISpec,
   VolumeSpec,
+  VWAPSpec,
   VroomChartHandle,
   VroomModule,
 } from '../handle';
@@ -56,10 +58,10 @@ interface WebChartInstance {
   clearCrosshair(): void;
   getCrosshairCandle(): CrosshairCandle | null;
   getCrosshairInfo(): CrosshairInfo | null;
-  setRSI(e: boolean, p: number, u: number, l: number, mae: boolean, map: number): void;
+  setRSI(spec: RSISpec): void;
   setMACD(spec: MACDSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
-  setVWAP(e: boolean, reset: number, color: number, width: number): void;
+  setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
   setVolume(spec: VolumeSpec): void;
   setVolumeCollapse(t: number, easing: number): void;
@@ -189,20 +191,18 @@ class WasmHandle implements VroomChartHandle {
   getCrosshairInfo(): CrosshairInfo | null {
     return this.wc.getCrosshairInfo();
   }
-  setRSI(
-    enabled: boolean,
-    period: number,
-    upperBand: number,
-    lowerBand: number,
-    maEnabled: boolean,
-    maPeriod: number,
-  ): void {
-    this.wc.setRSI(enabled, period, upperBand, lowerBand, maEnabled, maPeriod);
+  setRSI(spec: RSISpec): void {
+    this.wc.setRSI({
+      ...spec,
+      lineColor: spec.lineColor >>> 0,
+      maColor: spec.maColor >>> 0,
+      bandColor: spec.bandColor >>> 0,
+    });
   }
   setMACD(spec: MACDSpec): void {
     this.wc.setMACD({
       ...spec,
-      macdColor: spec.macdColor >>> 0,
+      lineColor: spec.lineColor >>> 0,
       signalColor: spec.signalColor >>> 0,
       histUpColor: spec.histUpColor >>> 0,
       histUpFadingColor: spec.histUpFadingColor >>> 0,
@@ -214,8 +214,8 @@ class WasmHandle implements VroomChartHandle {
   setOverlays(overlays: OverlaySpec[]): void {
     this.wc.setOverlays(overlays);
   }
-  setVWAP(enabled: boolean, resetOffsetMin: number, color: number, width: number): void {
-    this.wc.setVWAP(enabled, resetOffsetMin, color >>> 0, width);
+  setVWAP(spec: VWAPSpec): void {
+    this.wc.setVWAP({ ...spec, color: spec.color >>> 0 });
   }
   setBollinger(spec: BollingerSpec): void {
     this.wc.setBollinger({

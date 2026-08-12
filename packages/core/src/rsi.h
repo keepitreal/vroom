@@ -21,12 +21,12 @@ namespace vroom::rsi {
 void compute(const ::VroomCandle* candles, std::size_t n, int period,
              std::vector<double>& out);
 
-// Simple moving average of an RSI series (the "RSI-based MA" / trendline that
-// most RSI indicators overlay; crossovers of RSI vs. this line are the common
-// signal). `ma_period` is clamped to >= 1. Fills `out` (resized to rsi.size()):
-// out[i] is the mean of rsi[i-ma_period+1 .. i] when all those are finite, else
-// NaN (so it's only defined once `ma_period` valid RSI values exist).
-void compute_ma(const std::vector<double>& rsi, int ma_period,
+// Moving average of an RSI series (the "RSI-based MA" / trendline that most RSI
+// indicators overlay; crossovers of RSI vs. this line are the common signal).
+// `kind` is a vroom::ma KIND_* value. `ma_period` is clamped to >= 1. Fills
+// `out` (resized to rsi.size()), NaN until `ma_period` valid RSI values exist —
+// either kind produces its first value at the same index.
+void compute_ma(const std::vector<double>& rsi, int ma_period, int kind,
                 std::vector<double>& out);
 
 }  // namespace vroom::rsi
