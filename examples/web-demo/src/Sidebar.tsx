@@ -43,6 +43,19 @@ const select: CSSProperties = {
   fontFamily: 'inherit',
 };
 
+/**
+ * The price-line style override. `'mixed'` keeps whatever `lineStyle` each
+ * sample line declares; the rest force that one style onto every line.
+ */
+export type PriceLineStyleChoice = 'mixed' | 'solid' | 'dotted' | 'dashed';
+
+const PRICE_LINE_STYLES: readonly PriceLineStyleChoice[] = [
+  'mixed',
+  'solid',
+  'dotted',
+  'dashed',
+];
+
 const badge: CSSProperties = {
   background: '#238636',
   color: '#f0f6fc',
@@ -219,6 +232,8 @@ export type SidebarProps = {
     setBandHeight: (v: number) => void;
     showPriceLines: boolean;
     setShowPriceLines: (v: boolean) => void;
+    priceLineStyle: PriceLineStyleChoice;
+    setPriceLineStyle: (v: PriceLineStyleChoice) => void;
     drawMode: ChartMode;
     drawTool: DrawTool;
     toggleLineTool: () => void;
@@ -432,6 +447,24 @@ export function Sidebar({
           onChange={overlays.setShowPriceLines}
           title="Overlay sample order/position status lines. Drag the limit order to reprice it, or click its × to cancel."
         />
+        {overlays.showPriceLines && (
+          <Row label="Line style">
+            <select
+              value={overlays.priceLineStyle}
+              onChange={(e) =>
+                overlays.setPriceLineStyle(e.target.value as PriceLineStyleChoice)
+              }
+              style={select}
+              title="Force one style onto every line. 'mixed' keeps each sample's own: dashed limit buy, dotted take-profit, solid liquidation."
+            >
+              {PRICE_LINE_STYLES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Row>
+        )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={overlays.toggleLineTool}

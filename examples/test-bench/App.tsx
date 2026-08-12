@@ -79,6 +79,8 @@ const priceLineText = (label: string, price: number) => `${label} @ ${price.toFi
 // Sample order/position lines around the latest close: a draggable resting limit
 // buy below spot (with a size pill and a cancel button), the take-profit it pairs
 // with above, and a fixed liquidation level that can't be moved or dismissed.
+// Each takes a different lineStyle (the take-profit leaves it unset for the
+// dotted default) so all three render at once.
 function mockPriceLines(candles: Candle[]): DemoPriceLine[] {
   if (candles.length === 0) return [];
   // Spread the samples across the range of the candles that are roughly on
@@ -103,6 +105,7 @@ function mockPriceLines(candles: Candle[]): DemoPriceLine[] {
       quantity: '0.75',
       color: '#26a69a',
       draggable: true,
+      lineStyle: 'dashed',
     }),
     line('take-profit', 'Take Profit', at(0.78), {
       quantity: 'Full',
@@ -112,6 +115,7 @@ function mockPriceLines(candles: Candle[]): DemoPriceLine[] {
     line('liquidation', 'Liquidation', at(0.08), {
       color: '#f0a020',
       closable: false,
+      lineStyle: 'solid',
     }),
   ];
 }
