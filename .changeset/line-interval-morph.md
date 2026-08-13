@@ -1,5 +1,6 @@
 ---
 "@vroomchart/core-wasm": minor
+"@vroomchart/react": minor
 ---
 
 Animate the line chart across a timeframe switch: each vertex slides to its new
