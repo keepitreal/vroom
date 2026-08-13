@@ -1,5 +1,177 @@
 # react-native-vroom-chart
 
+## 0.7.0
+
+### Minor Changes
+
+- a5df8f1: Animate the candles themselves across a timeframe switch: each one slides and
+  stretches into the shape of its counterpart in the new interval instead of the
+  whole series jumping.
+
+  Because the time axis preserves each candle's pixel slot across a switch, the
+  k-th candle from the right edge occupies the same columns before and after — so
+  only y has to move. The core now captures the outgoing wick and body geometry
+  (as price-band fractions, which keeps frame 0 pixel-identical to the pre-switch
+  frame and survives a resize mid-animation) and interpolates each slot toward its
+  new counterpart. A candle that changes direction crossfades its color; a slot
+  present on only one side fades rather than pops.
+
+  Add `transitionEasing` (`'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'`,
+  default `'ease-in-out'`) alongside `transitionMs`, which now covers both this
+  animation and the candle↔line switch. `transitionMs={0}` or an OS reduced-motion
+  preference snaps as before, skipping the capture entirely.
+
+  Two new handle methods back this, both web-only for now:
+  `beginIntervalMorph` captures the geometry and `setIntervalMorph` advances the
+  animation. Volume bars, overlays and indicators still snap.
+
+- 6ece5a9: Give every indicator config one set of naming conventions, and bring RSI and
+  VWAP up to the styling other indicators already had.
+
+  RSI now takes colors, widths, and visibility for the index line, the trendline,
+  and the pair of dashed band rules, plus an SMA/EMA choice for the trendline
+  (`maType`). VWAP keeps its `color` and `width` but is now marshalled as a struct
+  like the rest. Both are unchanged visually until you set something: unset colors
+  and widths still resolve to the stock look in the renderer.
+
+  `'sma' | 'ema'` is now the shared `MAKind` union wherever it appears, matching
+  how `MASource` is already shared.
+
+  Renamed fields:
+
+  | Before                                               | After                                     |
+  | ---------------------------------------------------- | ----------------------------------------- |
+  | `MovingAverageOverlay.kind`                          | `maType`                                  |
+  | `MovingAverageOverlay.length`                        | `period`                                  |
+  | `BollingerBandsConfig.basis`                         | `maType`                                  |
+  | `BollingerBandsConfig.fill`                          | `fillVisible`                             |
+  | `RSIConfig.maEnabled`                                | `maVisible`                               |
+  | `MACDConfig.macdColor` / `macdWidth` / `macdVisible` | `lineColor` / `lineWidth` / `lineVisible` |
+
+  The low-level `VroomChartHandle.setRSI` and `setVWAP` now take a single spec
+  object instead of positional arguments, matching `setMACD` and `setBollinger`.
+
+- a5df8f1: Line-chart mode now defaults to a violet stroke and fills a gradient beneath the
+  line.
+
+  The default `lineColor` moves from the neutral foreground to `#8957e5`, matching
+  the RSI line. A gradient using that same color is now filled under the polyline,
+  strongest at the line's peak and ramping to fully transparent at the bottom of
+  the price pane. It fades in with the candle-to-line morph and reshapes with the
+  line through a timeframe switch, since it's built from the same vertices.
+
+  New `theme.lineGradientOpacity` sets the fill's strength at its strongest point
+  (default 0.28); set it to 0 to render the bare line as before.
+
+  The fill draws behind the volume bars rather than with the line, so bars stay
+  legible on top of it. Skia's linear-gradient API differs between the Skia the
+  WASM build uses and the one react-native-skia bundles; the selection shim that
+  already existed for liquidity bands moved into a shared `gradient.h` so both
+  layers build the ramp the same way.
+
+- 6ece5a9: Expand the MACD config beyond its four lengths.
+
+  Inputs gain a price `source` and an SMA/EMA choice for the fast and slow legs
+  (`maType`) and for the signal line (`signalMaType`). Styling gains per-series
+  color, width, and visibility for the MACD and signal lines, four histogram
+  colors (above and below zero, each with a shade for bars building and a lighter
+  one for bars easing back toward zero), and a configurable zero line. Hiding a
+  series rescales the pane around what is left on show.
+
+  Every new field is optional and falls back to the previous look, so existing
+  charts render unchanged: histogram bars still follow `theme.accentBull` /
+  `theme.accentBear`, and an unset fading color derives from its base at half
+  opacity.
+
+  The low-level `VroomChartHandle.setMACD` now takes a single spec object instead
+  of four positional arguments. Consumers of the `<VroomChart>` components are
+  unaffected.
+
+- a5df8f1: Volume bars are now configurable through a `volume` prop, alongside the other
+  indicators:
+
+  ```tsx
+  <VroomChart
+    candles={candles}
+    volume={{ enabled: true, opacity: 0.35, height: 0.25, radius: 2 }}
+  />
+  ```
+
+  - `enabled` toggles the bars. It defaults to `true`, so omitting the prop leaves
+    existing charts unchanged; pass `{ enabled: false }` to hide them.
+  - `opacity` (default 0.5) sets how much quieter the bars read than the candles.
+  - `height` (default 0.2) is the tallest bar as a fraction of the price pane.
+    It's a ceiling rather than a reserved strip, matching the conventional volume
+    overlay: raising it lets the bars reach further up over the candles instead of
+    compressing them.
+  - `radius`, `upColor` and `downColor` restyle the bars, defaulting to
+    `theme.volumeRadius` and `theme.accentBull` / `theme.accentBear`.
+
+  `theme.volumeRadius` is deprecated in favor of `volume.radius`, which sits with
+  the rest of the volume styling. It still applies when `volume.radius` is omitted.
+
+- a5df8f1: Toggling `volume.enabled` now animates the bars instead of snapping them.
+
+  Turning volume off sinks the bars out of view in a staggered cascade: each bar
+  falls over the last `height / tallestHeight` of the transition, so the tallest
+  starts immediately and takes the whole window, shorter bars start progressively
+  later, and every bar reaches the axis at the same moment. Turning volume back on
+  plays the same timeline backwards, which brings the shortest bars home first and
+  lands the tallest last.
+
+  Because each bar runs on its own window, the easing has to be applied per bar
+  rather than to the animation as a whole — the host feeds the core linear progress
+  and the core applies `transitionEasing` inside each window. A bar too short to
+  warrant its own window gets a floor so it falls rather than pops, and toggling
+  mid-animation reverses from wherever the bars are instead of jumping.
+
+  `transitionMs` and `transitionEasing` drive it, matching the candle↔line and
+  timeframe transitions; `transitionMs: 0` or `prefers-reduced-motion` still snaps.
+  No API change — `volume.enabled` is unchanged.
+
+### Patch Changes
+
+- a5df8f1: Fix axis label fades never animating on web, and swap the axes with a fade-out
+  then fade-in across a timeframe switch instead of letting them snap.
+
+  The label fade machinery has been in place for a while, but on web it never ran:
+  `vroom_chart_draw` — the entry point the WASM build uses — called `draw_chart`
+  directly, while the per-frame `dt` was computed in `rebuild_chart_picture`, which
+  only the React Native SkPicture path goes through. `dt` therefore sat at 0
+  forever, and 0 is the fade updaters' "snap to target" signal. The clock now lives
+  in `draw_chart`, so both hosts tick it.
+
+  A second snap hid behind the first: a gap over 100ms clamped `dt` to 0, the very
+  thing the surrounding comment said the clamp was there to prevent. Since a
+  discrete event (timeframe switch, asset switch) always starts from an idle chart,
+  its first frame took the snap path and finished every fade at once. Long gaps now
+  clamp to a nominal frame instead.
+
+  An interval morph then hands the axes to a two-phase envelope: the pre-switch
+  ticks fade out over the first half of the morph, the new ones fade in over the
+  second. Nothing translates. Both halves are clocked off the morph's eased
+  progress, so the axes take `transitionMs`, follow `transitionEasing`, and land
+  with the candles. While fading out, the axes stay laid out against the captured
+  pre-switch scale and window rather than the new ones, so a label is never drawn
+  anywhere it wasn't already; the tick set is swapped at the midpoint, when the axis
+  is fully transparent.
+
+- 6ece5a9: Show the newest candle on first render instead of hiding it behind the price
+  axis.
+
+  The default framing pinned the right edge of the visible window to the last
+  candle's `timeMs`. A candle occupies the slot `[timeMs, timeMs + duration)` and
+  draws centered in it, so that put the newest candle's center half a slot past
+  the plot area and its whole body inside the reserved y-axis strip, which the
+  renderer then paints over. The last-price line and badge still rendered, so the
+  price was visible but the candle it came from was not — it only appeared once
+  the user panned right.
+
+  The window now ends at the last slot's end, so the newest candle sits flush
+  against the right edge of the plot area. This applies to both the
+  `defaultCandleWidth`-driven framing and the legacy "most recent ~80 candles"
+  fallback, and to `resetView` since it re-runs the same framing.
+
 ## 0.6.0
 
 ### Minor Changes
