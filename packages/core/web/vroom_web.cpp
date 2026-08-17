@@ -288,8 +288,8 @@ class WebChart {
   }
 
   // `drawings` is a JS array of {aTime, aPrice, bTime, bPrice, color, width,
-  // kind}. A pencil (kind 2) also carries `points`: an array of {timeMs, price}
-  // holding the whole path.
+  // kind}. A pencil (kind 2) or path (kind 3) also carries `points`: an array of
+  // {timeMs, price} holding the whole point list.
   void setDrawings(const em::val& drawings) {
     const size_t n = drawings["length"].as<size_t>();
     std::vector<VroomDrawing> out(n);
@@ -307,7 +307,8 @@ class WebChart {
       out[i].points = nullptr;
       out[i].point_count = 0;
       em::val pts = d["points"];
-      if (out[i].kind == 2 && !pts.isUndefined() && !pts.isNull()) {
+      if ((out[i].kind == 2 || out[i].kind == 3) && !pts.isUndefined() &&
+          !pts.isNull()) {
         const size_t m = pts["length"].as<size_t>();
         paths[i].resize(m);
         for (size_t j = 0; j < m; ++j) {
@@ -404,6 +405,25 @@ class WebChart {
   void appendDraftPoint(double time_ms, double price) {
     vroom_chart_append_draft_point(chart_, static_cast<int64_t>(time_ms), price);
   }
+  // `points` is a JS array of {timeMs, price} — the path vertices placed so far.
+  // `cursor` is a {timeMs, price} for the rubber-band end, or null/undefined.
+  void setDraftPath(const em::val& points, const em::val& cursor, uint32_t color,
+                    float width) {
+    const size_t n = points["length"].as<size_t>();
+    std::vector<VroomDrawPoint> out(n);
+    for (size_t i = 0; i < n; ++i) {
+      em::val p = points[i];
+      out[i].time_ms = static_cast<int64_t>(p["timeMs"].as<double>());
+      out[i].price = p["price"].as<double>();
+    }
+    const bool has_cursor = !cursor.isUndefined() && !cursor.isNull();
+    const double cursor_time =
+        has_cursor ? cursor["timeMs"].as<double>() : 0.0;
+    const double cursor_price = has_cursor ? cursor["price"].as<double>() : 0.0;
+    vroom_chart_set_draft_path(chart_, out.data(), static_cast<int32_t>(n),
+                               has_cursor, static_cast<int64_t>(cursor_time),
+                               cursor_price, color, width);
+  }
   void clearDraft() { vroom_chart_clear_draft(chart_); }
 
   void translateDrawing(int index, double d_time_ms, double d_price) {
@@ -417,6 +437,10 @@ class WebChart {
   void moveDrawingEndpoint(int index, int endpoint, double time_ms, double price) {
     vroom_chart_move_drawing_endpoint(chart_, index, endpoint,
                                       static_cast<int64_t>(time_ms), price);
+  }
+  void moveDrawingVertex(int index, int vertex, double time_ms, double price) {
+    vroom_chart_move_drawing_vertex(chart_, index, vertex,
+                                    static_cast<int64_t>(time_ms), price);
   }
   // Returns {index, part} of the drawing hit at pixel (x, y), or null.
   em::val hitTestDrawing(float x, float y) {
@@ -633,10 +657,12 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setDraft", &WebChart::setDraft)
       .function("startDraftStroke", &WebChart::startDraftStroke)
       .function("appendDraftPoint", &WebChart::appendDraftPoint)
+      .function("setDraftPath", &WebChart::setDraftPath)
       .function("clearDraft", &WebChart::clearDraft)
       .function("translateDrawing", &WebChart::translateDrawing)
       .function("setSelectedDrawing", &WebChart::setSelectedDrawing)
       .function("moveDrawingEndpoint", &WebChart::moveDrawingEndpoint)
+      .function("moveDrawingVertex", &WebChart::moveDrawingVertex)
       .function("hitTestDrawing", &WebChart::hitTestDrawing)
       .function("coordAt", &WebChart::coordAt)
       .function("project", &WebChart::project)

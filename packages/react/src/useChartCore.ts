@@ -164,10 +164,11 @@ function drawingToSpec(
   d: NonNullable<VroomChartCoreProps['drawings']>[number],
 ): DrawingSpec {
   // a/b are the first and last anchor — the two endpoints of a line, the two
-  // opposite corners of a box, or the ends of a pencil path (whose full point
-  // list rides along in `points`).
+  // opposite corners of a box, or the ends of a pencil stroke or path (whose
+  // full point list rides along in `points`).
   const first = d.points[0];
   const last = d.points[d.points.length - 1];
+  const multiPoint = d.type === 'pencil' || d.type === 'path';
   return {
     aTime: first.timeMs,
     aPrice: first.price,
@@ -175,8 +176,8 @@ function drawingToSpec(
     bPrice: last.price,
     color: (d.color != null ? parseColor(d.color) : null) ?? 0xff2962ff,
     width: d.width ?? 2,
-    kind: d.type === 'box' ? 1 : d.type === 'pencil' ? 2 : 0,
-    ...(d.type === 'pencil'
+    kind: d.type === 'box' ? 1 : d.type === 'pencil' ? 2 : d.type === 'path' ? 3 : 0,
+    ...(multiPoint
       ? { points: d.points.map((p) => ({ timeMs: p.timeMs, price: p.price })) }
       : {}),
   };

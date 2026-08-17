@@ -182,9 +182,10 @@ struct VroomChart {
     // Committed drawings, anchored in data space so they track the candles on
     // pan/zoom. Drawn on the price pane above candles/overlays.
     //
-    // Mirrors the public VroomDrawing but *owns* its points, so a pencil path
-    // (kind 2) can carry a variable number of them. For line/box `points` is
-    // empty and only a/b are used; for pencil a/b mirror the first/last point.
+    // Mirrors the public VroomDrawing but *owns* its points, so a pencil stroke
+    // (kind 2) or path (kind 3) can carry a variable number of them. For
+    // line/box `points` is empty and only a/b are used; for pencil/path a/b
+    // mirror the first/last point.
     struct StoredDrawing {
         VroomDrawPoint              a{};
         VroomDrawPoint              b{};
@@ -199,7 +200,9 @@ struct VroomChart {
     // draft_a is always drawn (node dot); draft_b is drawn when draft_has_b.
     // draft_guide draws the live guideline A->B; when false only node dots show
     // (the committed segment renders via `drawings`). draft_color/draft_width
-    // style the guideline to match the eventual line.
+    // style the guideline to match the eventual line. For a path (draft_kind 3)
+    // draft_points holds the vertices placed so far and draft_b is the cursor
+    // the rubber-band segment runs to (when draft_has_b).
     bool           draft_active = false;
     VroomDrawPoint draft_a{};
     bool           draft_has_b = false;
@@ -207,14 +210,16 @@ struct VroomChart {
     bool           draft_guide = false;
     uint32_t       draft_color = 0xff2962ff;
     float          draft_width = 2.f;
-    int32_t        draft_kind = 0;  // 0 = line, 1 = box, 2 = pencil (VroomDrawing)
-    // Freehand stroke in progress (draft_kind 2), grown one point at a time.
+    int32_t        draft_kind = 0;  // 0 = line, 1 = box, 2 = pencil, 3 = path
+    // Points of the in-progress stroke (draft_kind 2, grown one at a time) or
+    // path (draft_kind 3, restated per click/move).
     std::vector<VroomDrawPoint> draft_points;
 
     // Selection/editing state for committed drawings. selected_drawing indexes
-    // `drawings` (or -1); its endpoints render as handles. grabbed_endpoint is
-    // 0 (A) or 1 (B) while that handle is being dragged (rendered 50% larger),
-    // else -1.
+    // `drawings` (or -1); its handles render on top. grabbed_endpoint is the
+    // handle being dragged — 0 (A) or 1 (B) for a line, 0 for a box (the host
+    // normalizes the grabbed corner to endpoint 0), the vertex index for a path
+    // — rendered 50% larger; -1 when none.
     int32_t        selected_drawing = -1;
     int32_t        grabbed_endpoint = -1;
 

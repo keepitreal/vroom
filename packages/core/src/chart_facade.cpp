@@ -883,8 +883,9 @@ extern "C" void vroom_chart_set_drawings(VroomChart* chart,
                                          const VroomDrawing* drawings,
                                          size_t count) {
     if (!chart) return;
-    // Deep-copy into the owning form: a pencil's path lives in the chart, so the
-    // caller's `points` buffer may be freed as soon as this returns.
+    // Deep-copy into the owning form: a pencil stroke's or path's points live in
+    // the chart, so the caller's `points` buffer may be freed as soon as this
+    // returns.
     chart->drawings.clear();
     chart->drawings.reserve(count);
     for (size_t i = 0; i < count; ++i) {
@@ -895,7 +896,7 @@ extern "C" void vroom_chart_set_drawings(VroomChart* chart,
         d.color = src.color;
         d.width = src.width;
         d.kind = src.kind;
-        if (src.kind == 2 && src.points && src.point_count > 0) {
+        if ((src.kind == 2 || src.kind == 3) && src.points && src.point_count > 0) {
             d.points.assign(src.points, src.points + src.point_count);
             // Keep a/b mirroring the path ends so bounds/handle code is uniform.
             d.a = d.points.front();
@@ -1025,6 +1026,27 @@ extern "C" void vroom_chart_append_draft_point(VroomChart* chart, int64_t time_m
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_draft_path(VroomChart* chart,
+                                           const VroomDrawPoint* points,
+                                           int32_t count, bool has_cursor,
+                                           int64_t cursor_time,
+                                           double cursor_price, uint32_t color,
+                                           float width) {
+    if (!chart) return;
+    chart->draft_active = true;
+    chart->draft_kind = 3;
+    chart->draft_guide = true;
+    chart->draft_color = color;
+    chart->draft_width = width;
+    chart->draft_points.clear();
+    if (points && count > 0) chart->draft_points.assign(points, points + count);
+    chart->draft_has_b = has_cursor;
+    chart->draft_b = VroomDrawPoint{cursor_time, cursor_price};
+    // draft_a doubles as the first placed vertex for the shared node-dot path.
+    if (!chart->draft_points.empty()) chart->draft_a = chart->draft_points.front();
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_clear_draft(VroomChart* chart) {
     if (!chart) return;
     if (!chart->draft_active) return;
@@ -1151,6 +1173,21 @@ extern "C" void vroom_chart_move_drawing_endpoint(VroomChart* chart, int32_t ind
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_move_drawing_vertex(VroomChart* chart, int32_t index,
+                                                int32_t vertex, int64_t time_ms,
+                                                double price) {
+    if (!chart) return;
+    if (index < 0 || index >= static_cast<int32_t>(chart->drawings.size())) return;
+    auto& d = chart->drawings[index];
+    if (d.kind != 3) return;
+    if (vertex < 0 || vertex >= static_cast<int32_t>(d.points.size())) return;
+    d.points[vertex] = VroomDrawPoint{time_ms, price};
+    // a/b mirror the path ends, so moving a terminal vertex has to restate them.
+    d.a = d.points.front();
+    d.b = d.points.back();
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_translate_drawing(VroomChart* chart, int32_t index,
                                               int64_t d_time_ms, double d_price) {
     if (!chart) return;
@@ -1160,6 +1197,7 @@ extern "C" void vroom_chart_translate_drawing(VroomChart* chart, int32_t index,
         p.time_ms += d_time_ms;
         p.price += d_price;
     };
+    // a/b mirror the path/stroke ends, so shifting everything keeps them in sync.
     shift(d.a);
     shift(d.b);
     for (VroomDrawPoint& p : d.points) shift(p);

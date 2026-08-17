@@ -55,6 +55,8 @@ export {
   PRICE_LINE_CLOSABLE,
   PRICE_LINE_AXIS_LABEL,
   PRICE_LINE_EXTEND_LEFT,
+  DRAW_PART_VERTEX,
+  PATH_MAX_POINTS,
 } from './handle';
 export { packCandles, unpackCandles, BYTES_PER_CANDLE } from './packCandles';
 export { parseColor, applyTheme, argbToCss, COLOR_KEYS, FLOAT_KEYS, BOOL_KEYS } from './color';

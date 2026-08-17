@@ -10,7 +10,7 @@ type PriceLinesStyle = {
 };
 ```
 
-Source: [types/src/index.ts:539](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L539)
+Source: [types/src/index.ts:551](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L551)
 
 Shared layout/style for every price line, passed via `priceLinesStyle`.
 
@@ -22,7 +22,7 @@ Shared layout/style for every price line, passed via `priceLinesStyle`.
 optional align?: "left" | "center" | "right";
 ```
 
-Source: [types/src/index.ts:554](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L554)
+Source: [types/src/index.ts:566](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L566)
 
 Where the label group sits horizontally. Default `'right'`.
 
@@ -34,7 +34,7 @@ Where the label group sits horizontally. Default `'right'`.
 optional bodyBackground?: VroomColor;
 ```
 
-Source: [types/src/index.ts:544](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L544)
+Source: [types/src/index.ts:556](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L556)
 
 Translucent fill behind the body and close-button pills, so the label reads
 over candles without hiding them. Defaults to a dark translucent grey.
@@ -47,7 +47,7 @@ over candles without hiding them. Defaults to a dark translucent grey.
 optional fontSize?: number;
 ```
 
-Source: [types/src/index.ts:546](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L546)
+Source: [types/src/index.ts:558](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L558)
 
 Label font size in px. Defaults to the axis font size.
 
@@ -59,7 +59,7 @@ Label font size in px. Defaults to the axis font size.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:560](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L560)
+Source: [types/src/index.ts:572](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L572)
 
 How much the hovered line or close button brightens, as a channel
 multiplier. 1 disables the highlight. Default 1.25. Web only — touch
@@ -73,7 +73,7 @@ platforms have no hover state.
 optional inset?: number;
 ```
 
-Source: [types/src/index.ts:552](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L552)
+Source: [types/src/index.ts:564](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L564)
 
 How far in from the price axis the label group sits, as a fraction of pane
 width (0 = flush against the axis, 0.5 = at the pane's midpoint). Only
