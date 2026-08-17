@@ -239,6 +239,7 @@ export type SidebarProps = {
     toggleLineTool: () => void;
     toggleBoxTool: () => void;
     togglePencilTool: () => void;
+    togglePathTool: () => void;
     history: UndoRedoState;
     undoDrawing: () => void;
     redoDrawing: () => void;
@@ -501,6 +502,19 @@ export function Sidebar({
             }}
           >
             Pencil (P)
+          </button>
+          <button
+            onClick={overlays.togglePathTool}
+            style={{
+              ...btn,
+              flex: 1,
+              ...(drawing && overlays.drawTool === 'path'
+                ? { background: '#1f6feb', color: '#f0f6fc', border: '1px solid #1f6feb' }
+                : {}),
+            }}
+            title="Multi-segment path: click each vertex, then Esc / double-click / right-click to finish"
+          >
+            Path (A)
           </button>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

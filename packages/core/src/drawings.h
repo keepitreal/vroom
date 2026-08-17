@@ -1,10 +1,11 @@
 // Drawing annotations — user-placed line tools rendered on the price pane.
 //
 // Two kinds of geometry are drawn here:
-//   * Committed lines (chart.drawings) — two-point trendlines anchored in data
-//     space, so they stay glued to the candles as the user pans/zooms.
+//   * Committed shapes (chart.drawings) — lines, boxes, freehand strokes and
+//     arrow-tipped paths, anchored in data space so they stay glued to the
+//     candles as the user pans/zooms.
 //   * The transient "draft" (chart.draft_*) — the in-progress node dots and the
-//     live guideline shown while the user is placing a line.
+//     live guideline shown while the user is placing a shape.
 //
 // Like ma_overlay / crosshair this is its own module so the chart orchestrator
 // stays thin. Drawn after the overlays and before the axis backgrounds.
@@ -39,8 +40,12 @@ void draw(SkCanvas* canvas,
 //   * pencil — always 5 (stroke body). A freehand stroke has no grab handles:
 //              its end anchors are a visual cue only and translate the whole
 //              path like any other part of it.
-// Corner/endpoint hits are only reported for the currently selected drawing
-// (whose handles are visible).
+//   * path   — 6 (path body) or VROOM_DRAW_PART_VERTEX + i for vertex i. Unlike
+//              a pencil every vertex was placed deliberately, so every one is a
+//              grab handle; the offset keeps those indices clear of the small
+//              part numbers above.
+// Corner/endpoint/vertex hits are only reported for the currently selected
+// drawing (whose handles are visible).
 struct HitResult {
     int32_t index;
     int32_t part;

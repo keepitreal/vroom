@@ -4,10 +4,10 @@ vroom ships interactive drawing tools for annotating the chart. Drawings are
 anchored in **data space** (time + price), so they stay glued to the candles as
 the user pans and zooms.
 
-Drawing is **web only** today (React Native support is planned). Three tools are
+Drawing is **web only** today (React Native support is planned). Four tools are
 available: the **line** (a two-point trendline), the **box** (an axis-aligned
-rectangle), and the **pencil** (a freehand
-stroke tool).
+rectangle), the **pencil** (a freehand stroke tool), and the **path** (a
+multi-segment polyline ending in an arrowhead).
 
 There are two ways to manage the drawings themselves:
 
@@ -100,12 +100,12 @@ persistence — without it, drawings work in-session but aren't saved.
 
 ## Activating a drawing tool
 
-To start drawing, put the chart in draw mode and pick a tool — `'line'`, `'box'`
-or `'pencil'`:
+To start drawing, put the chart in draw mode and pick a tool — `'line'`, `'box'`,
+`'pencil'` or `'path'`:
 
 ```tsx
 setMode("draw");
-setTool("line"); // or 'box' | 'pencil'
+setTool("line"); // or 'box' | 'pencil' | 'path'
 ```
 
 **How you trigger that is up to you**: a toolbar button, a menu, or a keyboard
@@ -125,6 +125,34 @@ useEffect(() => {
   return () => window.removeEventListener("keydown", onKey);
 }, [mode]);
 ```
+
+## The path tool
+
+The line and box are done after two clicks, and the pencil after you lift the
+pointer. A path has no fixed length: the first click drops its starting vertex,
+every click after that adds a segment, and a preview segment follows the cursor
+in between. Because there's no point count to finish on, **you** say when it's
+done:
+
+| Gesture | Result |
+| --- | --- |
+| **Escape** | Finish the path where it stands |
+| **Double-click** | Finish it at the vertex you just placed |
+| **Right-click** | Finish it without placing another vertex |
+| **⌘Z / Ctrl+Z**, **Backspace**, **Delete** | Take back the last vertex |
+
+An arrowhead marks the path's direction of travel. While you're drawing it rides
+the preview segment under the cursor; once you finish, it sits on the final
+vertex. A path that never got a second vertex isn't a shape, so finishing one
+discards it rather than committing a dot.
+
+Hold **Shift** while placing a vertex to constrain that segment to 45° off the
+previous one, the same as a trendline's second point. A path holds at most 64
+vertices.
+
+Once committed, a path behaves like the other tools in pan mode — click its body
+to select it, drag the body to move the whole thing — plus **every vertex is its
+own drag handle**, so you can reshape a leg without redrawing.
 
 ## Undo & redo
 

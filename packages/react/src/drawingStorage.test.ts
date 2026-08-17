@@ -17,6 +17,11 @@ const pencil: Drawing = {
   type: 'pencil',
   points: [p(1000, 10), p(1100, 12), p(1200, 11), p(1300, 15)],
 };
+const path: Drawing = {
+  id: 'a1',
+  type: 'path',
+  points: [p(1000, 10), p(1400, 18), p(1900, 13)],
+};
 
 /** Wrap raw entries in a current-version envelope, bypassing serializeDrawings. */
 const envelope = (drawings: unknown[]) =>
@@ -29,9 +34,14 @@ describe('serialize / deserialize round-trip', () => {
     expect(out[0]!.points).toHaveLength(4);
   });
 
-  it('round-trips a mixed set of line, box and pencil', () => {
-    const all = [line, box, pencil];
+  it('round-trips a mixed set of line, box, pencil and path', () => {
+    const all = [line, box, pencil, path];
     expect(deserializeDrawings(serializeDrawings(all))).toEqual(all);
+  });
+
+  it('keeps a path\u2019s vertex order (the arrow marks the last one)', () => {
+    const out = deserializeDrawings(serializeDrawings([path]));
+    expect(out[0]!.points.map((q) => q.timeMs)).toEqual([1000, 1400, 1900]);
   });
 
   it('preserves optional color and width on a stroke', () => {
@@ -89,7 +99,7 @@ describe('malformed entries are dropped, not rendered', () => {
 });
 
 describe('backward compatibility', () => {
-  it('loads a line/box payload written before the pencil tool existed', () => {
+  it('loads a line/box payload written before the pencil and path tools existed', () => {
     const legacy = JSON.stringify({ v: 1, drawings: [line, box] });
     expect(deserializeDrawings(legacy)).toEqual([line, box]);
   });
@@ -103,10 +113,16 @@ describe('backward compatibility', () => {
 // the WASM boundary (useChartCore), so it must reject anything whose anchors
 // would read as undefined/NaN doubles.
 describe('isValidDrawing (controlled drawings prop guard)', () => {
-  it('accepts well-formed line, box and pencil drawings', () => {
+  it('accepts well-formed line, box, pencil and path drawings', () => {
     expect(isValidDrawing(line)).toBe(true);
     expect(isValidDrawing(box)).toBe(true);
     expect(isValidDrawing(pencil)).toBe(true);
+    expect(isValidDrawing(path)).toBe(true);
+  });
+
+  it('accepts a two-vertex path but rejects a one-vertex one', () => {
+    expect(isValidDrawing({ id: 'x', type: 'path', points: [p(1, 1), p(2, 2)] })).toBe(true);
+    expect(isValidDrawing({ id: 'x', type: 'path', points: [p(1, 1)] })).toBe(false);
   });
 
   it('rejects a drawing with an empty points array', () => {

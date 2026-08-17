@@ -145,7 +145,7 @@ export type ChartType = 'candles' | 'line';
 export type TransitionEasing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
 
 /** Active drawing tool while in `draw` mode. `null` draws nothing. */
-export type DrawTool = null | 'line' | 'box' | 'pencil';
+export type DrawTool = null | 'line' | 'box' | 'pencil' | 'path';
 
 /** A drawing anchor in data space, so it stays glued to the candles on pan/zoom. */
 export type DrawPoint = {
@@ -194,15 +194,27 @@ export type PencilDrawing = DrawingBase & {
 };
 
 /**
+ * A multi-segment path: straight segments through `points`, in order, ending in
+ * an arrowhead on the last vertex. Like a pencil stroke it holds a variable
+ * number of points, but every one was placed deliberately (one click each), so
+ * each is an individually draggable handle once the path is committed.
+ */
+export type PathDrawing = DrawingBase & {
+  type: 'path';
+  /** The path's vertices in draw order (at least 2), in data space. */
+  points: DrawPoint[];
+};
+
+/**
  * A committed drawing. Pass an array of these via the `drawings` prop to render
  * persisted annotations; the chart appends a new one (via `onDrawingComplete`)
  * each time the user finishes drawing.
  *
  * This is a discriminated union on `type` — narrow on it before reading
- * `points[1]`, since a `'pencil'` stroke has a variable-length array while
+ * `points[1]`, since `'pencil'` and `'path'` have variable-length arrays while
  * `'line'` and `'box'` are always exactly two points.
  */
-export type Drawing = LineDrawing | BoxDrawing | PencilDrawing;
+export type Drawing = LineDrawing | BoxDrawing | PencilDrawing | PathDrawing;
 
 /**
  * Storage adapter for **managed** drawing persistence. Provide it via the

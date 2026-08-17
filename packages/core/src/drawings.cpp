@@ -115,6 +115,99 @@ void draw_path(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     canvas->drawPath(builder.detach(), paint);
 }
 
+// Strokes straight segments through `pts` (already in pixels). Unlike a pencil
+// stroke a path's vertices were each placed deliberately, so the corners are the
+// point — no smoothing. Round joins/caps keep the corners from spiking at the
+// sharp angles a wave count tends to produce.
+void draw_polyline(SkCanvas* canvas, const std::vector<SkPoint>& pts,
+                   SkColor color, float width) {
+    if (pts.size() < 2) return;
+    SkPathBuilder builder;
+    builder.moveTo(pts[0]);
+    for (size_t i = 1; i < pts.size(); ++i) builder.lineTo(pts[i]);
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(color);
+    paint.setStyle(SkPaint::kStroke_Style);
+    paint.setStrokeWidth(width > 0.f ? width : 2.f);
+    paint.setStrokeCap(SkPaint::kRound_Cap);
+    paint.setStrokeJoin(SkPaint::kRound_Join);
+    canvas->drawPath(builder.detach(), paint);
+}
+
+// Apex-to-base length of the arrowhead. Scales with the stroke so a thicker
+// path gets a proportionally bigger head.
+float arrow_head_len(float width) {
+    return 5.f + 2.5f * (width > 0.f ? width : 2.f);
+}
+
+// Fills a small triangular arrowhead with its apex at `tip`, pointing away from
+// `from`. Skipped when the segment is too short to seat one (otherwise the head
+// would swallow the whole segment and flip direction on tiny jitters).
+void draw_arrow_head(SkCanvas* canvas, SkPoint tip, SkPoint from, SkColor color,
+                     float width) {
+    const float len = arrow_head_len(width);
+    const float half = len * 0.45f;  // base half-width
+    const float dx = tip.fX - from.fX;
+    const float dy = tip.fY - from.fY;
+    const float dist = std::sqrt(dx * dx + dy * dy);
+    if (dist < len) return;
+
+    const float ux = dx / dist;  // unit vector pointing at the tip
+    const float uy = dy / dist;
+    const SkPoint base{tip.fX - ux * len, tip.fY - uy * len};
+
+    SkPathBuilder head;
+    head.moveTo(tip);
+    head.lineTo(base.fX - uy * half, base.fY + ux * half);  // base, one side
+    head.lineTo(base.fX + uy * half, base.fY - ux * half);  // base, the other
+    head.close();
+
+    SkPaint paint;
+    paint.setAntiAlias(true);
+    paint.setColor(color);
+    paint.setStyle(SkPaint::kFill_Style);
+    canvas->drawPath(head.detach(), paint);
+}
+
+// Projects every point of a path/stroke to pixels in one pass, so the render and
+// arrowhead code can index them without re-projecting.
+std::vector<SkPoint> project_all(const VroomChart& chart, const Layout& lay,
+                                 const PriceBounds& bounds, int64_t window_ms,
+                                 const std::vector<VroomDrawPoint>& pts) {
+    std::vector<SkPoint> out;
+    out.reserve(pts.size());
+    for (const auto& p : pts) out.push_back(to_px(chart, lay, bounds, window_ms, p));
+    return out;
+}
+
+// Draws a whole arrow-tipped path from its already-projected points: the
+// segments, then the head on the last one.
+void draw_arrow_path(SkCanvas* canvas, const std::vector<SkPoint>& pts,
+                     SkColor color, float width) {
+    if (pts.size() < 2) return;
+    const SkPoint tip = pts.back();
+    const SkPoint prev = pts[pts.size() - 2];
+    const float len = arrow_head_len(width);
+    const float dx = tip.fX - prev.fX;
+    const float dy = tip.fY - prev.fY;
+    const float dist = std::sqrt(dx * dx + dy * dy);
+    if (dist < len) {  // no room for a head — just the bare segments
+        draw_polyline(canvas, pts, color, width);
+        return;
+    }
+
+    // Stop the stroke at the head's base rather than running it to the apex:
+    // its round cap is a half-disc of radius width/2 centred on the endpoint, so
+    // at the apex it bulges past the point and blunts it. The base is wider than
+    // the stroke, so the cap ends up hidden inside the triangle.
+    std::vector<SkPoint> body(pts);
+    body.back() = SkPoint{tip.fX - dx / dist * len, tip.fY - dy / dist * len};
+    draw_polyline(canvas, body, color, width);
+    draw_arrow_head(canvas, tip, prev, color, width);
+}
+
 void draw_node(SkCanvas* canvas, SkPoint pt, float scale = 1.f) {
     SkPaint fill;
     fill.setAntiAlias(true);
@@ -232,6 +325,12 @@ void draw(SkCanvas* canvas,
                           static_cast<SkColor>(d.color), d.width);
                 continue;
             }
+            if (d.kind == 3) {
+                draw_arrow_path(
+                    canvas, project_all(chart, lay, bounds, window_ms, d.points),
+                    static_cast<SkColor>(d.color), d.width);
+                continue;
+            }
             const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
             const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
             if (d.kind == 1) {
@@ -255,7 +354,16 @@ void draw(SkCanvas* canvas,
         const auto& d = chart.drawings[chart.selected_drawing];
         const SkPoint sa = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint sb = to_px(chart, lay, bounds, window_ms, d.b);
-        if (d.kind == 2) {
+        if (d.kind == 3) {
+            // Path: every vertex was placed by hand, so every one is a grab
+            // handle. The one being dragged renders 50% larger, like a line's.
+            const auto pts = project_all(chart, lay, bounds, window_ms, d.points);
+            for (size_t i = 0; i < pts.size(); ++i) {
+                draw_node(canvas, pts[i],
+                          chart.grabbed_endpoint == static_cast<int32_t>(i) ? 1.5f
+                                                                            : 1.f);
+            }
+        } else if (d.kind == 2) {
             // Pencil: anchors on the first/last point are a visual cue that the
             // stroke is movable — they aren't grab handles, so never enlarged.
             draw_node(canvas, sa);
@@ -286,6 +394,28 @@ void draw(SkCanvas* canvas,
         draw_path(canvas, chart, lay, bounds, window_ms, chart.draft_points,
                   static_cast<SkColor>(chart.draft_color), chart.draft_width);
         canvas->restore();
+        return;
+    }
+
+    // 1d. Path in progress: the vertices placed so far, plus a rubber-band
+    //     segment to the cursor. The arrow rides the leading edge — on the
+    //     cursor while drawing, and (once committed) on the final vertex — so
+    //     the preview reads as the arrow it's about to become.
+    if (chart.draft_kind == 3) {
+        if (chart.draft_points.empty()) return;
+        auto pts = project_all(chart, lay, bounds, window_ms, chart.draft_points);
+        if (chart.draft_has_b) {
+            pts.push_back(to_px(chart, lay, bounds, window_ms, chart.draft_b));
+        }
+        canvas->save();
+        canvas->clipRect(clip);
+        draw_arrow_path(canvas, pts, static_cast<SkColor>(chart.draft_color),
+                        chart.draft_width);
+        canvas->restore();
+        // Node dots on the placed vertices only (not the cursor) — unclipped, so
+        // a vertex on the very edge still renders whole.
+        const size_t placed = chart.draft_points.size();
+        for (size_t i = 0; i < placed; ++i) draw_node(canvas, pts[i]);
         return;
     }
 
@@ -339,7 +469,18 @@ HitResult hit_test(const VroomChart& chart,
         const auto& d = chart.drawings[chart.selected_drawing];
         const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
-        if (d.kind == 2) {
+        if (d.kind == 3) {
+            // Path: every vertex is a handle. Later vertices win an overlap, so
+            // stacked points stay individually reachable by peeling them off.
+            for (size_t i = d.points.size(); i-- > 0;) {
+                const SkPoint p = to_px(chart, lay, bounds, window_ms, d.points[i]);
+                if (std::hypot(x - p.fX, y - p.fY) <= kHandleHit) {
+                    return HitResult{chart.selected_drawing,
+                                     VROOM_DRAW_PART_VERTEX + static_cast<int32_t>(i),
+                                     0.f};
+                }
+            }
+        } else if (d.kind == 2) {
             // Pencil has no grab handles — its anchors translate like any other
             // part of the stroke, so fall through to the body pass.
         } else if (d.kind == 1) {
@@ -367,13 +508,15 @@ HitResult hit_test(const VroomChart& chart,
     float best_t = 0.f;
     for (size_t i = 0; i < chart.drawings.size(); ++i) {
         const auto& d = chart.drawings[i];
-        if (d.kind == 2) {
+        // Pencil and path share the polyline distance — a path's straight
+        // segments are exactly what dist_to_path already measures against.
+        if (d.kind == 2 || d.kind == 3) {
             const float dist = dist_to_path(x, y, chart, lay, bounds, window_ms,
                                             d.points, kBodyHit);
             if (dist <= best) {  // <= so later (topmost) drawings win ties
                 best = dist;
                 best_i = static_cast<int32_t>(i);
-                best_part = 5;
+                best_part = d.kind == 3 ? 6 : 5;
                 best_t = 0.f;
             }
             continue;

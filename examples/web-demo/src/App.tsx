@@ -565,6 +565,7 @@ export function App() {
   const toggleLineTool = useCallback(() => selectTool('line'), [selectTool]);
   const toggleBoxTool = useCallback(() => selectTool('box'), [selectTool]);
   const togglePencilTool = useCallback(() => selectTool('pencil'), [selectTool]);
+  const togglePathTool = useCallback(() => selectTool('path'), [selectTool]);
 
   // Drawing undo/redo: the chart owns the history (managed mode); the sidebar
   // buttons just mirror availability and trigger it. ⌘Z / ⇧⌘Z work natively.
@@ -573,26 +574,27 @@ export function App() {
   const undoDrawing = useCallback(() => historyRef.current?.undo(), []);
   const redoDrawing = useCallback(() => historyRef.current?.redo(), []);
 
-  // "L" toggles the line tool, "R" the box (rectangle), "P" the pencil —
-  // Figma/Excalidraw style. This lives in the demo, not the library — the hotkey
-  // is the consuming app's choice, so vroom doesn't enshrine one. Ignore it while
-  // typing in a field or with a modifier held.
+  // "L" toggles the line tool, "R" the box (rectangle), "P" the pencil, "A" the
+  // arrow path — Figma/Excalidraw style. This lives in the demo, not the
+  // library — the hotkey is the consuming app's choice, so vroom doesn't
+  // enshrine one. Ignore it while typing in a field or with a modifier held.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k !== 'l' && k !== 'r' && k !== 'p') return;
+      if (k !== 'l' && k !== 'r' && k !== 'p' && k !== 'a') return;
       const ae = document.activeElement as HTMLElement | null;
       const tag = ae?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || ae?.isContentEditable) return;
       e.preventDefault();
       if (k === 'l') toggleLineTool();
       else if (k === 'r') toggleBoxTool();
+      else if (k === 'a') togglePathTool();
       else togglePencilTool();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleLineTool, toggleBoxTool, togglePencilTool]);
+  }, [toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool]);
 
   const drawProps: DrawProps = {
     mode: drawMode,
@@ -884,7 +886,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

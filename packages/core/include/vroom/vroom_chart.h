@@ -172,17 +172,20 @@ typedef struct VroomDrawPoint {
 //                and `b`; the other two corners (a.x,b.y) and (b.x,a.y) derive.
 //   2 = pencil — a freehand path through `points` (in draw order). `a`/`b` mirror
 //                the first/last point so bounds and handle code stay uniform.
+//   3 = path   — straight segments through `points` (in draw order), ending in
+//                an arrowhead on the last one. Same storage as a pencil, but
+//                rendered unsmoothed and with every vertex a grab handle.
 //
-// `points`/`point_count` are only read for kind 2; line and box leave them
-// null/0. Like the rest of this API the points are copied internally, so the
-// caller may free them as soon as the call returns.
+// `points`/`point_count` are only read for kinds 2 and 3; line and box leave
+// them null/0. Like the rest of this API the points are copied internally, so
+// the caller may free them as soon as the call returns.
 typedef struct VroomDrawing {
     VroomDrawPoint        a;
     VroomDrawPoint        b;
     uint32_t              color;        // 0xAARRGGBB
     float                 width;        // stroke width in px
-    int32_t               kind;         // 0 = line, 1 = box, 2 = pencil
-    const VroomDrawPoint* points;       // pencil path (kind 2), else null
+    int32_t               kind;         // 0 = line, 1 = box, 2 = pencil, 3 = path
+    const VroomDrawPoint* points;       // pencil/path points (kind 2/3), else null
     int32_t               point_count;  // number of `points`, else 0
 } VroomDrawing;
 
@@ -551,18 +554,31 @@ void vroom_chart_set_drawings(VroomChart* chart, const VroomDrawing* drawings,
                               size_t count);
 
 // Hit-tests pixel (x_px, y_px) against the committed drawings. On a hit, fills
-// *out_index with the drawing index, *out_part with 0 (endpoint A), 1
-// (endpoint B), or 2 (line body), *out_t with the 0..1 grab position along the
-// segment (A→B; 0/1 for handle hits), and returns true. Endpoint hits are only
-// reported for the currently selected drawing (whose handles are visible).
-// Returns false on a miss (out params untouched). Any out pointer may be null.
+// *out_index with the drawing index, *out_part with the sub-part that was hit,
+// *out_t with the 0..1 grab position along the segment (A→B; 0/1 for handle
+// hits, 0 for the shapes that have no meaningful t), and returns true. Handle
+// hits are only reported for the currently selected drawing (whose handles are
+// visible). Returns false on a miss (out params untouched). Any out pointer may
+// be null.
+//
+// `out_part` is per-kind (see VroomDrawing.kind):
+//   line   — 0 (endpoint A), 1 (endpoint B), 2 (body).
+//   box    — 0..3 (corners, in the order a, (b.x,a.y), b, (a.x,b.y)), 4 (body).
+//   pencil — 5 (body; a stroke has no handles).
+//   path   — 6 (body), or VROOM_DRAW_PART_VERTEX + i for vertex i. The offset
+//            keeps a vertex index from colliding with the small part numbers
+//            above, and is why a path is capped at VROOM_PATH_MAX_POINTS.
+#define VROOM_DRAW_PART_VERTEX 100
+#define VROOM_PATH_MAX_POINTS  64
 bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px, float y_px,
                                   int32_t* out_index, int32_t* out_part,
                                   float* out_t);
 
-// Selects a committed drawing (renders its endpoint handles). `index` -1 clears
-// the selection. `grabbed_endpoint` 0/1 renders that handle 50% larger while it's
-// being dragged; -1 for none. An out-of-range index clears the selection.
+// Selects a committed drawing (renders its handles). `index` -1 clears the
+// selection. `grabbed_endpoint` renders that handle 50% larger while it's being
+// dragged (0/1 for a line, 0 for the box corner the host normalized to, the
+// vertex index for a path); -1 for none. An out-of-range index clears the
+// selection.
 void vroom_chart_set_selected_drawing(VroomChart* chart, int32_t index,
                                       int32_t grabbed_endpoint);
 
@@ -572,8 +588,16 @@ void vroom_chart_move_drawing_endpoint(VroomChart* chart, int32_t index,
                                        int32_t endpoint, int64_t time_ms,
                                        double price);
 
+// Moves one vertex of a committed path (kind 3) to a new data-space anchor, for
+// live handle dragging. `vertex` indexes `points`; a/b are re-mirrored onto the
+// first/last point afterwards. No-op for an out-of-range drawing/vertex index or
+// a drawing that isn't a path.
+void vroom_chart_move_drawing_vertex(VroomChart* chart, int32_t index,
+                                     int32_t vertex, int64_t time_ms,
+                                     double price);
+
 // Shifts a whole committed drawing by a *relative* data-space delta — `a`, `b`,
-// and (for a pencil) every path point. Used for live body dragging of shapes
+// and (for a pencil or path) every point. Used for live body dragging of shapes
 // whose points can't be restated cheaply. No-op for an out-of-range index.
 void vroom_chart_translate_drawing(VroomChart* chart, int32_t index,
                                    int64_t d_time_ms, double d_price);
@@ -641,6 +665,19 @@ void vroom_chart_start_draft_stroke(VroomChart* chart, uint32_t color,
 // No-op unless a draft stroke was started.
 void vroom_chart_append_draft_point(VroomChart* chart, int64_t time_ms,
                                     double price);
+
+// Restates the whole in-progress path (kind 3) draft: `count` vertices placed so
+// far, plus — when `has_cursor` — a rubber-band segment from the last vertex to
+// (cursor_time, cursor_price) carrying the arrow tip. Each placed vertex renders
+// a node dot. A path is placed one deliberate click at a time (so `count` stays
+// small, see VROOM_PATH_MAX_POINTS), which is why this restates rather than
+// appending: the host stays the sole owner of the vertex list, and undoing a
+// point is just a shorter array. Pass count 0 with has_cursor false to show
+// nothing; the points are copied, so the caller may free them on return.
+void vroom_chart_set_draft_path(VroomChart* chart, const VroomDrawPoint* points,
+                                int32_t count, bool has_cursor,
+                                int64_t cursor_time, double cursor_price,
+                                uint32_t color, float width);
 
 // Clears the draft (hides the in-progress node dots / guideline / stroke).
 void vroom_chart_clear_draft(VroomChart* chart);

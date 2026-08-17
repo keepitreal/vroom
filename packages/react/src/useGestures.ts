@@ -13,6 +13,7 @@ import type {
   DrawTool,
   PriceLine,
 } from '@vroomchart/types';
+import { DRAW_PART_VERTEX, PATH_MAX_POINTS } from '@vroomchart/core-wasm';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
 import { simplifyIndices } from './simplify';
@@ -75,6 +76,10 @@ const DRAW_WIDTH = 2;
 const PENCIL_MIN_DIST = 2;
 const PENCIL_EPSILON = 1;
 
+// How close (px) the second click of a double-click must land to the vertex the
+// first one placed for the duplicate to be dropped on commit. See commitPath.
+const PATH_DEDUPE_DIST = 4;
+
 // Stable unique id for a freshly drawn line.
 function drawingId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -86,11 +91,18 @@ function drawingId(): string {
 // The core's hit-test `part` that means "the body of this shape" (as opposed to
 // a grab handle). See packages/core/src/drawings.h for the full part encoding.
 function bodyPart(type: Drawing['type']): number {
-  return type === 'box' ? 4 : type === 'pencil' ? 5 : 2;
+  return type === 'box' ? 4 : type === 'pencil' ? 5 : type === 'path' ? 6 : 2;
+}
+
+// Whether a shape holds a variable number of points (vs an exact two-anchor
+// tuple). Drives both the `Drawing` union narrowing and the body-drag strategy:
+// a long point list is translated by relative deltas rather than restated.
+function isMultiPoint(type: Drawing['type']): boolean {
+  return type === 'pencil' || type === 'path';
 }
 
 // Rebuilds a drawing of `type` from a point array. `Drawing` is a discriminated
-// union where line/box carry an exact two-point tuple and only pencil is
+// union where line/box carry an exact two-point tuple and pencil/path are
 // variable-length, so this is where an array is narrowed back to the right
 // variant. Returns null for a degenerate (< 2 point) shape.
 function makeDrawing(
@@ -103,7 +115,9 @@ function makeDrawing(
     ...(base.color != null ? { color: base.color } : {}),
     ...(base.width != null ? { width: base.width } : {}),
   };
-  if (type === 'pencil') return { id: base.id, type, points: pts, ...style };
+  if (type === 'pencil' || type === 'path') {
+    return { id: base.id, type, points: pts, ...style };
+  }
   return { id: base.id, type, points: [pts[0]!, pts[pts.length - 1]!], ...style };
 }
 
@@ -146,19 +160,22 @@ export function useGestures(
   //             on a stationary release.
   //   lastCoord — the last coordAt during a handle drag, for the release payload.
   const selectedIdRef = useRef<string | null>(null);
-  // The endpoint/corner being dragged. `fixed` is the anchor that stays put (the
-  // other line endpoint, or — for a box — the diagonally opposite corner). For a
-  // box we normalize the core so `endpoint` is always 0 (the grabbed corner) and
-  // `fixed` is stored as endpoint 1, so the line's endpoint-drag path drives it.
+  // The endpoint/corner/vertex being dragged. `fixed` is the anchor that stays
+  // put (the other line endpoint, or — for a box — the diagonally opposite
+  // corner). For a box we normalize the core so `endpoint` is always 0 (the
+  // grabbed corner) and `fixed` is stored as endpoint 1, so the line's
+  // endpoint-drag path drives it. For a path `endpoint` is the vertex index and
+  // there is no partner anchor, so `fixed` is unused.
   const grabRef = useRef<{
     index: number;
     endpoint: number;
     fixed: DrawPoint;
     isBox: boolean;
+    isPath?: boolean;
   } | null>(null);
   // A whole shape being translated by its body. Line/box restate both anchors
-  // absolutely from a0/b0; a pencil can't (hundreds of points), so it carries
-  // `points0` and is driven by relative translateDrawing calls instead.
+  // absolutely from a0/b0; a pencil or path can't (a whole point list), so it
+  // carries `points0` and is driven by relative translateDrawing calls instead.
   const dragLineRef = useRef<{
     index: number;
     startTime: number;
@@ -177,6 +194,14 @@ export function useGestures(
   const pencilRef = useRef<{ pts: DrawPoint[]; px: { x: number; y: number }[] } | null>(
     null,
   );
+  // An in-progress multi-segment path: the vertices placed so far, one per
+  // click. Unlike the two-click tools a path has no fixed end, so it lives here
+  // until the user finishes it (Escape / double-click / right-click) — which
+  // also means the keyboard handler can pop the last vertex off for undo.
+  const pathRef = useRef<{ pts: DrawPoint[] } | null>(null);
+  // The last cursor position the path's rubber band ran to (data space), so a
+  // keyboard undo can restate the draft without dropping the preview segment.
+  const pathCursorRef = useRef<DrawPoint | null>(null);
   // Price-line interaction. A drag carries the line's core index + id and the
   // last previewed price (the drop payload); `cancelled` is set by Escape so the
   // release knows to submit nothing. A press on the close button is recorded here
@@ -225,6 +250,85 @@ export function useGestures(
   useEffect(() => {
     applySelection();
   }, [opts.drawings, applySelection]);
+
+  // Price precision at which the rounding error stays well under a pixel, so
+  // the persisted shape renders identically to the drawn one while shedding
+  // float noise (54812.34567890123 → 54812.345679) from the stored payload.
+  const priceDecimals = useCallback((): number => {
+    const h = handleRef.current;
+    const el = containerRef.current;
+    if (!h || !el) return 6;
+    const rect = el.getBoundingClientRect();
+    const m = h.getAxisMetrics();
+    const priceBottom = rect.height - m.xAxisHeight - m.indicatorHeight;
+    if (priceBottom <= 0) return 6;
+    const top = h.coordAt(rect.width / 2, 0);
+    const bot = h.coordAt(rect.width / 2, priceBottom);
+    if (!top || !bot || top.price <= bot.price) return 6;
+    const pricePerPx = (top.price - bot.price) / priceBottom;
+    const d = Math.ceil(-Math.log10(pricePerPx / 100));
+    return Math.max(0, Math.min(12, Number.isFinite(d) ? d : 6));
+  }, [containerRef, handleRef]);
+
+  // Quantize a shape's points so the persisted payload stays compact. Applied
+  // wherever a multi-point shape is emitted (commit and translate) so stored
+  // coordinates never re-accumulate float noise.
+  const roundPoints = useCallback(
+    (pts: DrawPoint[]): DrawPoint[] => {
+      const dp = priceDecimals();
+      return pts.map((p) => ({
+        timeMs: Math.round(p.timeMs),
+        price: Number(p.price.toFixed(dp)),
+      }));
+    },
+    [priceDecimals],
+  );
+
+  // Push the in-progress path to the core: the vertices placed so far plus an
+  // optional rubber-band end at `cursor` (which carries the arrow tip). The
+  // cursor is remembered so a keyboard undo can restate the draft without
+  // waiting for the next pointer move to put the rubber band back.
+  const syncPathDraft = useCallback(
+    (cursor: DrawPoint | null) => {
+      const h = handleRef.current;
+      if (!h) return;
+      pathCursorRef.current = cursor;
+      const s = pathRef.current;
+      if (!s || s.pts.length === 0) h.clearDraft();
+      else h.setDraftPath(s.pts, cursor, DRAW_COLOR, DRAW_WIDTH);
+      scheduleRender();
+    },
+    [handleRef, scheduleRender],
+  );
+
+  // Finish the in-progress path and hand it to the host. Fewer than two
+  // vertices is not a shape, so it's dropped rather than committed as a speck —
+  // which is also how Escape-with-one-point ends up discarding.
+  //
+  // A double-click finishes the path, but its second click already ran through
+  // the normal click handler and appended a vertex on top of the first's, so a
+  // duplicated trailing vertex is dropped here.
+  const commitPath = useCallback(() => {
+    const h = handleRef.current;
+    const s = pathRef.current;
+    pathRef.current = null;
+    pathCursorRef.current = null;
+    if (!h) return;
+    h.clearDraft();
+    scheduleRender();
+    if (!s) return;
+
+    const pts = [...s.pts];
+    if (pts.length >= 2) {
+      const last = h.project(pts[pts.length - 1]!.timeMs, pts[pts.length - 1]!.price);
+      const prev = h.project(pts[pts.length - 2]!.timeMs, pts[pts.length - 2]!.price);
+      if (last && prev && Math.hypot(last.x - prev.x, last.y - prev.y) <= PATH_DEDUPE_DIST) {
+        pts.pop();
+      }
+    }
+    const path = makeDrawing({ id: drawingId() }, 'path', roundPoints(pts));
+    if (path) optsRef.current.onDrawingComplete?.(path);
+  }, [handleRef, scheduleRender, roundPoints]);
 
   // Keyboard: delete the selected line (Backspace/Delete) and copy/paste it
   // (Cmd/Ctrl+C / +V). Skipped while focus is in a field / a real text selection.
@@ -322,6 +426,26 @@ export function useGestures(
         return;
       }
 
+      // Mid-path: Escape finishes it where it stands (a path has no fixed end,
+      // so ending it *is* the gesture — the same as double-clicking the last
+      // vertex). One lone vertex isn't a shape, so that case discards instead.
+      if (pathRef.current && e.key === 'Escape') {
+        e.preventDefault();
+        commitPath();
+        return;
+      }
+
+      // Mid-path: Backspace/Delete take back the last vertex, like ⌘Z below.
+      // Removing the only one leaves nothing to draw from, so the path ends.
+      if (pathRef.current && (e.key === 'Backspace' || e.key === 'Delete')) {
+        e.preventDefault();
+        const s = pathRef.current;
+        s.pts.pop();
+        if (s.pts.length === 0) pathRef.current = null;
+        syncPathDraft(pathRef.current ? pathCursorRef.current : null);
+        return;
+      }
+
       // Mid-draw (first anchor placed, awaiting the second): Escape/Delete/
       // Backspace cancels the in-progress anchor but keeps draw mode active.
       if (
@@ -357,6 +481,17 @@ export function useGestures(
       if (!(e.metaKey || e.ctrlKey)) return;
       const key = e.key.toLowerCase();
       if (key === 'z' || key === 'y') {
+        // ⌘Z mid-path takes back the last vertex rather than undoing a
+        // previously committed drawing — the path being drawn is what the user
+        // is looking at, so that's what "undo" means here.
+        if (key === 'z' && !e.shiftKey && pathRef.current) {
+          e.preventDefault();
+          const s = pathRef.current;
+          s.pts.pop();
+          if (s.pts.length === 0) pathRef.current = null;
+          syncPathDraft(pathRef.current ? pathCursorRef.current : null);
+          return;
+        }
         // ⌘Z with a pending first anchor undoes the point placement (like
         // Escape), not the previous committed drawing.
         if (key === 'z' && !e.shiftKey && drawAnchorRef.current) {
@@ -409,7 +544,7 @@ export function useGestures(
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [containerRef, handleRef, scheduleRender]);
+  }, [containerRef, handleRef, scheduleRender, commitPath, syncPathDraft]);
 
   // True while a local pointer (hover/press) owns the crosshair. Lets the
   // crosshair-override effect below know to stand down (local input wins).
@@ -421,10 +556,16 @@ export function useGestures(
   useEffect(() => {
     const active =
       opts.mode === 'draw' &&
-      (opts.tool === 'line' || opts.tool === 'box' || opts.tool === 'pencil');
+      (opts.tool === 'line' ||
+        opts.tool === 'box' ||
+        opts.tool === 'pencil' ||
+        opts.tool === 'path');
     if (active) return;
     drawAnchorRef.current = null;
     pencilRef.current = null;
+    // An unfinished path is discarded, matching the two-click tools: switching
+    // tools mid-shape is a change of mind, not a way to commit one.
+    pathRef.current = null;
     const h = handleRef.current;
     if (h) {
       h.clearDraft();
@@ -618,7 +759,8 @@ export function useGestures(
       optsRef.current.mode === 'draw' &&
       (optsRef.current.tool === 'line' ||
         optsRef.current.tool === 'box' ||
-        optsRef.current.tool === 'pencil');
+        optsRef.current.tool === 'pencil' ||
+        optsRef.current.tool === 'path');
 
     // Whether the active draw tool is the box (vs the line). `1`/`0` maps to the
     // core's draft/drawing `kind`.
@@ -628,15 +770,36 @@ export function useGestures(
     // path through pointerdown/move/up instead of the two-click draft flow.
     const drawIsPencil = () => optsRef.current.tool === 'pencil';
 
+    // The path is click-driven like line/box, but open-ended: it keeps taking
+    // clicks until the user finishes it, so it has its own draft flow too.
+    const drawIsPath = () => optsRef.current.tool === 'path';
+
     // Snap the moving anchor relative to `fixed`, using the constraint that fits
     // the shape: square for a box, 45° for a line.
     const snapMoving = (isBox: boolean, fixed: DrawPoint, x: number, y: number) =>
       isBox ? snapToSquare(fixed, x, y) : snapToLine(fixed, x, y);
 
+    // Where the next path vertex would land: Shift-snapped to 45° off the last
+    // placed vertex, like a trendline's second point.
+    const pathCoordAt = (x: number, y: number): DrawPoint | null => {
+      const h = handleRef.current;
+      if (!h) return null;
+      const last = pathRef.current?.pts.at(-1);
+      return last ? snapToLine(last, x, y) : h.coordAt(x, y);
+    };
+
     // While placing the second point, keep the live preview glued to the cursor.
     const updateGuideline = (x: number, y: number) => {
       const h = handleRef.current;
       if (!h) return;
+      // A path's preview is the rubber band from its last vertex, and it only
+      // exists once the first vertex is down.
+      if (drawIsPath()) {
+        if (!pathRef.current) return;
+        const c = pathCoordAt(x, y);
+        if (c) syncPathDraft(c);
+        return;
+      }
       const a = drawAnchorRef.current;
       if (!a) return;
       const isBox = drawIsBox();
@@ -651,6 +814,21 @@ export function useGestures(
     const handleDrawClick = (x: number, y: number) => {
       const h = handleRef.current;
       if (!h) return;
+
+      // Path: every click appends a vertex; the shape is finished explicitly
+      // (Escape / double-click / right-click) rather than by a point count.
+      if (drawIsPath()) {
+        const c = pathCoordAt(x, y);
+        if (!c) return;
+        const s = pathRef.current ?? { pts: [] };
+        pathRef.current = s;
+        // At the cap, further clicks are ignored rather than silently finishing
+        // the path — the user stays in control of where it ends.
+        if (s.pts.length >= PATH_MAX_POINTS) return;
+        s.pts.push(c);
+        syncPathDraft(c);
+        return;
+      }
 
       const isBox = drawIsBox();
       if (!drawAnchorRef.current) {
@@ -713,36 +891,6 @@ export function useGestures(
       scheduleRender();
     };
 
-    // Price precision at which the rounding error stays well under a pixel, so
-    // the persisted stroke renders identically to the drawn one while shedding
-    // float noise (54812.34567890123 → 54812.345679) from the stored payload.
-    const priceDecimals = (): number => {
-      const h = handleRef.current;
-      const el = containerRef.current;
-      if (!h || !el) return 6;
-      const rect = el.getBoundingClientRect();
-      const m = h.getAxisMetrics();
-      const priceBottom = rect.height - m.xAxisHeight - m.indicatorHeight;
-      if (priceBottom <= 0) return 6;
-      const top = h.coordAt(rect.width / 2, 0);
-      const bot = h.coordAt(rect.width / 2, priceBottom);
-      if (!top || !bot || top.price <= bot.price) return 6;
-      const pricePerPx = (top.price - bot.price) / priceBottom;
-      const d = Math.ceil(-Math.log10(pricePerPx / 100));
-      return Math.max(0, Math.min(12, Number.isFinite(d) ? d : 6));
-    };
-
-    // Quantize a stroke's points so the persisted payload stays compact. Applied
-    // wherever a stroke is emitted (commit and translate) so stored coordinates
-    // never re-accumulate float noise.
-    const roundPoints = (pts: DrawPoint[]): DrawPoint[] => {
-      const dp = priceDecimals();
-      return pts.map((p) => ({
-        timeMs: Math.round(p.timeMs),
-        price: Number(p.price.toFixed(dp)),
-      }));
-    };
-
     // Commit the stroke: thin it with RDP, round the coordinates, and hand it to
     // the host. Sub-threshold strokes (a stray click) are dropped, not committed
     // as a speck.
@@ -766,15 +914,17 @@ export function useGestures(
     };
 
     // Reposition the grabbed endpoint at pixel (x,y), Shift-snapping to 45°
-    // relative to the fixed (other) endpoint.
+    // relative to the fixed (other) endpoint. A path vertex has two neighbours
+    // and no single anchor to constrain against, so it just follows the cursor.
     const moveGrab = (x: number, y: number) => {
       const h = handleRef.current;
       const g = grabRef.current;
       if (!h || !g) return;
-      const c = snapMoving(g.isBox, g.fixed, x, y);
+      const c = g.isPath ? h.coordAt(x, y) : snapMoving(g.isBox, g.fixed, x, y);
       if (!c) return;
       lastCoordRef.current = c;
-      h.moveDrawingEndpoint(g.index, g.endpoint, c.timeMs, c.price);
+      if (g.isPath) h.moveDrawingVertex(g.index, g.endpoint, c.timeMs, c.price);
+      else h.moveDrawingEndpoint(g.index, g.endpoint, c.timeMs, c.price);
       scheduleRender();
     };
 
@@ -845,9 +995,26 @@ export function useGestures(
 
         const hit = h.hitTestDrawing(x, y);
         const gd = hit ? (optsRef.current.drawings ?? [])[hit.index] : undefined;
-        // Handle/corner grab: line endpoints (part 0/1) or box corners (part
-        // 0..3). A pencil has no handles at all — its end anchors translate the
-        // stroke like any other part of it — so it never takes this path.
+        // Handle/corner/vertex grab: line endpoints (part 0/1), box corners
+        // (part 0..3), or a path vertex (part DRAW_PART_VERTEX + i). A pencil
+        // has no handles at all — its end anchors translate the stroke like any
+        // other part of it — so it never takes this path.
+        if (hit && gd && gd.type === 'path' && hit.part >= DRAW_PART_VERTEX) {
+          const vertex = hit.part - DRAW_PART_VERTEX;
+          const pt = gd.points[vertex];
+          if (pt) {
+            grabRef.current = {
+              index: hit.index,
+              endpoint: vertex,
+              fixed: pt,
+              isBox: false,
+              isPath: true,
+            };
+            lastCoordRef.current = null;
+            applySelection(); // enlarge the grabbed handle
+            return; // the vertex drag owns this pointer — no pan / long-press
+          }
+        }
         if (hit && gd && gd.type === 'box' && hit.part <= 3) {
           // A box corner: the diagonally opposite corner stays fixed. Normalize
           // the core so endpoint 0 = grabbed corner, endpoint 1 = diagonal, then
@@ -874,7 +1041,8 @@ export function useGestures(
           return; // the handle drag owns this pointer — no pan / long-press
         }
         // Body of the already-selected shape → translate the whole shape on drag.
-        // Line body is part 2, box body (interior/edge) part 4, pencil stroke 5.
+        // Line body is part 2, box body (interior/edge) 4, pencil stroke 5,
+        // path 6.
         const isBody = hit != null && gd != null && hit.part === bodyPart(gd.type);
         if (hit && isBody) {
           const list = optsRef.current.drawings ?? [];
@@ -895,9 +1063,10 @@ export function useGestures(
                 b0: last,
                 lastA: first,
                 lastB: last,
-                // A stroke can't be restated cheaply each frame, so it keeps its
-                // original points and is nudged with relative translate calls.
-                ...(d.type === 'pencil'
+                // A whole point list can't be restated cheaply each frame, so a
+                // stroke or path keeps its original points and is nudged with
+                // relative translate calls.
+                ...(isMultiPoint(d.type)
                   ? { points0: d.points, appliedTime: 0, appliedPrice: 0 }
                   : {}),
               };
@@ -1128,14 +1297,18 @@ export function useGestures(
         const d = list[g.index];
         const c = lastCoordRef.current;
         if (d && c) {
-          // Box: the two opposite corners are the dragged corner + its fixed
-          // diagonal (order-independent). Line: replace the grabbed endpoint,
-          // keeping the other in place.
+          // Path: keep every vertex but the dragged one. Box: the two opposite
+          // corners are the dragged corner + its fixed diagonal
+          // (order-independent). Line: replace the grabbed endpoint, keeping the
+          // other in place.
           const movedPt = { timeMs: c.timeMs, price: c.price };
-          const pts: DrawPoint[] = g.isBox
-            ? [movedPt, g.fixed]
-            : [d.points[0]!, d.points[1]!];
-          if (!g.isBox) pts[g.endpoint] = movedPt;
+          let pts: DrawPoint[];
+          if (g.isPath) {
+            pts = roundPoints(d.points.map((p, i) => (i === g.endpoint ? movedPt : p)));
+          } else {
+            pts = g.isBox ? [movedPt, g.fixed] : [d.points[0]!, d.points[1]!];
+            if (!g.isBox) pts[g.endpoint] = movedPt;
+          }
           const next = makeDrawing({ id: d.id, color: d.color, width: d.width }, d.type, pts);
           if (next) optsRef.current.onDrawingChange?.(next);
         }
@@ -1152,7 +1325,7 @@ export function useGestures(
           const list = optsRef.current.drawings ?? [];
           const d = list[g.index];
           if (d) {
-            // Pencil: recompute every point from the originals + the total
+            // Pencil/path: recompute every point from the originals + the total
             // delta, so what's persisted carries none of the live preview's
             // accumulated float error.
             const pts = g.points0
@@ -1186,7 +1359,7 @@ export function useGestures(
         const hit = downHitRef.current;
         const list = optsRef.current.drawings ?? [];
         const hitDrawing = hit ? list[hit.index] : undefined;
-        // Body hit: line 2, box 4, pencil 5.
+        // Body hit: line 2, box 4, pencil 5, path 6.
         const isBodyHit =
           hit != null && hitDrawing != null && hit.part === bodyPart(hitDrawing.type);
         if (hit && isBodyHit && hitDrawing) {
@@ -1214,6 +1387,23 @@ export function useGestures(
       if (crosshairSource === 'hover') hideCrosshair();
       setPriceHover(-1, -1);
       el.style.cursor = '';
+    };
+
+    // Double-click finishes the path at the vertex just placed. Both of the
+    // clicks already went through handleDrawClick, so the duplicate vertex the
+    // second one added is dropped inside commitPath.
+    const onDoubleClick = (e: MouseEvent) => {
+      if (!pathRef.current) return;
+      e.preventDefault();
+      commitPath();
+    };
+
+    // Right-click also finishes the path (TradingView does the same), which is
+    // the one-handed way out when the pointer is already where it should end.
+    const onContextMenu = (e: MouseEvent) => {
+      if (!pathRef.current) return;
+      e.preventDefault();
+      commitPath();
     };
 
     const onWheel = (e: WheelEvent) => {
@@ -1248,7 +1438,7 @@ export function useGestures(
       const held = e.type === 'keydown';
       if (held === shiftHeld) return;
       shiftHeld = held;
-      if (drawAnchorRef.current) updateGuideline(lastX, lastY);
+      if (drawAnchorRef.current || pathRef.current) updateGuideline(lastX, lastY);
       else if (grabRef.current) moveGrab(lastX, lastY);
     };
 
@@ -1257,6 +1447,8 @@ export function useGestures(
     el.addEventListener('pointerup', endPointer);
     el.addEventListener('pointercancel', endPointer);
     el.addEventListener('pointerleave', onPointerLeave);
+    el.addEventListener('dblclick', onDoubleClick);
+    el.addEventListener('contextmenu', onContextMenu);
     el.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onShiftKey);
     window.addEventListener('keyup', onShiftKey);
@@ -1268,9 +1460,11 @@ export function useGestures(
       el.removeEventListener('pointerup', endPointer);
       el.removeEventListener('pointercancel', endPointer);
       el.removeEventListener('pointerleave', onPointerLeave);
+      el.removeEventListener('dblclick', onDoubleClick);
+      el.removeEventListener('contextmenu', onContextMenu);
       el.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onShiftKey);
       window.removeEventListener('keyup', onShiftKey);
     };
-  }, [containerRef, handleRef, scheduleRender]);
+  }, [containerRef, handleRef, scheduleRender, commitPath, syncPathDraft, roundPoints]);
 }

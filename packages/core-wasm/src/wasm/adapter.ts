@@ -84,9 +84,16 @@ interface WebChartInstance {
   ): void;
   startDraftStroke(color: number, width: number): void;
   appendDraftPoint(timeMs: number, price: number): void;
+  setDraftPath(
+    points: { timeMs: number; price: number }[],
+    cursor: { timeMs: number; price: number } | null,
+    color: number,
+    width: number,
+  ): void;
   clearDraft(): void;
   setSelectedDrawing(index: number, grabbedEndpoint: number): void;
   moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void;
+  moveDrawingVertex(index: number, vertex: number, timeMs: number, price: number): void;
   translateDrawing(index: number, dTimeMs: number, dPrice: number): void;
   hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
   coordAt(x: number, y: number): Coord | null;
@@ -282,6 +289,14 @@ class WasmHandle implements VroomChartHandle {
   appendDraftPoint(timeMs: number, price: number): void {
     this.wc.appendDraftPoint(timeMs, price);
   }
+  setDraftPath(
+    points: { timeMs: number; price: number }[],
+    cursor: { timeMs: number; price: number } | null,
+    color: number,
+    width: number,
+  ): void {
+    this.wc.setDraftPath(points, cursor, color >>> 0, width);
+  }
   clearDraft(): void {
     this.wc.clearDraft();
   }
@@ -290,6 +305,9 @@ class WasmHandle implements VroomChartHandle {
   }
   moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void {
     this.wc.moveDrawingEndpoint(index, endpoint, timeMs, price);
+  }
+  moveDrawingVertex(index: number, vertex: number, timeMs: number, price: number): void {
+    this.wc.moveDrawingVertex(index, vertex, timeMs, price);
   }
   translateDrawing(index: number, dTimeMs: number, dPrice: number): void {
     this.wc.translateDrawing(index, dTimeMs, dPrice);

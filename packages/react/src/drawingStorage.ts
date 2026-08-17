@@ -21,9 +21,12 @@ import type { Drawing } from '@vroomchart/types';
 export const DRAWINGS_VERSION = 1;
 
 /** Drawing `type`s this build understands. Extend as tools are added. */
-const KNOWN_TYPES = new Set<Drawing['type']>(['line', 'box', 'pencil']);
+const KNOWN_TYPES = new Set<Drawing['type']>(['line', 'box', 'pencil', 'path']);
 
-/** How many points each type must carry; pencil is variable (2 or more). */
+/**
+ * How many points each type must carry; pencil and path are variable (2 or
+ * more).
+ */
 const FIXED_POINT_TYPES = new Set(['line', 'box']);
 
 function isPoint(p: unknown): boolean {
@@ -40,9 +43,9 @@ function isPoint(p: unknown): boolean {
 /**
  * Whether a parsed entry is a drawing this build can actually render. Checks the
  * `type` *and* the shape of `points` — the store is an opaque, consumer-supplied
- * blob, and since a pencil stroke is a variable-length array we can no longer
- * assume two well-formed anchors. Anything malformed is dropped exactly like an
- * unknown type, rather than reaching the renderer as garbage.
+ * blob, and since a pencil stroke or path is a variable-length array we can no
+ * longer assume two well-formed anchors. Anything malformed is dropped exactly
+ * like an unknown type, rather than reaching the renderer as garbage.
  */
 export function isValidDrawing(d: unknown): d is Drawing {
   if (d == null || typeof d !== 'object') return false;

@@ -220,15 +220,31 @@ export type DrawingSpec = {
   width: number;
   /**
    * Geometry: 0 = line (a→b), 1 = box (a and b are opposite corners),
-   * 2 = pencil (a freehand path — see `points`).
+   * 2 = pencil (a freehand path — see `points`), 3 = path (straight segments
+   * through `points`, ending in an arrowhead).
    */
   kind: number;
   /**
-   * The full path for a pencil stroke (kind 2), in draw order. Ignored for line
-   * and box, which are fully described by the a/b anchors.
+   * The full point list for a pencil stroke (kind 2) or path (kind 3), in draw
+   * order. Ignored for line and box, which are fully described by the a/b
+   * anchors.
    */
   points?: { timeMs: number; price: number }[];
 };
+
+/**
+ * Offset added to a path vertex index in `hitTestDrawing`'s `part`, so vertex
+ * indices can't collide with the small per-kind part numbers (0..6). Mirrors
+ * VROOM_DRAW_PART_VERTEX in vroom_chart.h.
+ */
+export const DRAW_PART_VERTEX = 100;
+
+/**
+ * Most vertices a single path may hold. Keeps `DRAW_PART_VERTEX + i` clear of
+ * the next free part number, and keeps a stray click-storm from producing an
+ * unreasonable drawing. Mirrors VROOM_PATH_MAX_POINTS in vroom_chart.h.
+ */
+export const PATH_MAX_POINTS = 64;
 
 /** A single resting-liquidity band in the core's numeric encoding. */
 export type BandSpec = {
@@ -509,28 +525,48 @@ export interface VroomChartHandle {
    * every pointer move — the whole path is never restated.
    */
   appendDraftPoint(timeMs: number, price: number): void;
+  /**
+   * Restate the in-progress path (kind 3) draft: the vertices placed so far,
+   * plus an optional rubber-band end at `cursor` that carries the arrow tip.
+   * A path grows one deliberate click at a time, so restating (rather than
+   * appending) keeps the caller the sole owner of the vertex list — undoing a
+   * point is just a shorter array.
+   */
+  setDraftPath(
+    points: { timeMs: number; price: number }[],
+    cursor: { timeMs: number; price: number } | null,
+    color: number,
+    width: number,
+  ): void;
   /** Clear the draft (hide in-progress node dots / guideline / stroke). */
   clearDraft(): void;
   /**
    * Shift a whole committed drawing by a *relative* data-space delta — both
-   * anchors and, for a pencil, every path point. Used for live body dragging.
+   * anchors and, for a pencil or path, every point. Used for live body dragging.
    */
   translateDrawing(index: number, dTimeMs: number, dPrice: number): void;
   /**
-   * Select a committed drawing (renders its endpoint handles). `index` -1
-   * clears the selection; `grabbedEndpoint` 0/1 renders that handle 50% larger
-   * while dragging (-1 for none).
+   * Select a committed drawing (renders its handles). `index` -1 clears the
+   * selection; `grabbedEndpoint` renders that handle 50% larger while dragging
+   * (0/1 for a line, 0 for a box's normalized corner, the vertex index for a
+   * path; -1 for none).
    */
   setSelectedDrawing(index: number, grabbedEndpoint: number): void;
   /** Move one endpoint (0=A, 1=B) of a committed drawing to a new data anchor. */
   moveDrawingEndpoint(index: number, endpoint: number, timeMs: number, price: number): void;
   /**
+   * Move one vertex of a committed path (kind 3) to a new data anchor. No-op for
+   * a drawing that isn't a path, or an out-of-range vertex.
+   */
+  moveDrawingVertex(index: number, vertex: number, timeMs: number, price: number): void;
+  /**
    * Hit-test pixel (x, y) against the committed drawings. Returns the drawing
    * `index`, `part`, and `t`, or null on a miss. For a line, `part` is 0
    * (endpoint A), 1 (endpoint B), or 2 (body) and `t` is the 0..1 grab position
    * along the segment. For a box, `part` is 0..3 (the four corners) or 4 (body)
-   * and `t` is 0. Corner/endpoint hits are only reported for the selected
-   * drawing.
+   * and `t` is 0. A pencil reports 5 (body); a path reports 6 (body) or
+   * `DRAW_PART_VERTEX + i` for vertex `i`. Handle hits are only reported for the
+   * selected drawing.
    */
   hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
   /**
