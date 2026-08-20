@@ -1,6 +1,6 @@
 {
   "name": "@vroomchart/react",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Skia-quality candlestick chart for the web (React DOM).",
   "license": "MIT",
   "author": "Darion Welch",
