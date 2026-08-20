@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { applyTheme, COLOR_KEYS, parseColor } from './theme';
+import { applyTheme, COLOR_KEYS, FLOAT_KEYS, parseColor } from './theme';
 import type { ChartHandle } from './jsi.d';
 
 describe('parseColor', () => {
@@ -57,6 +57,22 @@ describe('applyTheme', () => {
     const { handle, calls } = fakeHandle();
     applyTheme(handle, { grid: 'nonsense', axisText: '#c9d1d9' });
     expect(calls).toEqual([[COLOR_KEYS.axisText, 0xffc9d1d9]]);
+  });
+
+  it('pushes numeric fields through setFloat at their VroomFloatKey index', () => {
+    // The indices are hand-kept in step with the C++ enum, so pin the literals.
+    const floats: Array<[number, number]> = [];
+    const handle = {
+      setColor: vi.fn(),
+      setFloat: vi.fn((key: number, value: number) => {
+        floats.push([key, value]);
+      }),
+    } as unknown as ChartHandle;
+    applyTheme(handle, { lineWidth: 2.5, lineTension: 0.5 });
+    expect(FLOAT_KEYS.lineTension).toBe(13);
+    expect(floats).toContainEqual([11, 2.5]);
+    expect(floats).toContainEqual([13, 0.5]);
+    expect(floats).toHaveLength(2);
   });
 
   it('does nothing for an empty theme', () => {

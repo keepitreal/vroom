@@ -43,6 +43,9 @@ const CANDLE_WIDTH_KEY = 'vroom-candle-width';
 const WICK_WIDTH_KEY = 'vroom-wick-width';
 const CANDLE_RADIUS_KEY = 'vroom-candle-radius';
 const WICK_CAP_KEY = 'vroom-wick-cap';
+const LINE_TENSION_KEY = 'vroom-line-tension';
+const LINE_TIP_DOT_KEY = 'vroom-line-tip-dot';
+const LINE_TIP_PULSE_KEY = 'vroom-line-tip-pulse';
 const CHART_TYPE_KEY = 'vroom-chart-type';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
 const TRANSITION_EASING_KEY = 'vroom-transition-easing';
@@ -519,6 +522,9 @@ export function App() {
   const [wickWidth, setWickWidth] = useState(loadWickWidth);
   const [candleRadius, setCandleRadius] = useState(() => loadNum(CANDLE_RADIUS_KEY, 0));
   const [wickRoundCap, setWickRoundCap] = useState(() => loadBool(WICK_CAP_KEY, false));
+  const [lineTension, setLineTension] = useState(() => loadNum(LINE_TENSION_KEY, 0));
+  const [lineTipDot, setLineTipDot] = useState(() => loadBool(LINE_TIP_DOT_KEY, true));
+  const [lineTipPulse, setLineTipPulse] = useState(() => loadBool(LINE_TIP_PULSE_KEY, false));
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Drawing tool state. `drawMode`/`drawTool` drive the chart. Drawings are
@@ -671,21 +677,42 @@ export function App() {
     try {
       window.localStorage.setItem(CANDLE_RADIUS_KEY, String(candleRadius));
       window.localStorage.setItem(WICK_CAP_KEY, wickRoundCap ? '1' : '0');
+      window.localStorage.setItem(LINE_TENSION_KEY, String(lineTension));
+      window.localStorage.setItem(LINE_TIP_DOT_KEY, lineTipDot ? '1' : '0');
+      window.localStorage.setItem(LINE_TIP_PULSE_KEY, lineTipPulse ? '1' : '0');
     } catch {
       // best-effort
     }
-  }, [candleRadius, wickRoundCap]);
+  }, [candleRadius, wickRoundCap, lineTension, lineTipDot, lineTipPulse]);
 
   // Color theme plus the numeric/boolean style knobs, as one VroomTheme for the charts.
   const chartTheme = useMemo(
-    () => ({ ...theme, wickWidth, candleRadius, wickRoundCap }),
-    [theme, wickWidth, candleRadius, wickRoundCap],
+    () => ({
+      ...theme,
+      wickWidth,
+      candleRadius,
+      wickRoundCap,
+      lineTension,
+      lineTipDot,
+      lineTipPulse,
+    }),
+    [theme, wickWidth, candleRadius, wickRoundCap, lineTension, lineTipDot, lineTipPulse],
   );
-  const numericStyle: NumericStyle = { wickWidth, candleRadius, wickRoundCap };
+  const numericStyle: NumericStyle = {
+    wickWidth,
+    candleRadius,
+    wickRoundCap,
+    lineTension,
+    lineTipDot,
+    lineTipPulse,
+  };
   const onNumericStyleChange = (patch: Partial<NumericStyle>) => {
     if (patch.wickWidth !== undefined) setWickWidth(patch.wickWidth);
     if (patch.candleRadius !== undefined) setCandleRadius(patch.candleRadius);
     if (patch.wickRoundCap !== undefined) setWickRoundCap(patch.wickRoundCap);
+    if (patch.lineTension !== undefined) setLineTension(patch.lineTension);
+    if (patch.lineTipDot !== undefined) setLineTipDot(patch.lineTipDot);
+    if (patch.lineTipPulse !== undefined) setLineTipPulse(patch.lineTipPulse);
   };
 
   // Indicator enable/config state lives here so it drives both chart views.

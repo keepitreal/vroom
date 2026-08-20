@@ -39,6 +39,9 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     0.f,    // VOLUME_RADIUS_PX — square by default
     1.5f,   // LINE_WIDTH_PX — line-chart polyline stroke width
     0.28f,  // LINE_GRADIENT_OPACITY — fill under the line, ramped to 0 at the pane bottom
+    0.f,    // LINE_TENSION — straight segments by default
+    1.f,    // LINE_TIP_DOT — the line's leading end is marked by default
+    0.f,    // LINE_TIP_PULSE — the ring is opt-in; it never lets the chart idle
 };
 
 }  // namespace

@@ -11,6 +11,7 @@ import {
 import {
   VroomChart,
   type Candle,
+  type ChartType,
   type CrosshairEvent,
   type MovingAverageOverlay,
   type PriceLine,
@@ -45,6 +46,10 @@ const INTERVALS = [
   { label: '1d', ms: 1440 * MINUTE },
   { label: '1w', ms: 7 * 1440 * MINUTE },
 ] as const;
+
+// Line-smoothing steps the footer button cycles through. 0 is straight segments,
+// 1 is as round as the monotone limiter allows.
+const LINE_TENSIONS: readonly number[] = [0, 0.25, 0.5, 0.75, 1];
 
 type Interval = (typeof INTERVALS)[number];
 
@@ -213,6 +218,35 @@ export default function App() {
   const [selected, setSelected] = useState<Interval>(INTERVALS[0]);
   const candles = useMemo(() => mockCandles(1000, selected.ms), [selected]);
 
+  const [chartType, setChartType] = useState<ChartType>('candles');
+  const toggleChartType = useCallback(() => {
+    setChartType((t) => (t === 'candles' ? 'line' : 'candles'));
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
+  // Line-chart corner smoothing, stepped rather than continuous so the render at
+  // each value is easy to compare against the last.
+  const [lineTension, setLineTension] = useState(0.5);
+  const cycleLineTension = useCallback(() => {
+    setLineTension((t) => LINE_TENSIONS[(LINE_TENSIONS.indexOf(t) + 1) % LINE_TENSIONS.length]);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
+  // Off to match the library default — it holds the render loop open, so it's
+  // worth seeing the chart both ways here.
+  const [lineTipPulse, setLineTipPulse] = useState(false);
+  const toggleLineTipPulse = useCallback(() => {
+    setLineTipPulse((p) => !p);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
+  // A new object each render would re-push the whole theme every frame.
+  const theme = useMemo(
+    // The 1.5 default stroke reads thin on a phone held at arm's length.
+    () => ({ lineWidth: 2.5, lineTension, lineTipPulse }),
+    [lineTension, lineTipPulse],
+  );
+
   // OHLCV readout: the candle under the crosshair while it's active, otherwise
   // the latest candle. Updated live via VroomChart's onCrosshair callback.
   const [hover, setHover] = useState<Candle | null>(null);
@@ -375,6 +409,8 @@ export default function App() {
               animates into the new data, which a remount would prevent. */}
           <VroomChart
             candles={candles}
+            chartType={chartType}
+            theme={theme}
             style={styles.chart}
             onCrosshair={handleCrosshair}
             rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
@@ -409,6 +445,57 @@ export default function App() {
           <View style={styles.footer}>
             <View style={styles.footerRow}>
               <IntervalSelect value={selected} onChange={setSelected} />
+
+              {/* Shows the mode it's in, not the one it switches to, and lights
+                  up on `line` because that's the non-default. */}
+              <Pressable
+                style={[
+                  styles.fnBtn,
+                  chartType === 'line' && styles.fnBtnActive,
+                ]}
+                onPress={toggleChartType}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    chartType === 'line' && styles.fnSymbolActive,
+                  ]}
+                >
+                  {chartType === 'line' ? '∿' : '▮'}
+                </Text>
+              </Pressable>
+
+              {/* Only meaningful on the line, so it rides along with that mode
+                  rather than sitting dead next to the candles. */}
+              {chartType === 'line' && (
+                <Pressable
+                  style={[styles.fnBtn, lineTension > 0 && styles.fnBtnActive]}
+                  onPress={cycleLineTension}
+                >
+                  <Text
+                    style={[
+                      styles.fnSymbol,
+                      styles.fnNumber,
+                      lineTension > 0 && styles.fnSymbolActive,
+                    ]}
+                  >
+                    {lineTension.toFixed(2)}
+                  </Text>
+                </Pressable>
+              )}
+
+              {chartType === 'line' && (
+                <Pressable
+                  style={[styles.fnBtn, lineTipPulse && styles.fnBtnActive]}
+                  onPress={toggleLineTipPulse}
+                >
+                  <Text
+                    style={[styles.fnSymbol, lineTipPulse && styles.fnSymbolActive]}
+                  >
+                    ◎
+                  </Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={[styles.fnBtn, showPriceLines && styles.fnBtnActive]}
@@ -539,6 +626,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     includeFontPadding: false,
   },
+  // Numbers want the tabular, upright treatment the glyphs don't.
+  fnNumber: { fontSize: 13, fontStyle: 'normal', fontVariant: ['tabular-nums'] },
   fnBtnActive: { backgroundColor: '#1f2a1f' },
   fnSymbolActive: { color: '#3fb950' },
   fnCount: {

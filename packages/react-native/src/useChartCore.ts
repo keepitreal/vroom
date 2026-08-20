@@ -8,7 +8,7 @@ import { classifyTransition, inferStepMs, timeframeWindow } from './dataTransiti
 import { ease } from './easing';
 import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
-import { applyTheme, parseColor } from './theme';
+import { applyTheme, parseColor, FLOAT_LINE_TIP_PULSE } from './theme';
 import type {
   BollingerBandsConfig,
   Candle,
@@ -465,6 +465,13 @@ export function useChartCore(
     // per-frame animation loop so it can update the picture SharedValue directly).
     if (theme) {
       applyTheme(h, theme);
+    }
+    // The tip dot stays, only its animation drops — the same bargain the
+    // candle↔line morph strikes when it keeps the crossfade but skips the
+    // collapse. Also stops the pulse from pinning a RAF loop for a user who
+    // asked for less motion.
+    if (animRef.current.reduceMotion) {
+      h.setFloat(FLOAT_LINE_TIP_PULSE, 0);
     }
     h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));

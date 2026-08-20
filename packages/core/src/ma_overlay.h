@@ -48,6 +48,9 @@ void draw(SkCanvas* canvas,
 // had before the timeframe switch to its new one. `morph_t == 1` (the default)
 // draws `visible` alone.
 //
+// `tension` (0..1) rounds the corners, monotone-limited so the curve can't
+// overshoot into a price that never traded (see curve.h). 0 is straight segments.
+//
 // Separate from draw() because the capture holds candle closes — it can't stand
 // in for an indicator's values.
 void draw_close_line(SkCanvas* canvas,
@@ -65,12 +68,14 @@ void draw_close_line(SkCanvas* canvas,
                      float opacity = 1.f,
                      const CandleSnapshot* from = nullptr,
                      std::size_t from_n = 0,
-                     float morph_t = 1.f);
+                     float morph_t = 1.f,
+                     float tension = 0.f);
 
 // The area beneath the close-price polyline, filled with `color` ramping from
 // `gradient_opacity` at the line's peak to fully transparent at the pane bottom.
-// Takes the same geometry and morph arguments as draw_close_line and builds the
-// identical polyline, so the fill tracks the line through a timeframe switch.
+// Takes the same geometry, morph and tension arguments as draw_close_line and
+// builds the identical path, so the fill tracks the line through a timeframe
+// switch and follows the same rounded corners.
 //
 // `opacity` multiplies the ramp, which is what fades the fill in alongside the
 // line during the candle→line morph. Draws nothing when either opacity is 0.
@@ -91,7 +96,39 @@ void draw_close_gradient(SkCanvas* canvas,
                          float opacity = 1.f,
                          const CandleSnapshot* from = nullptr,
                          std::size_t from_n = 0,
-                         float morph_t = 1.f);
+                         float morph_t = 1.f,
+                         float tension = 0.f);
+
+// The marker at the line's newest end: a dot in `line_color` sized off
+// `line_width`, ringed by a 2px disc of `bg_color` that separates it from the
+// line's stroke cap, and optionally a pulse expanding out from behind it.
+//
+// Takes the same geometry and morph arguments as draw_close_line and reads the
+// same vertex, so the dot stays on the line's end pixel through a timeframe
+// switch. `opacity` scales everything, fading the marker in with the line during
+// the candle→line morph.
+//
+// `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
+// divided by tip_pulse::kPeriodSeconds. Ignored unless `pulse`.
+void draw_close_tip(SkCanvas* canvas,
+                    const Layout& lay,
+                    const PriceBounds& bounds,
+                    const ::VroomCandle* visible,
+                    std::size_t n,
+                    int64_t window_ms,
+                    int64_t visible_start_ms,
+                    int64_t candle_duration_ms,
+                    float candle_right,
+                    float candle_area_h,
+                    uint32_t line_color,
+                    uint32_t bg_color,
+                    float line_width,
+                    float opacity = 1.f,
+                    bool pulse = false,
+                    float pulse_phase = 0.f,
+                    const CandleSnapshot* from = nullptr,
+                    std::size_t from_n = 0,
+                    float morph_t = 1.f);
 
 // Fills the closed region between two aligned series (NaN where undefined)
 // with `color` at its alpha × `opacity` — used for the Bollinger Band fill.

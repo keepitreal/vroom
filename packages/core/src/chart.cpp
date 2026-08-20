@@ -9,6 +9,8 @@
 
 #include "chart.h"
 
+#include <cmath>
+
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdocumentation"
 #include "include/core/SkCanvas.h"
@@ -34,6 +36,7 @@
 #include "rsi.h"
 #include "rsi_pane.h"
 #include "style_inherit.h"
+#include "tip_pulse.h"
 #include "volume.h"
 #include "vwap.h"
 #include "theme.h"
@@ -191,7 +194,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
             theme.colors[VROOM_COLOR_LINE],
             theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
-            fade, morph_src, morph_n, morph_t);
+            fade, morph_src, morph_n, morph_t,
+            theme.floats[VROOM_FLOAT_LINE_TENSION]);
     }
 
     // 4.5. Volume bars — drawn under the candles so candles z-index above.
@@ -239,7 +243,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             canvas, lay, bounds, visible, n, window_ms,
             visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
             theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-            fade, morph_src, morph_n, morph_t);
+            fade, morph_src, morph_n, morph_t,
+            theme.floats[VROOM_FLOAT_LINE_TENSION]);
     }
 
     // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the
@@ -302,6 +307,21 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      On the price pane above the candles/overlays, below the axis labels.
     vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,
                           candle_area_h);
+
+    // 5.8. Line-mode tip marker — the dot (and optional pulse) at the newest
+    //      close. Above the overlays so it stays the eye's anchor, but before the
+    //      axis masks, which trim the ring at the price scale.
+    if (fade > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
+        vroom::ma_overlay::draw_close_tip(
+            canvas, lay, bounds, visible, n, window_ms, visible_start_ms,
+            candle_duration_ms, candle_right, candle_area_h,
+            theme.colors[VROOM_COLOR_LINE],
+            theme.colors[VROOM_COLOR_BACKGROUND],
+            theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade,
+            theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
+            tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
+            morph_src, morph_n, morph_t);
+    }
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
     //    line is intentionally omitted for now. The bottom strip anchors at
@@ -422,6 +442,17 @@ void VroomChart::begin_frame() {
     last_anim_tick = now;
     anim_started = true;
     last_dt_seconds = dt;
+
+    // Wrapped rather than accumulated: the phase is the only thing anyone reads,
+    // and a chart left open for hours would otherwise lose float precision on it.
+    tip_pulse_elapsed_s =
+        std::fmod(tip_pulse_elapsed_s + dt, vroom::tip_pulse::kPeriodSeconds);
+}
+
+bool VroomChart::tip_pulse_active() const {
+    return morph_fade > 0.f && !candles.empty() &&
+           theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f &&
+           theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f;
 }
 
 void VroomChart::rebuild_chart_picture() {
@@ -433,6 +464,9 @@ void VroomChart::rebuild_chart_picture() {
 }
 
 bool VroomChart::is_animating_now() const {
+    // The pulse never finishes on its own, so this is what keeps the host loops
+    // requeueing frames for it.
+    if (tip_pulse_active()) return true;
     for (const auto& f : y_fades) {
         if (f.opacity != f.target) return true;
     }

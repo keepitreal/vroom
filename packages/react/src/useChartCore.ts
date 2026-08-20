@@ -10,6 +10,7 @@ import {
   packCandles,
   applyTheme,
   parseColor,
+  FloatKey,
   type LoadVroomOptions,
   type OverlaySpec,
   type BollingerSpec,
@@ -527,6 +528,11 @@ export function useChartCore(
     }
     if (explicit) h.setVisibleRange(startMs, endMs);
     if (theme) applyTheme(h, theme);
+    // The tip dot stays, only its animation drops — the same bargain the
+    // candle↔line morph strikes when it keeps the crossfade but skips the
+    // collapse. Also stops the pulse from pinning a rAF loop for a user who
+    // asked for less motion.
+    if (prefersReducedMotion()) h.setFloat(FloatKey.LineTipPulse, 0);
     h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));

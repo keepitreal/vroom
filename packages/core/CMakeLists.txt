@@ -57,6 +57,8 @@ if(VROOM_BUILD_TESTS)
         tests/test_bollinger.cpp
         tests/test_price_line_layout.cpp
         tests/test_volume_anim.cpp
+        tests/test_curve.cpp
+        tests/test_tip_pulse.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
         src/ticks.cpp

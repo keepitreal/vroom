@@ -32,6 +32,17 @@ constexpr double kAxisDragSensitivity = 300.0;
 constexpr double kMinCandleBodyPx = 1.5;
 constexpr double kMaxCandleBodyPx = 32.0;
 
+// Trailing gap the default framing leaves between the newest candle and the
+// price axis. The newest bar flush against the axis reads as cramped, and in line
+// mode the tip marker's pulse needs somewhere to expand into — the axis mask
+// (draw_chart step 6) paints over the gutter, so clearance has to come from the
+// time window rather than from right_padding_px.
+//
+// A gap this small is far under the 3/4-window cap, so it neither triggers the
+// pan rubber-band nor gets clamped away; a timeframe switch carries it over in
+// slots (see timeframeWindow in the hosts), which preserves it in pixels.
+constexpr double kRightGapPx = 12.0;
+
 // Hard cap on the future gap (visible_end - last_candle): 3/4 of the window so
 // at least 25% of the chart still shows candles. Never forces an existing larger
 // gap (e.g. from the x-axis drag zoom) to snap back — only limits new growth.
@@ -70,14 +81,29 @@ void apply_default_framing(VroomChart* chart) {
     const int64_t right_edge_ms =
         chart->candles.back().time_ms + chart->candle_duration_ms;
 
+    const auto lay = chart->layout();
+    const double usable =
+        lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
+
+    // Places a window of the given width with kRightGapPx of air past the newest
+    // candle. Shifts the window forward rather than widening it, so the framing
+    // keeps whatever candle width it just computed. Falls back to a flush right
+    // edge when the layout isn't measured yet and px can't be converted to time.
+    const auto frame = [&](int64_t window_ms) {
+        const int64_t gap_ms =
+            usable > 0.0 && window_ms > 0
+                ? static_cast<int64_t>((kRightGapPx * static_cast<double>(window_ms)) /
+                                       usable)
+                : 0;
+        chart->visible_end_ms = right_edge_ms + gap_ms;
+        chart->visible_start_ms = chart->visible_end_ms - window_ms;
+    };
+
     // Px-driven framing. Reuses the inversion from vroom_chart_scale_time_axis:
     // body_w = usable × (dur / window) × ratio  →  window = usable × dur × ratio / body_w.
     // Needs a valid layout (width_px); until size is known it falls through to
     // the candle-count default below.
     if (chart->default_candle_px > 0.f) {
-        const auto lay = chart->layout();
-        const double usable =
-            lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
         const double ratio = chart->theme.floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO];
         const double dur = static_cast<double>(chart->candle_duration_ms);
         const double body = std::clamp(static_cast<double>(chart->default_candle_px),
@@ -88,8 +114,7 @@ void apply_default_framing(VroomChart* chart) {
                 chart->candles.back().time_ms - chart->candles.front().time_ms;
             window_ms = std::clamp<int64_t>(window_ms, chart->candle_duration_ms,
                                             span > 0 ? span : window_ms);
-            chart->visible_end_ms = right_edge_ms;
-            chart->visible_start_ms = chart->visible_end_ms - window_ms;
+            frame(window_ms);
             return;
         }
     }
@@ -98,8 +123,7 @@ void apply_default_framing(VroomChart* chart) {
     const size_t start_idx = chart->candles.size() > kDefaultVisible
         ? chart->candles.size() - kDefaultVisible
         : 0;
-    chart->visible_start_ms = chart->candles[start_idx].time_ms;
-    chart->visible_end_ms = right_edge_ms;
+    frame(right_edge_ms - chart->candles[start_idx].time_ms);
 }
 
 // On the first manual-y gesture, adopt the on-screen auto-fit bounds so the

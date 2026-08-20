@@ -14,6 +14,9 @@ type ColorField = Exclude<
   | 'volumeRadius'
   | 'lineWidth'
   | 'lineGradientOpacity'
+  | 'lineTension'
+  | 'lineTipDot'
+  | 'lineTipPulse'
 >;
 export type ThemeState = Record<ColorField, string>;
 
@@ -23,6 +26,9 @@ export type NumericStyle = {
   wickWidth: number;
   candleRadius: number;
   wickRoundCap: boolean;
+  lineTension: number;
+  lineTipDot: boolean;
+  lineTipPulse: boolean;
 };
 
 const INHERIT = '#00000000';
@@ -443,6 +449,31 @@ export function SettingsModal({
                   />
                 );
               })}
+              {section.title === 'Chart' && (
+                <>
+                  <StyleSlider
+                    label="Line smoothing"
+                    title="Rounds the line chart's corners. Monotone-limited, so the curve never overshoots into a price that didn't trade. 0 = straight segments."
+                    value={numericStyle.lineTension}
+                    min={0}
+                    max={1}
+                    step={0.1}
+                    onChange={(v) => onNumericStyleChange({ lineTension: v })}
+                  />
+                  <StyleToggle
+                    label="Line tip dot"
+                    title="Mark the line chart's newest end with a dot, sized off the line width and ringed in the background color."
+                    checked={numericStyle.lineTipDot}
+                    onChange={(v) => onNumericStyleChange({ lineTipDot: v })}
+                  />
+                  <StyleToggle
+                    label="Line tip pulse"
+                    title="Pulse a ring out from the tip dot every 2.6s. Keeps the chart repainting continuously."
+                    checked={numericStyle.lineTipPulse}
+                    onChange={(v) => onNumericStyleChange({ lineTipPulse: v })}
+                  />
+                </>
+              )}
             </div>
           ))}
         </div>
