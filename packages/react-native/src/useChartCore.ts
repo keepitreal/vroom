@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 import type { SkPicture } from '@shopify/react-native-skia';
 
 import NativeVroomChart from './NativeVroomChart';
+import type { DataTransition } from './dataTransitions';
+import { classifyTransition, inferStepMs, timeframeWindow } from './dataTransitions';
+import { ease } from './easing';
 import type { ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
 import { applyTheme, parseColor } from './theme';
@@ -15,6 +18,7 @@ import type {
   PriceLine,
   PriceLinesStyle,
   RSIConfig,
+  TransitionEasing,
   VisibleRange,
   VolumeConfig,
   VroomTheme,
@@ -213,6 +217,25 @@ function ensureInstalled(): void {
 /** Progress + curve of the staggered volume-bar collapse. See setVolumeCollapse. */
 export type VolumeCollapse = { t: number; easing: number };
 
+/**
+ * How a data swap should animate, plus where its frames go. The interval morph
+ * has to be started from inside the data effect (it needs the pre-swap capture),
+ * but it repaints at 60fps — far too often for React state — so the host passes
+ * a sink that writes straight into the picture SharedValue.
+ */
+export type TransitionOptions = {
+  /** Identity of the series; a change forces a full view reset. */
+  seriesKey?: string;
+  /** Duration of the interval morph in ms. 0 snaps. Default 300. */
+  transitionMs?: number;
+  /** Curve applied to the morph's progress. Default 'ease-in-out'. */
+  transitionEasing?: TransitionEasing;
+  /** OS reduced-motion preference: skips the capture and snaps. */
+  reduceMotion?: boolean;
+  /** Receives every morph frame. Without one, data swaps snap. */
+  onFrame?: (picture: SkPicture) => void;
+};
+
 export type ChartCoreState = {
   handle: ChartHandle | null;
   /** Picture freshly rendered after the latest data/size/range push. */
@@ -243,6 +266,7 @@ export function useChartCore(
   bollingerBands?: BollingerBandsConfig,
   volume?: VolumeConfig,
   priceLines?: PriceLinesProp,
+  transition?: TransitionOptions,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   // Push setDefaultCandleWidth only once (first load): setCandles re-runs on
@@ -250,12 +274,70 @@ export function useChartCore(
   // so re-pushing would snap the view away from the user's pan/zoom.
   const defaultWidthAppliedRef = useRef(false);
   const volumeCollapseRef = useRef<VolumeCollapse | null>(null);
+  // What the core currently holds, for classifying the next data change. Keyed
+  // by handle so a recreated core is treated as a fresh initial load.
+  const prevDataRef = useRef<{
+    handle: ChartHandle;
+    candles: Candle[];
+    seriesKey?: string;
+  } | null>(null);
+  const intervalMorphRaf = useRef<number | null>(null);
   const [picture, setPicture] = useState<SkPicture | null>(null);
 
   if (!handleRef.current && size.width > 0 && size.height > 0) {
     ensureInstalled();
     handleRef.current = globalThis.VroomChartJSI!.create();
   }
+
+  // Animation config and frame sink in refs, refreshed each render, so changing
+  // the duration, curve or callback identity doesn't re-run the data effect
+  // below (which would re-push every candle).
+  const animRef = useRef<{
+    ms: number;
+    easing: TransitionEasing | undefined;
+    reduceMotion: boolean;
+  }>({ ms: 300, easing: undefined, reduceMotion: false });
+  animRef.current = {
+    ms: Math.max(0, transition?.transitionMs ?? 300),
+    easing: transition?.transitionEasing,
+    reduceMotion: transition?.reduceMotion ?? false,
+  };
+  const onFrameRef = useRef(transition?.onFrame);
+  onFrameRef.current = transition?.onFrame;
+  const seriesKey = transition?.seriesKey;
+
+  // Stop an in-flight interval morph and land the core on the new candles.
+  const endIntervalMorph = useCallback(() => {
+    if (intervalMorphRaf.current != null) {
+      cancelAnimationFrame(intervalMorphRaf.current);
+      intervalMorphRaf.current = null;
+    }
+    handleRef.current?.setIntervalMorph(1);
+  }, []);
+
+  // Runs the interval morph clock. The core holds the pre-swap geometry (see
+  // beginIntervalMorph) and reshapes each candle slot toward its new counterpart.
+  const startIntervalMorph = useCallback((h: ChartHandle) => {
+    const { ms, easing } = animRef.current;
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / ms);
+      h.setIntervalMorph(p < 1 ? ease(easing, p) : 1);
+      const pic = h.render();
+      if (pic) onFrameRef.current?.(pic);
+      intervalMorphRaf.current = p < 1 ? requestAnimationFrame(step) : null;
+    };
+    intervalMorphRaf.current = requestAnimationFrame(step);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (intervalMorphRaf.current != null) {
+        cancelAnimationFrame(intervalMorphRaf.current);
+        intervalMorphRaf.current = null;
+      }
+    };
+  }, []);
 
   // When no visibleRange is provided, leave the range entirely to the C++
   // side (which defaults to a sensible recent window on first setCandles).
@@ -292,8 +374,89 @@ export function useChartCore(
       h.setDefaultCandleWidth(defaultCandleWidth);
       defaultWidthAppliedRef.current = true;
     }
+    // How the new candles relate to what the core holds decides what happens to
+    // the viewport: a stream leaves it alone, a timeframe switch re-anchors and
+    // morphs into it, a different asset resets it.
+    let morphing = false;
     if (candles.length > 0) {
-      h.setCandles(packCandles(candles));
+      const prev = prevDataRef.current;
+      const freshHandle = prev == null || prev.handle !== h;
+      if (freshHandle || prev.candles !== candles || prev.seriesKey !== seriesKey) {
+        // A fresh core frames itself (its window starts at 0/0); an explicit
+        // visibleRange prop overrides any auto behavior, so treat the change
+        // like a stream and let the range application below win.
+        const transitionKind: DataTransition = freshHandle
+          ? 'initial'
+          : explicit
+            ? 'stream'
+            : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+
+        // Capture the outgoing view before setCandles re-infers the candle
+        // period from the new data.
+        let tfArgs: {
+          oldWindow: VisibleRange;
+          oldStepMs: number;
+          oldLastMs: number;
+        } | null = null;
+        // The pre-swap candle envelope, used to scale-lock the y-axis below.
+        let prevEnvelope: { low: number; high: number } | null = null;
+        if (transitionKind === 'timeframe' && prev != null) {
+          const oldWindow = h.getVisibleRange();
+          const oldStepMs = inferStepMs(prev.candles);
+          if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
+            tfArgs = {
+              oldWindow,
+              oldStepMs,
+              oldLastMs: prev.candles[prev.candles.length - 1].timeMs,
+            };
+          }
+          prevEnvelope = h.getVisiblePriceEnvelope();
+          // Capture the outgoing candle geometry, but only when it will actually
+          // be animated so a disabled animation costs no snapshot. A switch
+          // during a morph restarts from the data the core currently holds.
+          morphing =
+            animRef.current.ms > 0 &&
+            !animRef.current.reduceMotion &&
+            onFrameRef.current != null;
+          if (morphing) {
+            endIntervalMorph();
+            h.beginIntervalMorph();
+          }
+        } else if (transitionKind === 'initial' || transitionKind === 'reset') {
+          // Wholesale reframing — the slot pairing no longer holds, so land any
+          // in-flight morph rather than reshaping into unrelated data.
+          endIntervalMorph();
+        }
+
+        h.setCandles(packCandles(candles));
+
+        if (transitionKind === 'timeframe') {
+          const newStepMs = inferStepMs(candles);
+          if (tfArgs && newStepMs != null) {
+            const w = timeframeWindow(
+              tfArgs.oldWindow,
+              tfArgs.oldStepMs,
+              tfArgs.oldLastMs,
+              newStepMs,
+              candles[candles.length - 1].timeMs,
+            );
+            h.setVisibleRange(w.startMs, w.endMs);
+          }
+          // Scale-lock the y-axis: the same price action re-buckets into a
+          // smaller/larger high-low span, so a manual price range is rescaled to
+          // keep the candle envelope at the pixel height it just had instead of
+          // snapping back to auto-fit. A no-op in auto-y mode, which is already
+          // span-invariant.
+          if (prevEnvelope) h.preservePriceEnvelope(prevEnvelope.low, prevEnvelope.high);
+          else h.resetPriceScale();
+          // Started after the new bounds are in place: the snapshot is in band
+          // fractions, so frame 0 still matches the pre-switch pixels exactly.
+          if (morphing) startIntervalMorph(h);
+        } else if (transitionKind === 'reset') {
+          h.resetView();
+        }
+        prevDataRef.current = { handle: h, candles, seriesKey };
+      }
     }
     if (explicit) {
       h.setVisibleRange(startMs, endMs);
@@ -320,11 +483,15 @@ export function useChartCore(
     );
     // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
     // the VroomBand structs in the JSI handle) — web-only for now.
-    setPicture(h.render());
+    // A just-started morph is already pushing frames straight to the host sink;
+    // this snapshot would land on top of them a frame or two later. The morph's
+    // frame 0 is pixel-identical to what's on screen, so there's nothing to show
+    // in the meantime anyway.
+    if (!morphing) setPicture(h.render());
     // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/priceLines are
     // represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey]);
+  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey, startIntervalMorph, endIntervalMorph]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

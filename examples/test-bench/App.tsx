@@ -361,10 +361,9 @@ export default function App() {
             ) : null}
           </View>
 
-          {/* Remount on interval change so the visible window re-defaults to
-              the new data's recent range. */}
+          {/* Not keyed on the interval: the chart detects the switch itself and
+              animates into the new data, which a remount would prevent. */}
           <VroomChart
-            key={selected.label}
             candles={candles}
             style={styles.chart}
             onCrosshair={handleCrosshair}

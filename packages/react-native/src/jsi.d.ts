@@ -27,6 +27,57 @@ export interface ChartHandle {
   setChartType(mode: number): void;
   /** Candle↔line morph blend: collapse folds candles to close, fade crossfades. */
   setMorph(collapse: number, fade: number): void;
+  /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
+  getVisibleRange(): { startMs: number; endMs: number };
+  /**
+   * Reset to the fresh-mount view: frame the most recent ~80 candles and
+   * re-enable continuous y auto-fit (the price range follows the visible
+   * candles until the next manual y gesture). Use when the data series is
+   * wholesale replaced — e.g. switching assets.
+   */
+  resetView(): void;
+  /**
+   * Re-enable continuous y auto-fit only; the time window is untouched. Use
+   * after repositioning the window for a same-asset data swap (e.g. a
+   * timeframe switch) so the price scale re-fits the newly visible candles.
+   */
+  resetPriceScale(): void;
+  /**
+   * The visible price *envelope* — the min low / max high across the currently
+   * visible candles, i.e. the extent the candles occupy rather than the (wider)
+   * axis range. Null when no candles are visible.
+   */
+  getVisiblePriceEnvelope(): { low: number; high: number } | null;
+  /**
+   * Scale lock for a same-asset data swap that re-buckets the same price action
+   * into a different high-low span (a timeframe switch). Rescales a *manual*
+   * price range so the visible envelope keeps the exact pixel height and
+   * position the given pre-swap envelope had — so candles don't suddenly shrink
+   * or grow when the interval changes.
+   *
+   * Call after setCandles + setVisibleRange, passing the envelope read by
+   * getVisiblePriceEnvelope before the swap. A no-op in auto-y mode (auto-fit is
+   * already span-invariant); falls back to resetPriceScale when either envelope
+   * is degenerate.
+   */
+  preservePriceEnvelope(prevLow: number, prevHigh: number): void;
+  /**
+   * Capture the visible candle geometry so the next data swap can animate as a
+   * reshape rather than a jump: each candle's wick and body slide and stretch
+   * into the shape of its counterpart in the new data.
+   *
+   * Candles are paired by *slot* — position counting back from the right edge of
+   * the visible window, which a timeframe switch preserves. Call before
+   * setCandles, then drive setIntervalMorph from 0 to 1.
+   */
+  beginIntervalMorph(): void;
+  /**
+   * Advance the interval morph started by beginIntervalMorph. `t` (clamped to
+   * 0..1) is the eased progress: 0 renders the captured geometry pixel-
+   * identically to the pre-swap frame, 1 renders the new candles and releases
+   * the capture. Driven per-frame by the host animation loop.
+   */
+  setIntervalMorph(t: number): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
   pan(dx: number, dy: number): SkPicture | null;
   /**

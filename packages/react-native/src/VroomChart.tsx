@@ -18,7 +18,7 @@ import {
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
-import { useSharedValue } from 'react-native-reanimated';
+import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
@@ -37,6 +37,7 @@ import './jsi.d';
 export function VroomChart(props: VroomChartProps) {
   const {
     candles,
+    seriesKey,
     width: widthProp,
     height: heightProp,
     style,
@@ -91,6 +92,31 @@ export function VroomChart(props: VroomChartProps) {
     [priceLines, priceLinesStyle, onPriceLineClose],
   );
 
+  // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat
+  // behind JS-thread writes. If it ever reads null it throws ("Invalid prop
+  // value for SkTextBlob received" — RN-Skia's mislabeled SkPicture error), so
+  // we seed it with an empty picture and *never* assign null into it.
+  const emptyPicture = useMemo(() => {
+    const rec = Skia.PictureRecorder();
+    rec.beginRecording(Skia.XYWHRect(0, 0, 1, 1));
+    return rec.finishRecordingAsPicture();
+  }, []);
+  const pictureSV = useSharedValue<SkPicture>(emptyPicture);
+
+  // An OS reduced-motion preference snaps every transition, the way
+  // prefers-reduced-motion does on web.
+  const reduceMotion = useReducedMotion();
+
+  // The interval morph starts inside the data effect (it needs the pre-swap
+  // capture) but repaints every frame, so it writes straight into the SV rather
+  // than through React state — the same bypass the gesture handlers use.
+  const onFrame = useCallback(
+    (p: SkPicture) => {
+      pictureSV.value = p;
+    },
+    [pictureSV],
+  );
+
   const { handle, picture, volumeCollapseRef } = useChartCore(
     candles,
     { width, height },
@@ -105,18 +131,8 @@ export function VroomChart(props: VroomChartProps) {
     bollingerBands,
     volume,
     priceLinesProp,
+    { seriesKey, transitionMs, transitionEasing, reduceMotion, onFrame },
   );
-
-  // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat
-  // behind JS-thread writes. If it ever reads null it throws ("Invalid prop
-  // value for SkTextBlob received" — RN-Skia's mislabeled SkPicture error), so
-  // we seed it with an empty picture and *never* assign null into it.
-  const emptyPicture = useMemo(() => {
-    const rec = Skia.PictureRecorder();
-    rec.beginRecording(Skia.XYWHRect(0, 0, 1, 1));
-    return rec.finishRecordingAsPicture();
-  }, []);
-  const pictureSV = useSharedValue<SkPicture>(emptyPicture);
 
   // When the crosshair is showing, pan moves it (instead of scrolling) and
   // pinch is disabled. A ref (not state) so gesture callbacks read it
@@ -221,7 +237,8 @@ export function VroomChart(props: VroomChartProps) {
       const prog = Math.min(1, (now - startTs) / dur);
       const fade = from + (target - from) * ease(easingRef.current, prog);
       morphFade.current = fade;
-      handle.setMorph(fade, fade);
+      // Reduced motion still crossfades, but skips the vertical collapse.
+      handle.setMorph(reduceMotion ? 0 : fade, fade);
       const p = handle.render();
       if (p) pictureSV.value = p;
       if (prog < 1) {
@@ -242,7 +259,7 @@ export function VroomChart(props: VroomChartProps) {
         morphRaf.current = null;
       }
     };
-  }, [handle, chartType, transitionMs, pictureSV]);
+  }, [handle, chartType, transitionMs, reduceMotion, pictureSV]);
 
   // Volume-bar collapse. The core staggers the bars itself — tallest falling
   // first, all landing together — so unlike the loop above this one hands it
@@ -271,7 +288,7 @@ export function VroomChart(props: VroomChartProps) {
     }
 
     const dur = Math.max(0, transitionMs ?? 300);
-    if (dur === 0) {
+    if (dur === 0 || reduceMotion) {
       volumeCollapseRef.current = { t: target, easing };
       handle.setVolumeCollapse(target, easing);
       const p = handle.render();
@@ -302,7 +319,7 @@ export function VroomChart(props: VroomChartProps) {
         volumeRaf.current = null;
       }
     };
-  }, [handle, volume?.enabled, transitionMs, pictureSV, volumeCollapseRef]);
+  }, [handle, volume?.enabled, transitionMs, reduceMotion, pictureSV, volumeCollapseRef]);
 
   // Classifies a touch point into the candle area vs. an axis strip. Axis
   // strips always own their gesture (scale price/time) and take priority over
