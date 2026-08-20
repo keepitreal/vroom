@@ -113,6 +113,33 @@ export type VroomTheme = {
    * the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
    */
   lineGradientOpacity?: number;
+  /**
+   * How much to round the line chart's corners, from 0 (straight segments
+   * between closes) to 1 (fully smooth). Defaults to 0.
+   *
+   * The curve is monotone-limited, so smoothing can never overshoot into a price
+   * that didn't trade: every peak and trough stays on an actual close, and the
+   * curve never leaves the range of the two closes it connects. Applies to the
+   * gradient fill beneath the line as well, so the two stay flush.
+   */
+  lineTension?: number;
+  /**
+   * Mark the line chart's newest end with a dot. Defaults to `true`.
+   *
+   * Takes its color from `line` and its radius from `lineWidth`, wrapped in a 2px
+   * ring of `background` that separates it from the line itself. Only drawn in
+   * line mode, and it crossfades along with the line during a candle↔line
+   * transition.
+   */
+  lineTipDot?: boolean;
+  /**
+   * Pulse a ring outward from the tip dot, once every 2.6s. Defaults to `false`.
+   *
+   * Ignored when `lineTipDot` is off, and suppressed when the OS asks for reduced
+   * motion. Because the ring never stops, enabling it keeps the chart repainting
+   * continuously — leave it off for charts that should be able to go idle.
+   */
+  lineTipPulse?: boolean;
 };
 
 /** A time window over the candle data, as Unix epoch milliseconds. */

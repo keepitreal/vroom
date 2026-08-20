@@ -28,11 +28,18 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   volumeRadius: 10, // VROOM_FLOAT_VOLUME_RADIUS_PX
   lineWidth: 11, // VROOM_FLOAT_LINE_WIDTH_PX
   lineGradientOpacity: 12, // VROOM_FLOAT_LINE_GRADIENT_OPACITY
+  lineTension: 13, // VROOM_FLOAT_LINE_TENSION
 };
+
+// Named because useChartCore clears it directly under reduced motion, outside
+// the theme sweep below.
+export const FLOAT_LINE_TIP_PULSE = 15; // VROOM_FLOAT_LINE_TIP_PULSE
 
 // Maps each boolean VroomTheme field to its VroomFloatKey index (pushed as 0/1).
 export const BOOL_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   wickRoundCap: 9, // VROOM_FLOAT_WICK_ROUND_CAP
+  lineTipDot: 14, // VROOM_FLOAT_LINE_TIP_DOT
+  lineTipPulse: FLOAT_LINE_TIP_PULSE,
 };
 
 // Parses a color into a packed 0xAARRGGBB integer (Skia's ARGB order).

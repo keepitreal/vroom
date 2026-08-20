@@ -64,6 +64,12 @@ struct VroomChart {
     float morph_collapse = 0.f;
     float morph_fade = 0.f;
 
+    // Phase of the line-tip pulse, in seconds into its cycle. Unlike every other
+    // animation here this one is core-driven: it loops with no endpoint for the
+    // host to ease toward, so begin_frame advances it from the frame clock and
+    // is_animating_now keeps the host's redraw loop alive (see tip_pulse.h).
+    float tip_pulse_elapsed_s = 0.f;
+
     // Interval morph: the outgoing candle geometry captured when a timeframe
     // switch begins, indexed from the right of the visible slice (slot 0 =
     // newest) — the pairing the preserved slot grid guarantees. Stored as
@@ -307,14 +313,20 @@ struct VroomChart {
     void draw_chart(SkCanvas* canvas);
 
     // Per-frame animation bookkeeping: computes `last_dt_seconds`, which paces
-    // the label fades. Called at the top of draw_chart.
+    // the label fades, and advances `tip_pulse_elapsed_s`. Called at the top of
+    // draw_chart.
     void begin_frame();
+
+    // True when the line tip's pulse ring is on screen and looping. Gated on
+    // line mode and on having data, so a chart that isn't showing the ring can
+    // still go idle.
+    bool tip_pulse_active() const;
 
     // Re-records `chart_picture` by invoking draw_chart on a fresh
     // SkPictureRecorder.
     void rebuild_chart_picture();
 
-    // True if any axis label is mid-fade. Used by the JS-side animation loop
-    // to know when to keep ticking.
+    // True if any axis label is mid-fade, or the tip pulse is running. Used by
+    // the JS-side animation loop to know when to keep ticking.
     bool is_animating_now() const;
 };

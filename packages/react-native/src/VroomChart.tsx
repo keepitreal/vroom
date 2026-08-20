@@ -144,13 +144,6 @@ export function VroomChart(props: VroomChartProps) {
   // candle, not per frame). Null while the crosshair is hidden.
   const lastCrosshairTime = useRef<number | null>(null);
 
-  // Sync the initial picture from useChartCore into the SV whenever it
-  // refreshes (data load, size change, externally-controlled range change).
-  // Only ever assign a non-null picture (see emptyPicture note above).
-  useEffect(() => {
-    if (picture) pictureSV.value = picture;
-  }, [picture, pictureSV]);
-
   // Momentum scroll. After Pan ends with non-trivial velocity, we run a RAF
   // loop that calls handle.pan(dx, 0) each frame with an exponentially
   // decaying velocity. A new pan (or unmount) cancels the loop.
@@ -191,6 +184,19 @@ export function VroomChart(props: VroomChartProps) {
       }
     };
   }, []);
+
+  // Sync the initial picture from useChartCore into the SV whenever it
+  // refreshes (data load, size change, externally-controlled range change).
+  // Only ever assign a non-null picture (see emptyPicture note above).
+  //
+  // Sits below maybeStartAnim so it can kick the loop: it's the only path a
+  // non-gesture change has into it, which is what a theme that turns the line-tip
+  // pulse on needs — otherwise the ring wouldn't move until you touched the
+  // chart.
+  useEffect(() => {
+    if (picture) pictureSV.value = picture;
+    maybeStartAnim();
+  }, [picture, pictureSV, maybeStartAnim]);
 
   // Candle↔line morph. When `chartType` changes we drive the core per-frame with
   // a (collapse, fade) blend and push a fresh picture into the SV each frame — the

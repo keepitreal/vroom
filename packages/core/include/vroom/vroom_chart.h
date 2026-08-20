@@ -294,6 +294,9 @@ typedef enum {
     VROOM_FLOAT_VOLUME_RADIUS_PX,        // volume bar top-corner radius px (0 = square)
     VROOM_FLOAT_LINE_WIDTH_PX,           // line-chart-mode polyline stroke width px
     VROOM_FLOAT_LINE_GRADIENT_OPACITY,   // fill under the line at its strongest (0 disables)
+    VROOM_FLOAT_LINE_TENSION,            // 0..1 line-chart corner smoothing (0 = straight)
+    VROOM_FLOAT_LINE_TIP_DOT,            // 0/1: dot at the line's newest end (default on)
+    VROOM_FLOAT_LINE_TIP_PULSE,          // 0/1: expanding ring around that dot
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
