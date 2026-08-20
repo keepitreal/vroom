@@ -28,6 +28,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/DataTransition",
+          label: "DataTransition"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/MACDConfig",
           label: "MACDConfig"
         },
@@ -102,6 +107,21 @@ const typedocSidebar = {
       type: "category",
       label: "Functions",
       items: [
+        {
+          type: "doc",
+          id: "reference/functions/classifyTransition",
+          label: "classifyTransition"
+        },
+        {
+          type: "doc",
+          id: "reference/functions/inferStepMs",
+          label: "inferStepMs"
+        },
+        {
+          type: "doc",
+          id: "reference/functions/timeframeWindow",
+          label: "timeframeWindow"
+        },
         {
           type: "doc",
           id: "reference/functions/VroomChart",

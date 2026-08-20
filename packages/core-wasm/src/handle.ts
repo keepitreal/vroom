@@ -345,9 +345,6 @@ export interface VroomChartHandle {
    * 1 = line. Driven per-frame by the host; setChartType snaps both.
    */
   setMorph(collapse: number, fade: number): void;
-  // TODO(react-native): mirror getVisibleRange/resetView/resetPriceScale/
-  // getVisiblePriceEnvelope/preservePriceEnvelope/beginIntervalMorph/
-  // setIntervalMorph on the JSI handle — currently web-only.
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */
   getVisibleRange(): { startMs: number; endMs: number };
   /**

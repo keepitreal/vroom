@@ -48,24 +48,34 @@ const INTERVALS = [
 
 type Interval = (typeof INTERVALS)[number];
 
+// Spot price every interval converges on at its right edge.
+const SPOT = 100;
+
+// Each interval has to look like the same asset re-bucketed, the way real data
+// does. Walking *backwards* from a fixed spot is what buys that: the newest
+// candle closes at the same price whatever the step, so a switch reads as a
+// timeframe change and animates. Walking forwards from a fixed start (as this
+// used to) ends each interval on an independent random price, which the chart
+// correctly reads as a different asset and snaps to instead.
+//
+// Per-bar movement scales with sqrt(step) so a 1h bar covers proportionally
+// more ground than a 1m one, keeping the shape plausible at every zoom.
 function mockCandles(n: number, stepMs: number): Candle[] {
-  const out: Candle[] = [];
-  let price = 100;
+  const vol = 4 * Math.sqrt(stepMs / MINUTE);
+  const out: Candle[] = new Array(n);
   const now = Date.now();
-  for (let i = 0; i < n; i++) {
-    const open = price;
-    const close = open + (Math.random() - 0.5) * 4;
-    const high = Math.max(open, close) + Math.random() * 2;
-    const low = Math.min(open, close) - Math.random() * 2;
-    out.push({
+  let close = SPOT;
+  for (let i = n - 1; i >= 0; i--) {
+    const open = close + (Math.random() - 0.5) * vol;
+    out[i] = {
       timeMs: now - (n - i) * stepMs,
       open,
-      high,
-      low,
+      high: Math.max(open, close) + Math.random() * vol * 0.5,
+      low: Math.min(open, close) - Math.random() * vol * 0.5,
       close,
       volume: Math.random() * 1000,
-    });
-    price = close;
+    };
+    close = open;
   }
   return out;
 }
@@ -361,10 +371,9 @@ export default function App() {
             ) : null}
           </View>
 
-          {/* Remount on interval change so the visible window re-defaults to
-              the new data's recent range. */}
+          {/* Not keyed on the interval: the chart detects the switch itself and
+              animates into the new data, which a remount would prevent. */}
           <VroomChart
-            key={selected.label}
             candles={candles}
             style={styles.chart}
             onCrosshair={handleCrosshair}

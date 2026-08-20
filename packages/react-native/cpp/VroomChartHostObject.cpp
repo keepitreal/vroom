@@ -29,7 +29,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(29);
+  out.reserve(39);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -38,6 +38,13 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "resetPriceScale"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginIntervalMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setIntervalMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
   out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
@@ -293,6 +300,129 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           vroom_chart_set_morph(chart_,
                                 static_cast<float>(args[0].asNumber()),
                                 static_cast<float>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "getVisibleRange") {
+    // getVisibleRange() -> { startMs, endMs }. Both 0 while uninitialized.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "getVisibleRange"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          int64_t s = 0, e = 0;
+          vroom_chart_get_visible_range(chart_, &s, &e);
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "startMs", static_cast<double>(s));
+          obj.setProperty(rt2, "endMs", static_cast<double>(e));
+          return obj;
+        });
+  }
+
+  if (name == "resetView") {
+    // resetView() — reframe the most recent candles and re-enable y auto-fit.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "resetView"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_reset_view(chart_);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "resetPriceScale") {
+    // resetPriceScale() — re-enable y auto-fit, leaving the time window alone.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "resetPriceScale"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_reset_price_scale(chart_);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "getVisiblePriceEnvelope") {
+    // getVisiblePriceEnvelope() -> { low, high } | null. The extent the visible
+    // candles occupy, not the (wider) axis range. No rendering.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          double low = 0.0, high = 0.0;
+          if (!vroom_chart_get_visible_price_envelope(chart_, &low, &high)) {
+            return jsi::Value::null();
+          }
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "low", low);
+          obj.setProperty(rt2, "high", high);
+          return obj;
+        });
+  }
+
+  if (name == "preservePriceEnvelope") {
+    // preservePriceEnvelope(prevLow, prevHigh) — scale-lock a manual price
+    // range across a timeframe switch. No-op in auto-y mode.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_preserve_price_envelope(chart_, args[0].asNumber(),
+                                              args[1].asNumber());
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "beginIntervalMorph") {
+    // beginIntervalMorph() — capture the visible candle geometry so the next
+    // setCandles can be animated as a reshape. Call before setCandles.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginIntervalMorph"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_begin_interval_morph(chart_);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setIntervalMorph") {
+    // setIntervalMorph(t) — advance the capture toward the new candles. `t` is
+    // pre-eased progress: 0 = the captured frame, 1 = settled (capture freed).
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setIntervalMorph"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_set_interval_morph(
+              chart_, static_cast<float>(args[0].asNumber()));
           return jsi::Value::undefined();
         });
   }

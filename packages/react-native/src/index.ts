@@ -1,4 +1,10 @@
 export { VroomChart } from './VroomChart';
+export {
+  classifyTransition,
+  inferStepMs,
+  timeframeWindow,
+  type DataTransition,
+} from './dataTransitions';
 export type {
   VroomChartProps,
   Candle,

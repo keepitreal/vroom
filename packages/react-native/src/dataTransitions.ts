@@ -1,3 +1,6 @@
+// Mirror of packages/react/src/dataTransitions.ts — the platform packages don't
+// depend on each other, and @vroomchart/types carries types only.
+//
 // Classifies how a new `candles` prop relates to the previous one so the chart
 // can react appropriately: leave the viewport alone for streaming updates,
 // re-anchor the time window for a timeframe switch, or fully reset the view
