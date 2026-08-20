@@ -1,5 +1,7 @@
 #include "doctest.h"
 
+#include <initializer_list>  // libstdc++ needs it for the braced-list loops below
+
 #include "tip_pulse.h"
 
 using vroom::tip_pulse::at;
