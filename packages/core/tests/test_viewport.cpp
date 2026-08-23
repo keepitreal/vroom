@@ -59,6 +59,39 @@ TEST_CASE("candle_body_width") {
     }
 }
 
+TEST_CASE("window_for_body_width") {
+    Layout l = make_layout();
+    l.candle_width_ratio = 0.68f;
+
+    SUBCASE("degenerate args return 0") {
+        CHECK(vroom::window_for_body_width(l, 0, 6) == 0);
+        CHECK(vroom::window_for_body_width(l, 86'400'000, 0) == 0);
+        CHECK(vroom::window_for_body_width(l, 86'400'000, -1) == 0);
+        l.width_px = 0.f;
+        CHECK(vroom::window_for_body_width(l, 86'400'000, 6) == 0);
+    }
+
+    SUBCASE("inverts candle_body_width") {
+        l = make_layout();
+        l.candle_width_ratio = 0.68f;
+        const int64_t dur = 86'400'000;
+        const int64_t window = vroom::window_for_body_width(l, dur, 6.0);
+        CHECK(vroom::candle_body_width(l, window, dur) ==
+              doctest::Approx(6.f).epsilon(0.01));
+    }
+
+    SUBCASE("does not consult a data span — short series keep target body width") {
+        // 1100px chart, 6px body, daily candles: window is ~125 days, far
+        // longer than a 9-candle / 8-day series. Width wins; empty left.
+        l = make_layout();
+        l.width_px = 1100.f;
+        l.candle_width_ratio = 0.68f;
+        const int64_t dur = 86'400'000;
+        const int64_t window = vroom::window_for_body_width(l, dur, 6.0);
+        CHECK(window > 8 * dur);
+    }
+}
+
 TEST_CASE("candle_center_x") {
     Layout l = make_layout();
 

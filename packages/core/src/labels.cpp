@@ -153,13 +153,15 @@ void draw_y_labels(SkCanvas* canvas,
     // Horizontal center of the y-axis container ([width - y_axis_width, width]).
     // Labels (and the price box) center on this so their text shares a column.
     const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
+    const int decimals = vroom::price_decimals(
+        vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
 
     for (const auto& f : chart.y_fades) {
         if (f.opacity <= 1e-3f) continue;
         const float y = vroom::price_to_y(lay, bounds, f.price);
 
         char buf[32];
-        std::snprintf(buf, sizeof(buf), "%.2f", f.price);
+        vroom::format_price(buf, sizeof(buf), f.price, decimals);
         const size_t len = std::strlen(buf);
         const float text_w = font.measureText(
             buf, len, SkTextEncoding::kUTF8);
@@ -367,9 +369,12 @@ void recompute_axis_width(VroomChart& chart) {
     }
 
     SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+    const auto lay = chart.layout();
+    const int decimals = vroom::price_decimals(
+        vroom::pick_price_interval(hi - lo, vroom::price_pane_bottom(lay)));
     char buf_hi[32], buf_lo[32];
-    std::snprintf(buf_hi, sizeof(buf_hi), "%.2f", hi);
-    std::snprintf(buf_lo, sizeof(buf_lo), "%.2f", lo);
+    vroom::format_price(buf_hi, sizeof(buf_hi), hi, decimals);
+    vroom::format_price(buf_lo, sizeof(buf_lo), lo, decimals);
     const float w_hi = font.measureText(
         buf_hi, std::strlen(buf_hi), SkTextEncoding::kUTF8);
     const float w_lo = font.measureText(

@@ -17,6 +17,16 @@ float candle_body_width(const Layout& layout,
     return static_cast<float>(slot * layout.candle_width_ratio);
 }
 
+int64_t window_for_body_width(const Layout& layout,
+                              int64_t candle_duration_ms,
+                              double body_px) {
+    const double usable = candle_area_width(layout);
+    const double ratio = static_cast<double>(layout.candle_width_ratio);
+    const double dur = static_cast<double>(candle_duration_ms);
+    if (usable <= 0.0 || ratio <= 0.0 || dur <= 0.0 || body_px <= 0.0) return 0;
+    return static_cast<int64_t>((usable * dur * ratio) / body_px);
+}
+
 float candle_center_x(const Layout& layout,
                       int64_t time_ms,
                       int64_t candle_duration_ms,

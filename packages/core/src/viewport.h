@@ -86,6 +86,13 @@ float candle_body_width(const Layout& layout,
                         int64_t window_ms,
                         int64_t candle_duration_ms);
 
+// Inverse of candle_body_width: the time window that makes each candle body
+// `body_px` wide. Returns 0 if any input is degenerate. Does not consult the
+// data span — a short series leaves empty space on the left (width wins).
+int64_t window_for_body_width(const Layout& layout,
+                              int64_t candle_duration_ms,
+                              double body_px);
+
 // Center-x of a candle whose period starts at time_ms and lasts
 // candle_duration_ms, given the current visible time window.
 float candle_center_x(const Layout& layout,

@@ -109,13 +109,20 @@ void apply_default_framing(VroomChart* chart) {
         const double body = std::clamp(static_cast<double>(chart->default_candle_px),
                                        kMinCandleBodyPx, kMaxCandleBodyPx);
         if (usable > 0.0 && ratio > 0.0 && dur > 0.0 && body > 0.0) {
-            int64_t window_ms = static_cast<int64_t>((usable * dur * ratio) / body);
-            const int64_t span =
-                chart->candles.back().time_ms - chart->candles.front().time_ms;
-            window_ms = std::clamp<int64_t>(window_ms, chart->candle_duration_ms,
-                                            span > 0 ? span : window_ms);
-            frame(window_ms);
-            return;
+            int64_t window_ms = vroom::window_for_body_width(
+                lay, chart->candle_duration_ms, body);
+            // Floor at one slot so the window is valid. Do NOT clamp to the
+            // data span: a short series would then stretch each bar to fill
+            // the plot, the opposite of a target body width. Empty space on
+            // the left is intentional — same rule as timeframeWindow (width
+            // wins).
+            if (window_ms > 0) {
+                if (window_ms < chart->candle_duration_ms) {
+                    window_ms = chart->candle_duration_ms;
+                }
+                frame(window_ms);
+                return;
+            }
         }
     }
 
