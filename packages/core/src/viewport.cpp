@@ -17,6 +17,16 @@ float candle_body_width(const Layout& layout,
     return static_cast<float>(slot * layout.candle_width_ratio);
 }
 
+int64_t window_for_body_width(const Layout& layout,
+                              int64_t candle_duration_ms,
+                              double body_px) {
+    const double usable = candle_area_width(layout);
+    const double ratio = static_cast<double>(layout.candle_width_ratio);
+    const double dur = static_cast<double>(candle_duration_ms);
+    if (usable <= 0.0 || ratio <= 0.0 || dur <= 0.0 || body_px <= 0.0) return 0;
+    return static_cast<int64_t>((usable * dur * ratio) / body_px);
+}
+
 float candle_center_x(const Layout& layout,
                       int64_t time_ms,
                       int64_t candle_duration_ms,
@@ -263,6 +273,41 @@ double y_to_price(const Layout& layout,
     if (draw_h <= 0.f || range <= 0.0) return bounds.min;
     const double t = (bot - y) / draw_h;  // 0 at min (bottom), 1 at top
     return bounds.min + t * range;
+}
+
+TimeWindow clamp_shifted_time_window(int64_t start_ms, int64_t end_ms,
+                                     int64_t first_time, int64_t last_time,
+                                     int64_t candle_duration_ms,
+                                     int64_t max_future) {
+    const int64_t window = end_ms - start_ms;
+    if (window <= 0) return {start_ms, end_ms};
+
+    const int64_t dur = candle_duration_ms > 0 ? candle_duration_ms : 0;
+    const int64_t last_slot_end = last_time + dur;
+    const int64_t data_extent = last_slot_end - first_time;
+
+    if (max_future >= 0 && end_ms > last_time + max_future) {
+        end_ms = last_time + max_future;
+        start_ms = end_ms - window;
+    }
+
+    // Window longer than the series: empty past is how width wins. Floor the
+    // right edge at last_time so a pan into the past is a no-op when the
+    // candles are already right-aligned. Do not pin start to first_time — that
+    // throws the extra length into the future and the two caps latch.
+    if (data_extent >= 0 && window > data_extent) {
+        if (end_ms < last_time) {
+            end_ms = last_time;
+            start_ms = end_ms - window;
+        }
+        return {start_ms, end_ms};
+    }
+
+    if (start_ms < first_time) {
+        start_ms = first_time;
+        end_ms = start_ms + window;
+    }
+    return {start_ms, end_ms};
 }
 
 }  // namespace vroom

@@ -345,7 +345,8 @@ void vroom_chart_set_visible_range(VroomChart* chart, int64_t start_ms, int64_t 
 // Target candle *body* width in px for the default/reset framing. Larger = more
 // zoomed in (fewer candles), smaller = more zoomed out. 0 restores the legacy
 // "most recent ~80 candles" default. Affects initial framing only; an explicit
-// set_visible_range still overrides it.
+// set_visible_range still overrides it. A series shorter than the implied window
+// is left-padded with empty slots so bars stay this wide instead of stretching.
 void vroom_chart_set_default_candle_width(VroomChart* chart, float px);
 
 // Chart render mode: 0 = candlesticks (default), 1 = line chart (a polyline

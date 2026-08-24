@@ -693,7 +693,8 @@ export type VroomChartCoreProps = {
    * more zoomed in (fewer candles); smaller → more zoomed out. Only affects
    * first load / reset; an explicit `visibleRange` takes precedence. Omit for
    * the default (~80 candles). Useful to keep candles a consistent size across
-   * devices of different widths.
+   * devices of different widths. A series shorter than the window is left-padded
+   * with empty slots — bars stay this wide rather than stretching to fill.
    */
   defaultCandleWidth?: number;
   /**

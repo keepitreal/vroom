@@ -174,6 +174,15 @@ function mulberry32(seed: number): () => number {
 
 const BASE_BARS = 12_000; // 1m bars -> 200 bars even at the 1h timeframe
 
+// Short-series repro: a 9-bar window is far shorter than defaultCandleWidth
+// framing on a typical plot, so empty past sits to the left of the last bar.
+const SPARSE_COUNT = 9;
+
+function maybeSparse(series: Candle[], sparse: boolean): Candle[] {
+  if (!sparse || series.length <= SPARSE_COUNT) return series;
+  return series.slice(-SPARSE_COUNT);
+}
+
 const baseCache = new Map<Asset, Candle[]>();
 function baseSeries(asset: Asset): Candle[] {
   const cached = baseCache.get(asset);
@@ -385,14 +394,20 @@ export function App() {
   const [tf, setTf] = useState<number>(MINUTE);
   const [useSeriesKey, setUseSeriesKey] = useState(true);
   const [gaps, setGaps] = useState(false);
+  // Short-series repro (last 9 bars). `?sparse=1` turns it on at load so the
+  // verify flow can deep-link; the sidebar toggle is the interactive control.
+  const [sparse, setSparse] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('sparse'),
+  );
   const [showLiquidity, setShowLiquidity] = useState(false);
   const [showPriceLines, setShowPriceLines] = useState(false);
   // Demo candles are stateful so the Add/Update tools can stream into them; they
-  // reset to the base series whenever the asset/timeframe (or Gaps) changes.
+  // reset to the base series whenever the asset/timeframe (or Gaps/Sparse) changes.
   const demoBase = useMemo(() => {
     const base = aggregate(baseSeries(asset), tf);
-    return gaps ? punchGaps(base) : base;
-  }, [asset, tf, gaps]);
+    const series = gaps ? punchGaps(base) : base;
+    return maybeSparse(series, sparse);
+  }, [asset, tf, gaps, sparse]);
   const [candles, setCandles] = useState<Candle[]>(demoBase);
   useEffect(() => {
     setCandles(demoBase);
@@ -503,9 +518,13 @@ export function App() {
     return higher.stepMs === tf ? tf * 4 : higher.stepMs;
   }, [tf]);
   const secondCandles = useMemo(
-    () => aggregate(baseSeries(asset), secondTf),
-    [asset, secondTf],
+    () => maybeSparse(aggregate(baseSeries(asset), secondTf), sparse),
+    [asset, secondTf, sparse],
   );
+  const seriesKey = useSeriesKey ? (sparse ? `${asset}-sparse` : asset) : undefined;
+  // Remount when sparsity flips so defaultCandleWidth re-frames (same reason
+  // the width input remounts). A suffix on seriesKey also marks it a new series.
+  const chartKey = `${candleWidth}-${sparse ? 'sparse' : 'full'}`;
   const [xhair, setXhair] = useState<{ timeMs: number; price: number } | null>(null);
   const onSecondaryCrosshair = useCallback((e: CrosshairEvent) => {
     setXhair(e.active && e.timeMs != null && e.price != null ? { timeMs: e.timeMs, price: e.price } : null);
@@ -833,9 +852,9 @@ export function App() {
             <>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <VroomChart
-                  key={candleWidth}
+                  key={chartKey}
                   candles={candles}
-                  seriesKey={useSeriesKey ? asset : undefined}
+                  seriesKey={seriesKey}
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
@@ -851,9 +870,9 @@ export function App() {
               </div>
               <div style={{ flex: 1, minHeight: 0 }}>
                 <VroomChart
-                  key={`second-${candleWidth}`}
+                  key={`second-${chartKey}`}
                   candles={secondCandles}
-                  seriesKey={`${asset}-2`}
+                  seriesKey={sparse ? `${asset}-2-sparse` : `${asset}-2`}
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
@@ -867,11 +886,12 @@ export function App() {
           ) : (
             <div style={{ flex: 1, minHeight: 0 }}>
               <VroomChart
-                // Remount on width change so the new default framing applies (it
-                // only takes effect on a fresh handle — mirrors a real "first load").
-                key={candleWidth}
+                // Remount on width / sparse change so the new default framing
+                // applies (it only takes effect on a fresh handle — mirrors a
+                // real "first load").
+                key={chartKey}
                 candles={candles}
-                seriesKey={useSeriesKey ? asset : undefined}
+                seriesKey={seriesKey}
                 theme={chartTheme}
                 chartType={chartType}
                 transitionMs={transitionMs}
@@ -901,6 +921,8 @@ export function App() {
               setUseSeriesKey,
               gaps,
               setGaps,
+              sparse,
+              setSparse,
             }}
             streaming={{
               onAddCandle,

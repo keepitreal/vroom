@@ -21,6 +21,7 @@
 #include "chart.h"
 #include "fonts.h"
 #include "theme.h"
+#include "ticks.h"
 
 namespace vroom::crosshair {
 
@@ -146,7 +147,10 @@ void draw(SkCanvas* canvas,
     if (lay.y_axis_width_px > 0.f) {
         const double price = vroom::y_to_price(lay, bounds, cy);
         char buf[32];
-        std::snprintf(buf, sizeof(buf), "%.2f", price);
+        const int decimals = vroom::price_decimals(
+            vroom::pick_price_interval(bounds.max - bounds.min,
+                                       vroom::price_pane_bottom(lay)));
+        vroom::format_price(buf, sizeof(buf), price, decimals);
         const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
         draw_badge(canvas, font, buf, axis_center_x, cy, badge_fill,
                    SK_ColorWHITE);

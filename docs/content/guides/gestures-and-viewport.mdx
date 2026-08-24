@@ -64,6 +64,12 @@ zoomed out. This only affects the **initial** framing (and `reset`) — the user
 still pan and zoom freely afterward, and an explicit `visibleRange` takes precedence.
 It's handy for keeping candles a consistent size across devices of different widths.
 
+If the series is shorter than that window (a new listing with nine daily bars, say),
+the extra space is empty slots to the left of the first candle. The bars stay
+`defaultCandleWidth` wide instead of stretching to fill the plot. Dragging that
+view is a no-op: the candles stay on the right edge instead of snapping to the
+left and locking.
+
 ## Sizing
 
 The chart fills its parent, so prefer layout-driven sizing via `style` (flex,

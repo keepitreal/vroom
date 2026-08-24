@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <ctime>
+#include <string>
 
 namespace {
 constexpr int64_t k1m = 60'000LL;
@@ -150,5 +151,25 @@ TEST_CASE("pick_price_interval") {
         // rough 0.001 -> magnitude 1e-3, norm 1 -> 0.001
         CHECK(vroom::pick_price_interval(0.01, kArea) ==
               doctest::Approx(0.001));
+    }
+}
+
+TEST_CASE("price_decimals") {
+    CHECK(vroom::price_decimals(1.0) == 0);
+    CHECK(vroom::price_decimals(5.0) == 0);
+    CHECK(vroom::price_decimals(0.01) == 2);
+    CHECK(vroom::price_decimals(0.005) == 3);
+    CHECK(vroom::price_decimals(1e-8) == 8);
+    CHECK(vroom::price_decimals(0.0) == 2);
+    CHECK(vroom::price_decimals(-1.0) == 2);
+
+    SUBCASE("format_price writes that many places") {
+        char buf[32];
+        vroom::format_price(buf, sizeof(buf), 0.031491, 3);
+        CHECK(std::string(buf) == "0.031");
+        vroom::format_price(buf, sizeof(buf), 0.005, 3);
+        CHECK(std::string(buf) == "0.005");
+        vroom::format_price(buf, sizeof(buf), 100.0, 0);
+        CHECK(std::string(buf) == "100");
     }
 }
