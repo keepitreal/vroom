@@ -213,6 +213,8 @@ export type SidebarProps = {
     setUseSeriesKey: (v: boolean) => void;
     gaps: boolean;
     setGaps: (v: boolean) => void;
+    sparse: boolean;
+    setSparse: (v: boolean) => void;
   };
   streaming: {
     onAddCandle: () => void;
@@ -376,6 +378,12 @@ export function Sidebar({
           checked={data.gaps}
           onChange={data.setGaps}
           title="Punch interior holes into the series (non-uniform grid). Pan, then Add/Update a candle — the pan must hold."
+        />
+        <ToggleRow
+          label="Sparse (9 bars)"
+          checked={data.sparse}
+          onChange={data.setSparse}
+          title="Keep only the last 9 candles — a window longer than the data. Bars should stay defaultCandleWidth on the right (empty past on the left); a pan must not snap them to the left edge or lock."
         />
       </Section>
 

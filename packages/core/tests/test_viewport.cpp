@@ -92,6 +92,77 @@ TEST_CASE("window_for_body_width") {
     }
 }
 
+TEST_CASE("clamp_shifted_time_window") {
+    constexpr int64_t kDay = 86'400'000;
+    const int64_t first = 0;
+    const int64_t last = 8 * kDay;       // 9 daily candles
+    const int64_t dur = kDay;
+    const int64_t data_extent = last + dur - first;  // 9 days
+    const int64_t window = 140 * kDay;
+    const int64_t max_future = (window * 3) / 4;     // 105 days
+
+    SUBCASE("dense series: start cannot precede the first candle") {
+        const int64_t dense_window = 5 * kDay;
+        const auto w = vroom::clamp_shifted_time_window(
+            -kDay, 4 * kDay, first, last, dur, (dense_window * 3) / 4);
+        CHECK(w.start_ms == first);
+        CHECK(w.end_ms - w.start_ms == dense_window);
+    }
+
+    SUBCASE("dense series: future cap still pins the right edge") {
+        const int64_t dense_window = 5 * kDay;
+        const int64_t cap = (dense_window * 3) / 4;
+        const auto w = vroom::clamp_shifted_time_window(
+            10 * kDay, 15 * kDay, first, last, dur, cap);
+        CHECK(w.end_ms == last + cap);
+        CHECK(w.end_ms - w.start_ms == dense_window);
+    }
+
+    SUBCASE("wide window: a small pan does not pin start to the first candle") {
+        // The reported latch: start is ~132 days before first, end on last.
+        const int64_t start = last - window;
+        const int64_t end = last;
+        const auto w = vroom::clamp_shifted_time_window(
+            start + kDay, end + kDay, first, last, dur, max_future);
+        CHECK(w.start_ms == start + kDay);
+        CHECK(w.end_ms == end + kDay);
+        CHECK(w.start_ms < first);
+        CHECK(w.end_ms - w.start_ms == window);
+    }
+
+    SUBCASE("wide window: pan into the past is a no-op at the right edge") {
+        const int64_t start = last - window;
+        const int64_t end = last;
+        const auto w = vroom::clamp_shifted_time_window(
+            start - kDay, end - kDay, first, last, dur, max_future);
+        CHECK(w.end_ms == last);
+        CHECK(w.start_ms == last - window);
+    }
+
+    SUBCASE("wide window: with no extra future allowance, pan forward is a no-op") {
+        const int64_t start = last - window;
+        const int64_t end = last;
+        const auto w = vroom::clamp_shifted_time_window(
+            start + kDay, end + kDay, first, last, dur, 0);
+        CHECK(w.end_ms == last);
+        CHECK(w.start_ms == start);
+    }
+
+    SUBCASE("wide window: the old first-candle pin does not latch") {
+        // What the previous clamp did: start = first, end = first + window,
+        // which throws ~131 days into the future. The new clamp must not
+        // produce that from a right-aligned wide window.
+        const int64_t start = last - window;
+        const int64_t end = last;
+        const auto w = vroom::clamp_shifted_time_window(
+            start, end, first, last, dur, max_future);
+        CHECK(w.start_ms == start);
+        CHECK(w.end_ms == end);
+        CHECK(w.end_ms != first + window);
+        CHECK(data_extent < window);
+    }
+}
+
 TEST_CASE("candle_center_x") {
     Layout l = make_layout();
 

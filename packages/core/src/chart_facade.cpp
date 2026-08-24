@@ -50,6 +50,21 @@ int64_t max_future_gap(int64_t window_ms, int64_t cur_future) {
     return std::max<int64_t>((window_ms * 3) / 4, cur_future);
 }
 
+// Pan/translate future allowance. A window longer than the data has nowhere
+// useful to scroll, so don't grow the future gap — growing it used to combine
+// with a first-candle start pin and latch the view. Dense series keep the
+// usual 3/4-window rubber-band.
+int64_t pan_max_future(int64_t window_ms, int64_t cur_future,
+                       int64_t first_time, int64_t last_time,
+                       int64_t candle_duration_ms) {
+    const int64_t dur = candle_duration_ms > 0 ? candle_duration_ms : 0;
+    const int64_t data_extent = last_time + dur - first_time;
+    if (data_extent >= 0 && window_ms > data_extent) {
+        return std::max<int64_t>(0, cur_future);
+    }
+    return max_future_gap(window_ms, cur_future);
+}
+
 // Rubber-band a forward (into-future) pan delta: once the current future gap is
 // past the soft cap (window/2), damp the delta quadratically toward zero as it
 // nears the hard cap (3*window/4). Backward (into-past) deltas are unaffected.
@@ -411,30 +426,23 @@ extern "C" void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/)
         (-dx_px / usable_px) * static_cast<float>(window_ms));
     if (delta_ms == 0) return;
 
-    // The right edge can overshoot the last candle into empty "future" space.
-    // Free scrolling up to half a window (candles fill >= 50%); from there to
-    // 3/4 of a window (candles fill >= 25%) panning forward is rubber-banded so
-    // it slows and hard-stops at the cap. The x-axis drag zoom can leave a gap
-    // larger than the cap (it zooms in until ~one candle remains), so the cap
-    // never forces it back — it just shrinks naturally as the user scrolls.
-    // Left edge still hard-clamps at the first candle.
+    // Forward pans rubber-band between half and 3/4 of a window of empty
+    // future (see damp_future_delta / max_future_gap). Past clamping lives in
+    // clamp_shifted_time_window: dense series pin start at the first candle;
+    // a window longer than the data keeps empty past instead of latching.
     const int64_t first_time = chart->candles.front().time_ms;
     const int64_t last_time = chart->candles.back().time_ms;
     const int64_t cur_future = chart->visible_end_ms - last_time;
     const int64_t eff_delta = damp_future_delta(delta_ms, cur_future, window_ms);
 
-    int64_t new_start = chart->visible_start_ms + eff_delta;
-    int64_t new_end = chart->visible_end_ms + eff_delta;
-
-    const int64_t max_future = max_future_gap(window_ms, cur_future);
-    if (new_end > last_time + max_future) {
-        new_end = last_time + max_future;
-        new_start = new_end - window_ms;
-    }
-    if (new_start < first_time) {
-        new_start = first_time;
-        new_end = new_start + window_ms;
-    }
+    const auto clamped = vroom::clamp_shifted_time_window(
+        chart->visible_start_ms + eff_delta,
+        chart->visible_end_ms + eff_delta,
+        first_time, last_time, chart->candle_duration_ms,
+        pan_max_future(window_ms, cur_future, first_time, last_time,
+                       chart->candle_duration_ms));
+    const int64_t new_start = clamped.start_ms;
+    const int64_t new_end = clamped.end_ms;
 
     if (new_start == chart->visible_start_ms &&
         new_end == chart->visible_end_ms) {
@@ -474,22 +482,16 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
                 const int64_t cur_future = chart->visible_end_ms - last_time;
                 const int64_t eff_delta =
                     damp_future_delta(delta_ms, cur_future, window_ms);
-                int64_t new_start = chart->visible_start_ms + eff_delta;
-                int64_t new_end = chart->visible_end_ms + eff_delta;
-                const int64_t max_future =
-                    max_future_gap(window_ms, cur_future);
-                if (new_end > last_time + max_future) {
-                    new_end = last_time + max_future;
-                    new_start = new_end - window_ms;
-                }
-                if (new_start < first_time) {
-                    new_start = first_time;
-                    new_end = new_start + window_ms;
-                }
-                if (new_start != chart->visible_start_ms ||
-                    new_end != chart->visible_end_ms) {
-                    chart->visible_start_ms = new_start;
-                    chart->visible_end_ms = new_end;
+                const auto clamped = vroom::clamp_shifted_time_window(
+                    chart->visible_start_ms + eff_delta,
+                    chart->visible_end_ms + eff_delta,
+                    first_time, last_time, chart->candle_duration_ms,
+                    pan_max_future(window_ms, cur_future, first_time, last_time,
+                                   chart->candle_duration_ms));
+                if (clamped.start_ms != chart->visible_start_ms ||
+                    clamped.end_ms != chart->visible_end_ms) {
+                    chart->visible_start_ms = clamped.start_ms;
+                    chart->visible_end_ms = clamped.end_ms;
                     changed = true;
                 }
             }
@@ -604,9 +606,9 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
     if (new_window_ms > max_window) new_window_ms = max_window;
 
     // Pivot around the right edge — most-recent visible candle stays put.
+    // A window longer than the data may start before the first candle; that
+    // empty past is how defaultCandleWidth wins, so don't pin start to first.
     int64_t new_start = chart->visible_end_ms - new_window_ms;
-    const int64_t first_time = chart->candles.front().time_ms;
-    if (new_start < first_time) new_start = first_time;
 
     if (new_start == chart->visible_start_ms) return;
     chart->visible_start_ms = new_start;
@@ -786,17 +788,14 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
                 const int64_t last_time = chart->candles.back().time_ms;
                 // Cap the future gap at 3/4 of the (new) window so >= 25% of the
                 // chart still shows candles, without snapping back an existing
-                // larger gap (e.g. from the x-axis drag zoom).
-                const int64_t max_future = max_future_gap(
-                    new_window, chart->visible_end_ms - last_time);
-                if (new_end > last_time + max_future) {
-                    new_end = last_time + max_future;
-                    new_start = new_end - new_window;
-                }
-                if (new_start < first_time) {
-                    new_start = first_time;
-                    new_end = new_start + new_window;
-                }
+                // larger gap (e.g. from the x-axis drag zoom). Past clamping
+                // matches pan: a window longer than the data keeps empty left.
+                const auto clamped = vroom::clamp_shifted_time_window(
+                    new_start, new_end, first_time, last_time,
+                    chart->candle_duration_ms,
+                    max_future_gap(new_window, chart->visible_end_ms - last_time));
+                new_start = clamped.start_ms;
+                new_end = clamped.end_ms;
                 if (new_start != chart->visible_start_ms ||
                     new_end != chart->visible_end_ms) {
                     chart->visible_start_ms = new_start;

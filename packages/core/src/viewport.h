@@ -93,6 +93,29 @@ int64_t window_for_body_width(const Layout& layout,
                               int64_t candle_duration_ms,
                               double body_px);
 
+// A [start, end] time window of fixed length, used by pan/zoom clamping.
+struct TimeWindow {
+    int64_t start_ms;
+    int64_t end_ms;
+};
+
+// Clamp a same-length time window after a pan or pinch-zoom shift.
+//
+// The future cap (`max_future`, typically 3/4 of the window) is unchanged: the
+// right edge cannot run past last_time + max_future.
+//
+// The past cap depends on whether the window fits in the data:
+// - Window ≤ data extent: start cannot precede first_time (no empty past).
+// - Window > data extent: empty past is intentional (width wins). start MAY
+//   precede first_time. Instead, the last candle cannot leave the right edge
+//   (end >= last_time). Pinning start to first_time in this case would shove
+//   the extra length into the future and latch, because the future cap then
+//   fights the past cap on every subsequent pan.
+TimeWindow clamp_shifted_time_window(int64_t start_ms, int64_t end_ms,
+                                     int64_t first_time, int64_t last_time,
+                                     int64_t candle_duration_ms,
+                                     int64_t max_future);
+
 // Center-x of a candle whose period starts at time_ms and lasts
 // candle_duration_ms, given the current visible time window.
 float candle_center_x(const Layout& layout,
