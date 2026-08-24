@@ -23,8 +23,8 @@ sk_sp<SkPicture> render_chart_picture(VroomChart* chart);
 bool is_animating(VroomChart* chart);
 
 // Sets the typeface used for axis labels. Bridge layer calls this once at
-// startup with a system typeface loaded via RN-Skia's font manager. Labels
-// are skipped if no typeface is set.
+// startup with a system typeface from the platform SkFontMgr. Labels are
+// skipped if no typeface is set.
 void set_axis_typeface(sk_sp<SkTypeface> typeface);
 
 }  // namespace vroom

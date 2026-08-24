@@ -49,7 +49,7 @@ React Native JS
 
 - The JSI bridge calls the C++ core directly — no serialization overhead
 - Gesture handlers (react-native-gesture-handler + Reanimated worklets) forward events to the core
-- The core renders to a Skia canvas provided by `@shopify/react-native-skia`
+- The core renders to a Skia canvas provided by `@shopify/react-native-skia` ≥ 2.11 (which also needs `react-native-worklets` ≥ 0.7)
 
 ### Web (`@vroomchart/react` + `@vroomchart/core-wasm`)
 

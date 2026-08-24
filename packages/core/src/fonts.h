@@ -1,8 +1,8 @@
 // Global typeface for axis/label text rendering.
 //
-// Loaded once at startup by the bridge layer (which uses RN-Skia's platform-
-// context font manager to grab the system default). Held as a process-global
-// so all charts share it; per-chart font configuration is not modeled yet.
+// Loaded once at startup by the bridge layer (which constructs a platform
+// SkFontMgr and grabs the system default). Held as a process-global so all
+// charts share it; per-chart font configuration is not modeled yet.
 
 #pragma once
 

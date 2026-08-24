@@ -8,7 +8,7 @@
 #include "vroom/vroom_chart.h"
 
 // RN-Skia headers.
-#include "JsiSkHostObjects.h"
+#include "JsiSkNativeObjects.h"
 #include "JsiSkPicture.h"
 
 namespace vroom {
@@ -78,9 +78,9 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
 // does, below) gives it a vtable/typeinfo from *our* .so; when RN-Skia's own
 // compiled code later consumes it (e.g. Convertor.h's
 // `getPropertyValue<sk_sp<SkPicture>>`, which does
-// `value.asObject(rt).asHostObject<JsiSkPicture>(rt)` — a dynamic_pointer_cast
-// under the hood), the cast fails cross-.so with "Object is not a HostObject
-// of desired type", because the object's *runtime* type was never actually
+// `getJsiObject<JsiSkPicture>(rt, value)` — a dynamic_pointer_cast
+// under the hood), the cast fails cross-.so with "Expected a Skia object of
+// a different type", because the object's *runtime* type was never actually
 // compiled inside librnskia.so. iOS statically links everything into one
 // binary, so no such mismatch exists there.
 //
@@ -122,26 +122,30 @@ static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
   if (!skiaApi.isObject()) return facebook::jsi::Value::null();
   auto pictureFactory = skiaApi.asObject(rt).getProperty(rt, "Picture");
   if (!pictureFactory.isObject()) return facebook::jsi::Value::null();
+  auto pictureFactoryObj = pictureFactory.asObject(rt);
   auto makePicture =
-      pictureFactory.asObject(rt).getPropertyAsFunction(rt, "MakePicture");
+      pictureFactoryObj.getPropertyAsFunction(rt, "MakePicture");
 
   // Mirrors JsiSkPictureFactory::MakePicture's expected argument shape: an
   // object with a `.buffer` property holding the ArrayBuffer (matching a
   // Uint8Array-like value; the factory ignores everything else about it).
+  //
+  // Skia 2.11's NativeState host methods recover the factory via `this`
+  // (`fromThis` → "Expected PictureFactory but got non-object" if unbound).
   jsi::Object arg(rt);
   arg.setProperty(rt, "buffer", arrayBuffer);
-  return makePicture.call(rt, arg);
+  return makePicture.callWithThis(rt, pictureFactoryObj, arg);
 }
 #else
-// Shared helper: wraps a fresh picture for return to JS, with memory pressure
-// reported to Hermes so GC keeps up under gesture-rate churn.
+// Shared helper: wraps a fresh picture for return to JS. Memory pressure is
+// applied inside JsiSkPicture::create (NativeObject::create reads
+// getMemoryPressure() → picture->approximateBytesUsed()).
 static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
                                        const sk_sp<SkPicture>& pic) {
   if (!pic) return facebook::jsi::Value::null();
   auto host =
       std::make_shared<RNSkia::JsiSkPicture>(/*context=*/nullptr, pic);
-  return JSI_CREATE_HOST_OBJECT_WITH_MEMORY_PRESSURE(rt, host,
-                                                     /*context=*/nullptr);
+  return RNSkia::makeJsiObject(rt, host);
 }
 #endif
 
