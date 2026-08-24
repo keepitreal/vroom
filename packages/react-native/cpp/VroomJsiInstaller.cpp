@@ -15,7 +15,7 @@
 #include <memory>
 
 #include "VroomChartHostObject.h"
-#include "VroomSkiaContext.h"
+#include "VroomFontMgr.h"
 
 #include "chart_internal.h"
 
@@ -26,20 +26,36 @@
 #include "include/core/SkTypeface.h"
 #pragma clang diagnostic pop
 
+#if defined(__ANDROID__)
+#include <android/log.h>
+#define VROOM_WARN(...) \
+  __android_log_print(ANDROID_LOG_WARN, "VroomChart", __VA_ARGS__)
+#elif defined(__APPLE__)
+#include <os/log.h>
+#define VROOM_WARN(fmt, ...) \
+  os_log_error(OS_LOG_DEFAULT, "VroomChart: " fmt, ##__VA_ARGS__)
+#else
+#define VROOM_WARN(...)
+#endif
+
 namespace vroom {
 
 namespace jsi = facebook::jsi;
 
-// Loads the system typeface once via RN-Skia's platform context and hands
-// it to the chart core. Retries on each create() until it succeeds (in case
-// SkiaApi isn't installed yet when our first chart instance is created).
-static void ensureAxisTypeface(jsi::Runtime& runtime) {
+// Loads the system typeface once via the platform SkFontMgr and hands it to
+// the chart core. Built only once — constructing a font manager enumerates
+// the system font set and is not cheap. Failure is logged once; we do not
+// retry, because this no longer depends on RN-Skia's JSI bindings appearing.
+static void ensureAxisTypeface() {
   static bool done = false;
   if (done) return;
-  auto ctx = vroom::getRNSkContext(runtime);
-  if (!ctx) return;
-  auto mgr = ctx->createFontMgr();
-  if (!mgr) return;
+  done = true;
+
+  auto mgr = vroom::makePlatformFontMgr();
+  if (!mgr) {
+    VROOM_WARN("axis typeface: platform font manager unavailable");
+    return;
+  }
 
   // A null family name is meant to request "the platform default" — CoreText
   // (iOS) honors that, but Android's SkFontMgr_New_Android does not: it
@@ -51,12 +67,16 @@ static void ensureAxisTypeface(jsi::Runtime& runtime) {
   if (!tf) {
     tf = mgr->matchFamilyStyle("sans-serif", SkFontStyle());
   }
-  if (!tf) return;
+  if (!tf) {
+    VROOM_WARN("axis typeface: no default or sans-serif typeface");
+    return;
+  }
   vroom::set_axis_typeface(tf);
-  done = true;
 }
 
 void installJsi(jsi::Runtime& runtime) {
+  ensureAxisTypeface();
+
   auto create = jsi::Function::createFromHostFunction(
       runtime,
       jsi::PropNameID::forAscii(runtime, "create"),
@@ -65,7 +85,6 @@ void installJsi(jsi::Runtime& runtime) {
          const jsi::Value& /*thisVal*/,
          const jsi::Value* /*args*/,
          size_t /*count*/) -> jsi::Value {
-        ensureAxisTypeface(rt);
         auto host = std::make_shared<ChartHostObject>();
         return jsi::Object::createFromHostObject(rt, host);
       });

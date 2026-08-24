@@ -28,7 +28,23 @@ def resolvePackageDir(packageJsonSpecifier) {
 }
 
 def reactNativeDir = resolvePackageDir("react-native/package.json")
-def skiaCppDir = new File(resolvePackageDir("@shopify/react-native-skia/package.json"), "cpp")
+def skiaPkgDir = resolvePackageDir("@shopify/react-native-skia/package.json")
+def skiaCppDir = new File(skiaPkgDir, "cpp")
+
+// Skia 2.10+ ships Android prebuilts in react-native-skia-android (Ganesh)
+// or react-native-skia-graphite-android (Graphite). Graphite is selected by
+// the same libs/.graphite marker RN-Skia uses. Resolve from the skia package
+// so pnpm's nested .pnpm layout still finds the sibling binary package.
+def useGraphite = new File(skiaPkgDir, "libs/.graphite").exists()
+def skiaAndroidPkgName = useGraphite
+    ? "react-native-skia-graphite-android"
+    : "react-native-skia-android"
+def skiaAndroidPkgJson = providers.exec {
+  workingDir(rootDir)
+  commandLine("node", "--print",
+      "require.resolve('${skiaAndroidPkgName}/package.json', { paths: ['${skiaPkgDir}'] })")
+}.standardOutput.asText.get().trim()
+def skiaAndroidLibsDir = new File(file(skiaAndroidPkgJson).parentFile, "libs")
 
 // Mirror ../cpp/_core_{src,include} from ../../core/{src,include} whenever
 // the monorepo core is present, so edits to packages/core/ propagate on the
@@ -72,7 +88,9 @@ android {
         abiFilters(*reactNativeArchitectures())
         arguments "-DANDROID_STL=c++_shared",
                   "-DREACT_NATIVE_DIR=${reactNativeDir}",
-                  "-DVROOM_SKIA_CPP_DIR=${skiaCppDir}"
+                  "-DVROOM_SKIA_CPP_DIR=${skiaCppDir}",
+                  "-DVROOM_SKIA_ANDROID_LIBS_DIR=${skiaAndroidLibsDir}",
+                  "-DVROOM_SKIA_GRAPHITE=${useGraphite ? 'ON' : 'OFF'}"
       }
     }
   }
@@ -105,11 +123,11 @@ repositories {
 
 dependencies {
   implementation "com.facebook.react:react-android"
-  // ../cpp/VroomChartHostObject.cpp constructs RN-Skia JSI host objects
-  // (JsiSkPicture, etc.) whose base class (RNJsi::JsiHostObject) has
-  // out-of-line methods compiled into RN-Skia's own native library — we link
-  // against its prefab-published `rnskia` package (below, in CMakeLists.txt)
-  // rather than recompiling those .cpp files ourselves, to avoid duplicate
-  // definitions of RNSkia's internals across two separately-loaded .so's.
+  // ../cpp/VroomChartHostObject.cpp constructs RN-Skia JSI objects
+  // (JsiSkPicture, etc.) whose NativeObject base has out-of-line methods
+  // compiled into RN-Skia's own native library — we link against its
+  // prefab-published `rnskia` package (below, in CMakeLists.txt) rather than
+  // recompiling those .cpp files ourselves, to avoid duplicate definitions of
+  // RN-Skia's internals across two separately-loaded .so's.
   implementation project(":shopify_react-native-skia")
 }

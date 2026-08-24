@@ -8,31 +8,33 @@ Android equivalent of `../ios/`: a small TurboModule
 [`../cpp/VroomJsiInstaller.cpp`](../cpp/VroomJsiInstaller.cpp) the iOS bridge
 uses.
 
-The chart core itself (`../cpp/_core_src`) and the RN-Skia font/context glue
-(`../cpp/VroomSkiaContext.*`) are unmodified and shared across iOS and
-Android — only the platform glue (this directory + `../ios/`) differs.
+The chart core (`../cpp/_core_src`) and the platform font-manager helper
+(`../cpp/VroomFontMgr.*`) are unmodified and shared across iOS and Android —
+only the platform glue (this directory + `../ios/`) differs.
 `../cpp/VroomChartHostObject.cpp` has one small `#if defined(__ANDROID__)`
 branch (see "Cross-`.so` Skia objects" below).
 
 `build.gradle` resolves `@shopify/react-native-skia`'s `cpp/` sources via
 Node module resolution (mirroring `../react-native-vroom-chart.podspec`'s
-`require.resolve` trick) so `VroomSkiaContext.cpp` can include RN-Skia's
-`JsiSkHostObjects.h` / `RNSkPlatformContext.h`. `CMakeLists.txt` also
-replicates RN-Skia's own Graphite-vs-Ganesh detection (probing its bundled
-`libskia.a`) so `SK_GRAPHITE` is defined identically to however RN-Skia's own
-Android build was compiled — `RNSkPlatformContext`'s vtable layout depends on
-that macro, and a mismatch would corrupt the virtual call in
-`VroomJsiInstaller.cpp`'s `ensureAxisTypeface`.
+`require.resolve` trick) so we can include RN-Skia's `JsiSkPicture.h` /
+`JsiSkNativeObjects.h`. Android prebuilt `libskia.a` lives in the sibling
+`react-native-skia-android` package (or `react-native-skia-graphite-android`
+when `<skia-pkg>/libs/.graphite` exists); Gradle resolves that package and
+passes its `libs/` dir to CMake. Graphite vs Ganesh is the same marker file
+RN-Skia uses, so `SK_GRAPHITE` / `SK_GL`+`SK_GANESH` match RN-Skia's own
+build — needed for vroom's direct Skia calls, not for a virtual call into
+RN-Skia (we construct the font manager ourselves).
 
 We link two RN-Skia-adjacent libraries into `libvroomchart.so`, for two
 different reasons:
   - `shopify_react-native-skia::rnskia` (RN-Skia's own prefab-published
-    shared library, `librnskia.so`) — for `RNJsi::JsiHostObject` and friends,
-    whose out-of-line methods are compiled only there.
-  - RN-Skia's bundled `libskia.a` (imported directly by path, since it isn't
-    prefab-published) — for direct Skia calls (`SkCanvas::drawRect`, `SkFont`,
-    ...), since `librnskia.so` links `libskia.a` internally but doesn't
-    re-export its symbols.
+    shared library, `librnskia.so`) — for `JsiSkPicture` / `NativeObject`
+    and friends, whose out-of-line methods are compiled only there.
+  - `libskia.a` from `react-native-skia-android` (imported directly by path,
+    since it isn't prefab-published) — for direct Skia calls
+    (`SkCanvas::drawRect`, `SkFont`, `SkFontMgr_New_Android`, ...), since
+    `librnskia.so` links `libskia.a` internally but doesn't re-export its
+    symbols.
 
 ### Cross-`.so` Skia objects
 
@@ -43,11 +45,11 @@ of the JSI bridge, but **`RNSkia::JsiSkPicture` — the object `render()` /
 `libvroomchart.so` on Android.** RN-Skia's own C++ (e.g.
 `cpp/api/recorder/Convertor.h`'s `getPropertyValue<sk_sp<SkPicture>>`, which
 runs whenever `<Picture>` reads the value) does
-`value.asObject(rt).asHostObject<JsiSkPicture>(rt)`, a `dynamic_pointer_cast`
-under the hood. A `JsiSkPicture` we construct ourselves has a vtable/typeinfo
-compiled into *our* `.so`; that cast — running inside `librnskia.so` — sees a
-different, unmerged RTTI record for "the same" class and fails with `Object
-is not a HostObject of desired type`.
+`getJsiObject<JsiSkPicture>(rt, value)`, a `dynamic_pointer_cast` under the
+hood. A `JsiSkPicture` we construct ourselves has a vtable/typeinfo compiled
+into *our* `.so`; that cast — running inside `librnskia.so` — sees a
+different, unmerged RTTI record for "the same" class and fails with
+`Expected a Skia object of a different type`.
 
 `VroomChartHostObject.cpp`'s `wrapPicture()` works around this only on
 Android: instead of constructing `RNSkia::JsiSkPicture` directly (as iOS

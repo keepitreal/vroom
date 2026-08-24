@@ -10,6 +10,11 @@ skia_pkg_json = `node --print "require.resolve('@shopify/react-native-skia/packa
 skia_src_dir = File.dirname(skia_pkg_json)
 skia_cpp_dir = File.join(skia_src_dir, "cpp")
 skia_skia_dir = File.join(skia_src_dir, "cpp", "skia")
+skia_api_dir = File.join(skia_src_dir, "cpp", "api")
+use_graphite = File.exist?(File.join(skia_src_dir, "libs", ".graphite"))
+skia_preprocessor_defs = use_graphite ?
+  "$(inherited) SK_GRAPHITE=1 SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1" :
+  "$(inherited) SK_METAL=1 SK_GANESH=1 SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1"
 
 Pod::Spec.new do |s|
   s.name         = "react-native-vroom-chart"
@@ -60,12 +65,13 @@ Pod::Spec.new do |s|
       '"$(PODS_TARGET_SRCROOT)/cpp"',
       "\"#{skia_cpp_dir}\"",
       "\"#{skia_skia_dir}\"",
+      "\"#{skia_api_dir}\"",
     ].join(" "),
-    "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
-    # Match RN-Skia's Skia build flags so our SkCanvas/SkPicture code sees the
-    # same SK_METAL / SK_GANESH defines and doesn't mis-link.
-    "GCC_PREPROCESSOR_DEFINITIONS" =>
-      "$(inherited) SK_METAL=1 SK_GANESH=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1",
+    "CLANG_CXX_LANGUAGE_STANDARD" => "c++20",
+    # Match RN-Skia's Skia build flags (Ganesh vs Graphite, plus the
+    # SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API define both branches set) so our
+    # SkCanvas/SkPicture code sees the same ABI and doesn't mis-link.
+    "GCC_PREPROCESSOR_DEFINITIONS" => skia_preprocessor_defs,
   }
 
   s.dependency "React-Core"
