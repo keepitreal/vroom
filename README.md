@@ -13,8 +13,10 @@ npm install react-native-vroom-chart
 Peer dependencies (install if you don't already have them):
 
 ```sh
-npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated react-native-worklets
 ```
+
+Requires `@shopify/react-native-skia` ≥ 2.11.0 and `react-native-worklets` ≥ 0.7.0.
 
 ### Usage
 

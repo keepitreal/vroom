@@ -13,18 +13,19 @@ npm install react-native-vroom-chart
 ## Peer dependencies
 
 vroom renders through Skia and handles gestures with Reanimated worklets, so it
-relies on three peer dependencies. Install them if your app doesn't already have
+relies on these peer dependencies. Install them if your app doesn't already have
 them:
 
 ```sh
-npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated
+npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated react-native-worklets
 ```
 
 | Package | Version |
 | --- | --- |
-| [`@shopify/react-native-skia`](https://shopify.github.io/react-native-skia/) | `>= 2.0.0` |
+| [`@shopify/react-native-skia`](https://shopify.github.io/react-native-skia/) | `>= 2.11.0` |
 | [`react-native-gesture-handler`](https://docs.swmansion.com/react-native-gesture-handler/) | `>= 2.16.0` |
 | [`react-native-reanimated`](https://docs.swmansion.com/react-native-reanimated/) | `>= 4.0.0` |
+| [`react-native-worklets`](https://docs.swmansion.com/react-native-worklets/) | `>= 0.7.0` |
 
 Wrap your app (or at least the screen containing a chart) in a
 `GestureHandlerRootView`, and follow the Reanimated Babel-plugin setup if you
