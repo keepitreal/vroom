@@ -1,5 +1,15 @@
 # react-native-vroom-chart
 
+## 0.10.0
+
+### Minor Changes
+
+- 35be804: Require `@shopify/react-native-skia` ≥ 2.11 and `react-native-worklets`
+  ≥ 0.7. Construct the system font manager through public Skia APIs instead
+  of RN-Skia's private HostObject context, and wrap pictures with the
+  NativeState helpers 2.11 introduced. Android now links `libskia.a` from
+  `react-native-skia-android`.
+
 ## 0.9.1
 
 ### Patch Changes
