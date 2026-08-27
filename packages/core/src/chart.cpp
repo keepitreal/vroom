@@ -36,6 +36,7 @@
 #include "rsi.h"
 #include "rsi_pane.h"
 #include "style_inherit.h"
+#include "tip_anchor.h"
 #include "tip_pulse.h"
 #include "volume.h"
 #include "vwap.h"
@@ -311,16 +312,23 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 5.8. Line-mode tip marker — the dot (and optional pulse) at the newest
     //      close. Above the overlays so it stays the eye's anchor, but before the
     //      axis masks, which trim the ring at the price scale.
+    //
+    //      Unlike every layer above, this one anchors to the newest candle in
+    //      the series rather than the newest on screen, so panning into history
+    //      carries the dot off the right edge with its candle (tip_anchor.h).
     if (fade > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
+        const auto anchor = vroom::tip_anchor::at(range.start, range.end,
+                                                  candles.size(), morphing);
         vroom::ma_overlay::draw_close_tip(
-            canvas, lay, bounds, visible, n, window_ms, visible_start_ms,
-            candle_duration_ms, candle_right, candle_area_h,
+            canvas, lay, bounds, visible, anchor.slot_count, window_ms,
+            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
             theme.colors[VROOM_COLOR_LINE],
             theme.colors[VROOM_COLOR_BACKGROUND],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
-            morph_src, morph_n, morph_t);
+            anchor.use_morph ? morph_src : nullptr,
+            anchor.use_morph ? morph_n : 0, morph_t);
     }
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
