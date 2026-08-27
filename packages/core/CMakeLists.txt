@@ -60,8 +60,10 @@ if(VROOM_BUILD_TESTS)
         tests/test_curve.cpp
         tests/test_tip_pulse.cpp
         tests/test_tip_anchor.cpp
+        tests/test_price_format.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
+        src/price_format.cpp
         src/ticks.cpp
         src/rsi.cpp
         src/macd.cpp

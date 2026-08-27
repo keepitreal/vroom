@@ -18,6 +18,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "price_format.h"
 #include "theme.h"
 #include "ticks.h"
 #include "viewport.h"
@@ -66,10 +67,11 @@ void draw(SkCanvas* canvas,
     font.setSubpixel(true);
     font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
 
-    char buf[32];
-    const int decimals = vroom::price_decimals(
+    char buf[48];
+    const vroom::PriceFormat fmt = vroom::with_tick_guard(
+        chart.price_fmt,
         vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
-    vroom::format_price(buf, sizeof(buf), last.close, decimals);
+    vroom::format_price(buf, sizeof(buf), last.close, fmt);
     const size_t len = std::strlen(buf);
 
     // Measure the tight glyph bounds (origin at the baseline) so we can center
