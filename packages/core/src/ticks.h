@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <cstddef>
 #include <cstdint>
 
 namespace vroom {
@@ -49,13 +48,8 @@ int64_t next_tick(int64_t t, const TimeTick& tick);
 // "Nice number" tick selection for the y-axis: snaps to 1, 2, or 5 × 10ⁿ
 // based on the price range and target spacing. Returns the price interval
 // in the same units as the data (e.g. dollars).
+//
+// Turning that interval into a label string is price_format.h's job.
 double pick_price_interval(double range, float candle_area_h);
-
-// Decimal places needed so adjacent ticks `interval` apart don't collapse to
-// the same string. 0.01 → 2, 0.005 → 3, 1e-8 → 8. Clamped to [0, 12].
-int price_decimals(double interval);
-
-// Writes `price` into `buf` using `decimals` (from price_decimals).
-void format_price(char* buf, size_t buf_size, double price, int decimals);
 
 }  // namespace vroom

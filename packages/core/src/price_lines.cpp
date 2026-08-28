@@ -21,6 +21,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "price_format.h"
 #include "price_line_layout.h"
 #include "theme.h"
 #include "ticks.h"
@@ -214,11 +215,11 @@ void draw_axis_badge(SkCanvas* canvas,
                      double price,
                      float y,
                      SkColor fill,
-                     int decimals) {
+                     const PriceFormat& fmt) {
     if (lay.y_axis_width_px <= 0.f) return;
 
-    char buf[32];
-    vroom::format_price(buf, sizeof(buf), price, decimals);
+    char buf[48];
+    vroom::format_price(buf, sizeof(buf), price, fmt);
     const size_t len = std::strlen(buf);
 
     SkRect tb;
@@ -255,7 +256,8 @@ void draw(SkCanvas* canvas,
     const VroomPriceLineStyle& style = chart.price_line_style;
     SkFont font;
     const bool has_font = label_font(chart, &font);
-    const int decimals = vroom::price_decimals(
+    const vroom::PriceFormat fmt = vroom::with_tick_guard(
+        chart.price_fmt,
         vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
 
     for (size_t i = 0; i < chart.price_lines.size(); ++i) {
@@ -355,7 +357,7 @@ void draw(SkCanvas* canvas,
 
         if (has_font && (pl.flags & VROOM_PRICE_LINE_AXIS_LABEL) != 0) {
             draw_axis_badge(canvas, font, lay, render_price(chart, i), y,
-                            line_color, decimals);
+                            line_color, fmt);
         }
     }
 }

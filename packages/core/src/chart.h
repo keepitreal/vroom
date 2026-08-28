@@ -23,6 +23,7 @@
 #pragma clang diagnostic pop
 
 #include "labels.h"
+#include "price_format.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -88,6 +89,12 @@ struct VroomChart {
     // Cached y-axis width in pixels, sized to fit the widest formatted price
     // label. 0 = uncomputed; layout() falls back to a width ratio.
     float axis_width_px = 0.f;
+
+    // How prices render, derived from the asset's own scale. Cached beside the
+    // width because the two are measured together — every label site reads this
+    // so none of them can disagree with the strip they're drawn in. Both are
+    // refreshed by labels::recompute_axis_width.
+    vroom::PriceFormat price_fmt{};
 
     // --- price bounds (y-axis state) ---------------------------------------
     // Two modes. Auto (price_bounds_manual == false, the default): the y-range

@@ -19,6 +19,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "price_format.h"
 #include "ticks.h"
 #include "viewport.h"
 
@@ -45,6 +46,19 @@ void advance(Fade& f, float step, float dt) {
     } else if (f.opacity > f.target) {
         f.opacity = std::max(f.target, f.opacity - step);
     }
+}
+
+// What the asset is worth, which is what its price precision keys off. The
+// newest close rather than the visible range, so panning and zooming don't
+// shift the decimals around under the user.
+//
+// An asset that has crossed orders of magnitude within one series (a token at
+// 0.00001 that later trades at 100) reads its recent scale here, so deep
+// history would round flat — the tick guard at each label site is what rescues
+// it, since the bounds down there are tiny enough to demand more decimals.
+double reference_price(const VroomChart& chart) {
+    if (!chart.candles.empty()) return chart.candles.back().close;
+    return (chart.price_bounds.max + chart.price_bounds.min) * 0.5;
 }
 
 // Drives a whole axis off the morph envelope instead of the per-label fades:
@@ -153,15 +167,16 @@ void draw_y_labels(SkCanvas* canvas,
     // Horizontal center of the y-axis container ([width - y_axis_width, width]).
     // Labels (and the price box) center on this so their text shares a column.
     const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
-    const int decimals = vroom::price_decimals(
+    const vroom::PriceFormat fmt = vroom::with_tick_guard(
+        chart.price_fmt,
         vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
 
     for (const auto& f : chart.y_fades) {
         if (f.opacity <= 1e-3f) continue;
         const float y = vroom::price_to_y(lay, bounds, f.price);
 
-        char buf[32];
-        vroom::format_price(buf, sizeof(buf), f.price, decimals);
+        char buf[48];
+        vroom::format_price(buf, sizeof(buf), f.price, fmt);
         const size_t len = std::strlen(buf);
         const float text_w = font.measureText(
             buf, len, SkTextEncoding::kUTF8);
@@ -347,6 +362,10 @@ void gc_x_fades(VroomChart& chart) {
 // ----- Axis-width sizing ----------------------------------------------------
 
 void recompute_axis_width(VroomChart& chart) {
+    // Precision first, and unconditionally: the label sites read it whether or
+    // not a typeface has loaded, and it's what the measurement below sizes for.
+    chart.price_fmt = vroom::price_format_for(reference_price(chart));
+
     auto tf = vroom::axis_typeface();
     if (!tf) {
         chart.axis_width_px = 0.f;
@@ -370,11 +389,16 @@ void recompute_axis_width(VroomChart& chart) {
 
     SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
     const auto lay = chart.layout();
-    const int decimals = vroom::price_decimals(
+    // Same guard the label sites apply, against the bounds this is sizing for,
+    // so a zoom deep enough to add decimals widens the strip to hold them.
+    const vroom::PriceFormat fmt = vroom::with_tick_guard(
+        chart.price_fmt,
         vroom::pick_price_interval(hi - lo, vroom::price_pane_bottom(lay)));
-    char buf_hi[32], buf_lo[32];
-    vroom::format_price(buf_hi, sizeof(buf_hi), hi, decimals);
-    vroom::format_price(buf_lo, sizeof(buf_lo), lo, decimals);
+    // At the same decimals the longest label is whichever bound has the most
+    // integer digits, separators included.
+    char buf_hi[48], buf_lo[48];
+    vroom::format_price(buf_hi, sizeof(buf_hi), hi, fmt);
+    vroom::format_price(buf_lo, sizeof(buf_lo), lo, fmt);
     const float w_hi = font.measureText(
         buf_hi, std::strlen(buf_hi), SkTextEncoding::kUTF8);
     const float w_lo = font.measureText(

@@ -108,6 +108,11 @@ void draw_close_gradient(SkCanvas* canvas,
 // switch. `opacity` scales everything, fading the marker in with the line during
 // the candle→line morph.
 //
+// `n` counts the slots to the candle being marked, which is the series' newest
+// rather than the visible slice's — see tip_anchor.h, which derives it. That
+// candle can sit off the pane when panned into history, and the marker then
+// draws nothing.
+//
 // `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
 // divided by tip_pulse::kPeriodSeconds. Ignored unless `pulse`.
 void draw_close_tip(SkCanvas* canvas,

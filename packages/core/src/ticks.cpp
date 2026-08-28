@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 #include <ctime>
 
 namespace vroom {
@@ -144,19 +143,6 @@ double pick_price_interval(double range, float candle_area_h) {
     else if (normalized < 7.5) nice = 5.0;
     else nice = 10.0;
     return nice * magnitude;
-}
-
-int price_decimals(double interval) {
-    if (!(interval > 0.0) || !std::isfinite(interval)) return 2;
-    const double d = std::ceil(-std::log10(interval) - 1e-12);
-    if (d < 0.0) return 0;
-    if (d > 12.0) return 12;
-    return static_cast<int>(d);
-}
-
-void format_price(char* buf, size_t buf_size, double price, int decimals) {
-    if (!buf || buf_size == 0) return;
-    std::snprintf(buf, buf_size, "%.*f", decimals, price);
 }
 
 }  // namespace vroom
