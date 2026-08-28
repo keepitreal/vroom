@@ -178,6 +178,10 @@ function drawingToSpec(
     color: (d.color != null ? parseColor(d.color) : null) ?? 0xff2962ff,
     width: d.width ?? 2,
     kind: d.type === 'box' ? 1 : d.type === 'pencil' ? 2 : d.type === 'path' ? 3 : 0,
+    // 0 is the core's "unset" sentinel: a box with no fill keeps its default
+    // tint rather than turning transparent.
+    fill: (d.type === 'box' && d.fill != null ? parseColor(d.fill) : null) ?? 0,
+    locked: d.locked ?? false,
     ...(multiPoint
       ? { points: d.points.map((p) => ({ timeMs: p.timeMs, price: p.price })) }
       : {}),
@@ -278,6 +282,11 @@ export type UseChartCore = {
   handleRef: React.RefObject<VroomChartHandle | null>;
   /** Schedules a rAF-batched repaint (and keeps ticking while animating). */
   scheduleRender: () => void;
+  /**
+   * Called right after each paint. Assign to observe the geometry the core just
+   * drew, whatever caused it to change.
+   */
+  afterPresentRef: React.RefObject<(() => void) | null>;
   /** Measured CSS size of the container (0 until first layout). */
   size: { width: number; height: number };
 };
@@ -346,6 +355,13 @@ export function useChartCore(
   const width = widthProp ?? measured.width;
   const height = heightProp ?? measured.height;
 
+  // Runs right after each paint. Every visual change — pan, zoom, resize, a
+  // drag in flight, a selection — reaches the screen through this one rAF, so a
+  // hook here sees them all without subscribing to each individually. Used by
+  // the gesture layer to report the selection's on-screen rect (which is only
+  // meaningful once the frame it belongs to has been laid out).
+  const afterPresentRef = useRef<(() => void) | null>(null);
+
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -353,6 +369,7 @@ export function useChartCore(
       const h = handleRef.current;
       if (!h) return;
       h.present();
+      afterPresentRef.current?.();
       if (h.isAnimating()) scheduleRender();
     });
   }, []);
@@ -687,5 +704,12 @@ export function useChartCore(
     };
   }, [ready, volume?.enabled, transitionMs, scheduleRender]);
 
-  return { containerRef, canvasRef, handleRef, scheduleRender, size: { width, height } };
+  return {
+    containerRef,
+    canvasRef,
+    handleRef,
+    scheduleRender,
+    afterPresentRef,
+    size: { width, height },
+  };
 }

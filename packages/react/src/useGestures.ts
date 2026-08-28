@@ -6,9 +6,11 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import type {
+  BoxDrawing,
   ChartMode,
   CrosshairEvent,
   Drawing,
+  DrawingSelection,
   DrawPoint,
   DrawTool,
   PriceLine,
@@ -38,6 +40,8 @@ export type GestureOptions = {
   onDrawingChange?: (drawing: Drawing) => void;
   /** Fired when the selected line is deleted (Backspace/Delete). */
   onDrawingDelete?: (id: string) => void;
+  /** Fired on select/deselect and whenever the selection's screen rect moves. */
+  onSelectionChange?: (selection: DrawingSelection | null) => void;
   /** Fired on the undo shortcut (⌘Z / Ctrl+Z). */
   onUndo?: () => void;
   /** Fired on the redo shortcut (⇧⌘Z / Ctrl+Shift+Z / Ctrl+Y). */
@@ -68,6 +72,10 @@ const SEP_HIT = 4; // px band around the indicator separator for hit-testing
 // at 2px, matching the core's default and useChartCore's drawing color.
 const DRAW_COLOR = 0xff2962ff;
 const DRAW_WIDTH = 2;
+// The same blue, as the #aarrggbb string a new drawing is stamped with. Leaving
+// `color` unset would render identically but tell a host color swatch nothing,
+// so it would show some other color than the one on screen.
+const DRAW_COLOR_HEX = '#ff2962ff';
 
 // Freehand capture tuning. PENCIL_MIN_DIST drops samples the pointer barely
 // moved between (browsers fire moves far faster than the stroke changes);
@@ -106,7 +114,13 @@ function isMultiPoint(type: Drawing['type']): boolean {
 // variable-length, so this is where an array is narrowed back to the right
 // variant. Returns null for a degenerate (< 2 point) shape.
 function makeDrawing(
-  base: { id: string; color?: Drawing['color']; width?: number },
+  base: {
+    id: string;
+    color?: Drawing['color'];
+    width?: number;
+    fill?: BoxDrawing['fill'];
+    locked?: boolean;
+  },
   type: Drawing['type'],
   pts: DrawPoint[],
 ): Drawing | null {
@@ -114,11 +128,35 @@ function makeDrawing(
   const style = {
     ...(base.color != null ? { color: base.color } : {}),
     ...(base.width != null ? { width: base.width } : {}),
+    ...(base.locked != null ? { locked: base.locked } : {}),
   };
   if (type === 'pencil' || type === 'path') {
     return { id: base.id, type, points: pts, ...style };
   }
-  return { id: base.id, type, points: [pts[0]!, pts[pts.length - 1]!], ...style };
+  const ends: [DrawPoint, DrawPoint] = [pts[0]!, pts[pts.length - 1]!];
+  if (type === 'box') {
+    return {
+      id: base.id,
+      type,
+      points: ends,
+      ...style,
+      ...(base.fill != null ? { fill: base.fill } : {}),
+    };
+  }
+  return { id: base.id, type, points: ends, ...style };
+}
+
+// Everything about a drawing except its geometry, for rebuilding it after a
+// move or reshape. Without this a drag would quietly strip whatever the host
+// had styled the shape with.
+function styleOf(d: Drawing): Parameters<typeof makeDrawing>[0] {
+  return {
+    id: d.id,
+    color: d.color,
+    width: d.width,
+    locked: d.locked,
+    ...(d.type === 'box' ? { fill: d.fill } : {}),
+  };
 }
 
 // The four corners of a box (given its two opposite-corner `points`), in the
@@ -140,6 +178,7 @@ export function useGestures(
   containerRef: React.RefObject<HTMLElement | null>,
   handleRef: React.RefObject<VroomChartHandle | null>,
   scheduleRender: () => void,
+  afterPresentRef: React.RefObject<(() => void) | null>,
   opts: GestureOptions,
 ): void {
   // Keep latest opts in a ref so the effect's listeners stay stable.
@@ -223,6 +262,7 @@ export function useGestures(
     points: DrawPoint[];
     color?: Drawing['color'];
     width?: number;
+    fill?: BoxDrawing['fill'];
     t: number;
     crosshair: { timeMs: number; price: number } | null;
   } | null>(null);
@@ -250,6 +290,58 @@ export function useGestures(
   useEffect(() => {
     applySelection();
   }, [opts.drawings, applySelection]);
+
+  // The last payload handed to onSelectionChange, so repeated frames that leave
+  // the selection where it was stay silent.
+  const lastSelectionRef = useRef<DrawingSelection | null>(null);
+
+  // Reports the selection and its screen rect. Runs after every paint rather
+  // than off the gestures that cause movement, because the rect changes for
+  // reasons no single gesture owns — a pan, a pinch, a container resize, an
+  // endpoint being dragged. Anchoring to the paint catches all of them at
+  // exactly the moment the geometry is on screen.
+  //
+  // The rect comes from the core, not from `drawings`: mid-drag the host's array
+  // still holds the pre-drag geometry (it's updated on release), while the core
+  // holds what it just painted.
+  const reportSelection = useCallback(() => {
+    const cb = optsRef.current.onSelectionChange;
+    if (!cb) return;
+    const h = handleRef.current;
+    const id = selectedIdRef.current;
+    const list = optsRef.current.drawings ?? [];
+    const index = id != null ? list.findIndex((d) => d.id === id) : -1;
+    const drawing = index >= 0 ? list[index] : undefined;
+    const rect = h && index >= 0 ? h.drawingBounds(index) : null;
+    const prev = lastSelectionRef.current;
+
+    if (!drawing || !rect) {
+      if (prev == null) return;
+      lastSelectionRef.current = null;
+      cb(null);
+      return;
+    }
+    if (
+      prev != null &&
+      prev.drawing === drawing &&
+      prev.rect.x === rect.x &&
+      prev.rect.y === rect.y &&
+      prev.rect.width === rect.width &&
+      prev.rect.height === rect.height
+    ) {
+      return;
+    }
+    const next: DrawingSelection = { drawing, rect };
+    lastSelectionRef.current = next;
+    cb(next);
+  }, [handleRef]);
+
+  useEffect(() => {
+    afterPresentRef.current = reportSelection;
+    return () => {
+      afterPresentRef.current = null;
+    };
+  }, [afterPresentRef, reportSelection]);
 
   // Price precision at which the rounding error stays well under a pixel, so
   // the persisted shape renders identically to the drawn one while shedding
@@ -326,7 +418,11 @@ export function useGestures(
         pts.pop();
       }
     }
-    const path = makeDrawing({ id: drawingId() }, 'path', roundPoints(pts));
+    const path = makeDrawing(
+      { id: drawingId(), color: DRAW_COLOR_HEX, width: DRAW_WIDTH },
+      'path',
+      roundPoints(pts),
+    );
     if (path) optsRef.current.onDrawingComplete?.(path);
   }, [handleRef, scheduleRender, roundPoints]);
 
@@ -465,6 +561,9 @@ export function useGestures(
       if (e.key === 'Backspace' || e.key === 'Delete') {
         const id = selectedIdRef.current;
         if (id == null) return;
+        // A locked drawing stays selected (so it can be unlocked) but resists
+        // being deleted, which is the point of locking it.
+        if (findSelected()?.locked) return;
         e.preventDefault();
         optsRef.current.onDrawingDelete?.(id);
         selectedIdRef.current = null;
@@ -520,6 +619,7 @@ export function useGestures(
           points: d.points.map((q) => ({ timeMs: q.timeMs, price: q.price })),
           color: d.color,
           width: d.width,
+          ...(d.type === 'box' ? { fill: d.fill } : {}),
           t: selectedTRef.current,
           crosshair: info ? { timeMs: info.timeMs, price: info.price } : null,
         };
@@ -529,8 +629,10 @@ export function useGestures(
         const pts = placePaste(clip);
         if (!pts) return;
         const id = drawingId();
+        // Deliberately not `locked`: a copy the user just placed should be
+        // movable, whatever the original was.
         const copy = makeDrawing(
-          { id, color: clip.color, width: clip.width },
+          { id, color: clip.color, width: clip.width, fill: clip.fill },
           clip.type,
           pts,
         );
@@ -847,6 +949,8 @@ export function useGestures(
         optsRef.current.onDrawingComplete?.({
           id: drawingId(),
           type: isBox ? 'box' : 'line',
+          color: DRAW_COLOR_HEX,
+          width: DRAW_WIDTH,
           points: [
             { timeMs: a.timeMs, price: a.price },
             { timeMs: coord.timeMs, price: coord.price },
@@ -906,7 +1010,7 @@ export function useGestures(
       const keep = simplifyIndices(s.px, PENCIL_EPSILON);
       if (keep.length < 2) return;
       const stroke = makeDrawing(
-        { id: drawingId() },
+        { id: drawingId(), color: DRAW_COLOR_HEX, width: DRAW_WIDTH },
         'pencil',
         roundPoints(keep.map((i) => s.pts[i]!)),
       );
@@ -1042,8 +1146,10 @@ export function useGestures(
         }
         // Body of the already-selected shape → translate the whole shape on drag.
         // Line body is part 2, box body (interior/edge) 4, pencil stroke 5,
-        // path 6.
-        const isBody = hit != null && gd != null && hit.part === bodyPart(gd.type);
+        // path 6. A locked shape skips this and falls through to downHitRef, so
+        // the press still selects it — it just doesn't move.
+        const isBody =
+          hit != null && gd != null && !gd.locked && hit.part === bodyPart(gd.type);
         if (hit && isBody) {
           const list = optsRef.current.drawings ?? [];
           const selIdx = selectedIdRef.current
@@ -1309,7 +1415,7 @@ export function useGestures(
             pts = g.isBox ? [movedPt, g.fixed] : [d.points[0]!, d.points[1]!];
             if (!g.isBox) pts[g.endpoint] = movedPt;
           }
-          const next = makeDrawing({ id: d.id, color: d.color, width: d.width }, d.type, pts);
+          const next = makeDrawing(styleOf(d), d.type, pts);
           if (next) optsRef.current.onDrawingChange?.(next);
         }
         applySelection();
@@ -1336,7 +1442,7 @@ export function useGestures(
                   })),
                 )
               : [g.lastA, g.lastB];
-            const next = makeDrawing({ id: d.id, color: d.color, width: d.width }, d.type, pts);
+            const next = makeDrawing(styleOf(d), d.type, pts);
             if (next) optsRef.current.onDrawingChange?.(next);
           }
         }

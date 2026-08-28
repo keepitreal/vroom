@@ -926,6 +926,8 @@ extern "C" void vroom_chart_set_drawings(VroomChart* chart,
         d.color = src.color;
         d.width = src.width;
         d.kind = src.kind;
+        d.fill = src.fill;
+        d.locked = src.locked;
         if ((src.kind == 2 || src.kind == 3) && src.points && src.point_count > 0) {
             d.points.assign(src.points, src.points + src.point_count);
             // Keep a/b mirroring the path ends so bounds/handle code is uniform.
@@ -1149,6 +1151,31 @@ extern "C" bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px,
     if (out_index) *out_index = hit.index;
     if (out_part) *out_part = hit.part;
     if (out_t) *out_t = hit.t;
+    return true;
+}
+
+extern "C" bool vroom_chart_drawing_bounds(VroomChart* chart, int32_t index,
+                                           VroomRect* out) {
+    if (!chart || !out || chart->candles.empty()) return false;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (window_ms <= 0) return false;
+    const auto lay = chart->layout();
+    // Same bounds as coord_at / draw_chart so the rectangle matches the render.
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+    vroom::drawing_bounds::RectPx r{};
+    if (!vroom::drawings::bounds_of(*chart, lay, bounds, window_ms, index, &r))
+        return false;
+    out->x = r.x;
+    out->y = r.y;
+    out->width = r.width;
+    out->height = r.height;
     return true;
 }
 

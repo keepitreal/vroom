@@ -206,6 +206,8 @@ struct VroomChart {
         float                       width = 2.f;
         int32_t                     kind = 0;
         std::vector<VroomDrawPoint> points;  // pencil path (kind 2)
+        uint32_t                    fill = 0;      // 0 alpha = derive from color
+        bool                        locked = false;
     };
     std::vector<StoredDrawing> drawings;
 

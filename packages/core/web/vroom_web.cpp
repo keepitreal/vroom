@@ -288,8 +288,8 @@ class WebChart {
   }
 
   // `drawings` is a JS array of {aTime, aPrice, bTime, bPrice, color, width,
-  // kind}. A pencil (kind 2) or path (kind 3) also carries `points`: an array of
-  // {timeMs, price} holding the whole point list.
+  // kind, fill, locked}. A pencil (kind 2) or path (kind 3) also carries
+  // `points`: an array of {timeMs, price} holding the whole point list.
   void setDrawings(const em::val& drawings) {
     const size_t n = drawings["length"].as<size_t>();
     std::vector<VroomDrawing> out(n);
@@ -304,6 +304,14 @@ class WebChart {
       out[i].color = d["color"].as<uint32_t>();
       out[i].width = d["width"].as<float>();
       out[i].kind = d["kind"].as<int32_t>();
+      // Optional, so a spec built before these existed still binds. Their
+      // defaults are the unset sentinel and "editable" respectively.
+      em::val fill = d["fill"];
+      out[i].fill = fill.isUndefined() || fill.isNull() ? 0u : fill.as<uint32_t>();
+      em::val locked = d["locked"];
+      out[i].locked = locked.isUndefined() || locked.isNull()
+                          ? false
+                          : locked.as<bool>();
       out[i].points = nullptr;
       out[i].point_count = 0;
       em::val pts = d["points"];
@@ -452,6 +460,17 @@ class WebChart {
     o.set("index", index);
     o.set("part", part);
     o.set("t", t);
+    return o;
+  }
+  // Returns the {x, y, width, height} pixel bounds of drawing `index`, or null.
+  em::val drawingBounds(int index) {
+    VroomRect r{};
+    if (!vroom_chart_drawing_bounds(chart_, index, &r)) return em::val::null();
+    em::val o = em::val::object();
+    o.set("x", r.x);
+    o.set("y", r.y);
+    o.set("width", r.width);
+    o.set("height", r.height);
     return o;
   }
 
@@ -664,6 +683,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("moveDrawingEndpoint", &WebChart::moveDrawingEndpoint)
       .function("moveDrawingVertex", &WebChart::moveDrawingVertex)
       .function("hitTestDrawing", &WebChart::hitTestDrawing)
+      .function("drawingBounds", &WebChart::drawingBounds)
       .function("coordAt", &WebChart::coordAt)
       .function("project", &WebChart::project)
       .function("setTypeface", &WebChart::setTypeface)

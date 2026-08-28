@@ -48,6 +48,7 @@ export type {
   PriceLineSpec,
   PriceLinesSpec,
   Coord,
+  RectPx,
 } from './handle';
 export { ColorKey, FloatKey } from './handle';
 export {

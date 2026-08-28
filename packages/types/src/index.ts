@@ -190,6 +190,12 @@ type DrawingBase = {
   color?: VroomColor;
   /** Stroke width in px. Default 2. */
   width?: number;
+  /**
+   * Protect the drawing from editing. A locked drawing still renders and can
+   * still be selected — so a toolbar can offer to unlock it — but it can't be
+   * dragged, reshaped or deleted, and its grab handles aren't drawn. Web only.
+   */
+  locked?: boolean;
 };
 
 /** A two-point trendline from `points[0]` to `points[1]`. */
@@ -207,6 +213,15 @@ export type BoxDrawing = DrawingBase & {
   type: 'box';
   /** Two opposite corners, in data space. */
   points: [DrawPoint, DrawPoint];
+  /**
+   * Interior fill, painted beneath the stroke. Omitted, the interior keeps its
+   * default tint of the stroke color at 10% alpha.
+   *
+   * A solid fill hides the candles the box was drawn around, so this usually
+   * wants an alpha — as the high byte of an 8-digit hex (`'#5400ce2c'` is a
+   * green at 33%), since vroom reads hex as `#aarrggbb`, not CSS `#rrggbbaa`.
+   */
+  fill?: VroomColor;
 };
 
 /**
@@ -242,6 +257,38 @@ export type PathDrawing = DrawingBase & {
  * `'line'` and `'box'` are always exactly two points.
  */
 export type Drawing = LineDrawing | BoxDrawing | PencilDrawing | PathDrawing;
+
+/** An axis-aligned rectangle in CSS px, relative to the chart container. */
+export type DrawingRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/** The currently selected drawing and where it sits on screen. */
+export type DrawingSelection = {
+  /**
+   * The selected drawing. While a drag or reshape is in flight this holds the
+   * last committed geometry — the edit reaches you through `onDrawingChange`
+   * on release — whereas `rect` tracks the shape live.
+   */
+  drawing: Drawing;
+  /** The drawing's bounds in CSS px, relative to the chart container. */
+  rect: DrawingRect;
+};
+
+/**
+ * The subset of a drawing's appearance a host can change after the fact,
+ * through `restyle`. Fields left out are kept as they were.
+ */
+export type DrawingStyle = {
+  color?: VroomColor;
+  width?: number;
+  /** Box interior fill; ignored by the other drawing types. */
+  fill?: VroomColor;
+  locked?: boolean;
+};
 
 /**
  * Storage adapter for **managed** drawing persistence. Provide it via the
@@ -285,11 +332,11 @@ export type UndoRedoState = {
 };
 
 /**
- * Programmatic undo/redo controls, published through the `historyRef` prop in
- * managed mode — for toolbar buttons and other UI outside the chart. The
- * keyboard shortcuts (⌘Z / ⇧⌘Z / Ctrl+Y) work without this.
+ * Programmatic controls over the chart's drawings, published through the
+ * `historyRef` prop in managed mode — for toolbar buttons and other UI outside
+ * the chart. The keyboard shortcuts (⌘Z / ⇧⌘Z / Ctrl+Y) work without this.
  */
-export type UndoRedoControls = {
+export type DrawingControls = {
   /** Roll back the most recent committed drawing action. No-op when empty. */
   undo: () => void;
   /** Re-apply the most recently undone action. No-op when empty. */
@@ -300,7 +347,24 @@ export type UndoRedoControls = {
    * chart for what the user perceives as a brand-new context.
    */
   clearHistory: () => void;
+  /**
+   * Restyle the drawing with this `id`, merging `patch` over its current
+   * appearance. No-op for an unknown id.
+   *
+   * In managed mode the chart owns the drawings array, so this is the only way
+   * to say "this drawing's color is now X" — the array is otherwise mutated by
+   * user gestures alone. The change records an undo step and persists like any
+   * other edit.
+   */
+  restyle: (id: string, patch: DrawingStyle) => void;
 };
+
+/**
+ * @deprecated Renamed to {@link DrawingControls}, which also carries `restyle`.
+ * This alias is kept so existing `useRef<UndoRedoControls | null>` declarations
+ * keep working.
+ */
+export type UndoRedoControls = DrawingControls;
 
 /*
  * Indicator configs
@@ -813,6 +877,17 @@ export type VroomChartCoreProps = {
    */
   onDrawingDelete?: (id: string) => void;
   /**
+   * Fired when the selected drawing changes, and again whenever its position on
+   * screen moves — panning, zooming, resizing, or dragging the shape itself.
+   * `null` on deselect.
+   *
+   * Anchor a floating toolbar to `selection.rect` and it will stay attached to
+   * the drawing: the rect is recomputed from live chart state once per painted
+   * frame, so it tracks 1:1 rather than settling after the gesture. Works in
+   * both controlled and managed mode. Web only.
+   */
+  onSelectionChange?: (selection: DrawingSelection | null) => void;
+  /**
    * Fired when the chart wants the mode changed — e.g. it requests `'pan'` after
    * the user clicks away from a just-drawn line. Since `mode` is controlled, the
    * host should apply the requested mode.
@@ -832,12 +907,12 @@ export type VroomChartCoreProps = {
    */
   onHistoryChange?: (state: UndoRedoState) => void;
   /**
-   * Receives programmatic `undo`/`redo`/`clearHistory` controls in managed mode
-   * (e.g. `useRef<UndoRedoControls | null>(null)` passed here, then
+   * Receives programmatic `undo`/`redo`/`clearHistory`/`restyle` controls in
+   * managed mode (e.g. `useRef<DrawingControls | null>(null)` passed here, then
    * `historyRef.current?.undo()` from a toolbar button). Set to `null` while
    * unmounted or when no `drawingStore` is present. Web only.
    */
-  historyRef?: { current: UndoRedoControls | null };
+  historyRef?: { current: DrawingControls | null };
   /**
    * Fired when the user presses the undo shortcut (⌘Z / Ctrl+Z) in controlled
    * mode — apply the undo to your own drawings state. Ignored when

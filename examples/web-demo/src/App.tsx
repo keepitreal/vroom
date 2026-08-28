@@ -6,6 +6,7 @@ import {
   type ChartMode,
   type ChartType,
   type DrawTool,
+  type DrawingSelection,
   type DrawingStore,
   type LiquidityBand,
   type LiquidityConfig,
@@ -15,6 +16,7 @@ import {
   type UndoRedoState,
 } from '@vroomchart/react';
 import { Sidebar, type PriceLineStyleChoice } from './Sidebar';
+import { SelectionTray } from './SelectionTray';
 import { SettingsModal, DEFAULT_THEME, type ThemeState, type NumericStyle } from './SettingsModal';
 import {
   IndicatorsModal,
@@ -126,6 +128,8 @@ export type DrawProps = {
   // Undo/redo surface (managed mode): availability out, button-driven controls in.
   onHistoryChange: (s: UndoRedoState) => void;
   historyRef: { current: UndoRedoControls | null };
+  // Where the selected drawing sits on screen, for the floating tray.
+  onSelectionChange: (s: DrawingSelection | null) => void;
 };
 
 // Read the saved theme, merging onto DEFAULT_THEME so newly-added fields are
@@ -599,6 +603,9 @@ export function App() {
   const undoDrawing = useCallback(() => historyRef.current?.undo(), []);
   const redoDrawing = useCallback(() => historyRef.current?.redo(), []);
 
+  // The selected drawing and its live screen rect, driving the floating tray.
+  const [selection, setSelection] = useState<DrawingSelection | null>(null);
+
   // "L" toggles the line tool, "R" the box (rectangle), "P" the pencil, "A" the
   // arrow path — Figma/Excalidraw style. This lives in the demo, not the
   // library — the hotkey is the consuming app's choice, so vroom doesn't
@@ -632,6 +639,7 @@ export function App() {
     },
     onHistoryChange: setHistory,
     historyRef,
+    onSelectionChange: setSelection,
   };
 
   useEffect(() => {
@@ -884,7 +892,7 @@ export function App() {
               </div>
             </>
           ) : (
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
               <VroomChart
                 // Remount on width / sparse change so the new default framing
                 // applies (it only takes effect on a fresh handle — mirrors a
@@ -903,6 +911,7 @@ export function App() {
                 {...drawProps}
                 onCrosshair={onPrimaryCrosshair}
               />
+              <SelectionTray selection={selection} controls={historyRef} />
             </div>
           )}
         </div>

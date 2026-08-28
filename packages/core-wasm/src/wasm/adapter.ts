@@ -15,6 +15,7 @@ import type {
   OverlaySpec,
   PriceLinesSpec,
   RSISpec,
+  RectPx,
   VolumeSpec,
   VWAPSpec,
   VroomChartHandle,
@@ -96,6 +97,7 @@ interface WebChartInstance {
   moveDrawingVertex(index: number, vertex: number, timeMs: number, price: number): void;
   translateDrawing(index: number, dTimeMs: number, dPrice: number): void;
   hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
+  drawingBounds(index: number): RectPx | null;
   coordAt(x: number, y: number): Coord | null;
   project(timeMs: number, price: number): { x: number; y: number } | null;
   setTypeface(bytes: Uint8Array): void;
@@ -314,6 +316,9 @@ class WasmHandle implements VroomChartHandle {
   }
   hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null {
     return this.wc.hitTestDrawing(x, y);
+  }
+  drawingBounds(index: number): RectPx | null {
+    return this.wc.drawingBounds(index);
   }
   coordAt(x: number, y: number): Coord | null {
     return this.wc.coordAt(x, y);

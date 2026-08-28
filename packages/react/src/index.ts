@@ -51,6 +51,10 @@ export type {
   PencilDrawing,
   PathDrawing,
   DrawingStore,
+  DrawingRect,
+  DrawingSelection,
+  DrawingStyle,
+  DrawingControls,
   UndoRedoState,
   UndoRedoControls,
 } from '@vroomchart/types';
