@@ -53,8 +53,18 @@ const LINE_TENSIONS: readonly number[] = [0, 0.25, 0.5, 0.75, 1];
 
 type Interval = (typeof INTERVALS)[number];
 
-// Spot price every interval converges on at its right edge.
-const SPOT = 100;
+// Spot prices every interval converges on at its right edge. The three sit in
+// the magnitude bands the price axis formats differently — two decimals, two
+// decimals plus a thousands separator, and the sub-cent case that needs nine to
+// say anything at all — so switching between them exercises the axis width and
+// the label precision without waiting on real data.
+const PRICE_SCALES = [
+  { label: '100.00', spot: 100 },
+  { label: '0.00005432', spot: 0.00005432 },
+  { label: '56,456.56', spot: 56456.56 },
+] as const;
+
+type PriceScale = (typeof PRICE_SCALES)[number];
 
 // Each interval has to look like the same asset re-bucketed, the way real data
 // does. Walking *backwards* from a fixed spot is what buys that: the newest
@@ -64,12 +74,13 @@ const SPOT = 100;
 // correctly reads as a different asset and snaps to instead.
 //
 // Per-bar movement scales with sqrt(step) so a 1h bar covers proportionally
-// more ground than a 1m one, keeping the shape plausible at every zoom.
-function mockCandles(n: number, stepMs: number): Candle[] {
-  const vol = 4 * Math.sqrt(stepMs / MINUTE);
+// more ground than a 1m one, keeping the shape plausible at every zoom, and
+// with `spot` so the walk has the same shape whatever the asset's magnitude.
+function mockCandles(n: number, stepMs: number, spot: number): Candle[] {
+  const vol = spot * 0.04 * Math.sqrt(stepMs / MINUTE);
   const out: Candle[] = new Array(n);
   const now = Date.now();
-  let close = SPOT;
+  let close = spot;
   for (let i = n - 1; i >= 0; i--) {
     const open = close + (Math.random() - 0.5) * vol;
     out[i] = {
@@ -89,7 +100,16 @@ function mockCandles(n: number, stepMs: number): Candle[] {
 // rebuild the caption around the new price.
 type DemoPriceLine = PriceLine & { label: string };
 
-const priceLineText = (label: string, price: number) => `${label} @ ${price.toFixed(2)}`;
+// Mirrors the axis rule (five significant digits, floored at two decimals) so a
+// caption on a sub-cent asset doesn't collapse to "0.00".
+const priceLineText = (label: string, price: number) => {
+  const r = Math.abs(price);
+  const decimals =
+    r > 0 && Number.isFinite(r)
+      ? Math.min(12, Math.max(2, 4 - Math.floor(Math.log10(r))))
+      : 2;
+  return `${label} @ ${price.toFixed(decimals)}`;
+};
 
 // Sample order/position lines around the latest close: a draggable resting limit
 // buy below spot (with a size pill and a cancel button), the take-profit it pairs
@@ -158,14 +178,16 @@ function Field({
   );
 }
 
-// Native interval picker: a compact trigger that opens the OS picker wheel in a
-// bottom modal.
-function IntervalSelect({
+// Native picker: a compact trigger that opens the OS picker wheel in a bottom
+// modal. Options are matched by label, which is also what the wheel displays.
+function Select<T extends { label: string }>({
   value,
+  options,
   onChange,
 }: {
-  value: Interval;
-  onChange: (interval: Interval) => void;
+  value: T;
+  options: readonly T[];
+  onChange: (option: T) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -194,12 +216,12 @@ function IntervalSelect({
           <Picker
             selectedValue={value.label}
             onValueChange={(label) => {
-              const next = INTERVALS.find((it) => it.label === label);
+              const next = options.find((it) => it.label === label);
               if (next) onChange(next);
             }}
             itemStyle={styles.pickerItem}
           >
-            {INTERVALS.map((it) => (
+            {options.map((it) => (
               <Picker.Item
                 key={it.label}
                 label={it.label}
@@ -216,7 +238,11 @@ function IntervalSelect({
 
 export default function App() {
   const [selected, setSelected] = useState<Interval>(INTERVALS[0]);
-  const candles = useMemo(() => mockCandles(1000, selected.ms), [selected]);
+  const [scale, setScale] = useState<PriceScale>(PRICE_SCALES[0]);
+  const candles = useMemo(
+    () => mockCandles(1000, selected.ms, scale.spot),
+    [selected, scale],
+  );
 
   const [chartType, setChartType] = useState<ChartType>('candles');
   const toggleChartType = useCallback(() => {
@@ -444,7 +470,15 @@ export default function App() {
 
           <View style={styles.footer}>
             <View style={styles.footerRow}>
-              <IntervalSelect value={selected} onChange={setSelected} />
+              <Select
+                value={selected}
+                options={INTERVALS}
+                onChange={setSelected}
+              />
+
+              {/* Jumps the mock series between price magnitudes so the axis
+                  precision and its width can be checked against each. */}
+              <Select value={scale} options={PRICE_SCALES} onChange={setScale} />
 
               {/* Shows the mode it's in, not the one it switches to, and lights
                   up on `line` because that's the non-default. */}
@@ -588,6 +622,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    // Wraps so the two selects plus the function buttons still fit once a wide
+    // price label ("0.00005432") is in the row.
+    flexWrap: 'wrap',
     gap: 8,
     paddingHorizontal: 12,
   },
