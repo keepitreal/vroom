@@ -51,17 +51,23 @@ SkRect box_rect(SkPoint a, SkPoint b) {
                             std::max(a.fX, b.fX), std::max(a.fY, b.fY));
 }
 
-// Strokes the box outline and paints a faint fill (~10% of the border alpha) of
-// the same color, spanning opposite corners `a` and `b`.
-void draw_box(SkCanvas* canvas, SkPoint a, SkPoint b, SkColor color, float width) {
+// Strokes the box outline and paints its interior, spanning opposite corners
+// `a` and `b`. `fill_color` is used as given; alpha 0 means the caller didn't
+// set one, and the interior falls back to a faint tint of the border (~10% of
+// its alpha) — a solid default would hide the candles the box was drawn around.
+void draw_box(SkCanvas* canvas, SkPoint a, SkPoint b, SkColor color, float width,
+              SkColor fill_color) {
     const SkRect r = box_rect(a, b);
 
     SkPaint fill;
     fill.setAntiAlias(true);
     fill.setStyle(SkPaint::kFill_Style);
-    // Faint fill: 10% of the border's alpha, same RGB.
-    const U8CPU fill_alpha = static_cast<U8CPU>(SkColorGetA(color) * 0.1f);
-    fill.setColor(SkColorSetA(color, fill_alpha));
+    if (SkColorGetA(fill_color) != 0) {
+        fill.setColor(fill_color);
+    } else {
+        const U8CPU fill_alpha = static_cast<U8CPU>(SkColorGetA(color) * 0.1f);
+        fill.setColor(SkColorSetA(color, fill_alpha));
+    }
     canvas->drawRect(r, fill);
 
     SkPaint border;
@@ -334,7 +340,8 @@ void draw(SkCanvas* canvas,
             const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
             const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
             if (d.kind == 1) {
-                draw_box(canvas, a, b, static_cast<SkColor>(d.color), d.width);
+                draw_box(canvas, a, b, static_cast<SkColor>(d.color), d.width,
+                         static_cast<SkColor>(d.fill));
                 continue;
             }
             SkPaint line;
@@ -348,9 +355,12 @@ void draw(SkCanvas* canvas,
     }
 
     // 1b. Handles on the selected committed drawing (unclipped, like the draft's
-    //     dots). The grabbed endpoint renders 50% larger.
+    //     dots). The grabbed endpoint renders 50% larger. A locked drawing shows
+    //     none: nothing about it can be dragged, so an affordance saying
+    //     otherwise would be a lie.
     if (chart.selected_drawing >= 0 &&
-        static_cast<size_t>(chart.selected_drawing) < chart.drawings.size()) {
+        static_cast<size_t>(chart.selected_drawing) < chart.drawings.size() &&
+        !chart.drawings[chart.selected_drawing].locked) {
         const auto& d = chart.drawings[chart.selected_drawing];
         const SkPoint sa = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint sb = to_px(chart, lay, bounds, window_ms, d.b);
@@ -432,8 +442,10 @@ void draw(SkCanvas* canvas,
         canvas->save();
         canvas->clipRect(clip);
         if (chart.draft_kind == 1) {
+            // The draft has no fill of its own — the preview shows the default
+            // tint until the box is committed with one.
             draw_box(canvas, a, b, static_cast<SkColor>(chart.draft_color),
-                     chart.draft_width);
+                     chart.draft_width, SK_ColorTRANSPARENT);
         } else {
             SkPaint guide;
             guide.setAntiAlias(true);
@@ -463,9 +475,13 @@ HitResult hit_test(const VroomChart& chart,
     if (window_ms <= 0 || chart.drawings.empty()) return miss;
 
     // Grab-priority: if a drawing is selected, its (visible) handles win first.
+    // A locked drawing draws no handles, so there is nothing here to grab — it
+    // falls through to the body pass and stays selectable, which is how a host
+    // toolbar can still reach it to unlock it.
     constexpr float kHandleHit = kNodeRingRadius + 6.f;
     if (chart.selected_drawing >= 0 &&
-        static_cast<size_t>(chart.selected_drawing) < chart.drawings.size()) {
+        static_cast<size_t>(chart.selected_drawing) < chart.drawings.size() &&
+        !chart.drawings[chart.selected_drawing].locked) {
         const auto& d = chart.drawings[chart.selected_drawing];
         const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
         const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
@@ -544,6 +560,39 @@ HitResult hit_test(const VroomChart& chart,
         }
     }
     return best_i >= 0 ? HitResult{best_i, best_part, best_t} : miss;
+}
+
+bool bounds_of(const VroomChart& chart,
+               const Layout& lay,
+               const PriceBounds& bounds,
+               int64_t window_ms,
+               int32_t index,
+               vroom::drawing_bounds::RectPx* out) {
+    if (!out || window_ms <= 0) return false;
+    if (index < 0 || static_cast<size_t>(index) >= chart.drawings.size())
+        return false;
+    const auto& d = chart.drawings[static_cast<size_t>(index)];
+
+    vroom::drawing_bounds::Accumulator acc;
+    if ((d.kind == 2 || d.kind == 3) && !d.points.empty()) {
+        // Pencil/path: every sample counts. `a`/`b` only mirror the first and
+        // last, so they would miss however far the stroke wandered between them.
+        for (const auto& p : d.points) {
+            const SkPoint q = to_px(chart, lay, bounds, window_ms, p);
+            acc.add(q.fX, q.fY);
+        }
+    } else {
+        // Line/box: the two stored corners already span the shape — a box's
+        // derived corners are exactly their extent.
+        const SkPoint a = to_px(chart, lay, bounds, window_ms, d.a);
+        const SkPoint b = to_px(chart, lay, bounds, window_ms, d.b);
+        acc.add(a.fX, a.fY);
+        acc.add(b.fX, b.fY);
+    }
+    if (!acc.has) return false;
+
+    *out = acc.to_rect(d.width > 0.f ? d.width : 2.f);
+    return true;
 }
 
 }  // namespace vroom::drawings

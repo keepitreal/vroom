@@ -13,7 +13,7 @@
 // undefined, so it can be called unconditionally (rules of hooks).
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Drawing, DrawingStore, UndoRedoState } from '@vroomchart/types';
+import type { Drawing, DrawingStore, DrawingStyle, UndoRedoState } from '@vroomchart/types';
 
 import { serializeDrawings, deserializeDrawings } from './drawingStorage';
 import { DrawingHistory, DEFAULT_HISTORY_LIMIT } from './drawingHistory';
@@ -25,6 +25,7 @@ export type ManagedDrawings = {
   onDrawingComplete: (d: Drawing) => void;
   onDrawingChange: (d: Drawing) => void;
   onDrawingDelete: (id: string) => void;
+  restyle: (id: string, patch: DrawingStyle) => void;
   undo: () => void;
   redo: () => void;
   clearHistory: () => void;
@@ -32,6 +33,24 @@ export type ManagedDrawings = {
 };
 
 const HISTORY_EMPTY: UndoRedoState = { canUndo: false, canRedo: false };
+
+/**
+ * The before/after pair for restyling the drawing with `id`, or null when the
+ * list has no such drawing. Split out from the hook so the merge rules are
+ * testable without a renderer.
+ *
+ * The patch is merged shallowly and `before` is left untouched, which is what
+ * lets the pair go straight into the undo history as one step.
+ */
+export function restyleChange(
+  list: Drawing[],
+  id: string,
+  patch: DrawingStyle,
+): { before: Drawing; after: Drawing } | null {
+  const before = list.find((d) => d.id === id);
+  if (!before) return null;
+  return { before, after: { ...before, ...patch } as Drawing };
+}
 
 export function useManagedDrawings(
   seriesKey: string | undefined,
@@ -205,6 +224,22 @@ export function useManagedDrawings(
     [scheduleSave],
   );
 
+  // The host's way in. Gestures aside, this is the only thing that can change a
+  // managed drawing — the array lives in here, so "make this one red" is
+  // otherwise unsayable. Goes through the same recordChange as a drag, so a
+  // restyle is one undo step like every other edit.
+  const restyle = useCallback(
+    (id: string, patch: DrawingStyle) => {
+      const change = restyleChange(drawingsRef.current, id, patch);
+      if (!change) return;
+      historyRef.current!.recordChange(change.before, change.after);
+      syncHistoryState();
+      setBoth(drawingsRef.current.map((x) => (x.id === id ? change.after : x)));
+      scheduleSave();
+    },
+    [scheduleSave],
+  );
+
   const undo = useCallback(() => {
     const next = historyRef.current!.undo(drawingsRef.current);
     syncHistoryState();
@@ -229,6 +264,7 @@ export function useManagedDrawings(
     onDrawingComplete,
     onDrawingChange,
     onDrawingDelete,
+    restyle,
     undo,
     redo,
     clearHistory,

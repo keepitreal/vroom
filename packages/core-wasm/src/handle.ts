@@ -233,6 +233,17 @@ export type DrawingSpec = {
    * anchors.
    */
   points?: { timeMs: number; price: number }[];
+  /**
+   * Box (kind 1) interior fill, packed 0xAARRGGBB. Alpha 0 — the default —
+   * means unset, and the interior falls back to `color` at 10% alpha. Ignored
+   * by other kinds.
+   */
+  fill?: number;
+  /**
+   * Protect the drawing from editing: its body still hit-tests (so it can be
+   * selected and unlocked) but its handles neither draw nor hit.
+   */
+  locked?: boolean;
 };
 
 /**
@@ -317,6 +328,14 @@ export type PriceLinesSpec = {
 export type Coord = {
   timeMs: number;
   price: number;
+};
+
+/** An axis-aligned rectangle in CSS px, relative to the chart's top-left. */
+export type RectPx = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 };
 
 /**
@@ -569,6 +588,14 @@ export interface VroomChartHandle {
    * selected drawing.
    */
   hitTestDrawing(x: number, y: number): { index: number; part: number; t: number } | null;
+  /**
+   * Pixel bounding box of committed drawing `index`, or null when the index is
+   * out of range or the viewport is degenerate. Spans the shape's painted
+   * extent — every anchor of a pencil or path, both corners of a line or box —
+   * grown by half the stroke width. Read from live core state, so it stays
+   * correct mid-reshape.
+   */
+  drawingBounds(index: number): RectPx | null;
   /**
    * The continuous data coordinate at pixel (x, y) — not snapped to a candle
    * slot. Null when there are no candles or the viewport is degenerate.

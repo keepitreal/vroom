@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "drawing_bounds.h"
 #include "viewport.h"
 #include "vroom/vroom_chart.h"
 
@@ -58,5 +59,19 @@ HitResult hit_test(const VroomChart& chart,
                    int64_t window_ms,
                    float x,
                    float y);
+
+// The pixel bounding box of committed drawing `index`, written to `out`. False
+// (leaving `out` untouched) for an out-of-range index or a degenerate viewport.
+//
+// The rectangle covers the shape's painted extent — every anchor of a pencil or
+// path, both corners of a line or box — grown by half the stroke width. It is
+// what the host positions a selection toolbar against, so it tracks the drawing
+// live through a pan, a zoom, and a reshape in progress.
+bool bounds_of(const VroomChart& chart,
+               const vroom::Layout& lay,
+               const vroom::PriceBounds& bounds,
+               int64_t window_ms,
+               int32_t index,
+               vroom::drawing_bounds::RectPx* out);
 
 }  // namespace vroom::drawings

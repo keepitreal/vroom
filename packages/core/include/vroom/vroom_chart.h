@@ -187,6 +187,13 @@ typedef struct VroomDrawing {
     int32_t               kind;         // 0 = line, 1 = box, 2 = pencil, 3 = path
     const VroomDrawPoint* points;       // pencil/path points (kind 2/3), else null
     int32_t               point_count;  // number of `points`, else 0
+    // Box (kind 1) interior fill, 0xAARRGGBB. Alpha 0 means unset, in which case
+    // the interior falls back to `color` at 10% alpha. Ignored by other kinds.
+    uint32_t              fill;
+    // Protects the drawing from editing: hit_test reports its body (so a host
+    // can still select it and offer to unlock) but never its handles, and no
+    // handles are drawn. Rendering is otherwise unaffected.
+    bool                  locked;
 } VroomDrawing;
 
 // A resting-liquidity band: a price interval carrying a total order size on one
@@ -256,6 +263,14 @@ typedef struct VroomCoord {
     int64_t time_ms;
     double  price;
 } VroomCoord;
+
+// An axis-aligned rectangle in CSS pixels, relative to the chart's top-left.
+typedef struct VroomRect {
+    float x;
+    float y;
+    float width;
+    float height;
+} VroomRect;
 
 // ---- Styling keys ---------------------------------------------------------
 
@@ -577,6 +592,18 @@ void vroom_chart_set_drawings(VroomChart* chart, const VroomDrawing* drawings,
 bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px, float y_px,
                                   int32_t* out_index, int32_t* out_part,
                                   float* out_t);
+
+// Fills *out with the pixel bounding box of committed drawing `index` and
+// returns true; false (out untouched) for an out-of-range index, an empty
+// series, or a degenerate viewport.
+//
+// The rectangle spans the shape's painted extent — every anchor of a pencil or
+// path, both corners of a line or box — grown by half the stroke width, so it
+// covers the pixels the stroke actually paints. It is the anchor a host uses to
+// position UI against the selection, and because it is computed from live core
+// state it stays correct mid-reshape, before the edit reaches the host's array.
+bool vroom_chart_drawing_bounds(VroomChart* chart, int32_t index,
+                                VroomRect* out);
 
 // Selects a committed drawing (renders its handles). `index` -1 clears the
 // selection. `grabbed_endpoint` renders that handle 50% larger while it's being

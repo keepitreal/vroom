@@ -53,6 +53,23 @@ describe('serialize / deserialize round-trip', () => {
     const out = deserializeDrawings(serializeDrawings([pencil]));
     expect(out[0]!.points.map((q) => q.timeMs)).toEqual([1000, 1100, 1200, 1300]);
   });
+
+  it('preserves a box fill and the locked flag', () => {
+    const styled: Drawing = { ...box, fill: '#5400ce2c', locked: true };
+    expect(deserializeDrawings(serializeDrawings([styled]))).toEqual([styled]);
+  });
+
+  it('keeps fields it has never heard of', () => {
+    // deserialize filters entries rather than rebuilding them, which is what
+    // lets a field added to the drawing model round-trip through storage
+    // without a schema bump or a migration. Locking that in: a build that
+    // predates a field must not strip it on the next save.
+    const raw = envelope([{ ...line, someFutureField: 'kept' }]);
+    expect(deserializeDrawings(raw)[0]).toMatchObject({
+      id: 'l1',
+      someFutureField: 'kept',
+    });
+  });
 });
 
 describe('malformed entries are dropped, not rendered', () => {

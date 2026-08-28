@@ -43,6 +43,7 @@ export function VroomChart(props: VroomChartProps) {
     onDrawingComplete,
     onDrawingChange,
     onDrawingDelete,
+    onSelectionChange,
     onModeChange,
     drawingStore,
     seriesKey,
@@ -67,24 +68,24 @@ export function VroomChart(props: VroomChartProps) {
   // Managed-mode history surface: availability changes out via onHistoryChange,
   // programmatic controls in via historyRef. Controlled mode owns its own
   // history (see useDrawingHistory), so both are managed-only.
-  const { historyState, undo, redo, clearHistory } = managed;
+  const { historyState, undo, redo, clearHistory, restyle } = managed;
   useEffect(() => {
     if (stored) onHistoryChange?.(historyState);
   }, [stored, historyState, onHistoryChange]);
   useEffect(() => {
     if (!historyRef || !stored) return;
-    historyRef.current = { undo, redo, clearHistory };
+    historyRef.current = { undo, redo, clearHistory, restyle };
     return () => {
       historyRef.current = null;
     };
-  }, [historyRef, stored, undo, redo, clearHistory]);
+  }, [historyRef, stored, undo, redo, clearHistory, restyle]);
 
-  const { containerRef, canvasRef, handleRef, scheduleRender } = useChartCore(
+  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef } = useChartCore(
     stored ? { ...props, drawings: effectiveDrawings } : props,
     wasm ? { wasm } : undefined,
   );
 
-  useGestures(containerRef, handleRef, scheduleRender, {
+  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, {
     crosshairOffset,
     crosshairOverride,
     mode,
@@ -95,6 +96,7 @@ export function VroomChart(props: VroomChartProps) {
     onDrawingComplete: stored ? managed.onDrawingComplete : onDrawingComplete,
     onDrawingChange: stored ? managed.onDrawingChange : onDrawingChange,
     onDrawingDelete: stored ? managed.onDrawingDelete : onDrawingDelete,
+    onSelectionChange,
     onUndo: stored ? managed.undo : onUndo,
     onRedo: stored ? managed.redo : onRedo,
     onRequestMode: onModeChange,
