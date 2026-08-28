@@ -1,6 +1,6 @@
 {
   "name": "@vroomchart/core-wasm",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Framework-agnostic web core for the vroom chart — Skia-WASM renderer with a Canvas2D fallback.",
   "license": "MIT",
   "author": "Darion Welch",

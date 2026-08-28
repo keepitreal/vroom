@@ -1,5 +1,65 @@
 # react-native-vroom-chart
 
+## 0.11.0
+
+### Minor Changes
+
+- 7ccad07: **Price labels now follow the asset's own scale instead of the tick interval.**
+  Deriving decimals from the interval got both ends of the range wrong: a
+  five-figure asset printed `84000` where it should read `84,000.00`, and a
+  sub-cent one printed `0.000060` where the digits that distinguish it start at
+  the seventh decimal.
+
+  Precision is now a fixed five significant digits with a two-decimal floor, keyed
+  to the latest close, and prices carry thousands separators:
+
+  | Price       | Renders as    |
+  | ----------- | ------------- |
+  | 0.000044094 | `0.000044094` |
+  | 0.023397    | `0.023397`    |
+  | 2513.92     | `2,513.92`    |
+  | 80285.20    | `80,285.20`   |
+
+  Because it keys to the asset rather than the visible range, the precision holds
+  steady while you pan and zoom rather than shifting under your finger. The y-axis
+  strip measures itself against the resulting labels, so it widens to fit nine
+  decimals and stays narrow for two. The tick interval keeps one job: a zoom deep
+  enough to make adjacent labels collide still adds decimals.
+
+  This applies everywhere a price is drawn — axis labels, the current-price
+  indicator, the crosshair badge, and price-line labels.
+
+### Patch Changes
+
+- 7ccad07: **The line chart's tip dot no longer pins itself to the right edge when you pan
+  into history.** It anchored to the newest _visible_ close, so scrolling back
+  dragged the marker along with the viewport instead of leaving it on the candle
+  it belongs to. It now anchors to the newest close in the series and simply
+  scrolls off the pane with it, matching the current-price indicator.
+- 7ccad07: **The podspec no longer bakes an absolute path into your Podfile.lock.** It
+  resolved the Skia source directory and wrote it straight into
+  `HEADER_SEARCH_PATHS`, so the spec CocoaPods serializes to `Pods/Local
+Podspecs/` — and the `SPEC CHECKSUMS` entry hashed from it — carried the
+  checkout root of whichever machine last ran `pod install`. CI checks out
+  somewhere else, computes a different checksum, and `pod install --deployment`
+  refuses to continue:
+
+  ```
+  [!] There were changes to the lockfile in deployment mode:
+  SPEC CHECKSUMS:
+    react-native-vroom-chart:
+      New Lockfile: d1dab5b91f8d3fc6baf8d06533c5e13a7587dce9
+      Old Lockfile: 5666f29f67dbbba991df5fe7fa107c07b39aae5b
+  ```
+
+  No amount of relocking fixed it, because the committed checksum could only ever
+  match one machine.
+
+  The search paths are now emitted relative to `$(PODS_TARGET_SRCROOT)`, computed
+  when the spec is evaluated rather than hardcoded, so they stay correct under
+  hoisted and non-hoisted `node_modules` layouts alike. If you are carrying a
+  local `yarn patch` for this, you can drop it.
+
 ## 0.10.0
 
 ### Minor Changes
