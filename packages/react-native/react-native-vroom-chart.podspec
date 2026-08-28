@@ -1,16 +1,30 @@
 require "json"
+require "pathname"
 
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
-# Resolve the absolute path to the @shopify/react-native-skia source.
-# We need it because RN-Skia ships its Skia headers via `#include "include/core/SkPicture.h"`,
-# which only resolves when the include path points at the source `cpp/` and `cpp/skia/`
-# directories — CocoaPods' flat Headers/Public/ layout loses the `include/...` prefix.
+# Locate the @shopify/react-native-skia source. We need it because RN-Skia ships
+# its Skia headers via `#include "include/core/SkPicture.h"`, which only resolves
+# when the include path points at the source `cpp/` and `cpp/skia/` directories —
+# CocoaPods' flat Headers/Public/ layout loses the `include/...` prefix.
+#
+# The paths must be emitted relative to $(PODS_TARGET_SRCROOT), never absolute.
+# CocoaPods serializes this spec to `Pods/Local Podspecs/*.podspec.json` and hashes
+# that file into Podfile.lock's SPEC CHECKSUMS, so an absolute path bakes the
+# checkout root of whoever ran `pod install` into the lockfile and every other
+# machine fails `pod install --deployment`. Resolving at spec-eval time (rather
+# than hardcoding `../@shopify/react-native-skia`) keeps this correct under
+# non-hoisted layouts such as pnpm's.
 skia_pkg_json = `node --print "require.resolve('@shopify/react-native-skia/package.json')"`.strip
+raise "react-native-vroom-chart: could not resolve @shopify/react-native-skia" if skia_pkg_json.empty?
 skia_src_dir = File.dirname(skia_pkg_json)
-skia_cpp_dir = File.join(skia_src_dir, "cpp")
-skia_skia_dir = File.join(skia_src_dir, "cpp", "skia")
-skia_api_dir = File.join(skia_src_dir, "cpp", "api")
+skia_rel_dir = File.join("$(PODS_TARGET_SRCROOT)",
+  Pathname.new(skia_src_dir).relative_path_from(Pathname.new(__dir__)).to_s)
+skia_cpp_dir = File.join(skia_rel_dir, "cpp")
+skia_skia_dir = File.join(skia_rel_dir, "cpp", "skia")
+skia_api_dir = File.join(skia_rel_dir, "cpp", "api")
+# Absolute is fine here: the result only selects a preprocessor-define string,
+# so it never reaches the emitted spec.
 use_graphite = File.exist?(File.join(skia_src_dir, "libs", ".graphite"))
 skia_preprocessor_defs = use_graphite ?
   "$(inherited) SK_GRAPHITE=1 SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1" :

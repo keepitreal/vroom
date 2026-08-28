@@ -51,6 +51,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "tsup",
+    "check:podspec": "ruby scripts/check-podspec-portable.rb",
     "vendor:core": "node scripts/vendor-core.mjs",
     "prepack": "node scripts/vendor-core.mjs && tsup"
   },

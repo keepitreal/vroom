@@ -35,6 +35,11 @@ jobs:
 
       - run: pnpm --filter @vroomchart/react --filter react-native-vroom-chart run test
 
+      # An absolute path in the emitted podspec bakes the checkout root into the
+      # consumer's SPEC CHECKSUMS and breaks their `pod install --deployment`.
+      # Ruby is preinstalled on ubuntu-latest; the check stubs the CocoaPods DSL.
+      - run: pnpm --filter react-native-vroom-chart run check:podspec
+
 
   # C++ unit tests (doctest via cmake+ctest). Independent of the JS build;
   # runs in parallel with `test` so CI wall-clock time stays the same.
