@@ -212,6 +212,13 @@ export function VroomChart(props: VroomChartProps) {
     if (!handle) return undefined;
     const target = chartType === 'line' ? 1 : 0;
 
+    // Every exit below hands off to maybeStartAnim. Landing in line mode turns
+    // tip_pulse_active() on, and the pulse only moves while that loop is
+    // requeueing frames — this loop's own clock stops here. Without the handoff
+    // the ring sits frozen until some gesture happens to restart the other loop.
+    // It no-ops when a frame is already queued or nothing is animating, so
+    // landing in candle mode costs nothing.
+
     // Fresh handle (first load / recreate): snap, don't animate.
     if (morphHandle.current !== handle || morphFade.current == null) {
       morphHandle.current = handle;
@@ -219,9 +226,13 @@ export function VroomChart(props: VroomChartProps) {
       handle.setChartType(target);
       const p = handle.render();
       if (p) pictureSV.value = p;
+      maybeStartAnim();
       return undefined;
     }
-    if (morphFade.current === target) return undefined;
+    if (morphFade.current === target) {
+      maybeStartAnim();
+      return undefined;
+    }
 
     if (morphRaf.current != null) {
       cancelAnimationFrame(morphRaf.current);
@@ -233,6 +244,7 @@ export function VroomChart(props: VroomChartProps) {
       handle.setChartType(target);
       const p = handle.render();
       if (p) pictureSV.value = p;
+      maybeStartAnim();
       return undefined;
     }
 
@@ -255,6 +267,7 @@ export function VroomChart(props: VroomChartProps) {
         handle.setChartType(target); // lock the exact endpoint
         const q = handle.render();
         if (q) pictureSV.value = q;
+        maybeStartAnim();
       }
     };
     morphRaf.current = requestAnimationFrame(step);
@@ -265,7 +278,10 @@ export function VroomChart(props: VroomChartProps) {
         morphRaf.current = null;
       }
     };
-  }, [handle, chartType, transitionMs, reduceMotion, pictureSV]);
+    // maybeStartAnim is memoized on [handle, animTick] and animTick on
+    // [handle, pictureSV], both already deps here — so it adds no new restarts
+    // of this clock.
+  }, [handle, chartType, transitionMs, reduceMotion, pictureSV, maybeStartAnim]);
 
   // Volume-bar collapse. The core staggers the bars itself — tallest falling
   // first, all landing together — so unlike the loop above this one hands it
