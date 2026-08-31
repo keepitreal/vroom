@@ -11,6 +11,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   grid: 4, // VROOM_COLOR_GRID
   axisText: 5, // VROOM_COLOR_AXIS_TEXT
   crosshair: 6, // VROOM_COLOR_CROSSHAIR
+  badgeText: 8, // VROOM_COLOR_BADGE_TEXT (7 is a retired slot)
   crosshairTarget: 9, // VROOM_COLOR_CROSSHAIR_TARGET
   borderBull: 10, // VROOM_COLOR_BORDER_BULL
   borderBear: 11, // VROOM_COLOR_BORDER_BEAR

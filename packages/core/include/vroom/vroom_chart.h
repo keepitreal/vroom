@@ -282,8 +282,12 @@ typedef enum {
     VROOM_COLOR_GRID,
     VROOM_COLOR_AXIS_TEXT,
     VROOM_COLOR_CROSSHAIR,
-    VROOM_COLOR_TOOLTIP_BG,
-    VROOM_COLOR_TOOLTIP_TEXT,
+    // Retired (was VROOM_COLOR_TOOLTIP_BG, never rendered). Held open because
+    // the TypeScript theme maps hardcode the indices below it.
+    VROOM_COLOR_RESERVED_7_,
+    // Text drawn on a filled badge: the current-price indicator, the crosshair's
+    // axis badges, and price-line pills. Defaults to white.
+    VROOM_COLOR_BADGE_TEXT,
     VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
     VROOM_COLOR_BORDER_BULL,       // bull body 1px outline; 0 alpha => inherit BULL fill
     VROOM_COLOR_BORDER_BEAR,       // bear body 1px outline; 0 alpha => inherit BEAR fill

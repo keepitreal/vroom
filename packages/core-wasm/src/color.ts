@@ -9,6 +9,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, ColorKey>> = {
   bear: ColorKey.Bear,
   grid: ColorKey.Grid,
   axisText: ColorKey.AxisText,
+  badgeText: ColorKey.BadgeText,
   crosshair: ColorKey.Crosshair,
   crosshairTarget: ColorKey.CrosshairTarget,
   borderBull: ColorKey.BorderBull,

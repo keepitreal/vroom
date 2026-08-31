@@ -99,6 +99,13 @@ export type VroomTheme = {
   grid?: VroomColor;
   /** Axis label text (price + time). */
   axisText?: VroomColor;
+  /**
+   * Text drawn on a filled badge — the current-price indicator, the crosshair's
+   * price and time badges, and price-line pills. Defaults to white, which reads
+   * against the saturated fills those badges use on a dark theme; light themes
+   * generally want a dark value here.
+   */
+  badgeText?: VroomColor;
   /** Crosshair dashed lines. */
   crosshair?: VroomColor;
   /** Crosshair target — the hollow ring/dot at the intersection. */

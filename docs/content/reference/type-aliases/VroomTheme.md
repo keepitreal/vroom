@@ -6,6 +6,7 @@ type VroomTheme = {
   accentBull?: VroomColor;
   axisText?: VroomColor;
   background?: VroomColor;
+  badgeText?: VroomColor;
   bear?: VroomColor;
   borderBear?: VroomColor;
   borderBull?: VroomColor;
@@ -82,6 +83,21 @@ Chart + axis-strip background.
 
 ---
 
+### badgeText?
+
+```ts
+optional badgeText?: VroomColor;
+```
+
+Source: [types/src/index.ts:108](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L108)
+
+Text drawn on a filled badge — the current-price indicator, the crosshair's
+price and time badges, and price-line pills. Defaults to white, which reads
+against the saturated fills those badges use on a dark theme; light themes
+generally want a dark value here.
+
+---
+
 ### bear?
 
 ```ts
@@ -148,7 +164,7 @@ Corner radius (px) of candle bodies. Defaults to 0 (square).
 optional crosshair?: VroomColor;
 ```
 
-Source: [types/src/index.ts:103](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L103)
+Source: [types/src/index.ts:110](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L110)
 
 Crosshair dashed lines.
 
@@ -160,7 +176,7 @@ Crosshair dashed lines.
 optional crosshairTarget?: VroomColor;
 ```
 
-Source: [types/src/index.ts:105](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L105)
+Source: [types/src/index.ts:112](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L112)
 
 Crosshair target — the hollow ring/dot at the intersection.
 
@@ -184,7 +200,7 @@ Gridlines.
 optional lineColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:107](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L107)
+Source: [types/src/index.ts:114](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L114)
 
 Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 
@@ -196,7 +212,7 @@ Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 optional lineGradientOpacity?: number;
 ```
 
-Source: [types/src/index.ts:115](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L115)
+Source: [types/src/index.ts:122](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L122)
 
 Opacity of the gradient filled beneath the line-chart polyline, at its
 strongest point. The fill uses `lineColor` and ramps to fully transparent at
@@ -210,7 +226,7 @@ the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
 optional lineTension?: number;
 ```
 
-Source: [types/src/index.ts:125](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L125)
+Source: [types/src/index.ts:132](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L132)
 
 How much to round the line chart's corners, from 0 (straight segments
 between closes) to 1 (fully smooth). Defaults to 0.
@@ -228,7 +244,7 @@ gradient fill beneath the line as well, so the two stay flush.
 optional lineTipDot?: boolean;
 ```
 
-Source: [types/src/index.ts:134](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L134)
+Source: [types/src/index.ts:141](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L141)
 
 Mark the line chart's newest end with a dot. Defaults to `true`.
 
@@ -245,7 +261,7 @@ transition.
 optional lineTipPulse?: boolean;
 ```
 
-Source: [types/src/index.ts:142](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L142)
+Source: [types/src/index.ts:149](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L149)
 
 Pulse a ring outward from the tip dot, once every 2.6s. Defaults to `false`.
 
@@ -261,7 +277,7 @@ continuously — leave it off for charts that should be able to go idle.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:109](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L109)
+Source: [types/src/index.ts:116](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L116)
 
 Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 

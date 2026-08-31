@@ -97,12 +97,12 @@ void draw(SkCanvas* canvas,
     box.setColor(color);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
-    // White price text, horizontally centered on the same axis center, and
-    // vertically centered: shift the baseline so the glyph bounds' midpoint
-    // lands on `y` (= the box center and the dotted line).
+    // Price text horizontally centered on the same axis center, and vertically
+    // centered: shift the baseline so the glyph bounds' midpoint lands on `y`
+    // (= the box center and the dotted line).
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
-    text_paint.setColor(SK_ColorWHITE);
+    text_paint.setColor(chart.theme.colors[VROOM_COLOR_BADGE_TEXT]);
     const float text_x = axis_center_x - text_w * 0.5f;
     const float baseline_y = y - (tb.fTop + tb.fBottom) * 0.5f;
     canvas->drawString(buf, text_x, baseline_y, font, text_paint);

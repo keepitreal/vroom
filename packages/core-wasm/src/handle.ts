@@ -15,8 +15,9 @@ export enum ColorKey {
   Grid = 4,
   AxisText = 5,
   Crosshair = 6,
-  TooltipBg = 7,
-  TooltipText = 8,
+  /** Retired slot (was TooltipBg, never rendered); indices below it are fixed. */
+  Reserved7 = 7,
+  BadgeText = 8,
   CrosshairTarget = 9,
   BorderBull = 10,
   BorderBear = 11,

@@ -45,6 +45,7 @@ export const DEFAULT_THEME: ThemeState = {
   wickBear: INHERIT,
   grid: '#1a1e24',
   axisText: '#c9d1d9',
+  badgeText: '#ffffff',
   crosshair: '#303741',
   crosshairTarget: '#3e4855',
   lineColor: '#8957e5',
@@ -74,7 +75,7 @@ const SECTIONS: { title: string; fields: ColorField[] }[] = [
     fields: ['bull', 'bear', 'borderBull', 'borderBear', 'wickBull', 'wickBear'],
   },
   { title: 'Price & volume', fields: ['accentBull', 'accentBear'] },
-  { title: 'Chart', fields: ['background', 'grid', 'axisText', 'lineColor'] },
+  { title: 'Chart', fields: ['background', 'grid', 'axisText', 'badgeText', 'lineColor'] },
   { title: 'Crosshair', fields: ['crosshair', 'crosshairTarget'] },
 ];
 
@@ -90,6 +91,7 @@ const LABELS: Record<ColorField, string> = {
   wickBear: 'Bear wick',
   grid: 'Gridlines',
   axisText: 'Axis text',
+  badgeText: 'Badge text',
   crosshair: 'Crosshair',
   crosshairTarget: 'Crosshair target',
   lineColor: 'Line',

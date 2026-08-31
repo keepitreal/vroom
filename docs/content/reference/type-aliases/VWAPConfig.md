@@ -9,7 +9,7 @@ type VWAPConfig = {
 };
 ```
 
-Source: [types/src/index.ts:465](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L465)
+Source: [types/src/index.ts:472](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L472)
 
 VWAP overlay config (session anchor). Drawn as a single line on the price
 pane, resetting each session.
@@ -22,7 +22,7 @@ pane, resetting each session.
 optional color?: string | number;
 ```
 
-Source: [types/src/index.ts:471](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L471)
+Source: [types/src/index.ts:478](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L478)
 
 Line color (hex string or packed ARGB number).
 
@@ -34,7 +34,7 @@ Line color (hex string or packed ARGB number).
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:467](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L467)
+Source: [types/src/index.ts:474](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L474)
 
 Draw the line. Default false.
 
@@ -46,7 +46,7 @@ Draw the line. Default false.
 optional resetMinutes?: number;
 ```
 
-Source: [types/src/index.ts:469](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L469)
+Source: [types/src/index.ts:476](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L476)
 
 Session reset offset from UTC midnight, in minutes (default 0).
 
@@ -58,6 +58,6 @@ Session reset offset from UTC midnight, in minutes (default 0).
 optional width?: number;
 ```
 
-Source: [types/src/index.ts:473](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L473)
+Source: [types/src/index.ts:480](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L480)
 
 Stroke width in px. Default 1.5.
