@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdio>
 
 namespace vroom {
@@ -14,6 +15,38 @@ constexpr size_t kPlainCap = 340;
 
 constexpr char kGroupSeparator = ',';
 constexpr int kGroupSize = 3;
+
+constexpr double kMillion = 1e6;
+constexpr double kBillion = 1e9;
+constexpr double kTrillion = 1e12;
+
+double compact_divisor(CompactScale scale) {
+    switch (scale) {
+        case CompactScale::Million:  return kMillion;
+        case CompactScale::Billion:  return kBillion;
+        case CompactScale::Trillion: return kTrillion;
+        case CompactScale::None:     return 1.0;
+    }
+    return 1.0;
+}
+
+char compact_suffix(CompactScale scale) {
+    switch (scale) {
+        case CompactScale::Million:  return 'M';
+        case CompactScale::Billion:  return 'B';
+        case CompactScale::Trillion: return 'T';
+        case CompactScale::None:     return '\0';
+    }
+    return '\0';
+}
+
+CompactScale compact_scale_for(double reference) {
+    const double r = std::fabs(reference);
+    if (!std::isfinite(r) || r < kMillion) return CompactScale::None;
+    if (r >= kTrillion) return CompactScale::Trillion;
+    if (r >= kBillion) return CompactScale::Billion;
+    return CompactScale::Million;
+}
 
 }  // namespace
 
@@ -28,7 +61,8 @@ int significant_decimals(double reference) {
 }
 
 PriceFormat price_format_for(double reference) {
-    return PriceFormat{significant_decimals(reference), true};
+    return PriceFormat{significant_decimals(reference), true,
+                       compact_scale_for(reference)};
 }
 
 int price_decimals(double interval) {
@@ -40,8 +74,13 @@ int price_decimals(double interval) {
 }
 
 PriceFormat with_tick_guard(const PriceFormat& fmt, double interval) {
-    return PriceFormat{std::max(fmt.decimals, price_decimals(interval)),
-                       fmt.group};
+    const double divisor = compact_divisor(fmt.compact);
+    const double display_interval =
+        (divisor != 1.0 && interval > 0.0 && std::isfinite(interval))
+            ? interval / divisor
+            : interval;
+    return PriceFormat{std::max(fmt.decimals, price_decimals(display_interval)),
+                       fmt.group, fmt.compact};
 }
 
 void format_price(char* buf, size_t buf_size, double price,
@@ -49,11 +88,23 @@ void format_price(char* buf, size_t buf_size, double price,
     if (!buf || buf_size == 0) return;
     const int decimals = std::clamp(fmt.decimals, 0, kPriceMaxDecimals);
 
+    const double divisor = compact_divisor(fmt.compact);
+    const double display = (divisor != 1.0) ? price / divisor : price;
+
     char plain[kPlainCap];
-    if (std::snprintf(plain, sizeof(plain), "%.*f", decimals, price) < 0) {
+    if (std::snprintf(plain, sizeof(plain), "%.*f", decimals, display) < 0) {
         buf[0] = '\0';
         return;
     }
+
+    const char suffix = compact_suffix(fmt.compact);
+    if (suffix != '\0') {
+        // Compact form is already short; grouping would only fire if a tick
+        // wandered across a suffix boundary (1000.00M). Skip it.
+        std::snprintf(buf, buf_size, "%s%c", plain, suffix);
+        return;
+    }
+
     if (!fmt.group) {
         std::snprintf(buf, buf_size, "%s", plain);
         return;

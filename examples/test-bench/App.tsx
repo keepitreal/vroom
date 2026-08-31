@@ -53,15 +53,18 @@ const LINE_TENSIONS: readonly number[] = [0, 0.25, 0.5, 0.75, 1];
 
 type Interval = (typeof INTERVALS)[number];
 
-// Spot prices every interval converges on at its right edge. The three sit in
+// Spot prices every interval converges on at its right edge. The five sit in
 // the magnitude bands the price axis formats differently — two decimals, two
-// decimals plus a thousands separator, and the sub-cent case that needs nine to
-// say anything at all — so switching between them exercises the axis width and
-// the label precision without waiting on real data.
+// decimals plus a thousands separator, the sub-cent case that needs nine to
+// say anything at all, and the compact M / B suffixes — so switching between
+// them exercises the axis width and the label precision without waiting on
+// real data.
 const PRICE_SCALES = [
   { label: '100.00', spot: 100 },
   { label: '0.00005432', spot: 0.00005432 },
   { label: '56,456.56', spot: 56456.56 },
+  { label: '32.19M', spot: 32192381.38 },
+  { label: '34.54B', spot: 34540000000 },
 ] as const;
 
 type PriceScale = (typeof PRICE_SCALES)[number];
