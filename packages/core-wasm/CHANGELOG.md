@@ -1,5 +1,40 @@
 # @vroomchart/core-wasm
 
+## 0.13.0
+
+### Minor Changes
+
+- 63068c2: Add `theme.badgeText`, controlling the text drawn on filled badges.
+
+  The current-price indicator's label was hardcoded white, along with the
+  crosshair's price and time badges and the price-line pills. All four now read
+  one theme color, so a light theme can make them legible instead of leaving
+  white text on a pale fill.
+
+  ```tsx
+  <VroomChart theme={{ badgeText: "#1b1f24" }} />
+  ```
+
+  Defaults to white, so existing themes render exactly as before.
+
+  **Breaking (core-wasm only):** the `ColorKey` enum drops `TooltipBg` and
+  `TooltipText`. Both were vestigial — they had palette defaults but were never
+  read by any draw call and were not reachable through `VroomTheme`. Slot 8 is
+  now `ColorKey.BadgeText`; slot 7 is `Reserved7`, held empty so the indices
+  after it don't shift, since the theme maps hardcode them.
+
+- 63068c2: Add `theme.showXAxis` / `theme.showYAxis` to hide either axis.
+
+  Hiding an axis collapses its strip and hands the reclaimed space to the plot, so
+  the candles grow to fill it. The strip's contents — labels, the current-price
+  badge, the crosshair and price-line badges — fade out over the first half of the
+  collapse, so text is never squeezed into a strip too narrow to hold it. Both
+  default to `true` and animate over `transitionMs`, snapping under reduced motion.
+
+  Also fixes the volume-collapse animation not handing back to the render loop
+  when it finishes, which could leave the line-tip pulse frozen after toggling
+  volume — the same defect fixed for the candle↔line morph in #50.
+
 ## 0.12.0
 
 ### Minor Changes
