@@ -59,9 +59,11 @@ void draw(SkCanvas* canvas,
     canvas->drawLine(0.f, y, candle_right, y, line);
 
     // Price box in the y-axis strip. Needs the axis typeface; if it isn't
-    // loaded yet, the line alone still conveys the level.
+    // loaded yet, the line alone still conveys the level. Same when the y-axis
+    // is hidden — the level stays readable, it just loses its badge.
     auto tf = vroom::axis_typeface();
     if (!tf) return;
+    if (lay.y_axis_opacity <= 0.f) return;
 
     SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
     font.setSubpixel(true);
@@ -95,6 +97,7 @@ void draw(SkCanvas* canvas,
     SkPaint box;
     box.setAntiAlias(true);
     box.setColor(color);
+    box.setAlphaf(box.getAlphaf() * lay.y_axis_opacity);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
     // Price text horizontally centered on the same axis center, and vertically
@@ -103,6 +106,7 @@ void draw(SkCanvas* canvas,
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_BADGE_TEXT]);
+    text_paint.setAlphaf(text_paint.getAlphaf() * lay.y_axis_opacity);
     const float text_x = axis_center_x - text_w * 0.5f;
     const float baseline_y = y - (tb.fTop + tb.fBottom) * 0.5f;
     canvas->drawString(buf, text_x, baseline_y, font, text_paint);

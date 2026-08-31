@@ -42,7 +42,9 @@ void draw_badge(SkCanvas* canvas,
                 float cx,
                 float cy,
                 SkColor fill,
-                SkColor text_color) {
+                SkColor text_color,
+                float opacity) {
+    if (opacity <= 0.f) return;
     const size_t len = std::strlen(text);
     SkRect tb;
     const float text_w = font.measureText(text, len, SkTextEncoding::kUTF8, &tb);
@@ -54,11 +56,13 @@ void draw_badge(SkCanvas* canvas,
     SkPaint box;
     box.setAntiAlias(true);
     box.setColor(fill);
+    box.setAlphaf(box.getAlphaf() * opacity);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
     text_paint.setColor(text_color);
+    text_paint.setAlphaf(text_paint.getAlphaf() * opacity);
     canvas->drawString(text, cx - text_w * 0.5f,
                        cy - (tb.fTop + tb.fBottom) * 0.5f, font, text_paint);
 }
@@ -141,7 +145,7 @@ void draw(SkCanvas* canvas,
         const float badge_cx =
             std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
         draw_badge(canvas, font, buf, badge_cx, strip_center_y, badge_fill,
-                   badge_text);
+                   badge_text, lay.x_axis_opacity);
     }
 
     // Price badge over the y-axis strip, centered on the horizontal line and
@@ -156,7 +160,7 @@ void draw(SkCanvas* canvas,
         vroom::format_price(buf, sizeof(buf), price, fmt);
         const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
         draw_badge(canvas, font, buf, axis_center_x, cy, badge_fill,
-                   badge_text);
+                   badge_text, lay.y_axis_opacity);
     }
 }
 

@@ -10,7 +10,7 @@ type MovingAverageOverlay = {
 };
 ```
 
-Source: [types/src/index.ts:455](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L455)
+Source: [types/src/index.ts:475](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L475)
 
 A moving-average overlay line drawn on the price pane. Provide an array of
 these via `movingAverages` to render a ribbon of SMA/EMA lines.
@@ -23,7 +23,7 @@ these via `movingAverages` to render a ribbon of SMA/EMA lines.
 optional color?: string | number;
 ```
 
-Source: [types/src/index.ts:463](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L463)
+Source: [types/src/index.ts:483](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L483)
 
 Line color (hex string or packed ARGB number).
 
@@ -35,7 +35,7 @@ Line color (hex string or packed ARGB number).
 maType: MAKind;
 ```
 
-Source: [types/src/index.ts:457](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L457)
+Source: [types/src/index.ts:477](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L477)
 
 Averaging for this line ([MAKind](MAKind.md)).
 
@@ -47,7 +47,7 @@ Averaging for this line ([MAKind](MAKind.md)).
 period: number;
 ```
 
-Source: [types/src/index.ts:459](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L459)
+Source: [types/src/index.ts:479](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L479)
 
 Lookback in candles.
 
@@ -59,7 +59,7 @@ Lookback in candles.
 optional source?: MASource;
 ```
 
-Source: [types/src/index.ts:461](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L461)
+Source: [types/src/index.ts:481](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L481)
 
 Price source ([MASource](MASource.md)). Default 'close'.
 
@@ -71,6 +71,6 @@ Price source ([MASource](MASource.md)). Default 'close'.
 optional width?: number;
 ```
 
-Source: [types/src/index.ts:465](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L465)
+Source: [types/src/index.ts:485](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L485)
 
 Stroke width in px. Default 1.5.

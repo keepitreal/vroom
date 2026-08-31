@@ -266,11 +266,24 @@ export default function App() {
     Haptics.selectionAsync().catch(() => {});
   }, []);
 
+  // Both default on, matching the library. Hiding one collapses its strip and
+  // hands the space to the plot, which is the part worth eyeballing on a phone.
+  const [showYAxis, setShowYAxis] = useState(true);
+  const toggleYAxis = useCallback(() => {
+    setShowYAxis((p) => !p);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+  const [showXAxis, setShowXAxis] = useState(true);
+  const toggleXAxis = useCallback(() => {
+    setShowXAxis((p) => !p);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+
   // A new object each render would re-push the whole theme every frame.
   const theme = useMemo(
     // The 1.5 default stroke reads thin on a phone held at arm's length.
-    () => ({ lineWidth: 2.5, lineTension, lineTipPulse }),
-    [lineTension, lineTipPulse],
+    () => ({ lineWidth: 2.5, lineTension, lineTipPulse, showYAxis, showXAxis }),
+    [lineTension, lineTipPulse, showYAxis, showXAxis],
   );
 
   // OHLCV readout: the candle under the crosshair while it's active, otherwise
@@ -530,6 +543,30 @@ export default function App() {
                   </Text>
                 </Pressable>
               )}
+
+              {/* Axis show/hide. Active state is "hidden" here, since that's
+                  the state you're deliberately putting the chart into. */}
+              <Pressable
+                style={[styles.fnBtn, !showYAxis && styles.fnBtnActive]}
+                onPress={toggleYAxis}
+              >
+                <Text
+                  style={[styles.fnSymbol, !showYAxis && styles.fnSymbolActive]}
+                >
+                  ⇥
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, !showXAxis && styles.fnBtnActive]}
+                onPress={toggleXAxis}
+              >
+                <Text
+                  style={[styles.fnSymbol, !showXAxis && styles.fnSymbolActive]}
+                >
+                  ⇩
+                </Text>
+              </Pressable>
 
               <Pressable
                 style={[styles.fnBtn, showPriceLines && styles.fnBtnActive]}

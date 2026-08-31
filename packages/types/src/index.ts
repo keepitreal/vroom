@@ -147,6 +147,26 @@ export type VroomTheme = {
    * continuously — leave it off for charts that should be able to go idle.
    */
   lineTipPulse?: boolean;
+  /**
+   * Show the price (y) axis strip down the right edge. Defaults to `true`.
+   *
+   * Hiding it collapses the strip and hands the reclaimed width to the plot, so
+   * the candles widen to fill it. Its contents — price labels, the current-price
+   * badge, the crosshair price badge, price-line axis badges — fade out ahead of
+   * the collapse; gridlines and the price indicator's dotted line stay. Animated
+   * over `transitionMs` unless the OS asks for reduced motion.
+   *
+   * The axis drag-to-scale region goes with the strip, so a hidden axis can't be
+   * scaled by dragging it.
+   */
+  showYAxis?: boolean;
+  /**
+   * Show the time (x) axis strip along the bottom. Defaults to `true`.
+   *
+   * Behaves like {@link VroomTheme.showYAxis}: the strip collapses, the plot
+   * grows into it, and the time labels and crosshair time badge fade first.
+   */
+  showXAxis?: boolean;
 };
 
 /** A time window over the candle data, as Unix epoch milliseconds. */

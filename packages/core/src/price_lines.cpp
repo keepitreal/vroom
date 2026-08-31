@@ -218,6 +218,7 @@ void draw_axis_badge(SkCanvas* canvas,
                      SkColor text_color,
                      const PriceFormat& fmt) {
     if (lay.y_axis_width_px <= 0.f) return;
+    if (lay.y_axis_opacity <= 0.f) return;
 
     char buf[48];
     vroom::format_price(buf, sizeof(buf), price, fmt);
@@ -234,11 +235,13 @@ void draw_axis_badge(SkCanvas* canvas,
     SkPaint box;
     box.setAntiAlias(true);
     box.setColor(fill);
+    box.setAlphaf(box.getAlphaf() * lay.y_axis_opacity);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
     SkPaint text;
     text.setAntiAlias(true);
     text.setColor(text_color);
+    text.setAlphaf(text.getAlphaf() * lay.y_axis_opacity);
     canvas->drawString(buf, cx - text_w * 0.5f,
                        y - (tb.fTop + tb.fBottom) * 0.5f, font, text);
 }

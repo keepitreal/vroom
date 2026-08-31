@@ -17,6 +17,8 @@ type ColorField = Exclude<
   | 'lineTension'
   | 'lineTipDot'
   | 'lineTipPulse'
+  | 'showXAxis'
+  | 'showYAxis'
 >;
 export type ThemeState = Record<ColorField, string>;
 
@@ -29,6 +31,8 @@ export type NumericStyle = {
   lineTension: number;
   lineTipDot: boolean;
   lineTipPulse: boolean;
+  showXAxis: boolean;
+  showYAxis: boolean;
 };
 
 const INHERIT = '#00000000';
@@ -473,6 +477,18 @@ export function SettingsModal({
                     title="Pulse a ring out from the tip dot every 2.6s. Keeps the chart repainting continuously."
                     checked={numericStyle.lineTipPulse}
                     onChange={(v) => onNumericStyleChange({ lineTipPulse: v })}
+                  />
+                  <StyleToggle
+                    label="Show price axis"
+                    title="Show the price axis down the right edge. Hiding it collapses the strip and hands the width to the plot."
+                    checked={numericStyle.showYAxis}
+                    onChange={(v) => onNumericStyleChange({ showYAxis: v })}
+                  />
+                  <StyleToggle
+                    label="Show time axis"
+                    title="Show the time axis along the bottom. Hiding it collapses the strip and hands the height to the plot."
+                    checked={numericStyle.showXAxis}
+                    onChange={(v) => onNumericStyleChange({ showXAxis: v })}
                   />
                 </>
               )}

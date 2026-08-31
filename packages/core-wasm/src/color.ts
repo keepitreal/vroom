@@ -32,6 +32,10 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
 };
 
 // Maps each boolean VroomTheme field to its FloatKey (pushed as 0/1).
+//
+// `showXAxis` / `showYAxis` are absent on purpose: they animate, so the wrapper
+// drives them as a collapse scalar through setAxisCollapse. A float slot here
+// would let this sweep snap them behind the animation's back.
 export const BOOL_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   wickRoundCap: FloatKey.WickRoundCap,
   lineTipDot: FloatKey.LineTipDot,

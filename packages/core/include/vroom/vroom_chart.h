@@ -568,6 +568,19 @@ void vroom_chart_set_volume(VroomChart* chart, const VroomVolume* cfg);
 // `enabled`, so the host only needs it while animating.
 void vroom_chart_set_volume_collapse(VroomChart* chart, float t, int32_t easing);
 
+// Collapses the axis strips: 0 leaves a strip at full size, 1 hides it. Driven
+// per-frame by the host animation loop, which owns the eased clock — unlike the
+// volume collapse there is no per-element stagger, so these take *eased*
+// progress directly.
+//
+// Hiding is a collapse rather than a zeroed dimension because the y-axis width
+// is measured from the widest price label and recomputed on most data changes,
+// which would overwrite a zero. The price pane grows into whatever the strips
+// give up, and each strip's contents (labels, price badge, crosshair and
+// price-line badges) fade out over the first half of the collapse so text is
+// never squeezed into a strip too narrow to hold it.
+void vroom_chart_set_axis_collapse(VroomChart* chart, float y_t, float x_t);
+
 // ---- Drawings (line annotations) ------------------------------------------
 
 // Replaces the full set of committed line drawings (data-anchored, so they track

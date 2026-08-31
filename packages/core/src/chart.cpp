@@ -64,13 +64,16 @@ vroom::Layout VroomChart::layout() const {
     return vroom::Layout{
         width_px,
         height_px,
-        axis_w,
-        theme.floats[VROOM_FLOAT_X_AXIS_HEIGHT_PX],
+        vroom::axis_extent(axis_w, y_axis_collapse_t),
+        vroom::axis_extent(theme.floats[VROOM_FLOAT_X_AXIS_HEIGHT_PX],
+                           x_axis_collapse_t),
         theme.floats[VROOM_FLOAT_RIGHT_PADDING_PX],
         theme.floats[VROOM_FLOAT_CANDLE_WIDTH_RATIO],
         0.05f,
         0.05f,
         indicator_h,
+        vroom::axis_opacity(y_axis_collapse_t),
+        vroom::axis_opacity(x_axis_collapse_t),
     };
 }
 

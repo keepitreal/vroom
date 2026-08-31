@@ -19,7 +19,7 @@ type RSIConfig = {
 };
 ```
 
-Source: [types/src/index.ts:419](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L419)
+Source: [types/src/index.ts:439](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L439)
 
 RSI indicator config. Rendered in a pane below the candles when enabled: the
 RSI line, an optional moving-average trendline over it, and two dashed rules
@@ -37,7 +37,7 @@ no [MASource](MASource.md).
 optional bandColor?: string | number;
 ```
 
-Source: [types/src/index.ts:446](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L446)
+Source: [types/src/index.ts:466](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L466)
 
 Color of both dashed band rules. Default gray.
 
@@ -49,7 +49,7 @@ Color of both dashed band rules. Default gray.
 optional bandsVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:448](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L448)
+Source: [types/src/index.ts:468](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L468)
 
 Draw the overbought/oversold rules. Default true.
 
@@ -61,7 +61,7 @@ Draw the overbought/oversold rules. Default true.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:421](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L421)
+Source: [types/src/index.ts:441](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L441)
 
 Draw the pane. Default false.
 
@@ -73,7 +73,7 @@ Draw the pane. Default false.
 optional lineColor?: string | number;
 ```
 
-Source: [types/src/index.ts:436](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L436)
+Source: [types/src/index.ts:456](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L456)
 
 RSI line color (hex string or packed ARGB number). Default violet.
 
@@ -85,7 +85,7 @@ RSI line color (hex string or packed ARGB number). Default violet.
 optional lineVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:440](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L440)
+Source: [types/src/index.ts:460](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L460)
 
 Draw the RSI line. Default true.
 
@@ -97,7 +97,7 @@ Draw the RSI line. Default true.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:438](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L438)
+Source: [types/src/index.ts:458](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L458)
 
 RSI line stroke width in px. Default 1.5.
 
@@ -109,7 +109,7 @@ RSI line stroke width in px. Default 1.5.
 optional lowerBand?: number;
 ```
 
-Source: [types/src/index.ts:427](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L427)
+Source: [types/src/index.ts:447](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L447)
 
 Oversold band level (0..100). Default 30.
 
@@ -121,7 +121,7 @@ Oversold band level (0..100). Default 30.
 optional maColor?: string | number;
 ```
 
-Source: [types/src/index.ts:442](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L442)
+Source: [types/src/index.ts:462](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L462)
 
 Trendline color. Default amber.
 
@@ -133,7 +133,7 @@ Trendline color. Default amber.
 optional maPeriod?: number;
 ```
 
-Source: [types/src/index.ts:429](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L429)
+Source: [types/src/index.ts:449](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L449)
 
 Trendline (MA of RSI) length. Default 14, clamped to >= 1.
 
@@ -145,7 +145,7 @@ Trendline (MA of RSI) length. Default 14, clamped to >= 1.
 optional maType?: MAKind;
 ```
 
-Source: [types/src/index.ts:431](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L431)
+Source: [types/src/index.ts:451](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L451)
 
 Averaging used for the trendline ([MAKind](MAKind.md)). Default 'sma'.
 
@@ -157,7 +157,7 @@ Averaging used for the trendline ([MAKind](MAKind.md)). Default 'sma'.
 optional maVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:433](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L433)
+Source: [types/src/index.ts:453](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L453)
 
 Draw the moving-average trendline. Default true.
 
@@ -169,7 +169,7 @@ Draw the moving-average trendline. Default true.
 optional maWidth?: number;
 ```
 
-Source: [types/src/index.ts:444](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L444)
+Source: [types/src/index.ts:464](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L464)
 
 Trendline stroke width in px. Default 1.5.
 
@@ -181,7 +181,7 @@ Trendline stroke width in px. Default 1.5.
 optional period?: number;
 ```
 
-Source: [types/src/index.ts:423](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L423)
+Source: [types/src/index.ts:443](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L443)
 
 Lookback period in candle counts. Default 14, clamped to >= 2.
 
@@ -193,6 +193,6 @@ Lookback period in candle counts. Default 14, clamped to >= 2.
 optional upperBand?: number;
 ```
 
-Source: [types/src/index.ts:425](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L425)
+Source: [types/src/index.ts:445](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L445)
 
 Overbought band level (0..100). Default 70.

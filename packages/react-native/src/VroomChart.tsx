@@ -297,12 +297,19 @@ export function VroomChart(props: VroomChartProps) {
 
     // Fresh handle (first load / recreate): the data effect's setVolume already
     // snapped it, so a chart that mounts with bars doesn't animate them in.
+    // Every exit below hands off to maybeStartAnim, for the same reason the
+    // morph loop does: this clock stops here, and anything the core is still
+    // animating (the line-tip pulse) needs the other loop requeueing frames.
     if (volumeHandle.current !== handle || volumeCollapseRef.current == null) {
       volumeHandle.current = handle;
       volumeCollapseRef.current = { t: target, easing };
+      maybeStartAnim();
       return undefined;
     }
-    if (volumeCollapseRef.current.t === target) return undefined;
+    if (volumeCollapseRef.current.t === target) {
+      maybeStartAnim();
+      return undefined;
+    }
 
     if (volumeRaf.current != null) {
       cancelAnimationFrame(volumeRaf.current);
@@ -315,6 +322,7 @@ export function VroomChart(props: VroomChartProps) {
       handle.setVolumeCollapse(target, easing);
       const p = handle.render();
       if (p) pictureSV.value = p;
+      maybeStartAnim();
       return undefined;
     }
 
@@ -331,7 +339,12 @@ export function VroomChart(props: VroomChartProps) {
       handle.setVolumeCollapse(t, kind);
       const p = handle.render();
       if (p) pictureSV.value = p;
-      volumeRaf.current = prog < 1 ? requestAnimationFrame(step) : null;
+      if (prog < 1) {
+        volumeRaf.current = requestAnimationFrame(step);
+      } else {
+        volumeRaf.current = null;
+        maybeStartAnim();
+      }
     };
     volumeRaf.current = requestAnimationFrame(step);
 
@@ -341,7 +354,102 @@ export function VroomChart(props: VroomChartProps) {
         volumeRaf.current = null;
       }
     };
-  }, [handle, volume?.enabled, transitionMs, reduceMotion, pictureSV, volumeCollapseRef]);
+  }, [
+    handle,
+    volume?.enabled,
+    transitionMs,
+    reduceMotion,
+    pictureSV,
+    volumeCollapseRef,
+    maybeStartAnim,
+  ]);
+
+  // Axis-strip collapse. Unlike the volume bars there is no per-element stagger
+  // for the core to distribute, so this pre-eases in JS and hands over the eased
+  // scalar. Both axes ride one clock so toggling them together stays in step.
+  // This one moves the *layout* — the plot reflows into the reclaimed space
+  // every frame. Mirrors the web driver in react/src/useChartCore.ts.
+  const axisRaf = useRef<number | null>(null);
+  const axisHandle = useRef<typeof handle>(null);
+  const axisCollapse = useRef<{ y: number; x: number } | null>(null);
+  const showYAxis = theme?.showYAxis ?? true;
+  const showXAxis = theme?.showXAxis ?? true;
+  useEffect(() => {
+    if (!handle) return undefined;
+    const targetY = showYAxis ? 0 : 1;
+    const targetX = showXAxis ? 0 : 1;
+
+    // Fresh handle (first load / recreate): snap, so a chart that mounts with an
+    // axis already hidden doesn't play it out.
+    if (axisHandle.current !== handle || axisCollapse.current == null) {
+      axisHandle.current = handle;
+      axisCollapse.current = { y: targetY, x: targetX };
+      handle.setAxisCollapse(targetY, targetX);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      maybeStartAnim();
+      return undefined;
+    }
+
+    const fromY = axisCollapse.current.y;
+    const fromX = axisCollapse.current.x;
+    if (fromY === targetY && fromX === targetX) {
+      maybeStartAnim();
+      return undefined;
+    }
+
+    if (axisRaf.current != null) {
+      cancelAnimationFrame(axisRaf.current);
+      axisRaf.current = null;
+    }
+
+    const dur = Math.max(0, transitionMs ?? 300);
+    if (dur === 0 || reduceMotion) {
+      axisCollapse.current = { y: targetY, x: targetX };
+      handle.setAxisCollapse(targetY, targetX);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      maybeStartAnim();
+      return undefined;
+    }
+
+    // From wherever the last frame left off, so toggling mid-flight reverses
+    // instead of jumping.
+    let startTs: number | null = null;
+    const step = (now: number) => {
+      if (startTs == null) startTs = now;
+      const prog = Math.min(1, (now - startTs) / dur);
+      const e = ease(easingRef.current, prog);
+      const y = prog < 1 ? fromY + (targetY - fromY) * e : targetY;
+      const x = prog < 1 ? fromX + (targetX - fromX) * e : targetX;
+      axisCollapse.current = { y, x };
+      handle.setAxisCollapse(y, x);
+      const p = handle.render();
+      if (p) pictureSV.value = p;
+      if (prog < 1) {
+        axisRaf.current = requestAnimationFrame(step);
+      } else {
+        axisRaf.current = null;
+        maybeStartAnim();
+      }
+    };
+    axisRaf.current = requestAnimationFrame(step);
+
+    return () => {
+      if (axisRaf.current != null) {
+        cancelAnimationFrame(axisRaf.current);
+        axisRaf.current = null;
+      }
+    };
+  }, [
+    handle,
+    showYAxis,
+    showXAxis,
+    transitionMs,
+    reduceMotion,
+    pictureSV,
+    maybeStartAnim,
+  ]);
 
   // Classifies a touch point into the candle area vs. an axis strip. Axis
   // strips always own their gesture (scale price/time) and take priority over

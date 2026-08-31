@@ -66,6 +66,7 @@ interface WebChartInstance {
   setBollinger(spec: BollingerSpec): void;
   setVolume(spec: VolumeSpec): void;
   setVolumeCollapse(t: number, easing: number): void;
+  setAxisCollapse(yT: number, xT: number): void;
   setDrawings(drawings: DrawingSpec[]): void;
   setLiquidity(liquidity: LiquiditySpec): void;
   setPriceLines(priceLines: PriceLinesSpec): void;
@@ -243,6 +244,9 @@ class WasmHandle implements VroomChartHandle {
   }
   setVolumeCollapse(t: number, easing: number): void {
     this.wc.setVolumeCollapse(t, easing);
+  }
+  setAxisCollapse(yT: number, xT: number): void {
+    this.wc.setAxisCollapse(yT, xT);
   }
   setDrawings(drawings: DrawingSpec[]): void {
     this.wc.setDrawings(

@@ -21,6 +21,8 @@ type VroomTheme = {
   lineTipDot?: boolean;
   lineTipPulse?: boolean;
   lineWidth?: number;
+  showXAxis?: boolean;
+  showYAxis?: boolean;
   volumeRadius?: number;
   wickBear?: VroomColor;
   wickBull?: VroomColor;
@@ -280,6 +282,42 @@ optional lineWidth?: number;
 Source: [types/src/index.ts:116](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L116)
 
 Line-chart-mode polyline stroke width in px. Defaults to 1.5.
+
+---
+
+### showXAxis?
+
+```ts
+optional showXAxis?: boolean;
+```
+
+Source: [types/src/index.ts:169](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L169)
+
+Show the time (x) axis strip along the bottom. Defaults to `true`.
+
+Behaves like [VroomTheme.showYAxis](#showyaxis): the strip collapses, the plot
+grows into it, and the time labels and crosshair time badge fade first.
+
+---
+
+### showYAxis?
+
+```ts
+optional showYAxis?: boolean;
+```
+
+Source: [types/src/index.ts:162](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L162)
+
+Show the price (y) axis strip down the right edge. Defaults to `true`.
+
+Hiding it collapses the strip and hands the reclaimed width to the plot, so
+the candles widen to fill it. Its contents — price labels, the current-price
+badge, the crosshair price badge, price-line axis badges — fade out ahead of
+the collapse; gridlines and the price indicator's dotted line stay. Animated
+over `transitionMs` unless the OS asks for reduced motion.
+
+The axis drag-to-scale region goes with the strip, so a hidden axis can't be
+scaled by dragging it.
 
 ---
 

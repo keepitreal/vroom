@@ -20,7 +20,39 @@ struct Layout {
     float top_padding_frac;     // fraction of candle area; keeps prices off edges
     float bottom_padding_frac;
     float indicator_area_h;     // height reserved for below-chart indicator panes
+    // Opacity of everything drawn *inside* an axis strip, 1 = shown, 0 = hidden.
+    // Separate from the strip's extent because the two ramp at different rates
+    // while an axis is being hidden or revealed (see axis_opacity).
+    float y_axis_opacity;
+    float x_axis_opacity;
 };
+
+// --- Axis show/hide ---------------------------------------------------------
+// An axis is hidden by collapsing its strip to nothing rather than by zeroing
+// the underlying dimension: the y-axis width is *measured* from the widest price
+// label (labels::recompute_axis_width) and gets recomputed constantly, so a zero
+// written there would not survive. `t` is the collapse progress the host eases,
+// 0 = fully shown, 1 = fully hidden.
+
+inline float clamp_collapse(float t) {
+    return t < 0.f ? 0.f : (t > 1.f ? 1.f : t);
+}
+
+// The strip's on-screen extent. Everything downstream (candle_area_width,
+// price_pane_bottom) is derived from this, so the plot reclaims the space as
+// the strip shrinks.
+inline float axis_extent(float base, float t) {
+    return base * (1.f - clamp_collapse(t));
+}
+
+// Opacity of the strip's contents. Deliberately front-loaded: the labels are
+// fully gone by the time the strip is halfway collapsed, so text never sits in
+// a strip too narrow to hold it.
+inline float axis_opacity(float t) {
+    constexpr float kFadeBy = 0.5f;  // fraction of the collapse spent fading
+    const float p = clamp_collapse(t) / kFadeBy;
+    return p >= 1.f ? 0.f : 1.f - p;
+}
 
 // Bottom of the price (candle) pane = top of the indicator band. Shrinks when
 // an indicator pane is present so candles, volume, and price labels reflow.

@@ -211,14 +211,15 @@ void draw(SkCanvas* canvas,
     }
     canvas->restore();
 
-    // "0" label in the y-axis strip at the zero line.
-    if (tf) {
+    // "0" label in the y-axis strip at the zero line — hidden with that strip.
+    if (tf && lay.y_axis_opacity > 0.f) {
         SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
         font.setSubpixel(true);
         font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
         SkPaint text_paint;
         text_paint.setAntiAlias(true);
         text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
+        text_paint.setAlphaf(text_paint.getAlphaf() * lay.y_axis_opacity);
         SkRect tb;
         const float tw =
             font.measureText("0", 1, SkTextEncoding::kUTF8, &tb);
