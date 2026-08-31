@@ -147,6 +147,9 @@ void draw_y_labels(SkCanvas* canvas,
                    const PriceBounds& bounds) {
     auto tf = vroom::axis_typeface();
     if (!tf) return;
+    // The fade state still advances in update_y_fades, so a hidden axis picks up
+    // wherever the ticks moved to once it is revealed again.
+    if (lay.y_axis_opacity <= 0.f) return;
 
     const float candle_area_h = vroom::price_pane_bottom(lay);
 
@@ -186,7 +189,7 @@ void draw_y_labels(SkCanvas* canvas,
         if (baseline_y - cap_h < 0.f) continue;
         if (baseline_y > candle_area_h) continue;
 
-        text_paint.setAlphaf(f.opacity);
+        text_paint.setAlphaf(f.opacity * lay.y_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
 }
@@ -279,6 +282,8 @@ void draw_x_labels(SkCanvas* canvas,
     auto tf = vroom::axis_typeface();
     if (!tf || chart.candles.empty()) return;
     if (end_ms <= start_ms) return;
+    // See draw_y_labels: update_x_fades keeps running while the strip is hidden.
+    if (lay.x_axis_opacity <= 0.f) return;
 
     // X-axis labels live in the bottom strip, which stays anchored regardless
     // of any indicator pane above it.
@@ -345,7 +350,7 @@ void draw_x_labels(SkCanvas* canvas,
         if (text_x < 0.f) continue;
         if (text_x + text_w > candle_area_w) continue;
 
-        text_paint.setAlphaf(f.opacity);
+        text_paint.setAlphaf(f.opacity * lay.x_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
 }

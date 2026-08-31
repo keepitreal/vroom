@@ -270,6 +270,13 @@ export interface ChartHandle {
    */
   setVolumeCollapse(t: number, easing: number): void;
   /**
+   * Collapses the axis strips: 0 leaves a strip at full size, 1 hides it. The
+   * plot grows into whatever the strips give up, and their contents fade out
+   * over the first half of the collapse so text is never squeezed into a strip
+   * too narrow for it. Unlike setVolumeCollapse, both take **eased** progress.
+   */
+  setAxisCollapse(yT: number, xT: number): void;
+  /**
    * The continuous data coordinate at pixel (x, y) — not snapped to a candle
    * slot. Null when there are no candles or the viewport is degenerate. Cheap to
    * call at gesture rate (no rendering).

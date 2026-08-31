@@ -1401,6 +1401,15 @@ extern "C" void vroom_chart_set_volume_collapse(VroomChart* chart, float t,
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_axis_collapse(VroomChart* chart, float y_t,
+                                              float x_t) {
+    if (!chart) return;
+    chart->y_axis_collapse_t = std::clamp(y_t, 0.f, 1.f);
+    chart->x_axis_collapse_t = std::clamp(x_t, 0.f, 1.f);
+    // Changes the layout, so every cached pane geometry has to be re-derived.
+    chart->mark_dirty();
+}
+
 // ---- Direct draw (used by hosts that don't need the SkPicture cache) ------
 
 extern "C" void vroom_chart_draw(VroomChart* chart, SkCanvas* canvas) {

@@ -215,8 +215,10 @@ void draw_axis_badge(SkCanvas* canvas,
                      double price,
                      float y,
                      SkColor fill,
+                     SkColor text_color,
                      const PriceFormat& fmt) {
     if (lay.y_axis_width_px <= 0.f) return;
+    if (lay.y_axis_opacity <= 0.f) return;
 
     char buf[48];
     vroom::format_price(buf, sizeof(buf), price, fmt);
@@ -233,11 +235,13 @@ void draw_axis_badge(SkCanvas* canvas,
     SkPaint box;
     box.setAntiAlias(true);
     box.setColor(fill);
+    box.setAlphaf(box.getAlphaf() * lay.y_axis_opacity);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
     SkPaint text;
     text.setAntiAlias(true);
-    text.setColor(SK_ColorWHITE);
+    text.setColor(text_color);
+    text.setAlphaf(text.getAlphaf() * lay.y_axis_opacity);
     canvas->drawString(buf, cx - text_w * 0.5f,
                        y - (tb.fTop + tb.fBottom) * 0.5f, font, text);
 }
@@ -254,6 +258,7 @@ void draw(SkCanvas* canvas,
     if (chart.price_lines.empty()) return;
 
     const VroomPriceLineStyle& style = chart.price_line_style;
+    const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
     SkFont font;
     const bool has_font = label_font(chart, &font);
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
@@ -336,12 +341,12 @@ void draw(SkCanvas* canvas,
                                    line_color);
             }
             if (!group.quantity.empty()) {
-                // Solid fill + white text, so size reads at a glance against the
+                // Solid fill + badge text, so size reads at a glance against the
                 // translucent body.
                 draw_pill(canvas, group.quantity, first == &group.quantity,
                           last == &group.quantity, line_color, SK_ColorTRANSPARENT);
                 draw_centered_text(canvas, font, pl.quantity, group.quantity, y,
-                                   SK_ColorWHITE);
+                                   badge_text);
             }
             if (!group.close.empty()) {
                 const SkColor close_color =
@@ -357,7 +362,7 @@ void draw(SkCanvas* canvas,
 
         if (has_font && (pl.flags & VROOM_PRICE_LINE_AXIS_LABEL) != 0) {
             draw_axis_badge(canvas, font, lay, render_price(chart, i), y,
-                            line_color, fmt);
+                            line_color, badge_text, fmt);
         }
     }
 }

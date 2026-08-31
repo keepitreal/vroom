@@ -191,6 +191,13 @@ struct VroomChart {
     float volume_collapse_t = 0.f;
     int32_t volume_collapse_easing = VROOM_EASING_IN_OUT;
 
+    // Collapse of the axis strips, driven per-frame by the host animation loop:
+    // 0 = full strip, 1 = hidden. Unlike the volume collapse these change the
+    // layout, so the price pane grows into whatever the strips give up. The host
+    // pre-eases them (there is no per-element stagger to distribute here).
+    float y_axis_collapse_t = 0.f;
+    float x_axis_collapse_t = 0.f;
+
     // --- drawings (annotations) --------------------------------------------
     // Committed drawings, anchored in data space so they track the candles on
     // pan/zoom. Drawn on the price pane above candles/overlays.

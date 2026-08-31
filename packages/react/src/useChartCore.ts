@@ -674,9 +674,13 @@ export function useChartCore(
     if (volumeHandleRef.current !== h || volumeCollapseRef.current == null) {
       volumeHandleRef.current = h;
       volumeCollapseRef.current = target;
+      scheduleRender();
       return;
     }
-    if (volumeCollapseRef.current === target) return;
+    if (volumeCollapseRef.current === target) {
+      scheduleRender();
+      return;
+    }
 
     if (volumeRafRef.current != null) {
       cancelAnimationFrame(volumeRafRef.current);
@@ -701,7 +705,14 @@ export function useChartCore(
       volumeCollapseRef.current = t;
       h.setVolumeCollapse(t, easingIndex(animRef.current.easing));
       h.present();
-      volumeRafRef.current = p < 1 ? requestAnimationFrame(step) : null;
+      if (p < 1) {
+        volumeRafRef.current = requestAnimationFrame(step);
+      } else {
+        volumeRafRef.current = null;
+        // This clock stops here; hand back to the render loop so anything the
+        // core is still animating keeps its frames.
+        scheduleRender();
+      }
     };
     volumeRafRef.current = requestAnimationFrame(step);
 
@@ -712,6 +723,85 @@ export function useChartCore(
       }
     };
   }, [ready, volume?.enabled, transitionMs, scheduleRender]);
+
+  // Animate the axis strips out and back when `theme.showYAxis` / `showXAxis`
+  // flip. Unlike the volume collapse there is no per-element stagger for the
+  // core to distribute, so this pre-eases in JS and hands over the eased scalar.
+  // Both axes ride one clock, so toggling them together stays in step.
+  //
+  // This one moves the *layout*: the plot reflows into the reclaimed space every
+  // frame. Nothing in the core snaps these scalars (setVolume's counterpart to
+  // setVolumeCollapse has no equivalent here), so the ref below is the only
+  // record of where the strips are and survives unrelated data pushes.
+  const axisRafRef = useRef<number | null>(null);
+  const axisHandleRef = useRef<VroomChartHandle | null>(null);
+  const axisCollapseRef = useRef<{ y: number; x: number } | null>(null);
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    const targetY = (theme?.showYAxis ?? true) ? 0 : 1;
+    const targetX = (theme?.showXAxis ?? true) ? 0 : 1;
+
+    // Fresh handle (first load or remount): snap, so a chart that mounts with an
+    // axis already hidden doesn't play it out.
+    if (axisHandleRef.current !== h || axisCollapseRef.current == null) {
+      axisHandleRef.current = h;
+      axisCollapseRef.current = { y: targetY, x: targetX };
+      h.setAxisCollapse(targetY, targetX);
+      scheduleRender();
+      return;
+    }
+
+    const fromY = axisCollapseRef.current.y;
+    const fromX = axisCollapseRef.current.x;
+    if (fromY === targetY && fromX === targetX) {
+      scheduleRender();
+      return;
+    }
+
+    if (axisRafRef.current != null) {
+      cancelAnimationFrame(axisRafRef.current);
+      axisRafRef.current = null;
+    }
+
+    const dur = Math.max(0, transitionMs ?? 300);
+    if (dur === 0 || prefersReducedMotion()) {
+      axisCollapseRef.current = { y: targetY, x: targetX };
+      h.setAxisCollapse(targetY, targetX);
+      scheduleRender();
+      return;
+    }
+
+    // From wherever the last frame left off, so toggling mid-flight reverses
+    // instead of jumping.
+    const start = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - start) / dur);
+      const e = ease(animRef.current.easing, p);
+      const y = p < 1 ? fromY + (targetY - fromY) * e : targetY;
+      const x = p < 1 ? fromX + (targetX - fromX) * e : targetX;
+      axisCollapseRef.current = { y, x };
+      h.setAxisCollapse(y, x);
+      h.present();
+      if (p < 1) {
+        axisRafRef.current = requestAnimationFrame(step);
+      } else {
+        axisRafRef.current = null;
+        // This clock stops here; hand back to the render loop so anything the
+        // core is still animating (the line-tip pulse) keeps its frames.
+        scheduleRender();
+      }
+    };
+    axisRafRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (axisRafRef.current != null) {
+        cancelAnimationFrame(axisRafRef.current);
+        axisRafRef.current = null;
+      }
+    };
+  }, [ready, theme?.showYAxis, theme?.showXAxis, transitionMs, scheduleRender]);
 
   return {
     containerRef,

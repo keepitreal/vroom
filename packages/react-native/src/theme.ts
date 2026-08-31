@@ -11,6 +11,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   grid: 4, // VROOM_COLOR_GRID
   axisText: 5, // VROOM_COLOR_AXIS_TEXT
   crosshair: 6, // VROOM_COLOR_CROSSHAIR
+  badgeText: 8, // VROOM_COLOR_BADGE_TEXT (7 is a retired slot)
   crosshairTarget: 9, // VROOM_COLOR_CROSSHAIR_TARGET
   borderBull: 10, // VROOM_COLOR_BORDER_BULL
   borderBear: 11, // VROOM_COLOR_BORDER_BEAR
@@ -36,6 +37,10 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
 export const FLOAT_LINE_TIP_PULSE = 15; // VROOM_FLOAT_LINE_TIP_PULSE
 
 // Maps each boolean VroomTheme field to its VroomFloatKey index (pushed as 0/1).
+//
+// `showXAxis` / `showYAxis` are absent on purpose: they animate, so VroomChart
+// drives them as a collapse scalar through setAxisCollapse. A float slot here
+// would let this sweep snap them behind the animation's back.
 export const BOOL_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   wickRoundCap: 9, // VROOM_FLOAT_WICK_ROUND_CAP
   lineTipDot: 14, // VROOM_FLOAT_LINE_TIP_DOT

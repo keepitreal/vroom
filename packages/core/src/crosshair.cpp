@@ -42,7 +42,9 @@ void draw_badge(SkCanvas* canvas,
                 float cx,
                 float cy,
                 SkColor fill,
-                SkColor text_color) {
+                SkColor text_color,
+                float opacity) {
+    if (opacity <= 0.f) return;
     const size_t len = std::strlen(text);
     SkRect tb;
     const float text_w = font.measureText(text, len, SkTextEncoding::kUTF8, &tb);
@@ -54,11 +56,13 @@ void draw_badge(SkCanvas* canvas,
     SkPaint box;
     box.setAntiAlias(true);
     box.setColor(fill);
+    box.setAlphaf(box.getAlphaf() * opacity);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
     text_paint.setColor(text_color);
+    text_paint.setAlphaf(text_paint.getAlphaf() * opacity);
     canvas->drawString(text, cx - text_w * 0.5f,
                        cy - (tb.fTop + tb.fBottom) * 0.5f, font, text_paint);
 }
@@ -108,8 +112,8 @@ void draw(SkCanvas* canvas,
     ring.setStrokeWidth(2.f);  // thicker border so the dot reads clearly
     canvas->drawCircle(cx, cy, kRingRadius, ring);
 
-    // Axis badges (neutral grey, white text) sit on top of the axis labels and
-    // the current-price indicator since the crosshair is the last draw step.
+    // Axis badges sit on top of the axis labels and the current-price indicator
+    // since the crosshair is the last draw step.
     // They need the axis typeface; if it isn't loaded the lines alone suffice.
     auto tf = vroom::axis_typeface();
     if (!tf) return;
@@ -119,6 +123,7 @@ void draw(SkCanvas* canvas,
     font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
 
     const SkColor badge_fill = chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET];
+    const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
 
     // Date/time badge over the x-axis strip, centered on the vertical line and
     // vertically aligned with the time labels (centered in the strip).
@@ -140,7 +145,7 @@ void draw(SkCanvas* canvas,
         const float badge_cx =
             std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
         draw_badge(canvas, font, buf, badge_cx, strip_center_y, badge_fill,
-                   SK_ColorWHITE);
+                   badge_text, lay.x_axis_opacity);
     }
 
     // Price badge over the y-axis strip, centered on the horizontal line and
@@ -155,7 +160,7 @@ void draw(SkCanvas* canvas,
         vroom::format_price(buf, sizeof(buf), price, fmt);
         const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
         draw_badge(canvas, font, buf, axis_center_x, cy, badge_fill,
-                   SK_ColorWHITE);
+                   badge_text, lay.y_axis_opacity);
     }
 }
 

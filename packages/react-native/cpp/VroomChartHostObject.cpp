@@ -63,6 +63,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolume"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolumeCollapse"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setAxisCollapse"));
   out.push_back(jsi::PropNameID::forAscii(rt, "coordAt"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLines"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestPriceLine"));
@@ -915,6 +916,27 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
               chart_,
               static_cast<float>(args[0].asNumber()),
               static_cast<int32_t>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setAxisCollapse") {
+    // setAxisCollapse(yT, xT) — hides the price / time axis strips. Both take
+    // EASED progress (0 shown, 1 hidden); there is no per-element stagger for
+    // the core to distribute, so the host owns the curve.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setAxisCollapse"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_axis_collapse(
+              chart_,
+              static_cast<float>(args[0].asNumber()),
+              static_cast<float>(args[1].asNumber()));
           return jsi::Value::undefined();
         });
   }

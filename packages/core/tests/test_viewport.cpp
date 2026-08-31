@@ -186,6 +186,42 @@ TEST_CASE("candle_center_x") {
     }
 }
 
+TEST_CASE("axis collapse trades strip extent for plot width") {
+    SUBCASE("extent scales linearly and clamps outside 0..1") {
+        CHECK(vroom::axis_extent(60.f, 0.f) == doctest::Approx(60.f));
+        CHECK(vroom::axis_extent(60.f, 0.25f) == doctest::Approx(45.f));
+        CHECK(vroom::axis_extent(60.f, 1.f) == doctest::Approx(0.f));
+        CHECK(vroom::axis_extent(60.f, -1.f) == doctest::Approx(60.f));
+        CHECK(vroom::axis_extent(60.f, 2.f) == doctest::Approx(0.f));
+    }
+
+    SUBCASE("opacity is front-loaded: fully faded at the halfway point") {
+        CHECK(vroom::axis_opacity(0.f) == doctest::Approx(1.f));
+        CHECK(vroom::axis_opacity(0.25f) == doctest::Approx(0.5f));
+        CHECK(vroom::axis_opacity(0.5f) == doctest::Approx(0.f));
+        // Text is gone while the strip is still half its width, so a label can
+        // never be squeezed into a strip too narrow to hold it.
+        CHECK(vroom::axis_extent(60.f, 0.5f) == doctest::Approx(30.f));
+        CHECK(vroom::axis_opacity(0.75f) == doctest::Approx(0.f));
+        CHECK(vroom::axis_opacity(2.f) == doctest::Approx(0.f));
+        CHECK(vroom::axis_opacity(-1.f) == doctest::Approx(1.f));
+    }
+
+    SUBCASE("the plot reclaims exactly what the strip gives up") {
+        Layout l = make_layout();
+        l.y_axis_width_px = 60.f;
+        l.right_padding_px = 6.f;
+        const float shown = vroom::candle_area_width(l);
+
+        l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
+        CHECK(vroom::candle_area_width(l) == doctest::Approx(shown + 60.f));
+        // The gutter survives a hidden axis — it paints as background, so the
+        // candles keep a little breathing room at the right edge.
+        CHECK(vroom::candle_area_width(l) ==
+              doctest::Approx(l.width_px - l.right_padding_px));
+    }
+}
+
 TEST_CASE("the newest candle fits when the view ends at its slot end") {
     // Realistic reservations: usable = 1000 - 60 - 6 = 934.
     Layout l = make_layout();

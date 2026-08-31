@@ -15,8 +15,9 @@ export enum ColorKey {
   Grid = 4,
   AxisText = 5,
   Crosshair = 6,
-  TooltipBg = 7,
-  TooltipText = 8,
+  /** Retired slot (was TooltipBg, never rendered); indices below it are fixed. */
+  Reserved7 = 7,
+  BadgeText = 8,
   CrosshairTarget = 9,
   BorderBull = 10,
   BorderBear = 11,
@@ -483,6 +484,17 @@ export interface VroomChartHandle {
    * match its `enabled`, so it's only needed while animating.
    */
   setVolumeCollapse(t: number, easing: number): void;
+
+  /**
+   * Collapses the axis strips: 0 leaves a strip at full size, 1 hides it. The
+   * plot grows into whatever the strips give up, and their contents (labels,
+   * price badge, crosshair and price-line badges) fade out over the first half
+   * of the collapse so text is never squeezed into a strip too narrow for it.
+   *
+   * Unlike setVolumeCollapse, both take **eased** progress — there is no
+   * per-element stagger for the core to distribute.
+   */
+  setAxisCollapse(yT: number, xT: number): void;
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;

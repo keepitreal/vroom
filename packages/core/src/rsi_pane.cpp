@@ -158,13 +158,15 @@ void draw(SkCanvas* canvas,
     // 70 / 30 labels in the y-axis strip (drawn after the clip; the strip's
     // background was already masked by draw_chart before this call). They label
     // the band rules, so they go with them.
-    if (tf && cfg.bands_visible) {
+    // The band labels live in the y-axis strip, so they go with it when it hides.
+    if (tf && cfg.bands_visible && lay.y_axis_opacity > 0.f) {
         SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
         font.setSubpixel(true);
         font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
         SkPaint text_paint;
         text_paint.setAntiAlias(true);
         text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
+        text_paint.setAlphaf(text_paint.getAlphaf() * lay.y_axis_opacity);
 
         const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
         auto label = [&](const char* s, float y) {

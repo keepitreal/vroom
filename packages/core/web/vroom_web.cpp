@@ -272,6 +272,11 @@ class WebChart {
   void setVolumeCollapse(double t, int easing) {
     vroom_chart_set_volume_collapse(chart_, static_cast<float>(t), easing);
   }
+  // Both take *eased* progress: 0 = strip shown, 1 = hidden.
+  void setAxisCollapse(double y_t, double x_t) {
+    vroom_chart_set_axis_collapse(chart_, static_cast<float>(y_t),
+                                  static_cast<float>(x_t));
+  }
   // `overlays` is a JS array of {kind, period, source, color, width}.
   void setOverlays(const em::val& overlays) {
     const size_t n = overlays["length"].as<size_t>();
@@ -667,6 +672,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setBollinger", &WebChart::setBollinger)
       .function("setVolume", &WebChart::setVolume)
       .function("setVolumeCollapse", &WebChart::setVolumeCollapse)
+      .function("setAxisCollapse", &WebChart::setAxisCollapse)
       .function("setDrawings", &WebChart::setDrawings)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setPriceLines", &WebChart::setPriceLines)

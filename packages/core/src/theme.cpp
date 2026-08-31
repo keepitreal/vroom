@@ -13,8 +13,8 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     0xff1a1e24,  // GRID — ~20% darker than the crosshair so it recedes
     0xffc9d1d9,  // AXIS_TEXT
     0xff303741,  // CROSSHAIR — grid tone lightened ~44%; reads above GRID
-    0xff161b22,  // TOOLTIP_BG
-    0xffc9d1d9,  // TOOLTIP_TEXT
+    0x00000000,  // RESERVED_7_ — retired slot, never read
+    0xffffffff,  // BADGE_TEXT — text on filled badges/pills
     0xff3e4855,  // CROSSHAIR_TARGET — CROSSHAIR lightened 30% (prior derived ring)
     0x00000000,  // BORDER_BULL — transparent sentinel: inherit BULL fill
     0x00000000,  // BORDER_BEAR — transparent sentinel: inherit BEAR fill

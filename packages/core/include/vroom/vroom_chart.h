@@ -282,8 +282,12 @@ typedef enum {
     VROOM_COLOR_GRID,
     VROOM_COLOR_AXIS_TEXT,
     VROOM_COLOR_CROSSHAIR,
-    VROOM_COLOR_TOOLTIP_BG,
-    VROOM_COLOR_TOOLTIP_TEXT,
+    // Retired (was VROOM_COLOR_TOOLTIP_BG, never rendered). Held open because
+    // the TypeScript theme maps hardcode the indices below it.
+    VROOM_COLOR_RESERVED_7_,
+    // Text drawn on a filled badge: the current-price indicator, the crosshair's
+    // axis badges, and price-line pills. Defaults to white.
+    VROOM_COLOR_BADGE_TEXT,
     VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
     VROOM_COLOR_BORDER_BULL,       // bull body 1px outline; 0 alpha => inherit BULL fill
     VROOM_COLOR_BORDER_BEAR,       // bear body 1px outline; 0 alpha => inherit BEAR fill
@@ -563,6 +567,19 @@ void vroom_chart_set_volume(VroomChart* chart, const VroomVolume* cfg);
 // the tallest arrives last. vroom_chart_set_volume snaps this to match its
 // `enabled`, so the host only needs it while animating.
 void vroom_chart_set_volume_collapse(VroomChart* chart, float t, int32_t easing);
+
+// Collapses the axis strips: 0 leaves a strip at full size, 1 hides it. Driven
+// per-frame by the host animation loop, which owns the eased clock — unlike the
+// volume collapse there is no per-element stagger, so these take *eased*
+// progress directly.
+//
+// Hiding is a collapse rather than a zeroed dimension because the y-axis width
+// is measured from the widest price label and recomputed on most data changes,
+// which would overwrite a zero. The price pane grows into whatever the strips
+// give up, and each strip's contents (labels, price badge, crosshair and
+// price-line badges) fade out over the first half of the collapse so text is
+// never squeezed into a strip too narrow to hold it.
+void vroom_chart_set_axis_collapse(VroomChart* chart, float y_t, float x_t);
 
 // ---- Drawings (line annotations) ------------------------------------------
 
