@@ -596,6 +596,11 @@ export function useChartCore(
     if (!h) return;
     const target = chartType === 'line' ? 1 : 0;
 
+    // Every exit below goes through scheduleRender, whose rAF re-queues itself
+    // while the core reports animating. Landing in line mode turns the line-tip
+    // pulse on, and this loop's own clock stops here — without that handoff the
+    // ring would sit frozen until an unrelated repaint happened along.
+
     // Fresh handle (first load or remount): snap, don't animate.
     if (morphHandleRef.current !== h || morphFadeRef.current == null) {
       morphHandleRef.current = h;
@@ -604,7 +609,10 @@ export function useChartCore(
       scheduleRender();
       return;
     }
-    if (morphFadeRef.current === target) return;
+    if (morphFadeRef.current === target) {
+      scheduleRender();
+      return;
+    }
 
     const reduce = prefersReducedMotion();
     const dur = Math.max(0, transitionMs ?? 300);
@@ -635,6 +643,7 @@ export function useChartCore(
         morphFadeRef.current = target;
         h.setChartType(target); // lock the exact endpoint
         h.present();
+        scheduleRender();
       }
     };
     morphRafRef.current = requestAnimationFrame(step);
