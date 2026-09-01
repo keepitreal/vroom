@@ -124,6 +124,14 @@ target_compile_options(vroomchart PRIVATE -Wno-mismatched-tags)
 
 find_library(VROOM_LOG_LIB log)
 
+# Android 15+ devices can use 16KB pages. NDK r27 and older default to 4KB
+# ELF alignment (align=2**12); Play/SDK 35 then rejects libvroomchart.so.
+# r28+ already aligns to 16KB, so these flags are redundant there but harmless.
+target_link_options(vroomchart PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,-z,common-page-size=16384"
+)
+
 target_link_libraries(vroomchart
   ${VROOM_LOG_LIB}
   ReactAndroid::jsi
