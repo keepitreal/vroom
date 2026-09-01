@@ -1,18 +1,31 @@
 // VroomChart — Phase 3.
 //
-// Owns a SharedValue<SkPicture> driven by:
-//   - useChartCore's "initial" picture (when data/size/range change), AND
-//   - Pan gesture callbacks that call handle.pan(dx, dy) → fresh picture.
+// Owns SharedValues driven by:
+//   - useChartCore's "initial" frame (when data/size/range change), AND
+//   - Pan gesture callbacks that call handle.pan(dx, dy) → a fresh frame.
 //
-// Reanimated 4 + RN-Skia 2 propagate SharedValue<SkPicture> changes to
-// <Picture> without a React re-render, so gesture-driven redraws are cheap.
+// iOS wraps an SkPicture in-process. Android rasterizes to an SkImage (the
+// two Skia copies can't share a picture pointer) so pan/zoom don't serialize
+// the scene — and the system typeface — on every frame.
+//
+// Reanimated 4 + RN-Skia 2 propagate SharedValue changes to <Picture>/<Image>
+// without a React re-render, so gesture-driven redraws are cheap.
 //
 // Gestures run on the JS thread for now (`runOnJS(true)`) — installing the
 // JSI bindings on the worklet runtime is a later perf optimization.
 
 import React, { useEffect, useRef, useCallback, useState, useMemo } from 'react';
-import { View, type LayoutChangeEvent } from 'react-native';
-import { Canvas, Picture, Skia, type SkPicture } from '@shopify/react-native-skia';
+import { PixelRatio, View, type LayoutChangeEvent } from 'react-native';
+import {
+  AlphaType,
+  Canvas,
+  ColorType,
+  Image,
+  Picture,
+  Skia,
+  type SkImage,
+  type SkPicture,
+} from '@shopify/react-native-skia';
 import {
   Gesture,
   GestureDetector,
@@ -22,8 +35,13 @@ import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
+import type { ChartFrame } from './jsi.d';
 import type { VroomChartProps } from './types';
 import './jsi.d';
+
+function isSkImage(frame: ChartFrame): frame is SkImage {
+  return typeof (frame as SkImage).getImageInfo === 'function';
+}
 
 /**
  * Skia-rendered candlestick chart. Pass OHLCV `candles` and size it via `style`
@@ -92,16 +110,39 @@ export function VroomChart(props: VroomChartProps) {
     [priceLines, priceLinesStyle, onPriceLineClose],
   );
 
-  // RN-Skia's recorder reads this SharedValue on the UI/render runtime, a beat
-  // behind JS-thread writes. If it ever reads null it throws ("Invalid prop
-  // value for SkTextBlob received" — RN-Skia's mislabeled SkPicture error), so
-  // we seed it with an empty picture and *never* assign null into it.
+  // RN-Skia's recorder reads these SharedValues on the UI/render runtime, a
+  // beat behind JS-thread writes. If it ever reads null it throws ("Invalid
+  // prop value for SkTextBlob received" — RN-Skia's mislabeled SkPicture
+  // error), so we seed them and *never* assign null. Android writes the image
+  // SV (raster path); iOS writes the picture SV. The unused layer stays a
+  // transparent 1×1 so it doesn't cover the other.
   const emptyPicture = useMemo(() => {
     const rec = Skia.PictureRecorder();
     rec.beginRecording(Skia.XYWHRect(0, 0, 1, 1));
     return rec.finishRecordingAsPicture();
   }, []);
+  const emptyImage = useMemo(() => {
+    const data = Skia.Data.fromBytes(new Uint8Array(4));
+    return Skia.Image.MakeImage(
+      {
+        width: 1,
+        height: 1,
+        colorType: ColorType.RGBA_8888,
+        alphaType: AlphaType.Premul,
+      },
+      data,
+      4,
+    )!;
+  }, []);
   const pictureSV = useSharedValue<SkPicture>(emptyPicture);
+  const imageSV = useSharedValue<SkImage>(emptyImage);
+  const applyFrame = useCallback(
+    (frame: ChartFrame) => {
+      if (isSkImage(frame)) imageSV.value = frame;
+      else pictureSV.value = frame;
+    },
+    [imageSV, pictureSV],
+  );
 
   // An OS reduced-motion preference snaps every transition, the way
   // prefers-reduced-motion does on web.
@@ -111,15 +152,15 @@ export function VroomChart(props: VroomChartProps) {
   // capture) but repaints every frame, so it writes straight into the SV rather
   // than through React state — the same bypass the gesture handlers use.
   const onFrame = useCallback(
-    (p: SkPicture) => {
-      pictureSV.value = p;
+    (p: ChartFrame) => {
+      applyFrame(p);
     },
-    [pictureSV],
+    [applyFrame],
   );
 
   const { handle, picture, volumeCollapseRef } = useChartCore(
     candles,
-    { width, height },
+    { width, height, pxRatio: PixelRatio.get() },
     visibleRange,
     defaultCandleWidth,
     chartType,
@@ -166,11 +207,11 @@ export function VroomChart(props: VroomChartProps) {
     animRaf.current = null;
     if (!handle) return;
     const next = handle.render();
-    if (next) pictureSV.value = next;
+    if (next) applyFrame(next);
     if (handle.isAnimating()) {
       animRaf.current = requestAnimationFrame(animTick);
     }
-  }, [handle, pictureSV]);
+  }, [handle, applyFrame]);
   const maybeStartAnim = useCallback(() => {
     if (animRaf.current != null) return;
     if (!handle?.isAnimating()) return;
@@ -194,9 +235,9 @@ export function VroomChart(props: VroomChartProps) {
   // pulse on needs — otherwise the ring wouldn't move until you touched the
   // chart.
   useEffect(() => {
-    if (picture) pictureSV.value = picture;
+    if (picture) applyFrame(picture);
     maybeStartAnim();
-  }, [picture, pictureSV, maybeStartAnim]);
+  }, [picture, applyFrame, maybeStartAnim]);
 
   // Candle↔line morph. When `chartType` changes we drive the core per-frame with
   // a (collapse, fade) blend and push a fresh picture into the SV each frame — the
@@ -225,7 +266,7 @@ export function VroomChart(props: VroomChartProps) {
       morphFade.current = target;
       handle.setChartType(target);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       maybeStartAnim();
       return undefined;
     }
@@ -243,7 +284,7 @@ export function VroomChart(props: VroomChartProps) {
       morphFade.current = target;
       handle.setChartType(target);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       maybeStartAnim();
       return undefined;
     }
@@ -258,7 +299,7 @@ export function VroomChart(props: VroomChartProps) {
       // Reduced motion still crossfades, but skips the vertical collapse.
       handle.setMorph(reduceMotion ? 0 : fade, fade);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       if (prog < 1) {
         morphRaf.current = requestAnimationFrame(step);
       } else {
@@ -266,7 +307,7 @@ export function VroomChart(props: VroomChartProps) {
         morphFade.current = target;
         handle.setChartType(target); // lock the exact endpoint
         const q = handle.render();
-        if (q) pictureSV.value = q;
+        if (q) applyFrame(q);
         maybeStartAnim();
       }
     };
@@ -279,9 +320,9 @@ export function VroomChart(props: VroomChartProps) {
       }
     };
     // maybeStartAnim is memoized on [handle, animTick] and animTick on
-    // [handle, pictureSV], both already deps here — so it adds no new restarts
+    // [handle, applyFrame], both already deps here — so it adds no new restarts
     // of this clock.
-  }, [handle, chartType, transitionMs, reduceMotion, pictureSV, maybeStartAnim]);
+  }, [handle, chartType, transitionMs, reduceMotion, applyFrame, maybeStartAnim]);
 
   // Volume-bar collapse. The core staggers the bars itself — tallest falling
   // first, all landing together — so unlike the loop above this one hands it
@@ -321,7 +362,7 @@ export function VroomChart(props: VroomChartProps) {
       volumeCollapseRef.current = { t: target, easing };
       handle.setVolumeCollapse(target, easing);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       maybeStartAnim();
       return undefined;
     }
@@ -338,7 +379,7 @@ export function VroomChart(props: VroomChartProps) {
       volumeCollapseRef.current = { t, easing: kind };
       handle.setVolumeCollapse(t, kind);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       if (prog < 1) {
         volumeRaf.current = requestAnimationFrame(step);
       } else {
@@ -359,7 +400,7 @@ export function VroomChart(props: VroomChartProps) {
     volume?.enabled,
     transitionMs,
     reduceMotion,
-    pictureSV,
+    applyFrame,
     volumeCollapseRef,
     maybeStartAnim,
   ]);
@@ -386,7 +427,7 @@ export function VroomChart(props: VroomChartProps) {
       axisCollapse.current = { y: targetY, x: targetX };
       handle.setAxisCollapse(targetY, targetX);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       maybeStartAnim();
       return undefined;
     }
@@ -408,7 +449,7 @@ export function VroomChart(props: VroomChartProps) {
       axisCollapse.current = { y: targetY, x: targetX };
       handle.setAxisCollapse(targetY, targetX);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       maybeStartAnim();
       return undefined;
     }
@@ -425,7 +466,7 @@ export function VroomChart(props: VroomChartProps) {
       axisCollapse.current = { y, x };
       handle.setAxisCollapse(y, x);
       const p = handle.render();
-      if (p) pictureSV.value = p;
+      if (p) applyFrame(p);
       if (prog < 1) {
         axisRaf.current = requestAnimationFrame(step);
       } else {
@@ -447,7 +488,7 @@ export function VroomChart(props: VroomChartProps) {
     showXAxis,
     transitionMs,
     reduceMotion,
-    pictureSV,
+    applyFrame,
     maybeStartAnim,
   ]);
 
@@ -516,7 +557,7 @@ export function VroomChart(props: VroomChartProps) {
           priceDrag.current = { index: pl.index, id: pl.line.id, price: pl.line.price };
           handle.setPriceLineDrag(pl.index, pl.line.price);
           const p = handle.render();
-          if (p) pictureSV.value = p;
+          if (p) applyFrame(p);
         }
       }
     })
@@ -546,7 +587,7 @@ export function VroomChart(props: VroomChartProps) {
         // scrolling. Vertical line tracks the finger x; the dot/horizontal line
         // stay lifted `crosshairOffset` px above the fingertip.
         const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
-        if (ch) pictureSV.value = ch;
+        if (ch) applyFrame(ch);
         // The line follows the finger every frame (above), but only notify the
         // host when the snapped slot actually changes. The slot has a timeMs
         // even in the empty space ahead of the last candle, where candle=null.
@@ -564,7 +605,7 @@ export function VroomChart(props: VroomChartProps) {
         // (axes follow). Diagonal works naturally.
         next = handle.translate(e.changeX, e.changeY);
       }
-      if (next) pictureSV.value = next;
+      if (next) applyFrame(next);
       maybeStartAnim();
     })
     .onEnd((e) => {
@@ -577,7 +618,7 @@ export function VroomChart(props: VroomChartProps) {
         priceDrag.current = null;
         handle.setPriceLineDrag(-1, 0);
         const p = handle.render();
-        if (p) pictureSV.value = p;
+        if (p) applyFrame(p);
         if (g) onPriceLineDragEnd?.(g.id, g.price);
         return;
       }
@@ -606,7 +647,7 @@ export function VroomChart(props: VroomChartProps) {
         velocity *= Math.pow(0.5, dt / HALF_LIFE_S);
         const dx = velocity * dt;
         const next = handle.pan(dx, 0);
-        if (next) pictureSV.value = next;
+        if (next) applyFrame(next);
         maybeStartAnim();
 
         if (Math.abs(velocity) > MIN_STOP) {
@@ -680,7 +721,7 @@ export function VroomChart(props: VroomChartProps) {
       if (frameX === 1 && frameY === 1) return;
 
       const next = handle.zoom(frameX, frameY, focalX, focalY);
-      if (next) pictureSV.value = next;
+      if (next) applyFrame(next);
       maybeStartAnim();
     });
 
@@ -699,7 +740,7 @@ export function VroomChart(props: VroomChartProps) {
       cancelDecay();
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
-      if (ch) pictureSV.value = ch;
+      if (ch) applyFrame(ch);
       const info = handle.getCrosshairInfo();
       lastCrosshairTime.current = info?.timeMs ?? null;
       onCrosshair?.({
@@ -729,7 +770,7 @@ export function VroomChart(props: VroomChartProps) {
       if (hitAxis(e.x, e.y) !== 'chart') return;
       crosshairActive.current = false;
       const ch = handle.clearCrosshair();
-      if (ch) pictureSV.value = ch;
+      if (ch) applyFrame(ch);
       lastCrosshairTime.current = null;
       onCrosshair?.({ active: false, candle: null, timeMs: null, price: null, reason: 'hide' });
     });
@@ -749,9 +790,17 @@ export function VroomChart(props: VroomChartProps) {
         <View style={{ flex: 1 }}>
           <Canvas style={{ flex: 1 }}>
             {width > 0 && height > 0 ? (
-              // pictureSV is always a valid picture (seeded empty, never null),
-              // so RN-Skia's UI-thread reader never sees null.
-              <Picture picture={pictureSV} />
+              <>
+                <Picture picture={pictureSV} />
+                <Image
+                  image={imageSV}
+                  x={0}
+                  y={0}
+                  width={width}
+                  height={height}
+                  fit="fill"
+                />
+              </>
             ) : null}
           </Canvas>
         </View>

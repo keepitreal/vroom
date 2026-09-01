@@ -52,13 +52,14 @@ different, unmerged RTTI record for "the same" class and fails with
 `Expected a Skia object of a different type`.
 
 `VroomChartHostObject.cpp`'s `wrapPicture()` works around this only on
-Android: instead of constructing `RNSkia::JsiSkPicture` directly (as iOS
-does), it serializes the `SkPicture` (`SkPicture::serialize()`) and calls
-RN-Skia's own public JS API, `Skia.Picture.MakePicture(bytes)`, via JSI. That
-runs `JsiSkPictureFactory::MakePicture` — genuinely compiled inside
-`librnskia.so` — so the returned object's RTTI matches what
-`librnskia.so`'s own code expects. This costs a serialize + re-parse of the
-picture's draw commands on every `render()`/gesture call, which is real
-overhead on what's meant to be a 60fps hot path; if that shows up in
-profiling, revisit (e.g. a merged-`.so` build, or a lighter-weight bridge
-that avoids the round trip).
+Android. Two copies of Skia cannot share an `sk_sp<SkPicture>` pointer, and
+serializing the chart picture (the original workaround) embedded the Android
+system typeface on every pan/zoom frame — an OOM that killed the process after
+a few seconds of gesturing.
+
+The hot path now rasterizes the picture in vroom's Skia and hands RN-Skia raw
+pixels via `Skia.Image.MakeImage`, so `<Image>` paints a framebuffer whose size
+is bounded by the view. If rasterization fails, we still serialize, but with
+`SkTypeface::SerializeBehavior::kDontIncludeData` so the font file is not
+copied; `MakePicture` re-resolves `sans-serif` inside `librnskia.so`. iOS is
+unchanged (one binary, direct `JsiSkPicture` wrap).
