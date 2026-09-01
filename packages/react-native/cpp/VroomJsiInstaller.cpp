@@ -5,7 +5,7 @@
 //     methods on the returned object:
 //       setCandles(arrayBuffer)
 //       setSize(w, h, pxRatio)
-//       render() -> JsiSkPicture
+//       render() -> SkPicture (iOS) / SkImage (Android)
 //
 // The host object's lifetime is managed by JS GC — when the React component
 // drops its reference, the underlying VroomChart is destroyed.

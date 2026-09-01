@@ -4,12 +4,25 @@
 #include <string>
 #include <vector>
 
+#include "chart.h"
 #include "chart_internal.h"
 #include "vroom/vroom_chart.h"
 
 // RN-Skia headers.
 #include "JsiSkNativeObjects.h"
 #include "JsiSkPicture.h"
+
+#if defined(__ANDROID__)
+#include <algorithm>
+#include <cmath>
+
+#include "include/core/SkBitmap.h"
+#include "include/core/SkCanvas.h"
+#include "include/core/SkData.h"
+#include "include/core/SkImageInfo.h"
+#include "include/core/SkSerialProcs.h"
+#include "include/core/SkTypeface.h"
+#endif
 
 namespace vroom {
 
@@ -74,27 +87,21 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
 }
 
 #if defined(__ANDROID__)
-// Android only: RN-Skia is compiled into its own librnskia.so, separate from
-// libvroomchart.so. Constructing a RNSkia::JsiSkPicture directly here (as iOS
-// does, below) gives it a vtable/typeinfo from *our* .so; when RN-Skia's own
-// compiled code later consumes it (e.g. Convertor.h's
-// `getPropertyValue<sk_sp<SkPicture>>`, which does
-// `getJsiObject<JsiSkPicture>(rt, value)` — a dynamic_pointer_cast
-// under the hood), the cast fails cross-.so with "Expected a Skia object of
-// a different type", because the object's *runtime* type was never actually
-// compiled inside librnskia.so. iOS statically links everything into one
-// binary, so no such mismatch exists there.
+// Android only: RN-Skia lives in librnskia.so, vroom in libvroomchart.so, and
+// each statically links its own libskia.a. A JsiSkPicture constructed here has
+// our .so's RTTI, so RN-Skia's dynamic_pointer_cast fails with "Expected a
+// Skia object of a different type". iOS statically links one binary, so the
+// iOS wrap below can hand the sk_sp<SkPicture> through directly.
 //
-// The fix: build the picture through RN-Skia's own public JS API instead
-// (`Skia.Picture.MakePicture(bytes)`, the same call `require(...).png`-style
-// static pictures use), so the resulting JsiSkPicture is genuinely
-// constructed by librnskia.so's own code. This costs a serialize +
-// re-parse of the picture's draw ops per call — real overhead on a gesture
-// hot path — but is the only ABI-safe option found so far. Revisit if
-// profiling shows this mattering (e.g. a merged-.so build, or a lighter
-// bridge that avoids the round trip).
-#include "include/core/SkData.h"
-
+// Crossing that boundary used to serialize the chart picture and call
+// Skia.Picture.MakePicture(bytes). Default SkPicture::serialize() embeds the
+// Android system typeface (Noto-scale, megabytes) on every pan/zoom frame;
+// Hermes never kept up and the process was OOM-killed (~3 GB RSS in ~10s).
+//
+// Preferred path: rasterize in *our* Skia and hand RN-Skia raw pixels via
+// Skia.Image.MakeImage — memory is one framebuffer, labels stay correct.
+// Fallback: still serialize, but with kDontIncludeData so the font file is
+// not copied; MakePicture re-resolves sans-serif on RN-Skia's side.
 namespace {
 class SkDataMutableBuffer : public facebook::jsi::MutableBuffer {
  public:
@@ -108,41 +115,119 @@ class SkDataMutableBuffer : public facebook::jsi::MutableBuffer {
  private:
   sk_sp<SkData> data_;
 };
-}  // namespace
 
-static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
-                                       const sk_sp<SkPicture>& pic) {
-  if (!pic) return facebook::jsi::Value::null();
-  sk_sp<SkData> serialized = pic->serialize();
-  if (!serialized) return facebook::jsi::Value::null();
-
-  auto buffer = std::make_shared<SkDataMutableBuffer>(std::move(serialized));
-  jsi::ArrayBuffer arrayBuffer(rt, buffer);
-
+jsi::Value skiaApiObject(jsi::Runtime& rt, const char* name) {
   auto skiaApi = rt.global().getProperty(rt, "SkiaApi");
-  if (!skiaApi.isObject()) return facebook::jsi::Value::null();
-  auto pictureFactory = skiaApi.asObject(rt).getProperty(rt, "Picture");
-  if (!pictureFactory.isObject()) return facebook::jsi::Value::null();
+  if (!skiaApi.isObject()) return jsi::Value::undefined();
+  auto prop = skiaApi.asObject(rt).getProperty(rt, name);
+  return prop.isObject() ? std::move(prop) : jsi::Value::undefined();
+}
+
+// Uint8Array-shaped `{ buffer }` — MakePicture and Data.fromBytes both
+// read the ArrayBuffer off that property.
+jsi::Object bytesLike(jsi::Runtime& rt, sk_sp<SkData> data) {
+  auto buffer = std::make_shared<SkDataMutableBuffer>(std::move(data));
+  jsi::ArrayBuffer arrayBuffer(rt, buffer);
+  jsi::Object arg(rt);
+  arg.setProperty(rt, "buffer", arrayBuffer);
+  return arg;
+}
+
+sk_sp<const SkData> serializeTypefaceNoEmbed(SkTypeface* tf, void*) {
+  if (!tf) return nullptr;
+  return tf->serialize(SkTypeface::SerializeBehavior::kDontIncludeData);
+}
+
+jsi::Value wrapSerializedPicture(jsi::Runtime& rt, const sk_sp<SkPicture>& pic) {
+  SkSerialProcs procs;
+  procs.fTypefaceProc = serializeTypefaceNoEmbed;
+  sk_sp<SkData> serialized = pic->serialize(&procs);
+  if (!serialized) return jsi::Value::null();
+
+  auto pictureFactory = skiaApiObject(rt, "Picture");
+  if (pictureFactory.isUndefined()) return jsi::Value::null();
   auto pictureFactoryObj = pictureFactory.asObject(rt);
   auto makePicture =
       pictureFactoryObj.getPropertyAsFunction(rt, "MakePicture");
 
-  // Mirrors JsiSkPictureFactory::MakePicture's expected argument shape: an
-  // object with a `.buffer` property holding the ArrayBuffer (matching a
-  // Uint8Array-like value; the factory ignores everything else about it).
-  //
   // Skia 2.11's NativeState host methods recover the factory via `this`
   // (`fromThis` → "Expected PictureFactory but got non-object" if unbound).
-  jsi::Object arg(rt);
-  arg.setProperty(rt, "buffer", arrayBuffer);
-  return makePicture.callWithThis(rt, pictureFactoryObj, arg);
+  return makePicture.callWithThis(rt, pictureFactoryObj,
+                                  bytesLike(rt, std::move(serialized)));
+}
+
+jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
+                           float dpr) {
+  const SkRect cull = pic->cullRect();
+  const float scale = dpr > 0.f ? dpr : 1.f;
+  const int w =
+      std::max(1, static_cast<int>(std::ceil(cull.width() * scale)));
+  const int h =
+      std::max(1, static_cast<int>(std::ceil(cull.height() * scale)));
+
+  // Reused across frames on this JS thread so pan/zoom doesn't heap-allocate
+  // a new bitmap every time. Multiple charts share it; a size change reallocs.
+  thread_local SkBitmap raster;
+  const auto info = SkImageInfo::MakeN32Premul(w, h);
+  if ((raster.width() != w || raster.height() != h) &&
+      !raster.tryAllocPixels(info)) {
+    return jsi::Value::null();
+  }
+  raster.eraseColor(SK_ColorTRANSPARENT);
+  SkCanvas canvas(raster);
+  canvas.scale(scale, scale);
+  canvas.translate(-cull.left(), -cull.top());
+  canvas.drawPicture(pic);
+
+  SkPixmap pixmap;
+  if (!raster.peekPixels(&pixmap) || pixmap.addr() == nullptr) {
+    return jsi::Value::null();
+  }
+  sk_sp<SkData> pixels =
+      SkData::MakeWithCopy(pixmap.addr(), pixmap.computeByteSize());
+  if (!pixels) return jsi::Value::null();
+
+  auto dataFactory = skiaApiObject(rt, "Data");
+  auto imageFactory = skiaApiObject(rt, "Image");
+  if (dataFactory.isUndefined() || imageFactory.isUndefined()) {
+    return jsi::Value::null();
+  }
+  auto dataFactoryObj = dataFactory.asObject(rt);
+  auto imageFactoryObj = imageFactory.asObject(rt);
+  auto fromBytes = dataFactoryObj.getPropertyAsFunction(rt, "fromBytes");
+  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, "MakeImage");
+
+  auto skData =
+      fromBytes.callWithThis(rt, dataFactoryObj, bytesLike(rt, std::move(pixels)));
+  if (!skData.isObject()) return jsi::Value::null();
+
+  jsi::Object imageInfo(rt);
+  imageInfo.setProperty(rt, "width", static_cast<double>(w));
+  imageInfo.setProperty(rt, "height", static_cast<double>(h));
+  imageInfo.setProperty(rt, "colorType",
+                        static_cast<double>(pixmap.colorType()));
+  imageInfo.setProperty(rt, "alphaType",
+                        static_cast<double>(pixmap.alphaType()));
+  return makeImage.callWithThis(rt, imageFactoryObj, imageInfo, skData,
+                                static_cast<double>(pixmap.rowBytes()));
+}
+}  // namespace
+
+static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
+                                       const sk_sp<SkPicture>& pic,
+                                       float dpr = 1.f) {
+  if (!pic) return facebook::jsi::Value::null();
+  auto image = wrapRasterImage(rt, pic, dpr);
+  if (!image.isNull()) return image;
+  return wrapSerializedPicture(rt, pic);
 }
 #else
 // Shared helper: wraps a fresh picture for return to JS. Memory pressure is
 // applied inside JsiSkPicture::create (NativeObject::create reads
 // getMemoryPressure() → picture->approximateBytesUsed()).
 static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
-                                       const sk_sp<SkPicture>& pic) {
+                                       const sk_sp<SkPicture>& pic,
+                                       float /*dpr*/ = 1.f) {
   if (!pic) return facebook::jsi::Value::null();
   auto host =
       std::make_shared<RNSkia::JsiSkPicture>(/*context=*/nullptr, pic);
@@ -448,7 +533,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dx = static_cast<float>(args[0].asNumber());
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_pan(chart_, dx, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -467,7 +553,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float dx = static_cast<float>(args[0].asNumber());
           const float dy = static_cast<float>(args[1].asNumber());
           vroom_chart_translate(chart_, dx, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -489,7 +576,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float fx = static_cast<float>(args[2].asNumber());
           const float fy = static_cast<float>(args[3].asNumber());
           vroom_chart_zoom(chart_, sx, sy, fx, fy);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -505,7 +593,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::null();
           const float dy = static_cast<float>(args[0].asNumber());
           vroom_chart_scale_price_axis(chart_, dy);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -521,7 +610,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           if (count < 1) return jsi::Value::null();
           const float dx = static_cast<float>(args[0].asNumber());
           vroom_chart_scale_time_axis(chart_, dx);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -572,7 +662,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const float x = static_cast<float>(args[0].asNumber());
           const float y = static_cast<float>(args[1].asNumber());
           vroom_chart_set_crosshair(chart_, x, y);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -587,7 +678,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_clear_crosshair(chart_);
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 
@@ -1098,7 +1190,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
-          return wrapPicture(rt2, render_chart_picture(chart_));
+          return wrapPicture(rt2, render_chart_picture(chart_),
+                         chart_->px_ratio);
         });
   }
 

@@ -6,7 +6,7 @@
 // Methods exposed to JS:
 //   setCandles(arrayBuffer)   — copies packed VroomCandle[] into the core
 //   setSize(width, height, pxRatio)
-//   render() -> JsiSkPicture  — returns the current chart picture
+//   render() -> SkPicture (iOS) / SkImage (Android)
 
 #pragma once
 

@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
-import type { SkPicture } from '@shopify/react-native-skia';
 
 import NativeVroomChart from './NativeVroomChart';
 import type { DataTransition } from './dataTransitions';
 import { classifyTransition, inferStepMs, timeframeWindow } from './dataTransitions';
 import { ease } from './easing';
-import type { ChartHandle } from './jsi.d';
+import type { ChartFrame, ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
 import { applyTheme, parseColor, FLOAT_LINE_TIP_PULSE } from './theme';
 import type {
@@ -233,13 +232,13 @@ export type TransitionOptions = {
   /** OS reduced-motion preference: skips the capture and snaps. */
   reduceMotion?: boolean;
   /** Receives every morph frame. Without one, data swaps snap. */
-  onFrame?: (picture: SkPicture) => void;
+  onFrame?: (picture: ChartFrame) => void;
 };
 
 export type ChartCoreState = {
   handle: ChartHandle | null;
   /** Picture freshly rendered after the latest data/size/range push. */
-  picture: SkPicture | null;
+  picture: ChartFrame | null;
   /**
    * The last volume collapse handed to the core, or null before the first push.
    * VroomChart's animation loop owns this — it lives here only so the data effect
@@ -282,7 +281,7 @@ export function useChartCore(
     seriesKey?: string;
   } | null>(null);
   const intervalMorphRaf = useRef<number | null>(null);
-  const [picture, setPicture] = useState<SkPicture | null>(null);
+  const [picture, setPicture] = useState<ChartFrame | null>(null);
 
   if (!handleRef.current && size.width > 0 && size.height > 0) {
     ensureInstalled();
