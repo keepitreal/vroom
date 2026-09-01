@@ -1,5 +1,25 @@
 # react-native-vroom-chart
 
+## 0.13.1
+
+### Patch Changes
+
+- 56948f1: Align `libvroomchart.so` to 16KB ELF pages for Android 15+.
+
+  NDK r27 and older default to 4KB LOAD alignment (`align=2**12`). Apps targeting
+  SDK 35 then fail Play's 16KB page-size check for both arm64-v8a and x86_64.
+  The Android CMake target now passes `-Wl,-z,max-page-size=16384` (and
+  `common-page-size`) so consumers no longer need to patch the published
+  package. NDK r28+ already aligns to 16KB; the flags are redundant there.
+
+- ca60911: Stop Android pan/zoom from OOM-killing the app.
+
+  Every gesture frame serialized the chart `SkPicture` into RN-Skia, and the
+  default serializer embedded the system typeface (megabytes) each time. RSS
+  climbed to multiple GB in seconds and the process vanished with no JS error.
+  Android now rasterizes to an `SkImage` (one framebuffer) and only falls back
+  to serialize without embedding font bytes.
+
 ## 0.13.0
 
 ### Minor Changes
