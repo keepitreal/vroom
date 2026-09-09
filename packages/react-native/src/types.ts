@@ -22,6 +22,7 @@ export type {
   TransitionEasing,
   PriceLine,
   PriceLinesStyle,
+  DefaultDrawingStyle,
 } from '@vroomchart/types';
 
 /**

@@ -213,9 +213,12 @@ export type DrawPoint = {
 type DrawingBase = {
   /** Stable unique id (the chart generates one for drawings it creates). */
   id: string;
-  /** Stroke color (hex string or packed ARGB number). Default solid blue. */
+  /**
+   * Stroke color (hex string or packed ARGB number). New drawings take
+   * `drawingStyle.color` when set; otherwise `#ff2962ff`.
+   */
   color?: VroomColor;
-  /** Stroke width in px. Default 2. */
+  /** Stroke width in px. New drawings take `drawingStyle.width` when set; otherwise 2. */
   width?: number;
   /**
    * Protect the drawing from editing. A locked drawing still renders and can
@@ -315,6 +318,30 @@ export type DrawingStyle = {
   /** Box interior fill; ignored by the other drawing types. */
   fill?: VroomColor;
   locked?: boolean;
+};
+
+/**
+ * Default appearance for drawings the user creates — the live draft and the
+ * object handed to `onDrawingComplete`. Paste copies the source drawing's
+ * style instead of this default.
+ *
+ * Omitted fields keep the library defaults: a 2px `#ff2962ff` stroke, and for
+ * boxes a 10% tint of the stroke as fill.
+ *
+ * Prefer 6-digit hex for `color` (`'#00FFFF'`). vroom treats that as opaque,
+ * and CSS swatches preview it correctly. 8-digit hex is `#aarrggbb`, not CSS
+ * `#rrggbbaa`.
+ */
+export type DefaultDrawingStyle = {
+  /** Stroke color, used for the live draft and stamped onto the committed drawing. */
+  color?: VroomColor;
+  /** Stroke width in px. Default 2. */
+  width?: number;
+  /**
+   * Box interior fill. Omitted, new boxes keep the default 10% stroke tint.
+   * Ignored by line, pencil, and path.
+   */
+  fill?: VroomColor;
 };
 
 /**
@@ -875,6 +902,12 @@ export type VroomChartCoreProps = {
   mode?: ChartMode;
   /** Active drawing tool while in `draw` mode. Default `null` (draws nothing). */
   tool?: DrawTool;
+  /**
+   * Default appearance for drawings the user creates (live draft + the object
+   * handed to `onDrawingComplete`). Paste copies the source drawing's style
+   * instead of this. Omitted fields keep the library defaults.
+   */
+  drawingStyle?: DefaultDrawingStyle;
   /**
    * Committed drawings to render, anchored to data so they track the candles on
    * pan/zoom. This is a controlled prop: append the value the chart hands you in

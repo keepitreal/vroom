@@ -54,6 +54,7 @@ export type {
   DrawingRect,
   DrawingSelection,
   DrawingStyle,
+  DefaultDrawingStyle,
   DrawingControls,
   UndoRedoState,
   UndoRedoControls,

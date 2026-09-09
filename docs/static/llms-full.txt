@@ -151,7 +151,8 @@ That's the whole required surface: `candles`. Everything else is optional.
 | `movingAverages` | `MovingAverageOverlay[]` | Array of SMA/EMA overlay lines on the price pane. |
 | `vwap` | `VWAPConfig` | VWAP overlay config. |
 | `mode` | `"pan" \| "draw"` | Chart interaction mode. |
-| `tool` | `"line" \| "box" \| "pencil" \| null` | Active drawing tool (web only). |
+| `tool` | `"line" \| "box" \| "pencil" \| "path" \| null` | Active drawing tool (web only). |
+| `drawingStyle` | `{ color?, width?, fill? }` | Default stroke/fill for newly drawn shapes. Paste copies the source instead. |
 | `chartType` | `"candles" \| "line"` | Price series rendering style. |
 | `liquidity` | `LiquidityConfig` | L2 liquidity bands overlay (web only). |
 | `drawings` | `Drawing[]` | Controlled drawings array (web only). |
@@ -383,7 +384,7 @@ onCrosshair={(e) => {
 
 ## Drawing tools (web only)
 
-Three tools: line (two-point trendline), box (axis-aligned rectangle), and pencil (freehand stroke). Drawings are anchored in data space.
+Three tools: line (two-point trendline), box (axis-aligned rectangle), and pencil (freehand stroke). Drawings are anchored in data space. Pass `drawingStyle` to set the default stroke for newly created shapes (paste copies the source instead).
 
 ### Controlled model
 
@@ -392,6 +393,7 @@ Three tools: line (two-point trendline), box (axis-aligned rectangle), and penci
   candles={candles}
   mode={mode}
   tool={tool}
+  drawingStyle={{ color: "#00FFFF" }}
   drawings={drawings}
   onDrawingComplete={(d) => setDrawings((p) => [...p, d])}
   onDrawingChange={(d) => setDrawings((p) => p.map((x) => (x.id === d.id ? d : x)))}

@@ -33,6 +33,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/DefaultDrawingStyle",
+          label: "DefaultDrawingStyle"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/MACDConfig",
           label: "MACDConfig"
         },

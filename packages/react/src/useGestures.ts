@@ -9,6 +9,7 @@ import type {
   BoxDrawing,
   ChartMode,
   CrosshairEvent,
+  DefaultDrawingStyle,
   Drawing,
   DrawingSelection,
   DrawPoint,
@@ -18,6 +19,7 @@ import type {
 import { DRAW_PART_VERTEX, PATH_MAX_POINTS } from '@vroomchart/core-wasm';
 import type { VroomChartHandle } from '@vroomchart/core-wasm';
 
+import { newDrawingAttrs, resolveDrawingStyle } from './drawingStyle';
 import { simplifyIndices } from './simplify';
 
 type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' | 'indicator-axis';
@@ -28,6 +30,8 @@ export type GestureOptions = {
   mode?: ChartMode;
   /** Active drawing tool while in 'draw' mode. */
   tool?: DrawTool;
+  /** Default appearance for newly drawn shapes (not paste). */
+  drawingStyle?: DefaultDrawingStyle;
   onCrosshair?: (e: CrosshairEvent) => void;
   /** External crosshair to mirror (data space), or null. See VroomChartCoreProps. */
   crosshairOverride?: { timeMs: number; price: number } | null;
@@ -67,15 +71,6 @@ const LONG_PRESS_MS = 350;
 const MOVE_THRESH = 6; // px before a press becomes a drag
 const WHEEL_K = 0.0015; // wheel delta → zoom factor exponent
 const SEP_HIT = 4; // px band around the indicator separator for hit-testing
-
-// Drawing-tool styling: the guideline (and committed line) default to solid blue
-// at 2px, matching the core's default and useChartCore's drawing color.
-const DRAW_COLOR = 0xff2962ff;
-const DRAW_WIDTH = 2;
-// The same blue, as the #aarrggbb string a new drawing is stamped with. Leaving
-// `color` unset would render identically but tell a host color swatch nothing,
-// so it would show some other color than the one on screen.
-const DRAW_COLOR_HEX = '#ff2962ff';
 
 // Freehand capture tuning. PENCIL_MIN_DIST drops samples the pointer barely
 // moved between (browsers fire moves far faster than the stroke changes);
@@ -184,6 +179,17 @@ export function useGestures(
   // Keep latest opts in a ref so the effect's listeners stay stable.
   const optsRef = useRef(opts);
   optsRef.current = opts;
+
+  // Fresh each call, so a host changing `drawingStyle` mid-draw updates the
+  // next preview / the object handed to onDrawingComplete. Paste ignores this.
+  const liveDrawStyle = useCallback(
+    () => resolveDrawingStyle(optsRef.current.drawingStyle),
+    [],
+  );
+  const liveDrawAttrs = useCallback(
+    (type: Drawing['type']) => newDrawingAttrs(optsRef.current.drawingStyle, type),
+    [],
+  );
 
   // Drawing-tool state (live in refs so the mode-change effect can reset it and
   // it survives the gesture effect's stable-listener lifecycle).
@@ -387,10 +393,13 @@ export function useGestures(
       pathCursorRef.current = cursor;
       const s = pathRef.current;
       if (!s || s.pts.length === 0) h.clearDraft();
-      else h.setDraftPath(s.pts, cursor, DRAW_COLOR, DRAW_WIDTH);
+      else {
+        const s0 = liveDrawStyle();
+        h.setDraftPath(s.pts, cursor, s0.packed, s0.width);
+      }
       scheduleRender();
     },
-    [handleRef, scheduleRender],
+    [handleRef, scheduleRender, liveDrawStyle],
   );
 
   // Finish the in-progress path and hand it to the host. Fewer than two
@@ -419,12 +428,12 @@ export function useGestures(
       }
     }
     const path = makeDrawing(
-      { id: drawingId(), color: DRAW_COLOR_HEX, width: DRAW_WIDTH },
+      { id: drawingId(), ...liveDrawAttrs('path') },
       'path',
       roundPoints(pts),
     );
     if (path) optsRef.current.onDrawingComplete?.(path);
-  }, [handleRef, scheduleRender, roundPoints]);
+  }, [handleRef, scheduleRender, roundPoints, liveDrawAttrs]);
 
   // Keyboard: delete the selected line (Backspace/Delete) and copy/paste it
   // (Cmd/Ctrl+C / +V). Skipped while focus is in a field / a real text selection.
@@ -907,7 +916,18 @@ export function useGestures(
       const isBox = drawIsBox();
       const c = snapMoving(isBox, a, x, y);
       if (!c) return;
-      h.setDraft(a.timeMs, a.price, true, c.timeMs, c.price, true, DRAW_COLOR, DRAW_WIDTH, isBox ? 1 : 0);
+      const s0 = liveDrawStyle();
+      h.setDraft(
+        a.timeMs,
+        a.price,
+        true,
+        c.timeMs,
+        c.price,
+        true,
+        s0.packed,
+        s0.width,
+        isBox ? 1 : 0,
+      );
       scheduleRender();
     };
 
@@ -938,7 +958,18 @@ export function useGestures(
         const coord = h.coordAt(x, y);
         if (!coord) return;
         drawAnchorRef.current = coord;
-        h.setDraft(coord.timeMs, coord.price, false, 0, 0, true, DRAW_COLOR, DRAW_WIDTH, isBox ? 1 : 0);
+        const s0 = liveDrawStyle();
+        h.setDraft(
+          coord.timeMs,
+          coord.price,
+          false,
+          0,
+          0,
+          true,
+          s0.packed,
+          s0.width,
+          isBox ? 1 : 0,
+        );
         scheduleRender();
       } else {
         // Second point: commit the shape (Shift-snapped to match the preview)
@@ -946,16 +977,15 @@ export function useGestures(
         const a = drawAnchorRef.current;
         const coord = snapMoving(isBox, a, x, y);
         if (!coord) return;
-        optsRef.current.onDrawingComplete?.({
-          id: drawingId(),
-          type: isBox ? 'box' : 'line',
-          color: DRAW_COLOR_HEX,
-          width: DRAW_WIDTH,
-          points: [
+        const committed = makeDrawing(
+          { id: drawingId(), ...liveDrawAttrs(isBox ? 'box' : 'line') },
+          isBox ? 'box' : 'line',
+          [
             { timeMs: a.timeMs, price: a.price },
             { timeMs: coord.timeMs, price: coord.price },
           ],
-        });
+        );
+        if (committed) optsRef.current.onDrawingComplete?.(committed);
         drawAnchorRef.current = null;
         h.clearDraft();
         scheduleRender();
@@ -974,7 +1004,8 @@ export function useGestures(
       const c = h.coordAt(x, y);
       if (!c) return;
       pencilRef.current = { pts: [c], px: [{ x, y }] };
-      h.startDraftStroke(DRAW_COLOR, DRAW_WIDTH);
+      const s0 = liveDrawStyle();
+      h.startDraftStroke(s0.packed, s0.width);
       h.appendDraftPoint(c.timeMs, c.price);
       scheduleRender();
     };
@@ -1010,7 +1041,7 @@ export function useGestures(
       const keep = simplifyIndices(s.px, PENCIL_EPSILON);
       if (keep.length < 2) return;
       const stroke = makeDrawing(
-        { id: drawingId(), color: DRAW_COLOR_HEX, width: DRAW_WIDTH },
+        { id: drawingId(), ...liveDrawAttrs('pencil') },
         'pencil',
         roundPoints(keep.map((i) => s.pts[i]!)),
       );
@@ -1572,5 +1603,5 @@ export function useGestures(
       window.removeEventListener('keydown', onShiftKey);
       window.removeEventListener('keyup', onShiftKey);
     };
-  }, [containerRef, handleRef, scheduleRender, commitPath, syncPathDraft, roundPoints]);
+  }, [containerRef, handleRef, scheduleRender, commitPath, syncPathDraft, roundPoints, liveDrawStyle, liveDrawAttrs]);
 }

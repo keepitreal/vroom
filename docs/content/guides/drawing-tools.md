@@ -126,6 +126,26 @@ useEffect(() => {
 }, [mode]);
 ```
 
+## Default drawing style
+
+New drawings — the live draft and the object passed to `onDrawingComplete` —
+take their stroke from `drawingStyle`. Paste copies the source drawing's style
+instead of this default.
+
+```tsx
+<VroomChart
+  drawingStyle={{ color: "#00FFFF", width: 2 }}
+  // ...
+/>
+```
+
+`color` is the stroke (and the draft preview). Prefer **6-digit hex**
+(`#rrggbb`) — vroom treats it as opaque, and CSS color inputs preview it
+correctly. 8-digit hex is `#aarrggbb`, not CSS `#rrggbbaa`.
+
+`fill` applies to new boxes only. Omit it to keep the default interior: a 10%
+tint of the stroke.
+
 ## The path tool
 
 The line and box are done after two clicks, and the pencil after you lift the

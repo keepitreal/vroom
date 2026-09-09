@@ -24,4 +24,5 @@ export type {
   TransitionEasing,
   PriceLine,
   PriceLinesStyle,
+  DefaultDrawingStyle,
 } from './types';
