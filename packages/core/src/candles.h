@@ -28,11 +28,13 @@ namespace vroom::candles {
 // body/wick heights and width shrink to the line). `opacity` (0..1) fades the
 // whole candle layer out as the line fades in. Both default to a no-op.
 //
-// `from` / `from_n` is the outgoing geometry of an interval morph, indexed from
-// the right of the visible slice (slot 0 = newest), and `morph_t` (0..1) is the
-// eased progress toward `visible`. Each slot's wick and body interpolate between
-// the two; slots present on only one side fade in or out. `morph_t == 1` (the
-// default) draws `visible` alone.
+// `from` / `from_n` is the outgoing geometry of an interval *transform*, indexed
+// from the right of the visible slice (slot 0 = newest), and `morph_t` (0..1)
+// is the eased progress toward `visible`. Each slot's wick and body interpolate
+// between the two; slots present on only one side fade in or out. A host-chosen
+// fade (see interval_morph_fade) skips this lerp: the chart draws the capture
+// then the new scene via interval_phase instead. `morph_t == 1` (the default)
+// draws `visible` alone.
 void draw(SkCanvas* canvas,
           const ::VroomCandle* visible,
           std::size_t n,

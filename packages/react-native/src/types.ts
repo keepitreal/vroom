@@ -20,6 +20,7 @@ export type {
   MACDConfig,
   ChartType,
   TransitionEasing,
+  IntervalTransition,
   PriceLine,
   PriceLinesStyle,
   DefaultDrawingStyle,

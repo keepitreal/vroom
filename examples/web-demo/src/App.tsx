@@ -12,6 +12,7 @@ import {
   type LiquidityConfig,
   type PriceLine,
   type TransitionEasing,
+  type IntervalTransition,
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
@@ -438,6 +439,8 @@ export function App() {
     const v = window.localStorage.getItem(TRANSITION_EASING_KEY);
     return EASINGS.includes(v as TransitionEasing) ? (v as TransitionEasing) : 'ease-in-out';
   });
+  const [intervalTransition, setIntervalTransition] =
+    useState<IntervalTransition>('transform');
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -889,6 +892,7 @@ export function App() {
                   chartType={chartType}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
+                  intervalTransition={intervalTransition}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...priceLineProps}
@@ -907,6 +911,7 @@ export function App() {
                   chartType={chartType}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
+                  intervalTransition={intervalTransition}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -926,6 +931,7 @@ export function App() {
                 chartType={chartType}
                 transitionMs={transitionMs}
                 transitionEasing={easing}
+                intervalTransition={intervalTransition}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...priceLineProps}
@@ -940,7 +946,14 @@ export function App() {
         {sidebarOpen && (
           <Sidebar
             layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType }}
-            animation={{ transitionMs, setTransitionMs, easing, setEasing }}
+            animation={{
+              transitionMs,
+              setTransitionMs,
+              easing,
+              setEasing,
+              intervalTransition,
+              setIntervalTransition,
+            }}
             data={{
               assets: Object.keys(ASSETS),
               asset,

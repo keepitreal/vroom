@@ -6,6 +6,8 @@
 // surface, so mutations are `void` and `present()` paints. Backed by the
 // Skia-WASM module (./wasm).
 
+import type { IntervalTransition } from '@vroomchart/types';
+
 /** Theme color slots — mirrors the `VroomColorKey` enum in the C facade. */
 export enum ColorKey {
   Background = 0,
@@ -403,15 +405,12 @@ export interface VroomChartHandle {
    */
   preservePriceEnvelope(prevLow: number, prevHigh: number): void;
   /**
-   * Capture the visible candle geometry so the next data swap can animate as a
-   * reshape rather than a jump: each candle's wick and body slide and stretch
-   * into the shape of its counterpart in the new data.
-   *
-   * Candles are paired by *slot* — position counting back from the right edge of
-   * the visible window, which a timeframe switch preserves. Call before
-   * setCandles, then drive setIntervalMorph from 0 to 1.
+   * Capture the visible candle geometry so the next data swap can animate.
+   * `'transform'` (default) lerps each slot into its counterpart; `'fade'`
+   * fades the capture out then the new scene in. Call before setCandles,
+   * then drive setIntervalMorph from 0 to 1.
    */
-  beginIntervalMorph(): void;
+  beginIntervalMorph(mode?: IntervalTransition): void;
   /**
    * Advance the interval morph started by beginIntervalMorph. `t` (clamped to
    * 0..1) is the eased progress: 0 renders the captured geometry pixel-

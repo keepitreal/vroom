@@ -299,6 +299,7 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     // here — drop any capture rather than leaving it to reshape the wrong data.
     chart->morph_from.clear();
     chart->interval_morph_t = 1.f;
+    chart->interval_morph_fade = false;
     apply_default_framing(chart);
     vroom::labels::recompute_axis_width(*chart);
     if (chart->cb.on_viewport_changed) {
@@ -352,10 +353,11 @@ extern "C" void vroom_chart_preserve_price_envelope(VroomChart* chart,
     chart->mark_dirty();
 }
 
-extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart) {
+extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode) {
     if (!chart) return;
     chart->morph_from.clear();
     chart->interval_morph_t = 1.f;
+    chart->interval_morph_fade = false;
 
     const auto lay = chart->layout();
     const float area_w = vroom::candle_area_width(lay);
@@ -400,6 +402,7 @@ extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart) {
     // Open the morph at 0 rather than leaving it at 1: the caller still has to
     // push the new candles, and any frame painted in between should show the
     // captured geometry — which is what the pre-switch frame looked like.
+    chart->interval_morph_fade = vroom::interval_morph_is_fade(mode);
     chart->interval_morph_t = 0.f;
 }
 
@@ -409,6 +412,7 @@ extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (chart->interval_morph_t >= 1.f) {
         chart->morph_from.clear();
         chart->morph_from.shrink_to_fit();
+        chart->interval_morph_fade = false;
     }
     chart->mark_dirty();
 }

@@ -420,14 +420,13 @@ void vroom_chart_preserve_price_envelope(VroomChart* chart,
                                          double prev_low, double prev_high);
 
 // Captures the currently visible candle geometry so the next data swap can be
-// animated as a reshape rather than a jump: each candle's wick and body slide
-// and stretch into the shape of its counterpart in the new data.
+// animated. `mode` 0 (transform) lerps each visible column into its counterpart,
+// paired by slot counting back from the right edge. `mode` 1 (fade) fades the
+// capture out then the new scene in on the same envelope the axes already use.
 //
-// Candles are paired by *slot* — position counting back from the right edge of
-// the visible window, which a timeframe switch preserves. Call before
-// set_candles, then drive vroom_chart_set_interval_morph from 0 to 1.
-// No-op when nothing is visible.
-void vroom_chart_begin_interval_morph(VroomChart* chart);
+// Call before set_candles, then drive vroom_chart_set_interval_morph from 0
+// to 1. No-op when nothing is visible.
+void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode);
 
 // Advances the interval morph started by vroom_chart_begin_interval_morph. `t`
 // (clamped to 0..1) is the eased progress: 0 renders the captured geometry

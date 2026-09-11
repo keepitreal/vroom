@@ -154,7 +154,9 @@ class WebChart {
   void preservePriceEnvelope(double prev_low, double prev_high) {
     vroom_chart_preserve_price_envelope(chart_, prev_low, prev_high);
   }
-  void beginIntervalMorph() { vroom_chart_begin_interval_morph(chart_); }
+  void beginIntervalMorph(int32_t mode) {
+    vroom_chart_begin_interval_morph(chart_, mode);
+  }
   void setIntervalMorph(double t) {
     vroom_chart_set_interval_morph(chart_, static_cast<float>(t));
   }

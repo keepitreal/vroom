@@ -198,6 +198,14 @@ export type ChartType = 'candles' | 'line';
  */
 export type TransitionEasing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
 
+/**
+ * How a same-asset interval switch animates. `'transform'` (default) lerps
+ * each visible column into its counterpart. `'fade'` fades the old scene out
+ * then the new one in — use when the two windows don’t share a 1:1 pairing
+ * (e.g. a fixed lookback).
+ */
+export type IntervalTransition = 'transform' | 'fade';
+
 /** Active drawing tool while in `draw` mode. `null` draws nothing. */
 export type DrawTool = null | 'line' | 'box' | 'pencil' | 'path';
 
@@ -823,16 +831,23 @@ export type VroomChartCoreProps = {
   chartType?: ChartType;
   /**
    * Duration (ms) of the animated transitions: the candle↔line switch when
-   * `chartType` changes, and the candle reshape when the `candles` array is
+   * `chartType` changes, and the interval switch when the `candles` array is
    * swapped for a different interval of the same asset. Default ~300. `0` snaps
-   * instantly. Ignored (snaps) when the OS requests reduced motion, which
-   * instead uses a plain cross-fade.
+   * instantly. Ignored (snaps) when the OS requests reduced motion.
    */
   transitionMs?: number;
   /**
    * Easing curve applied to those transitions. Default `'ease-in-out'`.
    */
   transitionEasing?: TransitionEasing;
+  /**
+   * How a same-asset interval switch animates. `'transform'` (default) lerps
+   * each visible column into its counterpart. `'fade'` fades the old scene out
+   * then the new one in — use when the two windows don’t share a 1:1 pairing
+   * (e.g. a fixed lookback). Same duration/easing as `transitionMs`. Reduced
+   * motion still snaps.
+   */
+  intervalTransition?: IntervalTransition;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

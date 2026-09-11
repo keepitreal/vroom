@@ -38,6 +38,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/IntervalTransition",
+          label: "IntervalTransition"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/MACDConfig",
           label: "MACDConfig"
         },

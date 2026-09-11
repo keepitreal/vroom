@@ -43,6 +43,7 @@ export type {
   ChartMode,
   ChartType,
   TransitionEasing,
+  IntervalTransition,
   DrawTool,
   DrawPoint,
   Drawing,
