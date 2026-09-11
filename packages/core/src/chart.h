@@ -73,11 +73,14 @@ struct VroomChart {
 
     // Interval morph: the outgoing candle geometry captured when a timeframe
     // switch begins, indexed from the right of the visible slice (slot 0 =
-    // newest) — the pairing the preserved slot grid guarantees. Stored as
-    // normalized fractions so it survives the new bounds and a resize.
-    // Empty when not morphing.
+    // newest). `interval_morph_fade` is the host's choice at capture time:
+    // false = slot-lerp each column into its counterpart; true = fade the
+    // snapshot out then the new scene in (see labels::interval_phase).
+    // Stored as normalized fractions so it survives the new bounds and a
+    // resize. Empty when not morphing.
     std::vector<vroom::CandleSnapshot> morph_from;
     float interval_morph_t = 1.f;  // 1 = not morphing
+    bool interval_morph_fade = false;
     // The pre-switch price scale and time window. The candle capture above is
     // normalized against these, and the axes keep rendering their old ticks from
     // them while fading out (see labels::interval_phase), so a label is never

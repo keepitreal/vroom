@@ -13,6 +13,7 @@ import {
   type Candle,
   type ChartType,
   type CrosshairEvent,
+  type IntervalTransition,
   type MovingAverageOverlay,
   type PriceLine,
 } from 'react-native-vroom-chart';
@@ -248,6 +249,12 @@ export default function App() {
   );
 
   const [chartType, setChartType] = useState<ChartType>('candles');
+  const [intervalTransition, setIntervalTransition] =
+    useState<IntervalTransition>('transform');
+  const toggleIntervalTransition = useCallback(() => {
+    setIntervalTransition((t) => (t === 'fade' ? 'transform' : 'fade'));
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
   const toggleChartType = useCallback(() => {
     setChartType((t) => (t === 'candles' ? 'line' : 'candles'));
     Haptics.selectionAsync().catch(() => {});
@@ -452,6 +459,7 @@ export default function App() {
           <VroomChart
             candles={candles}
             chartType={chartType}
+            intervalTransition={intervalTransition}
             theme={theme}
             style={styles.chart}
             onCrosshair={handleCrosshair}
@@ -495,6 +503,25 @@ export default function App() {
               {/* Jumps the mock series between price magnitudes so the axis
                   precision and its width can be checked against each. */}
               <Select value={scale} options={PRICE_SCALES} onChange={setScale} />
+
+              <Pressable
+                style={[
+                  styles.fnBtn,
+                  intervalTransition === 'fade' && styles.fnBtnActive,
+                ]}
+                onPress={toggleIntervalTransition}
+                accessibilityLabel="Interval switch animation. Fade out then in, or transform columns."
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    intervalTransition === 'fade' && styles.fnSymbolActive,
+                  ]}
+                >
+                  {intervalTransition === 'fade' ? 'Fade' : 'Xf'}
+                </Text>
+              </Pressable>
 
               {/* Shows the mode it's in, not the one it switches to, and lights
                   up on `line` because that's the non-default. */}

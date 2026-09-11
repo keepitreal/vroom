@@ -104,6 +104,10 @@ inline std::size_t morph_from_count(const CandleSnapshot* from,
     return (from && morph_t < 1.f) ? from_n : 0;
 }
 
+// C facade `vroom_chart_begin_interval_morph` mode: 0 = slot-lerp transform,
+// anything else = fade the outgoing snapshot out then the new scene in.
+inline bool interval_morph_is_fade(int32_t mode) { return mode != 0; }
+
 // Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
 // When both are 0, returns the full range (Phase 1 default-everything behavior).
 // Candles must be sorted ascending by time_ms (invariant of the public API).

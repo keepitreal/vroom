@@ -20,8 +20,10 @@ export type {
   MACDConfig,
   ChartType,
   TransitionEasing,
+  IntervalTransition,
   PriceLine,
   PriceLinesStyle,
+  DefaultDrawingStyle,
 } from '@vroomchart/types';
 
 /**

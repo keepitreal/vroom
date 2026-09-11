@@ -484,17 +484,25 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "beginIntervalMorph") {
-    // beginIntervalMorph() — capture the visible candle geometry so the next
-    // setCandles can be animated as a reshape. Call before setCandles.
+    // beginIntervalMorph(mode?) — capture the visible candle geometry so the
+    // next setCandles can animate. Optional string `'fade'` or `'transform'`
+    // (default). Call before setCandles.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginIntervalMorph"),
-        0,
-        [this](jsi::Runtime& /*rt2*/,
+        1,
+        [this](jsi::Runtime& rt2,
                const jsi::Value& /*thisVal*/,
-               const jsi::Value* /*args*/,
-               size_t /*count*/) -> jsi::Value {
-          vroom_chart_begin_interval_morph(chart_);
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          int32_t mode = 0;
+          if (count >= 1 && args[0].isString()) {
+            const auto s = args[0].asString(rt2).utf8(rt2);
+            mode = s == "fade" ? 1 : 0;
+          } else if (count >= 1 && args[0].isNumber()) {
+            mode = args[0].asNumber() != 0 ? 1 : 0;
+          }
+          vroom_chart_begin_interval_morph(chart_, mode);
           return jsi::Value::undefined();
         });
   }

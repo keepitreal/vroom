@@ -3,6 +3,7 @@
 // the only place that knows the WASM module's shape — swapping the stub for the
 // real core changes nothing above this line.
 
+import type { IntervalTransition } from '@vroomchart/types';
 import type {
   AxisMetrics,
   BollingerSpec,
@@ -44,7 +45,7 @@ interface WebChartInstance {
   resetPriceScale(): void;
   getVisiblePriceEnvelope(): { low: number; high: number } | null;
   preservePriceEnvelope(prevLow: number, prevHigh: number): void;
-  beginIntervalMorph(): void;
+  beginIntervalMorph(mode: number): void;
   setIntervalMorph(t: number): void;
   pan(dx: number, dy: number): void;
   translate(dx: number, dy: number): void;
@@ -156,8 +157,8 @@ class WasmHandle implements VroomChartHandle {
   preservePriceEnvelope(prevLow: number, prevHigh: number): void {
     this.wc.preservePriceEnvelope(prevLow, prevHigh);
   }
-  beginIntervalMorph(): void {
-    this.wc.beginIntervalMorph();
+  beginIntervalMorph(mode?: IntervalTransition): void {
+    this.wc.beginIntervalMorph(mode === 'fade' ? 1 : 0);
   }
   setIntervalMorph(t: number): void {
     this.wc.setIntervalMorph(t);

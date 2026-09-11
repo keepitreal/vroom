@@ -4,6 +4,7 @@ import type {
   ChartType,
   DrawTool,
   TransitionEasing,
+  IntervalTransition,
   UndoRedoState,
 } from '@vroomchart/react';
 
@@ -201,6 +202,8 @@ export type SidebarProps = {
     setTransitionMs: (v: number) => void;
     easing: TransitionEasing;
     setEasing: (v: TransitionEasing) => void;
+    intervalTransition: IntervalTransition;
+    setIntervalTransition: (v: IntervalTransition) => void;
   };
   data: {
     assets: readonly string[];
@@ -337,6 +340,16 @@ export function Sidebar({
             style={{ width: 120 }}
           />
         </Row>
+        <Field label="Interval switch">
+          <Segmented
+            options={[
+              { label: 'Transform', value: 'transform' as IntervalTransition },
+              { label: 'Fade', value: 'fade' as IntervalTransition },
+            ]}
+            value={animation.intervalTransition}
+            onChange={animation.setIntervalTransition}
+          />
+        </Field>
         <Row label="Easing">
           <select
             value={animation.easing}

@@ -18,6 +18,7 @@ import type {
   PriceLinesStyle,
   RSIConfig,
   TransitionEasing,
+  IntervalTransition,
   VisibleRange,
   VolumeConfig,
   VroomTheme,
@@ -229,6 +230,8 @@ export type TransitionOptions = {
   transitionMs?: number;
   /** Curve applied to the morph's progress. Default 'ease-in-out'. */
   transitionEasing?: TransitionEasing;
+  /** `'transform'` (default) slot-lerps; `'fade'` fades out then in. */
+  intervalTransition?: IntervalTransition;
   /** OS reduced-motion preference: skips the capture and snaps. */
   reduceMotion?: boolean;
   /** Receives every morph frame. Without one, data swaps snap. */
@@ -295,11 +298,13 @@ export function useChartCore(
     ms: number;
     easing: TransitionEasing | undefined;
     reduceMotion: boolean;
-  }>({ ms: 300, easing: undefined, reduceMotion: false });
+    interval: IntervalTransition;
+  }>({ ms: 300, easing: undefined, reduceMotion: false, interval: 'transform' });
   animRef.current = {
     ms: Math.max(0, transition?.transitionMs ?? 300),
     easing: transition?.transitionEasing,
     reduceMotion: transition?.reduceMotion ?? false,
+    interval: transition?.intervalTransition === 'fade' ? 'fade' : 'transform',
   };
   const onFrameRef = useRef(transition?.onFrame);
   onFrameRef.current = transition?.onFrame;
@@ -419,7 +424,7 @@ export function useChartCore(
             onFrameRef.current != null;
           if (morphing) {
             endIntervalMorph();
-            h.beginIntervalMorph();
+            h.beginIntervalMorph(animRef.current.interval);
           }
         } else if (transitionKind === 'initial' || transitionKind === 'reset') {
           // Wholesale reframing — the slot pairing no longer holds, so land any

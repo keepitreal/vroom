@@ -27,7 +27,7 @@ import {
   PRICE_LINE_DRAGGABLE,
   PRICE_LINE_EXTEND_LEFT,
 } from '@vroomchart/core-wasm';
-import type { TransitionEasing, VroomChartCoreProps } from '@vroomchart/types';
+import type { IntervalTransition, TransitionEasing, VroomChartCoreProps } from '@vroomchart/types';
 import {
   classifyTransition,
   inferStepMs,
@@ -305,6 +305,7 @@ export function useChartCore(
     chartType,
     transitionMs,
     transitionEasing,
+    intervalTransition,
     theme,
     rsi,
     macd,
@@ -341,11 +342,20 @@ export function useChartCore(
   // Animation config in a ref, refreshed each render, so changing the duration
   // or easing doesn't re-run the data-push effect below (which would re-push
   // every candle).
-  const animRef = useRef<{ ms: number; easing: TransitionEasing | undefined }>({
+  const animRef = useRef<{
+    ms: number;
+    easing: TransitionEasing | undefined;
+    interval: IntervalTransition;
+  }>({
     ms: 300,
     easing: undefined,
+    interval: 'transform',
   });
-  animRef.current = { ms: Math.max(0, transitionMs ?? 300), easing: transitionEasing };
+  animRef.current = {
+    ms: Math.max(0, transitionMs ?? 300),
+    easing: transitionEasing,
+    interval: intervalTransition === 'fade' ? 'fade' : 'transform',
+  };
 
   // Captured at mount: which core to load (stub vs Skia-WASM). Changing it after
   // mount has no effect — the core is created once and shared process-wide.
@@ -492,7 +502,7 @@ export function useChartCore(
           willMorph = animRef.current.ms > 0 && !prefersReducedMotion();
           if (willMorph) {
             endIntervalMorph();
-            h.beginIntervalMorph();
+            h.beginIntervalMorph(animRef.current.interval);
           }
         } else if (transition === 'initial' || transition === 'reset') {
           // Wholesale reframing — the slot pairing no longer holds, so land any

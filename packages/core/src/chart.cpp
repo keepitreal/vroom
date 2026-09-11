@@ -178,160 +178,274 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 4.35. Price-series morph state, shared by the gradient fill below and the
     //       series itself (5). `morph_fade` crossfades candles→line and
     //       `morph_collapse` folds each candle toward its close (the line vertex);
-    //       fade 0 = pure candles, fade 1 = pure line. An interval morph
-    //       additionally reshapes each slot from the geometry it held before the
-    //       timeframe switch (see `morph_from`) — candle bodies, line vertices and
-    //       the fill alike, so every layer stays in step mid-crossfade.
+    //       fade 0 = pure candles, fade 1 = pure line.
+    //
+    //       An interval *transform* reshapes each slot from the geometry it held
+    //       before the timeframe switch (see `morph_from`). A host-chosen
+    //       *fade* skips the pairing and uses the same envelope as the axes
+    //       (`labels::interval_phase`): outgoing snapshot out, then new scene in.
     const float fade = morph_fade;
     const float collapse = morph_collapse;
     const bool morphing = interval_morph_t < 1.f && !morph_from.empty();
-    const vroom::CandleSnapshot* morph_src = morphing ? morph_from.data() : nullptr;
     const std::size_t morph_n = morphing ? morph_from.size() : 0;
-    const float morph_t = morphing ? interval_morph_t : 1.f;
+    const bool fade_swap = morphing && interval_morph_fade;
+    const bool fade_out = fade_swap && axis_phase.outgoing;
+    const bool fade_in = fade_swap && !axis_phase.outgoing;
+    const bool reshape = morphing && !fade_swap;
+    const vroom::CandleSnapshot* morph_src = reshape ? morph_from.data() : nullptr;
+    const std::size_t morph_n_draw = reshape ? morph_n : 0;
+    const float morph_t = reshape ? interval_morph_t : 1.f;
 
-    // 4.4. Line-mode gradient fill — the wash under the close polyline. Behind the
-    //      volume bars so they stay legible on top of it, which puts it at the
-    //      back of the price pane's content.
-    if (fade > 0.f) {
-        vroom::ma_overlay::draw_close_gradient(
-            canvas, lay, bounds, visible, n, window_ms,
-            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
-            theme.colors[VROOM_COLOR_LINE],
-            theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
-            fade, morph_src, morph_n, morph_t,
-            theme.floats[VROOM_FLOAT_LINE_TENSION]);
-    }
-
-    // 4.5. Volume bars — drawn under the candles so candles z-index above.
-    //      A fully collapsed chart has no bars left to draw, which is also how
-    //      "volume disabled" is represented (set_volume snaps the scalar).
-    if (volume_collapse_t < 1.f) {
-        vroom::volume::draw(canvas, visible, n, lay, theme, volume,
-                            volume_collapse_t, volume_collapse_easing,
-                            window_ms, visible_start_ms, candle_duration_ms);
-    }
-
-    // 4.6. Liquidity bands (resting-order depth) — behind the candles so the
-    //      candle bodies paint over the volume-driven tint. Anchored in price
-    //      space, so they scale with the y-axis.
-    vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
-                           candle_area_h);
-
-    // 4.7. Bollinger Band fill — the translucent region between the upper and
-    //      lower bands, behind the candles so their bull/bear colors stay
-    //      untinted. The band lines themselves draw above the candles (5.65).
-    if (bollinger.enabled) {
-        ensure_bollinger();
-        if (bollinger.fill_enabled &&
-            bb_upper_cache.size() == candles.size() &&
-            bb_lower_cache.size() == candles.size()) {
-            vroom::ma_overlay::fill_between(
-                canvas, lay, bounds, visible, n,
-                bb_upper_cache.data() + range.start,
-                bb_lower_cache.data() + range.start, window_ms,
-                visible_start_ms, candle_duration_ms, candle_right,
-                candle_area_h, bollinger.upper_color, bollinger.fill_opacity);
+    if (fade_out) {
+        // First half: only the captured series, at the axis envelope opacity.
+        // Layers with no snapshot (volume, overlays, indicators, drawings)
+        // would already be the new data, so they stay hidden until the incoming
+        // half. morph_t = 0 draws the capture pixel-identically.
+        const float layer = axis_phase.opacity;
+        if (layer > 0.f) {
+            if (fade > 0.f) {
+                vroom::ma_overlay::draw_close_gradient(
+                    canvas, lay, bounds, visible, 0, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
+                    fade * layer, morph_from.data(), morph_n, 0.f,
+                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+            }
+            if (fade < 1.f) {
+                vroom::candles::draw(canvas, visible, 0, lay, theme, bounds,
+                                     window_ms, visible_start_ms,
+                                     candle_duration_ms, collapse,
+                                     (1.f - fade) * layer, morph_from.data(),
+                                     morph_n, 0.f);
+            }
+            if (fade > 0.f) {
+                vroom::ma_overlay::draw_close_line(
+                    canvas, lay, bounds, visible, 0, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
+                    morph_from.data(), morph_n, 0.f,
+                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+                if (theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
+                    vroom::ma_overlay::draw_close_tip(
+                        canvas, lay, bounds, visible, 0, window_ms,
+                        visible_start_ms, candle_duration_ms, candle_right,
+                        candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                        theme.colors[VROOM_COLOR_BACKGROUND],
+                        theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
+                        theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
+                        tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
+                        morph_from.data(), morph_n, 0.f);
+                }
+            }
         }
-    }
+    } else {
+        // Incoming fade: the new scene at envelope opacity, no slot lerp
+        // (`morph_t` is already 1). Transforms use the reshape path above.
+        const bool wrap = fade_in && axis_phase.opacity > 0.f &&
+                          axis_phase.opacity < 0.999f;
+        if (wrap) {
+            canvas->saveLayerAlpha(
+                nullptr, static_cast<U8CPU>(axis_phase.opacity * 255.f + 0.5f));
+        }
+        const bool draw_new = !fade_in || axis_phase.opacity > 0.f;
 
-    // 5. Price series — candles, a close-price line, or a blend of the two during
-    //    the candle↔line morph (state hoisted to 4.35 for the gradient fill). The
-    //    line is styled by theme.LINE.
-    if (fade < 1.f) {
-        vroom::candles::draw(canvas, visible, n, lay, theme, bounds, window_ms,
-                             visible_start_ms, candle_duration_ms, collapse,
-                             1.f - fade, morph_src, morph_n, morph_t);
-    }
-    if (fade > 0.f) {
-        vroom::ma_overlay::draw_close_line(
-            canvas, lay, bounds, visible, n, window_ms,
-            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
-            theme.colors[VROOM_COLOR_LINE], theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
-            fade, morph_src, morph_n, morph_t,
-            theme.floats[VROOM_FLOAT_LINE_TENSION]);
-    }
+        if (draw_new) {
+            // 4.4. Line-mode gradient fill — the wash under the close polyline.
+            if (fade > 0.f) {
+                vroom::ma_overlay::draw_close_gradient(
+                    canvas, lay, bounds, visible, n, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY], fade,
+                    morph_src, morph_n_draw, morph_t,
+                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+            }
 
-    // 5.5. Moving-average overlay lines (SMA/EMA) on the price pane, over the
-    //      candles. They share the candle price scale and don't reserve a pane.
-    if (!overlays.empty()) {
-        ensure_overlays();
-        for (std::size_t k = 0; k < overlays.size(); ++k) {
-            if (overlay_caches[k].size() != candles.size()) continue;
-            const double* vis = overlay_caches[k].data() + range.start;
-            vroom::ma_overlay::draw(canvas, lay, bounds, visible, n, vis,
+            // 4.5. Volume bars — drawn under the candles so candles z-index above.
+            if (volume_collapse_t < 1.f) {
+                vroom::volume::draw(canvas, visible, n, lay, theme, volume,
+                                    volume_collapse_t, volume_collapse_easing,
                                     window_ms, visible_start_ms,
-                                    candle_duration_ms, candle_right,
-                                    candle_area_h, overlays[k].color,
-                                    overlays[k].width);
+                                    candle_duration_ms);
+            }
+
+            // 4.6. Liquidity bands (resting-order depth).
+            vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
+                                   candle_area_h);
+
+            // 4.7. Bollinger Band fill.
+            if (bollinger.enabled) {
+                ensure_bollinger();
+                if (bollinger.fill_enabled &&
+                    bb_upper_cache.size() == candles.size() &&
+                    bb_lower_cache.size() == candles.size()) {
+                    vroom::ma_overlay::fill_between(
+                        canvas, lay, bounds, visible, n,
+                        bb_upper_cache.data() + range.start,
+                        bb_lower_cache.data() + range.start, window_ms,
+                        visible_start_ms, candle_duration_ms, candle_right,
+                        candle_area_h, bollinger.upper_color,
+                        bollinger.fill_opacity);
+                }
+            }
+
+            // 5. Price series — candles, a close-price line, or a blend.
+            if (fade < 1.f) {
+                vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
+                                     window_ms, visible_start_ms,
+                                     candle_duration_ms, collapse, 1.f - fade,
+                                     morph_src, morph_n_draw, morph_t);
+            }
+            if (fade > 0.f) {
+                vroom::ma_overlay::draw_close_line(
+                    canvas, lay, bounds, visible, n, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade, morph_src,
+                    morph_n_draw, morph_t,
+                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+            }
+
+            // 5.5. Moving-average overlay lines.
+            if (!overlays.empty()) {
+                ensure_overlays();
+                for (std::size_t k = 0; k < overlays.size(); ++k) {
+                    if (overlay_caches[k].size() != candles.size()) continue;
+                    const double* vis = overlay_caches[k].data() + range.start;
+                    vroom::ma_overlay::draw(
+                        canvas, lay, bounds, visible, n, vis, window_ms,
+                        visible_start_ms, candle_duration_ms, candle_right,
+                        candle_area_h, overlays[k].color, overlays[k].width);
+                }
+            }
+
+            // 5.6. VWAP overlay.
+            if (vwap.enabled) {
+                ensure_vwap();
+                if (vwap_cache.size() == candles.size()) {
+                    const double* vis = vwap_cache.data() + range.start;
+                    const unsigned char* brk =
+                        vwap_breaks.size() == candles.size()
+                            ? vwap_breaks.data() + range.start
+                            : nullptr;
+                    vroom::ma_overlay::draw(
+                        canvas, lay, bounds, visible, n, vis, window_ms,
+                        visible_start_ms, candle_duration_ms, candle_right,
+                        candle_area_h,
+                        vroom::style::color_or(vwap.color, kVwapLine),
+                        vroom::style::width_or(vwap.width, 1.5f), brk);
+                }
+            }
+
+            // 5.65. Bollinger Band lines.
+            if (bollinger.enabled) {
+                ensure_bollinger();
+                const std::size_t sz = candles.size();
+                if (bb_upper_cache.size() == sz && bb_lower_cache.size() == sz &&
+                    bb_middle_cache.size() == sz) {
+                    const auto stroke = [&](const std::vector<double>& cache,
+                                              uint32_t color, float width) {
+                        vroom::ma_overlay::draw(
+                            canvas, lay, bounds, visible, n,
+                            cache.data() + range.start, window_ms,
+                            visible_start_ms, candle_duration_ms, candle_right,
+                            candle_area_h, color, width);
+                    };
+                    stroke(bb_upper_cache, bollinger.upper_color,
+                           bollinger.upper_width);
+                    stroke(bb_lower_cache, bollinger.lower_color,
+                           bollinger.lower_width);
+                    stroke(bb_middle_cache, bollinger.middle_color,
+                           bollinger.middle_width);
+                }
+            }
+
+            // 5.7. Drawing annotations.
+            vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,
+                                  candle_area_h);
+
+            // 5.8. Line-mode tip marker.
+            if (fade > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
+                const auto anchor = vroom::tip_anchor::at(
+                    range.start, range.end, candles.size(), reshape);
+                vroom::ma_overlay::draw_close_tip(
+                    canvas, lay, bounds, visible, anchor.slot_count, window_ms,
+                    visible_start_ms, candle_duration_ms, candle_right,
+                    candle_area_h, theme.colors[VROOM_COLOR_LINE],
+                    theme.colors[VROOM_COLOR_BACKGROUND],
+                    theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade,
+                    theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
+                    tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
+                    anchor.use_morph ? morph_src : nullptr,
+                    anchor.use_morph ? morph_n_draw : 0, morph_t);
+            }
+
+            // Incoming fade: indicator panes share the scene opacity (and
+            // paint before axis masks so overflow still clips). Transforms
+            // keep the settled z-order after the price indicator.
+            if (fade_in && lay.indicator_area_h > 0.f) {
+                struct ActivePane {
+                    int order;
+                    int type;
+                };
+                ActivePane panes[2];
+                int count = 0;
+                if (rsi.enabled) panes[count++] = {rsi_order, 0};
+                if (macd.enabled) panes[count++] = {macd_order, 1};
+                if (count == 2 && panes[0].order > panes[1].order) {
+                    const ActivePane tmp = panes[0];
+                    panes[0] = panes[1];
+                    panes[1] = tmp;
+                }
+
+                const float pane_h =
+                    height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
+                float pane_top = candle_area_h;
+                for (int i = 0; i < count; ++i) {
+                    const float pane_bottom = pane_top + pane_h;
+                    if (panes[i].type == 0) {
+                        ensure_rsi();
+                        const double* rsi_vis =
+                            rsi_cache.size() == candles.size()
+                                ? rsi_cache.data() + range.start
+                                : nullptr;
+                        const double* rsi_ma_vis =
+                            (rsi.ma_visible &&
+                             rsi_ma_cache.size() == candles.size())
+                                ? rsi_ma_cache.data() + range.start
+                                : nullptr;
+                        vroom::rsi_pane::draw(
+                            canvas, *this, lay, visible, n, rsi_vis, rsi_ma_vis,
+                            window_ms, visible_start_ms, candle_duration_ms,
+                            candle_right, pane_top, pane_bottom);
+                    } else {
+                        ensure_macd();
+                        const double* macd_vis =
+                            macd_cache.size() == candles.size()
+                                ? macd_cache.data() + range.start
+                                : nullptr;
+                        const double* sig_vis =
+                            macd_signal_cache.size() == candles.size()
+                                ? macd_signal_cache.data() + range.start
+                                : nullptr;
+                        const double* hist_vis =
+                            macd_hist_cache.size() == candles.size()
+                                ? macd_hist_cache.data() + range.start
+                                : nullptr;
+                        vroom::macd_pane::draw(
+                            canvas, *this, lay, visible, n, macd_vis, sig_vis,
+                            hist_vis, window_ms, visible_start_ms,
+                            candle_duration_ms, candle_right, pane_top,
+                            pane_bottom);
+                    }
+                    pane_top = pane_bottom;
+                }
+            }
         }
-    }
 
-    // 5.6. VWAP overlay (session, configurable reset) — a single price-pane line
-    //      that breaks at each session reset (vwap_breaks).
-    if (vwap.enabled) {
-        ensure_vwap();
-        if (vwap_cache.size() == candles.size()) {
-            const double* vis = vwap_cache.data() + range.start;
-            const unsigned char* brk = vwap_breaks.size() == candles.size()
-                ? vwap_breaks.data() + range.start
-                : nullptr;
-            vroom::ma_overlay::draw(canvas, lay, bounds, visible, n, vis,
-                                    window_ms, visible_start_ms,
-                                    candle_duration_ms, candle_right,
-                                    candle_area_h,
-                                    vroom::style::color_or(vwap.color, kVwapLine),
-                                    vroom::style::width_or(vwap.width, 1.5f),
-                                    brk);
-        }
-    }
-
-    // 5.65. Bollinger Band lines — upper, lower, then the basis last so it
-    //       reads on top where the bands pinch. Same price scale as the
-    //       candles; the fill went down in 4.7.
-    if (bollinger.enabled) {
-        ensure_bollinger();
-        const std::size_t sz = candles.size();
-        if (bb_upper_cache.size() == sz && bb_lower_cache.size() == sz &&
-            bb_middle_cache.size() == sz) {
-            const auto stroke = [&](const std::vector<double>& cache,
-                                    uint32_t color, float width) {
-                vroom::ma_overlay::draw(canvas, lay, bounds, visible, n,
-                                        cache.data() + range.start, window_ms,
-                                        visible_start_ms, candle_duration_ms,
-                                        candle_right, candle_area_h, color,
-                                        width);
-            };
-            stroke(bb_upper_cache, bollinger.upper_color, bollinger.upper_width);
-            stroke(bb_lower_cache, bollinger.lower_color, bollinger.lower_width);
-            stroke(bb_middle_cache, bollinger.middle_color, bollinger.middle_width);
-        }
-    }
-
-    // 5.7. Drawing annotations (committed line tools + the in-progress draft).
-    //      On the price pane above the candles/overlays, below the axis labels.
-    vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,
-                          candle_area_h);
-
-    // 5.8. Line-mode tip marker — the dot (and optional pulse) at the newest
-    //      close. Above the overlays so it stays the eye's anchor, but before the
-    //      axis masks, which trim the ring at the price scale.
-    //
-    //      Unlike every layer above, this one anchors to the newest candle in
-    //      the series rather than the newest on screen, so panning into history
-    //      carries the dot off the right edge with its candle (tip_anchor.h).
-    if (fade > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
-        const auto anchor = vroom::tip_anchor::at(range.start, range.end,
-                                                  candles.size(), morphing);
-        vroom::ma_overlay::draw_close_tip(
-            canvas, lay, bounds, visible, anchor.slot_count, window_ms,
-            visible_start_ms, candle_duration_ms, candle_right, candle_area_h,
-            theme.colors[VROOM_COLOR_LINE],
-            theme.colors[VROOM_COLOR_BACKGROUND],
-            theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade,
-            theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
-            tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
-            anchor.use_morph ? morph_src : nullptr,
-            anchor.use_morph ? morph_n : 0, morph_t);
+        if (wrap) canvas->restore();
     }
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
@@ -354,20 +468,25 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     // 7.5. Current-price line + box — above labels so the box covers any label
     //      it overlaps; tracks the latest close as the price scale moves.
-    vroom::price_indicator::draw(canvas, *this, lay, bounds,
-                                 candle_right, candle_area_h);
+    //      Hidden during a fade's outgoing half: the close is already the new
+    //      series and there is no snapshot to fade.
+    if (!fade_out) {
+        vroom::price_indicator::draw(canvas, *this, lay, bounds,
+                                     candle_right, candle_area_h);
 
-    // 7.55. Consumer-supplied price status lines — same tier as the current-price
-    //       indicator (their badges must cover the labels underneath), but after
-    //       it so a resting order at the last close stays readable.
-    vroom::price_lines::draw(canvas, *this, lay, bounds, candle_right,
-                             candle_area_h);
+        // 7.55. Consumer-supplied price status lines — same tier as the
+        //       current-price indicator (their badges must cover the labels
+        //       underneath), but after it so a resting order at the last close
+        //       stays readable.
+        vroom::price_lines::draw(canvas, *this, lay, bounds, candle_right,
+                                   candle_area_h);
+    }
 
     // 7.6. Indicator panes stacked below the candles, ordered by enable
     //      sequence (most recently enabled at the bottom). Each pane is
     //      INDICATOR_HEIGHT_FRAC of the height; the candle pane already shrank
-    //      to fit them (see layout()).
-    if (lay.indicator_area_h > 0.f) {
+    //      to fit them (see layout()). A fade already drew them with the scene.
+    if (!fade_swap && lay.indicator_area_h > 0.f) {
         struct ActivePane { int order; int type; };  // type: 0 = RSI, 1 = MACD
         ActivePane panes[2];
         int count = 0;

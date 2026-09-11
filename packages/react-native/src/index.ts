@@ -22,6 +22,8 @@ export type {
   VolumeConfig,
   ChartType,
   TransitionEasing,
+  IntervalTransition,
   PriceLine,
   PriceLinesStyle,
+  DefaultDrawingStyle,
 } from './types';

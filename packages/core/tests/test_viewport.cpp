@@ -649,3 +649,13 @@ TEST_CASE("y_to_price") {
         CHECK(vroom::y_to_price(l, b, 900.f) == doctest::Approx(0.0));
     }
 }
+
+TEST_CASE("interval_morph_is_fade") {
+    SUBCASE("0 is the slot-lerp transform") {
+        CHECK_FALSE(vroom::interval_morph_is_fade(0));
+    }
+    SUBCASE("nonzero is the fade-out then fade-in path") {
+        CHECK(vroom::interval_morph_is_fade(1));
+        CHECK(vroom::interval_morph_is_fade(2));
+    }
+}
