@@ -1,5 +1,31 @@
 # @vroomchart/react
 
+## 0.15.0
+
+### Minor Changes
+
+- 5216a7e: Add a host-controlled default drawing style
+
+  New drawings always stamped a hardcoded `#ff2962ff` stroke, so a host fallback
+  (`drawing.color ?? accent`) never won, and CSS swatches previewed that 8-digit
+  `#aarrggbb` as red. Pass `drawingStyle` on web and RN `VroomChart` to set the
+  stroke (and draft preview) for newly created line, box, pencil, and path
+  drawings — 6-digit hex like `'#00FFFF'` is treated as opaque. `fill` applies to
+  new boxes only; omit it to keep the 10% stroke tint. Paste still copies the
+  source drawing's style.
+
+  Drawings remain web-only on React Native; the prop type-checks there so the
+  surfaces stay aligned.
+
+- 5216a7e: Let hosts pick fade or transform for interval switches
+
+  A same-asset resolution change always slot-lerped columns, which looks wrong when the two windows don't share a 1:1 pairing (e.g. a fixed lookback). Pass `intervalTransition="fade"` to fade the old scene out then the new one in; `'transform'` (the default) keeps today's reshape. Same duration and easing as `transitionMs`; reduced motion still snaps.
+
+### Patch Changes
+
+- Updated dependencies [5216a7e]
+  - @vroomchart/core-wasm@0.15.0
+
 ## 0.14.0
 
 ### Minor Changes
