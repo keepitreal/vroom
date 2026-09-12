@@ -170,49 +170,55 @@ type DemoFootprint = Footprint & { size: number };
 
 // Sample fills, using *raw* trade times rather than bar-open times — the point
 // being that vroom buckets each one onto whichever candle's window contains it.
-// Placed a few bars back from the newest so they land inside the default viewport
-// at every interval.
 //
-// Deliberately includes several buys inside one candle (which must collapse to a
-// single badge) and a candle holding both a buy and a sell (two stacked badges).
+// Offsets are wall-clock minutes before the newest bar's close, never bars back.
+// That distinction is the whole test: the same nine executions go to the chart at
+// every interval, so widening the resolution has to merge them. At 1m they sit on
+// six bars; 5m folds the opening pair into one badge; 15m is down to three bars;
+// and from 1h up the entire set collapses onto the newest bar as a single stacked
+// buy/sell pair. Offsets measured in bars would scale with the interval instead,
+// leaving the badges the same distance apart at 1m and 1w and testing nothing.
+//
+// Deliberately includes three buys inside one 1m bar (which must collapse to a
+// single badge even at the finest resolution) and a bar holding both a buy and a
+// sell (two stacked badges).
 function mockFootprints(candles: Candle[]): DemoFootprint[] {
   if (candles.length < 60) return [];
   const newest = candles.length - 1;
   const stepMs =
     candles.length > 1 ? candles[1].timeMs - candles[0].timeMs : MINUTE;
+  // The series' right edge. mockCandles walks back from ~now, so every offset
+  // below lands inside the series whatever the step.
+  const endMs = candles[newest].timeMs + stepMs;
 
   const out: DemoFootprint[] = [];
   let n = 0;
-  // `barsBack` picks the candle; `frac` places the fill inside its window, so
-  // nothing lands exactly on a bar boundary.
-  const add = (
-    barsBack: number,
-    frac: number,
-    side: FootprintSide,
-    size: number,
-  ) => {
-    const bar = candles[newest - barsBack];
-    if (!bar) return;
-    out.push({
-      id: `fp-${n++}`,
-      timeMs: bar.timeMs + Math.floor(stepMs * frac),
-      side,
-      price: bar.close,
-      size,
-    });
+  // Fractional minutes so nothing lands exactly on a bar boundary at any
+  // interval. `price` comes off the bar the fill fell in, purely so the host
+  // tooltip has a plausible number to show.
+  const add = (minsAgo: number, side: FootprintSide, size: number) => {
+    const timeMs = Math.round(endMs - minsAgo * MINUTE);
+    const i = Math.floor((timeMs - candles[0].timeMs) / stepMs);
+    const bar = candles[Math.min(Math.max(i, 0), newest)];
+    out.push({ id: `fp-${n++}`, timeMs, side, price: bar.close, size });
   };
 
-  // An entry and the exit that closes it, on separate bars.
-  add(40, 0.4, 'buy', 1.5);
-  add(31, 0.6, 'sell', 1.5);
-  // A position scaled into over one bar: three fills, one badge.
-  add(20, 0.15, 'buy', 0.5);
-  add(20, 0.5, 'buy', 0.75);
-  add(20, 0.85, 'buy', 0.25);
-  // A bar that both bought and sold — two stacked badges, buy lower because its
-  // last fill came first.
-  add(8, 0.3, 'buy', 2);
-  add(8, 0.7, 'sell', 2);
+  // Two entries a couple of minutes apart: separate badges at 1m, one badge
+  // reading "1.5 in 2 fills" from 5m up.
+  add(38.7, 'buy', 1);
+  add(36.4, 'buy', 0.5);
+  // The exit that closes them.
+  add(30.3, 'sell', 1.5);
+  // A position scaled into inside a single 1m bar: three fills, one badge, at
+  // every interval.
+  add(22.8, 'buy', 0.5);
+  add(22.5, 'buy', 0.75);
+  add(22.2, 'buy', 0.25);
+  add(12.6, 'sell', 1.5);
+  // Both sides on one bar — two stacked badges, buy lower because its last fill
+  // came first.
+  add(4.7, 'buy', 2);
+  add(4.3, 'sell', 2);
   return out;
 }
 
@@ -449,8 +455,8 @@ export default function App() {
   // Re-derived from whatever series is loaded rather than seeded once at toggle
   // time: this bench regenerates its mock candles on every interval and price-scale
   // change, so fills pinned to the old bars would fall outside the new series and
-  // vanish. Anchored a few bars back from the newest, they stay inside the default
-  // viewport at every interval — which is what makes the tap path testable.
+  // vanish. The offsets inside are wall-clock, so the executions themselves don't
+  // move when the interval does — only which bar they land on.
   const footprints = useMemo(() => mockFootprints(candles), [candles]);
   const [footprintHover, setFootprintHover] = useState<{
     side: FootprintSide;
