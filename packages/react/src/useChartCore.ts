@@ -21,11 +21,14 @@ import {
   type DrawingSpec,
   type LiquiditySpec,
   type PriceLinesSpec,
+  type FootprintsSpec,
   type VroomChartHandle,
   PRICE_LINE_AXIS_LABEL,
   PRICE_LINE_CLOSABLE,
   PRICE_LINE_DRAGGABLE,
   PRICE_LINE_EXTEND_LEFT,
+  FOOTPRINT_BUY,
+  FOOTPRINT_SELL,
 } from '@vroomchart/core-wasm';
 import type { IntervalTransition, TransitionEasing, VroomChartCoreProps } from '@vroomchart/types';
 import {
@@ -276,6 +279,43 @@ const EMPTY_PRICE_LINES: PriceLinesSpec = {
   hoverBoost: DEFAULT_PRICE_LINE_HOVER_BOOST,
 };
 
+// Footprints share the price lines' hover weight so the two widgets light up
+// alike. Zeroed geometry defers to the core's own defaults.
+const DEFAULT_FOOTPRINT_HOVER_BOOST = 1.25;
+
+// A time no real series can contain (~273,000 BCE), still comfortably inside
+// int64. Parks a malformed footprint where the core will never bucket it.
+const UNBUCKETABLE_MS = -8.64e15;
+
+function footprintsToSpec(
+  prints: NonNullable<VroomChartCoreProps['footprints']>,
+  style: VroomChartCoreProps['footprintsStyle'],
+): FootprintsSpec {
+  return {
+    // Index alignment is load-bearing: the core reports hits as indices into this
+    // array and the gesture layer maps them straight back to the consumer's
+    // `footprints`. So a non-finite time — which can't be bucketed and would
+    // reach WASM as a garbage int64 — is neutralized *in place* rather than
+    // filtered out, which would shift every index after it onto the wrong trade.
+    prints: prints.map((f) => ({
+      timeMs: Number.isFinite(f.timeMs) ? f.timeMs : UNBUCKETABLE_MS,
+      side: f.side === 'sell' ? FOOTPRINT_SELL : FOOTPRINT_BUY,
+    })),
+    radiusPx: style?.radius ?? 0,
+    gapPx: style?.gap ?? 0,
+    marginPx: style?.margin ?? 0,
+    hoverBoost: style?.hoverBoost ?? DEFAULT_FOOTPRINT_HOVER_BOOST,
+  };
+}
+
+const EMPTY_FOOTPRINTS: FootprintsSpec = {
+  prints: [],
+  radiusPx: 0,
+  gapPx: 0,
+  marginPx: 0,
+  hoverBoost: DEFAULT_FOOTPRINT_HOVER_BOOST,
+};
+
 export type UseChartCore = {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -318,6 +358,8 @@ export function useChartCore(
     priceLines,
     priceLinesStyle,
     onPriceLineClose,
+    footprints,
+    footprintsStyle,
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -459,6 +501,9 @@ export function useChartCore(
   const priceLinesKey = priceLines
     ? JSON.stringify([priceLines, priceLinesStyle ?? null, onPriceLineClose != null])
     : '';
+  const footprintsKey = footprints
+    ? JSON.stringify([footprints, footprintsStyle ?? null])
+    : '';
   const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
@@ -586,11 +631,16 @@ export function useChartCore(
         ? priceLinesToSpec(priceLines, priceLinesStyle, onPriceLineClose != null)
         : EMPTY_PRICE_LINES,
     );
+    h.setFootprints(
+      footprints?.length
+        ? footprintsToSpec(footprints, footprintsStyle)
+        : EMPTY_FOOTPRINTS,
+    );
     scheduleRender();
     // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/drawings/
-    // liquidity/priceLines tracked via *Key deps.
+    // liquidity/priceLines/footprints tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

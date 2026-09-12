@@ -47,6 +47,9 @@ export type {
   LiquiditySpec,
   PriceLineSpec,
   PriceLinesSpec,
+  FootprintSpec,
+  FootprintsSpec,
+  FootprintHit,
   Coord,
   RectPx,
 } from './handle';
@@ -56,6 +59,8 @@ export {
   PRICE_LINE_CLOSABLE,
   PRICE_LINE_AXIS_LABEL,
   PRICE_LINE_EXTEND_LEFT,
+  FOOTPRINT_BUY,
+  FOOTPRINT_SELL,
   DRAW_PART_VERTEX,
   PATH_MAX_POINTS,
 } from './handle';

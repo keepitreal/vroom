@@ -325,6 +325,45 @@ export interface ChartHandle {
    * committed price is untouched — restate setPriceLines to apply the move.
    */
   setPriceLineDrag(index: number, price: number): void;
+  /**
+   * Replaces the full set of footprints (plus their shared style). `side` is
+   * 0=buy, 1=sell; `timeMs` is the raw execution time — the core buckets each
+   * trade onto whichever candle's window contains it and regroups whenever the
+   * candles change. Geometry fields at 0 take the core's defaults. Pass an empty
+   * `prints` array to clear.
+   */
+  setFootprints(spec: {
+    prints: { timeMs: number; side: number }[];
+    radiusPx: number;
+    gapPx: number;
+    marginPx: number;
+    hoverBoost: number;
+  }): void;
+  /**
+   * Hit-tests pixel (x, y) against the footprint badges; null on a miss, nearest
+   * center wins when two overlap. `indices` addresses the array last passed to
+   * setFootprints and covers *both* sides of that candle, ascending by time, so
+   * one call is enough to fill a tooltip; `pane` is the plot rect, for deciding
+   * which side of the badge that tooltip fits on. Cheap to call at gesture rate.
+   */
+  hitTestFootprint(
+    x: number,
+    y: number,
+  ): {
+    side: number;
+    candleTimeMs: number;
+    x: number;
+    y: number;
+    radius: number;
+    pane: { left: number; top: number; right: number; bottom: number };
+    indices: number[];
+  } | null;
+  /**
+   * Marks a footprint badge as hovered so it renders highlighted; side -1 clears.
+   * The arguments match hitTestFootprint. Touch has no hover, so on RN this
+   * tracks the badge the user last tapped.
+   */
+  setFootprintHover(candleTimeMs: number, side: number): void;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): ChartFrame | null;

@@ -22,6 +22,7 @@
 #include "include/core/SkRefCnt.h"
 #pragma clang diagnostic pop
 
+#include "footprints_layout.h"
 #include "labels.h"
 #include "price_format.h"
 #include "theme.h"
@@ -279,6 +280,28 @@ struct VroomChart {
     int32_t hovered_price_line_part = -1;
     int32_t dragged_price_line = -1;
     double  dragged_price_line_price = 0.0;
+
+    // --- footprints (executed-trade badges) ---------------------------------
+    // Kept in the *host's* order so the indices reported by
+    // vroom_chart_footprints_at map straight back to its own trade objects.
+    std::vector<VroomFootprint> footprints;
+    VroomFootprintStyle         footprint_style{};
+
+    // Footprints grouped onto candles, which is what the renderer and hit-test
+    // actually walk. Derived from `footprints` + `candles`, so it is rebuilt
+    // lazily (see ensure_footprint_buckets) whenever either changes — that
+    // rebuild is what re-groups badges onto the right bars after an interval
+    // switch, with no involvement from the host.
+    std::vector<vroom::footprints::Bucket> footprint_buckets;
+    bool                                   footprint_buckets_dirty = true;
+
+    // Which badge renders highlighted, keyed the way the hit-test reports it.
+    // side -1 = none.
+    int64_t hovered_footprint_time_ms = 0;
+    int32_t hovered_footprint_side = -1;
+
+    // Rebuilds footprint_buckets if either input changed since the last call.
+    void ensure_footprint_buckets();
 
     // --- theme --------------------------------------------------------------
     vroom::Theme theme;

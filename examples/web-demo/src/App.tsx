@@ -11,6 +11,9 @@ import {
   type LiquidityBand,
   type LiquidityConfig,
   type PriceLine,
+  type Footprint,
+  type FootprintSide,
+  type FootprintEvent,
   type TransitionEasing,
   type IntervalTransition,
   type UndoRedoControls,
@@ -376,6 +379,131 @@ function makePriceLines(candles: Candle[]): DemoPriceLine[] {
   ];
 }
 
+// A footprint plus the extras this demo wants in its tooltip. The library only
+// reads id/timeMs/side/price and hands the whole object back on hover, so a host
+// can hang whatever it likes off it.
+type DemoFootprint = Footprint & { size: number };
+
+// Sample fills, generated from the **1m base series** rather than the aggregated
+// one, so their timestamps are fixed points in absolute time. That's what makes
+// the interval switch interesting: vroom re-buckets the same array onto whatever
+// bars are loaded, so switching 1m → 1h visibly regroups these badges (and merges
+// some of them) without the demo touching the data.
+//
+// Everything sits inside the last couple of hours so it's within the default
+// viewport. Positions are chosen to show off all three behaviors at once:
+//   1m: six bars with badges, one of them holding three buys behind one badge,
+//       one of them holding both a buy and a sell as a stacked pair.
+//   1h: three bars, each now a stacked pair, and the first bar's buy badge now
+//       reports two fills that were on separate minutes.
+function makeFootprints(base: Candle[]): DemoFootprint[] {
+  if (base.length < 200) return [];
+  const newest = base[base.length - 1].timeMs;
+  const byTime = new Map(base.map((c) => [c.timeMs, c]));
+
+  const out: DemoFootprint[] = [];
+  let n = 0;
+  // `minutesBack` picks the 1m bar; `sec` places the fill inside it, so nothing
+  // lands exactly on a bar boundary.
+  const add = (minutesBack: number, sec: number, side: FootprintSide, size: number) => {
+    const barMs = newest - minutesBack * MINUTE;
+    const bar = byTime.get(barMs);
+    if (!bar) return;
+    out.push({ id: `fp-${n++}`, timeMs: barMs + sec * 1000, side, price: bar.close, size });
+  };
+
+  // An entry, a second tranche of it 18 minutes later, and the exit that closes
+  // the position. Three separate 1m bars — but the two buys share an hour, so at
+  // 1h they merge behind one badge reporting both fills.
+  add(138, 18, 'buy', 1);
+  add(120, 6, 'buy', 0.5);
+  add(130, 42, 'sell', 1.5);
+  // A position scaled into over one bar: three fills, one badge.
+  add(96, 9, 'buy', 0.5);
+  add(96, 30, 'buy', 0.75);
+  add(96, 51, 'buy', 0.25);
+  add(70, 24, 'sell', 1.5);
+  // A bar that both bought and sold — two stacked badges, buy lower because its
+  // last fill came first.
+  add(20, 12, 'buy', 2);
+  add(20, 48, 'sell', 2);
+  return out;
+}
+
+// The tooltip the *host* renders for a hovered footprint — vroom draws no overlay
+// of its own, it just says which badge is hovered, which trades are on that bar,
+// where the badge is, and how much room the plot has. Parked beside the badge
+// rather than above it so a bar holding both a buy and a sell keeps both visible.
+const FOOTPRINT_TOOLTIP_W = 200;
+
+function FootprintTooltip({
+  hover,
+}: {
+  hover: {
+    side: FootprintSide;
+    timeMs: number;
+    trades: DemoFootprint[];
+    badge: { x: number; y: number; radius: number };
+    /** Put the tooltip on the badge's left, because the right would overflow. */
+    flip: boolean;
+  } | null;
+}) {
+  if (!hover) return null;
+  const { side, trades, badge, flip } = hover;
+  // Only the hovered badge's own side; the event carries the whole bar so a host
+  // could just as easily show both.
+  const mine = trades.filter((t) => t.side === side);
+  const total = mine.reduce((sum, t) => sum + t.size, 0);
+  const accent = side === 'buy' ? '#26a69a' : '#ef5350';
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        // The newest trades sit at the right edge, which is exactly where a
+        // right-anchored tooltip would run off the pane — so that case flips to
+        // the badge's other side.
+        left: flip
+          ? badge.x - badge.radius - 8 - FOOTPRINT_TOOLTIP_W
+          : badge.x + badge.radius + 8,
+        top: badge.y,
+        width: FOOTPRINT_TOOLTIP_W,
+        boxSizing: 'border-box',
+        transform: 'translateY(-50%)',
+        pointerEvents: 'none',
+        background: '#161b22f2',
+        border: '1px solid #30363d',
+        borderRadius: 8,
+        padding: '8px 10px',
+        color: '#c9d1d9',
+        font: '12px ui-sans-serif, system-ui, sans-serif',
+        whiteSpace: 'nowrap',
+        boxShadow: '0 6px 20px #0008',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <span
+          style={{
+            background: accent,
+            color: '#08121a',
+            borderRadius: 4,
+            padding: '1px 6px',
+            fontWeight: 600,
+          }}
+        >
+          {side === 'buy' ? 'Buy' : 'Sell'}
+        </span>
+        <span style={{ color: '#8b949e' }}>
+          {new Date(mine[mine.length - 1]?.timeMs ?? hover.timeMs).toLocaleString()}
+        </span>
+      </div>
+      <div style={{ fontSize: 13 }}>
+        {total} {mine.length > 1 ? `in ${mine.length} fills` : ''} at{' '}
+        {mine[mine.length - 1]?.price?.toFixed(2) ?? '—'}
+      </div>
+    </div>
+  );
+}
+
 // Shared toolbar button style.
 const toolBtn: CSSProperties = {
   background: 'transparent',
@@ -408,6 +536,7 @@ export function App() {
   );
   const [showLiquidity, setShowLiquidity] = useState(false);
   const [showPriceLines, setShowPriceLines] = useState(false);
+  const [showFootprints, setShowFootprints] = useState(false);
   // Demo candles are stateful so the Add/Update tools can stream into them; they
   // reset to the base series whenever the asset/timeframe (or Gaps/Sparse) changes.
   const demoBase = useMemo(() => {
@@ -498,6 +627,39 @@ export function App() {
         onPriceLineClose,
       }
     : {};
+
+  // Footprints. The chart draws the badges and reports hover; the tooltip below is
+  // entirely this demo's — that split is the whole point of the API.
+  // Keyed to the asset, not the timeframe: the same fills are handed to the chart
+  // at every interval, which is what lets a switch demonstrate re-bucketing.
+  const footprints = useMemo(
+    () => (showFootprints ? makeFootprints(baseSeries(asset)) : []),
+    [showFootprints, asset],
+  );
+  const [footprintHover, setFootprintHover] = useState<{
+    side: FootprintSide;
+    timeMs: number;
+    trades: DemoFootprint[];
+    badge: { x: number; y: number; radius: number };
+    flip: boolean;
+  } | null>(null);
+  const onFootprint = useCallback((e: FootprintEvent) => {
+    if (!e.active || !e.badge || !e.pane || e.side == null || e.timeMs == null) {
+      setFootprintHover(null);
+      return;
+    }
+    // Both rects arrive in the same space, so choosing a side is arithmetic — no
+    // DOM measurement, and no measuring the wrong thing: `pane.right` stops at
+    // the plot, while the element's own width runs under the price axis.
+    setFootprintHover({
+      side: e.side,
+      timeMs: e.timeMs,
+      trades: e.footprints as DemoFootprint[],
+      badge: e.badge,
+      flip: e.badge.x + e.badge.radius + 8 + FOOTPRINT_TOOLTIP_W > e.pane.right,
+    });
+  }, []);
+  const footprintProps = showFootprints ? { footprints, onFootprint } : {};
 
   // Layout: single chart, or two stacked crosshair-linked panes (replaces the
   // old Sync view). Sidebar expand/collapse is persisted.
@@ -935,11 +1097,13 @@ export function App() {
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...priceLineProps}
+                {...footprintProps}
                 {...indicatorProps}
                 {...drawProps}
                 onCrosshair={onPrimaryCrosshair}
               />
               <SelectionTray selection={selection} controls={historyRef} />
+              <FootprintTooltip hover={footprintHover} />
             </div>
           )}
         </div>
@@ -979,7 +1143,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, showFootprints, setShowFootprints, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

@@ -176,8 +176,8 @@
   line's own stroke cap.
 
   `lineTipPulse` defaults to **false**. When on, a ring expands out of the dot and
-  fades, once every 2.6 seconds, with a rest between beats — modeled on
-  TradingView's last-price animation. Because the ring never settles, turning it on
+  fades, once every 2.6 seconds, with a rest between beats. Because the ring never
+  settles, turning it on
   keeps the chart repainting continuously; leave it off for charts that should be
   able to go idle. An OS reduced-motion preference suppresses the pulse (the dot
   stays), the same bargain the candle↔line morph already strikes when it keeps its

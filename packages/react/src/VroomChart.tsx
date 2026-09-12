@@ -57,6 +57,8 @@ export function VroomChart(props: VroomChartProps) {
     onPriceLineDrag,
     onPriceLineDragEnd,
     onPriceLineClose,
+    footprints,
+    onFootprint,
   } = props;
 
   // Managed persistence: when a `drawingStore` is provided the chart owns the
@@ -106,6 +108,8 @@ export function VroomChart(props: VroomChartProps) {
     onPriceLineDrag,
     onPriceLineDragEnd,
     onPriceLineClose,
+    footprints,
+    onFootprint,
   });
 
   const rootStyle: CSSProperties = {

@@ -1,10 +1,10 @@
 // The pulsing ring at the line chart's tip — a phase in, a radius and two
 // alphas out (VROOM_FLOAT_LINE_TIP_PULSE).
 //
-// Shape and timing follow TradingView's last-price animation, whose numbers are
-// well-tuned: expand while the fill washes out and the edge sharpens, keep
-// expanding while the edge fades, then rest. That rest is nearly half the period
-// and it is what makes the ring read as a heartbeat instead of a strobe.
+// Shape and timing follow the last-price animation charting tools converged on:
+// expand while the fill washes out and the edge sharpens, keep expanding while
+// the edge fades, then rest. That rest is nearly half the period and it is what
+// makes the ring read as a heartbeat instead of a strobe.
 //
 // Radii come out as multiples of the ring's start radius rather than pixels,
 // because the tip dot scales with the line width and the ring has to scale with
