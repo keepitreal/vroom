@@ -1135,6 +1135,9 @@ export function useGestures(
       if (pointers.size === 2) {
         clearLongPress();
         hideCrosshair();
+        // The zoom this starts is applied in onPointerMove's pinch branch, which
+        // returns before the drag mutators below — so it needs its own dismissal.
+        setFootprintHover(null);
         const pts = [...pointers.values()];
         const sx = Math.abs(pts[0]!.x - pts[1]!.x);
         const sy = Math.abs(pts[0]!.y - pts[1]!.y);
@@ -1276,7 +1279,14 @@ export function useGestures(
       if (e.pointerType !== 'mouse' && panMode === 'chart' && !drawActive()) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;
-          if (!moved) showCrosshair(downX, downY, 'press', 'show');
+          if (!moved) {
+            // Touch parity with React Native: the crosshair takes the pane over,
+            // so it can't share it with a tooltip. Only the *press* crosshair
+            // does this — the hover one tracks every mouse move, and dismissing
+            // on it would close the tooltip the moment the pointer reached a badge.
+            setFootprintHover(null);
+            showCrosshair(downX, downY, 'press', 'show');
+          }
         }, LONG_PRESS_MS);
       }
     };
@@ -1436,6 +1446,10 @@ export function useGestures(
         showCrosshair(x, y, 'press', 'move');
         return;
       }
+
+      // Past the draw-mode and crosshair-move returns above, so everything from
+      // here moves the viewport out from under an open tooltip.
+      setFootprintHover(null);
 
       if (panMode === 'price-axis') h.scalePriceAxis(dy);
       else if (panMode === 'time-axis') h.scaleTimeAxis(dx);
@@ -1616,6 +1630,9 @@ export function useGestures(
       e.preventDefault();
       // Draw mode: no pan/zoom from the wheel (keeps placed points stable).
       if (drawActive()) return;
+      // Every branch below moves the viewport, and the pointer hasn't moved, so
+      // nothing else would re-evaluate the hover.
+      setFootprintHover(null);
       const { x, y } = rel(e);
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.

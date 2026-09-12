@@ -556,6 +556,31 @@ export function VroomChart(props: VroomChartProps) {
     'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'price-line'
   >('chart');
 
+  // Closes an open footprint tooltip. Any viewport change slides the candles out
+  // from under it and the crosshair replaces it outright, so the host is told to
+  // take it down rather than left holding a position the badge has moved away
+  // from. `redraw` is false for callers that render a frame of their own right
+  // after — on Android that render rasterizes pixels, so the duplicate is worth
+  // skipping.
+  const dismissFootprint = (redraw = true) => {
+    if (!handle || !footprintActive.current) return;
+    footprintActive.current = false;
+    handle.setFootprintHover(0, -1);
+    if (redraw) {
+      const frame = handle.render();
+      if (frame) applyFrame(frame);
+    }
+    onFootprint?.({
+      active: false,
+      reason: 'hide',
+      side: null,
+      timeMs: null,
+      footprints: [],
+      badge: null,
+      pane: null,
+    });
+  };
+
   const pan = Gesture.Pan()
     .runOnJS(true)
     .maxPointers(1)  // don't fight Pinch's two-finger gesture
@@ -578,6 +603,10 @@ export function VroomChart(props: VroomChartProps) {
           if (p) applyFrame(p);
         }
       }
+      // Every mode but a price-line drag moves the viewport, and this one call
+      // covers the momentum fling too — decay only ever starts from a pan that
+      // already began here.
+      if (panMode.current !== 'price-line') dismissFootprint();
     })
     .onChange((e) => {
       if (!handle) return;
@@ -701,6 +730,7 @@ export function VroomChart(props: VroomChartProps) {
     .runOnJS(true)
     .onTouchesDown((e) => {
       if (e.numberOfTouches < 2) return;
+      dismissFootprint();
       const [a, b] = e.allTouches;
       const spanX = Math.abs(a.x - b.x);
       const spanY = Math.abs(a.y - b.y);
@@ -756,6 +786,10 @@ export function VroomChart(props: VroomChartProps) {
       // close button — so it must not raise the crosshair over the top.
       if (hitPriceLine(e.x, e.y)) return;
       cancelDecay();
+      // The crosshair takes the pane over, so it can't share it with a tooltip.
+      // No redraw: setCrosshair below returns a frame that already has the badge
+      // un-highlighted.
+      dismissFootprint(false);
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
       if (ch) applyFrame(ch);
@@ -807,21 +841,7 @@ export function VroomChart(props: VroomChartProps) {
       }
       // A tap that missed every badge dismisses the open one, so the host tooltip
       // goes away the same way the crosshair does.
-      if (footprintActive.current) {
-        footprintActive.current = false;
-        handle.setFootprintHover(0, -1);
-        const frame = handle.render();
-        if (frame) applyFrame(frame);
-        onFootprint?.({
-          active: false,
-          reason: 'hide',
-          side: null,
-          timeMs: null,
-          footprints: [],
-          badge: null,
-          pane: null,
-        });
-      }
+      dismissFootprint();
 
       // The close button is a tap target whether or not the crosshair is up.
       const pl = hitPriceLine(e.x, e.y);

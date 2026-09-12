@@ -798,6 +798,9 @@ export type PlotRect = {
  * The chart draws no tooltip of its own — this event is the hook for yours.
  * Position your UI off `badge` and `pane`, both in the same coordinate space as
  * the chart element, and fill it from `footprints`.
+ *
+ * Panning or zooming fires a `'hide'`, since the bar the badge belongs to has
+ * moved: you don't need your own gesture listener to take the tooltip down.
  */
 export type FootprintEvent = {
   /** True while a badge is hovered/tapped; false when it's dismissed. */
@@ -806,7 +809,9 @@ export type FootprintEvent = {
    * Why this event fired:
    *   'show' — a badge became hovered/tapped from nothing
    *   'move' — the pointer moved to a *different* badge without leaving in between
-   *   'hide' — the badge was dismissed
+   *   'hide' — the badge was dismissed: the pointer left (or a tap missed), the
+   *            chart was panned or zoomed out from under it, or the crosshair
+   *            took the pane over
    */
   reason: 'show' | 'move' | 'hide';
   /** Which badge — its buys or its sells. Null when inactive. */

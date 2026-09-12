@@ -70,6 +70,11 @@ top-left, so they drop straight into an absolutely-positioned child of the same
 container. `reason: 'move'` means the pointer slid from one badge to another
 without leaving in between — worth distinguishing if your tooltip animates in.
 
+Panning, zooming, or dragging an axis fires a `'hide'`. The bar the badge sits on
+has moved, so a tooltip anchored to the old position would be pointing at nothing
+— the chart takes it down for you rather than leaving you to listen for gestures
+yourself.
+
 ### Why `pane` and not the element's own size
 
 `pane` is the candle area: the element minus the price-axis and time-axis strips.
@@ -231,3 +236,9 @@ same event shape.
 
 `hoverBoost` and the halo ring are therefore web-only in practice. On React
 Native the tapped badge still highlights, which is what marks the selection.
+
+On touch the crosshair and a footprint tooltip are mutually exclusive: a
+long-press dismisses an open tooltip, and a tap dismisses the crosshair. Only one
+of the two ever occupies the pane. A mouse hover crosshair is different — it
+follows the pointer continuously, so it coexists with a tooltip rather than
+replacing it.
