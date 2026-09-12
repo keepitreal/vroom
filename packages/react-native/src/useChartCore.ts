@@ -16,6 +16,8 @@ import type {
   MovingAverageOverlay,
   PriceLine,
   PriceLinesStyle,
+  Footprint,
+  FootprintsStyle,
   RSIConfig,
   TransitionEasing,
   IntervalTransition,
@@ -203,6 +205,45 @@ function priceLinesToSpec(cfg: PriceLinesProp) {
 // requires them).
 const EMPTY_PRICE_LINES = priceLinesToSpec({ lines: [], hasCloseHandler: false });
 
+// Footprints share the price lines' hover weight so the two widgets light up
+// alike. Zeroed geometry defers to the core's own defaults.
+const DEFAULT_FOOTPRINT_HOVER_BOOST = 1.25;
+
+// Mirrors VroomFootprintSide in packages/core/include/vroom/vroom_chart.h.
+const FOOTPRINT_BUY = 0;
+const FOOTPRINT_SELL = 1;
+
+// A time no real series can contain (~273,000 BCE), still comfortably inside
+// int64. Parks a malformed footprint where the core will never bucket it.
+const UNBUCKETABLE_MS = -8.64e15;
+
+/** The footprints + their shared style, as the chart's props express them. */
+export type FootprintsProp = {
+  prints: Footprint[];
+  style?: FootprintsStyle;
+};
+
+function footprintsToSpec(cfg: FootprintsProp) {
+  return {
+    // Index alignment is load-bearing: the core reports hits as indices into this
+    // array and the gesture layer maps them straight back to the consumer's
+    // `footprints`. So a non-finite time — which can't be bucketed and would
+    // reach the native side as a garbage int64 — is neutralized *in place* rather
+    // than filtered out, which would shift every index after it onto the wrong
+    // trade.
+    prints: cfg.prints.map((f) => ({
+      timeMs: Number.isFinite(f.timeMs) ? f.timeMs : UNBUCKETABLE_MS,
+      side: f.side === 'sell' ? FOOTPRINT_SELL : FOOTPRINT_BUY,
+    })),
+    radiusPx: cfg.style?.radius ?? 0,
+    gapPx: cfg.style?.gap ?? 0,
+    marginPx: cfg.style?.margin ?? 0,
+    hoverBoost: cfg.style?.hoverBoost ?? DEFAULT_FOOTPRINT_HOVER_BOOST,
+  };
+}
+
+const EMPTY_FOOTPRINTS = footprintsToSpec({ prints: [] });
+
 let installed = false;
 function ensureInstalled(): void {
   if (installed) return;
@@ -268,6 +309,7 @@ export function useChartCore(
   bollingerBands?: BollingerBandsConfig,
   volume?: VolumeConfig,
   priceLines?: PriceLinesProp,
+  footprints?: FootprintsProp,
   transition?: TransitionOptions,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
@@ -361,6 +403,7 @@ export function useChartCore(
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
   const volumeKey = volume ? JSON.stringify(volume) : '';
   const priceLinesKey = priceLines ? JSON.stringify(priceLines) : '';
+  const footprintsKey = footprints ? JSON.stringify(footprints) : '';
 
   useEffect(() => {
     const h = handleRef.current;
@@ -492,6 +535,9 @@ export function useChartCore(
     h.setPriceLines(
       priceLines?.lines.length ? priceLinesToSpec(priceLines) : EMPTY_PRICE_LINES,
     );
+    h.setFootprints(
+      footprints?.prints.length ? footprintsToSpec(footprints) : EMPTY_FOOTPRINTS,
+    );
     // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
     // the VroomBand structs in the JSI handle) — web-only for now.
     // A just-started morph is already pushing frames straight to the host sink;
@@ -499,10 +545,10 @@ export function useChartCore(
     // frame 0 is pixel-identical to what's on screen, so there's nothing to show
     // in the meantime anyway.
     if (!morphing) setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/priceLines are
-    // represented by their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/priceLines/
+    // footprints are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey, startIntervalMorph, endIntervalMorph]);
+  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

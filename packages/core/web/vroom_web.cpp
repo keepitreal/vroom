@@ -21,6 +21,7 @@
 
 #include <GLES3/gl3.h>  // WebGL2 — defines GL_RGBA8 (GLES2 only has GL_RGBA8_OES)
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -407,6 +408,64 @@ class WebChart {
     vroom_chart_set_price_line_drag(chart_, index, price);
   }
 
+  // `cfg` is { prints: [{timeMs, side}, ...], radiusPx, gapPx, marginPx,
+  // hoverBoost }. `side` is 0 = buy, 1 = sell.
+  void setFootprints(const em::val& cfg) {
+    em::val prints = cfg["prints"];
+    const size_t n = prints["length"].as<size_t>();
+    std::vector<VroomFootprint> out(n);
+    for (size_t i = 0; i < n; ++i) {
+      em::val p = prints[i];
+      out[i].time_ms = static_cast<int64_t>(p["timeMs"].as<double>());
+      out[i].side = p["side"].as<int32_t>();
+    }
+    VroomFootprintStyle style{};
+    style.radius_px = cfg["radiusPx"].as<float>();
+    style.gap_px = cfg["gapPx"].as<float>();
+    style.margin_px = cfg["marginPx"].as<float>();
+    style.hover_boost = cfg["hoverBoost"].as<float>();
+    vroom_chart_set_footprints(chart_, out.data(), n, &style);
+  }
+  // Returns the footprint badge at pixel (x, y) as
+  // {side, candleTimeMs, x, y, radius, pane, indices}, or null. `indices`
+  // addresses the array last passed to setFootprints and covers *both* sides of
+  // that candle, so one call is enough to populate a tooltip. `pane` is the plot
+  // rect, for deciding which side of the badge that tooltip fits on.
+  em::val hitTestFootprint(float x, float y) {
+    VroomFootprintHit hit{};
+    if (!vroom_chart_hit_test_footprint(chart_, x, y, &hit))
+      return em::val::null();
+
+    const int32_t count =
+        vroom_chart_footprints_at(chart_, hit.candle_time_ms, nullptr, 0);
+    std::vector<int32_t> idx(static_cast<size_t>(std::max(count, 0)));
+    if (count > 0) {
+      vroom_chart_footprints_at(chart_, hit.candle_time_ms, idx.data(), count);
+    }
+    em::val indices = em::val::array();
+    for (size_t i = 0; i < idx.size(); ++i) indices.set(i, idx[i]);
+
+    em::val pane = em::val::object();
+    pane.set("left", hit.pane_left);
+    pane.set("top", hit.pane_top);
+    pane.set("right", hit.pane_right);
+    pane.set("bottom", hit.pane_bottom);
+
+    em::val o = em::val::object();
+    o.set("side", hit.side);
+    o.set("candleTimeMs", static_cast<double>(hit.candle_time_ms));
+    o.set("x", hit.center_x);
+    o.set("y", hit.center_y);
+    o.set("radius", hit.radius);
+    o.set("pane", pane);
+    o.set("indices", indices);
+    return o;
+  }
+  void setFootprintHover(double candle_time_ms, int side) {
+    vroom_chart_set_footprint_hover(chart_, static_cast<int64_t>(candle_time_ms),
+                                    side);
+  }
+
   void setDraft(double a_time, double a_price, bool has_b, double b_time,
                 double b_price, bool guide, uint32_t color, float width,
                 int kind) {
@@ -681,6 +740,9 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("hitTestPriceLine", &WebChart::hitTestPriceLine)
       .function("setPriceLineHover", &WebChart::setPriceLineHover)
       .function("setPriceLineDrag", &WebChart::setPriceLineDrag)
+      .function("setFootprints", &WebChart::setFootprints)
+      .function("hitTestFootprint", &WebChart::hitTestFootprint)
+      .function("setFootprintHover", &WebChart::setFootprintHover)
       .function("setDraft", &WebChart::setDraft)
       .function("startDraftStroke", &WebChart::startDraftStroke)
       .function("appendDraftPoint", &WebChart::appendDraftPoint)

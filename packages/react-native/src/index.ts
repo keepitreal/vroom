@@ -25,5 +25,10 @@ export type {
   IntervalTransition,
   PriceLine,
   PriceLinesStyle,
+  Footprint,
+  FootprintSide,
+  FootprintsStyle,
+  FootprintEvent,
+  PlotRect,
   DefaultDrawingStyle,
 } from './types';

@@ -56,6 +56,7 @@ if(VROOM_BUILD_TESTS)
         tests/test_vwap.cpp
         tests/test_bollinger.cpp
         tests/test_price_line_layout.cpp
+        tests/test_footprints_layout.cpp
         tests/test_volume_anim.cpp
         tests/test_curve.cpp
         tests/test_tip_pulse.cpp
@@ -64,6 +65,7 @@ if(VROOM_BUILD_TESTS)
         tests/test_drawing_bounds.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
+        src/footprints_layout.cpp
         src/price_format.cpp
         src/ticks.cpp
         src/rsi.cpp

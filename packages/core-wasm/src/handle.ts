@@ -327,6 +327,53 @@ export type PriceLinesSpec = {
   hoverBoost: number;
 };
 
+/** `FootprintSpec.side` values. */
+export const FOOTPRINT_BUY = 0;
+export const FOOTPRINT_SELL = 1;
+
+/** A single executed trade in the core's numeric encoding. */
+export type FootprintSpec = {
+  /** Raw execution time in epoch ms — the core buckets it onto a candle. */
+  timeMs: number;
+  /** FOOTPRINT_BUY or FOOTPRINT_SELL. */
+  side: number;
+};
+
+/** Footprints + shared style, in the core's numeric encoding. */
+export type FootprintsSpec = {
+  prints: FootprintSpec[];
+  /** Badge radius in px. 0 = the core's default. */
+  radiusPx: number;
+  /** Vertical gap between two stacked badges. 0 = default. */
+  gapPx: number;
+  /** Gap between the candle's high and the first badge. 0 = default. */
+  marginPx: number;
+  /** Brightness multiplier for the hovered badge; 1 = no highlight. */
+  hoverBoost: number;
+};
+
+/** The footprint badge under a pixel, as reported by `hitTestFootprint`. */
+export type FootprintHit = {
+  /** FOOTPRINT_BUY or FOOTPRINT_SELL. */
+  side: number;
+  /** Bar-open time of the candle the badge sits on. */
+  candleTimeMs: number;
+  /** Badge center in CSS px, relative to the chart's top-left. */
+  x: number;
+  y: number;
+  radius: number;
+  /**
+   * The plot rect the badge was clipped to, same space as `x`/`y` and excluding
+   * the axis strips — what a host tests a tooltip placement against.
+   */
+  pane: { left: number; top: number; right: number; bottom: number };
+  /**
+   * Indices into the array last passed to `setFootprints` for every trade on that
+   * candle — *both* sides, ascending by time. One hit is enough to fill a tooltip.
+   */
+  indices: number[];
+};
+
 /** A continuous data coordinate at a pixel position (no candle snapping). */
 export type Coord = {
   timeMs: number;
@@ -526,6 +573,23 @@ export interface VroomChartHandle {
    * committed price is untouched — restate `setPriceLines` to apply the move.
    */
   setPriceLineDrag(index: number, price: number): void;
+  /**
+   * Replace the full set of footprints (plus their shared style). Pass a spec with
+   * an empty `prints` array to clear them. The core groups them onto candles
+   * itself and regroups whenever the candles change, so passing raw fills with
+   * their real execution times is correct at every interval.
+   */
+  setFootprints(footprints: FootprintsSpec): void;
+  /**
+   * Hit-test pixel (x, y) against the footprint badges. Null on a miss; when two
+   * badges overlap the nearest center wins.
+   */
+  hitTestFootprint(x: number, y: number): FootprintHit | null;
+  /**
+   * Mark a footprint badge as hovered so it renders highlighted. Pass side -1 to
+   * clear; the arguments otherwise match `hitTestFootprint`.
+   */
+  setFootprintHover(candleTimeMs: number, side: number): void;
   /**
    * Set the transient in-progress draft shown while placing a drawing. Node A is
    * always shown; node B is shown when `hasB`. `guide` also draws the live

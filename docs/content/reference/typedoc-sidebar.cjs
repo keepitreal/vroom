@@ -38,6 +38,26 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/Footprint",
+          label: "Footprint"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/FootprintEvent",
+          label: "FootprintEvent"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/FootprintSide",
+          label: "FootprintSide"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/FootprintsStyle",
+          label: "FootprintsStyle"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/IntervalTransition",
           label: "IntervalTransition"
         },
@@ -60,6 +80,11 @@ const typedocSidebar = {
           type: "doc",
           id: "reference/type-aliases/MovingAverageOverlay",
           label: "MovingAverageOverlay"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/PlotRect",
+          label: "PlotRect"
         },
         {
           type: "doc",

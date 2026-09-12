@@ -14,10 +14,16 @@ import type {
   DrawingSelection,
   DrawPoint,
   DrawTool,
+  Footprint,
+  FootprintEvent,
   PriceLine,
 } from '@vroomchart/types';
-import { DRAW_PART_VERTEX, PATH_MAX_POINTS } from '@vroomchart/core-wasm';
-import type { VroomChartHandle } from '@vroomchart/core-wasm';
+import {
+  DRAW_PART_VERTEX,
+  PATH_MAX_POINTS,
+  FOOTPRINT_SELL,
+} from '@vroomchart/core-wasm';
+import type { FootprintHit, VroomChartHandle } from '@vroomchart/core-wasm';
 
 import { newDrawingAttrs, resolveDrawingStyle } from './drawingStyle';
 import { simplifyIndices } from './simplify';
@@ -63,6 +69,13 @@ export type GestureOptions = {
   onPriceLineDragEnd?: (id: string, price: number) => void;
   /** Fired when a price line's close button is activated. */
   onPriceLineClose?: (id: string) => void;
+  /**
+   * Footprints (controlled). Used to map the core's hit indices back to the
+   * consumer's own trade objects, so `onFootprint` reports what it was given.
+   */
+  footprints?: Footprint[];
+  /** Fired when a footprint badge is hovered or left. */
+  onFootprint?: (e: FootprintEvent) => void;
 };
 
 const MIN_SPAN = 24; // px — minimum two-finger span for an axis to scale
@@ -722,6 +735,8 @@ export function useGestures(
     // Which price-line segment is currently highlighted, so a hover that hasn't
     // changed doesn't push state (hover fires on every mouse move).
     const priceHover = { index: -1, part: -1 };
+    // Likewise for the hovered footprint badge, keyed the way the core reports it.
+    const footprintHover: { timeMs: number; side: number } = { timeMs: 0, side: -1 };
 
     const rel = (e: PointerEvent | WheelEvent) => {
       const r = el.getBoundingClientRect();
@@ -781,6 +796,49 @@ export function useGestures(
       priceHover.part = part;
       handleRef.current?.setPriceLineHover(index, part);
       scheduleRender();
+    };
+
+    // Highlights the hovered badge and tells the host, which is what draws the
+    // actual tooltip. Deduped on (candle, side): the pointer fires constantly and
+    // a host that re-renders on every event would thrash.
+    const setFootprintHover = (hit: FootprintHit | null) => {
+      const side = hit?.side ?? -1;
+      const timeMs = hit?.candleTimeMs ?? 0;
+      if (footprintHover.side === side && footprintHover.timeMs === timeMs) return;
+      const wasActive = footprintHover.side >= 0;
+      footprintHover.side = side;
+      footprintHover.timeMs = timeMs;
+      handleRef.current?.setFootprintHover(timeMs, side);
+      scheduleRender();
+
+      const onFootprint = optsRef.current.onFootprint;
+      if (!onFootprint) return;
+      if (!hit) {
+        onFootprint({
+          active: false,
+          reason: 'hide',
+          side: null,
+          timeMs: null,
+          footprints: [],
+          badge: null,
+          pane: null,
+        });
+        return;
+      }
+      // The core reports indices into the array we last pushed, which is this
+      // same prop — so this rejoins each badge to the consumer's own objects.
+      const all = optsRef.current.footprints ?? [];
+      onFootprint({
+        active: true,
+        // Sliding straight from one badge to another never leaves the chart, so
+        // the host sees a move rather than a hide/show pair.
+        reason: wasActive ? 'move' : 'show',
+        side: hit.side === FOOTPRINT_SELL ? 'sell' : 'buy',
+        timeMs: hit.candleTimeMs,
+        footprints: hit.indices.map((i) => all[i]).filter((f): f is Footprint => f != null),
+        badge: { x: hit.x, y: hit.y, radius: hit.radius },
+        pane: hit.pane,
+      });
     };
 
     const regionAt = (x: number, y: number): Region => {
@@ -1241,11 +1299,19 @@ export function useGestures(
             return;
           }
           const region = regionAt(x, y);
+          // Footprint badges get first refusal: a badge is a ~9px circle while a
+          // price line's grab band spans the pane, so testing lines first would
+          // let one swallow any badge it happens to cross.
+          const fpHit = region === 'chart' ? h.hitTestFootprint(x, y) : null;
+          setFootprintHover(fpHit);
           // Price lines are chrome laid over the pane, so hovering one wins over
           // the region's own cursor.
-          const plHit = region === 'chart' ? h.hitTestPriceLine(x, y) : null;
+          const plHit =
+            region === 'chart' && !fpHit ? h.hitTestPriceLine(x, y) : null;
           setPriceHover(plHit?.index ?? -1, plHit?.part ?? -1);
-          el.style.cursor = plHit
+          el.style.cursor = fpHit
+            ? 'pointer'
+            : plHit
             ? plHit.part === 1
               ? 'pointer'
               : 'ns-resize'
@@ -1523,6 +1589,7 @@ export function useGestures(
     const onPointerLeave = () => {
       if (crosshairSource === 'hover') hideCrosshair();
       setPriceHover(-1, -1);
+      setFootprintHover(null);
       el.style.cursor = '';
     };
 
@@ -1535,8 +1602,8 @@ export function useGestures(
       commitPath();
     };
 
-    // Right-click also finishes the path (TradingView does the same), which is
-    // the one-handed way out when the pointer is already where it should end.
+    // Right-click also finishes the path, the one-handed way out when the
+    // pointer is already where it should end.
     const onContextMenu = (e: MouseEvent) => {
       if (!pathRef.current) return;
       e.preventDefault();

@@ -42,7 +42,7 @@ ChartHostObject::~ChartHostObject() {
 std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
     jsi::Runtime& rt) {
   std::vector<jsi::PropNameID> out;
-  out.reserve(39);
+  out.reserve(42);
   out.push_back(jsi::PropNameID::forAscii(rt, "setCandles"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
@@ -82,6 +82,9 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestPriceLine"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLineHover"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLineDrag"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setFootprints"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "hitTestFootprint"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setFootprintHover"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -1185,6 +1188,120 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           vroom_chart_set_price_line_drag(
               chart_, static_cast<int32_t>(args[0].asNumber()),
               args[1].asNumber());
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setFootprints") {
+    // setFootprints({ prints: [{ timeMs, side }, ...], radiusPx, gapPx, marginPx,
+    // hoverBoost }) — replaces the full set of executed-trade badges. The core
+    // buckets them onto candles itself, so raw fill times are what to pass. No
+    // render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setFootprints"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto cfg = args[0].asObject(rt2);
+          auto prints_val = cfg.getProperty(rt2, "prints");
+          if (!prints_val.isObject()) return jsi::Value::undefined();
+          auto prints_obj = prints_val.asObject(rt2);
+          if (!prints_obj.isArray(rt2)) return jsi::Value::undefined();
+          auto arr = prints_obj.asArray(rt2);
+          const size_t len = arr.size(rt2);
+          std::vector<VroomFootprint> prints(len);
+          for (size_t i = 0; i < len; ++i) {
+            auto f = arr.getValueAtIndex(rt2, i).asObject(rt2);
+            prints[i].time_ms =
+                static_cast<int64_t>(f.getProperty(rt2, "timeMs").asNumber());
+            prints[i].side =
+                static_cast<int32_t>(f.getProperty(rt2, "side").asNumber());
+          }
+          VroomFootprintStyle style{};
+          style.radius_px = static_cast<float>(
+              cfg.getProperty(rt2, "radiusPx").asNumber());
+          style.gap_px = static_cast<float>(
+              cfg.getProperty(rt2, "gapPx").asNumber());
+          style.margin_px = static_cast<float>(
+              cfg.getProperty(rt2, "marginPx").asNumber());
+          style.hover_boost = static_cast<float>(
+              cfg.getProperty(rt2, "hoverBoost").asNumber());
+          vroom_chart_set_footprints(chart_, prints.data(), prints.size(), &style);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "hitTestFootprint") {
+    // hitTestFootprint(x, y) -> { side, candleTimeMs, x, y, radius, pane,
+    // indices } | null. `indices` addresses the array last passed to
+    // setFootprints and covers *both* sides of that candle, so one call fills a
+    // tooltip; `pane` is the plot rect, for deciding which side of the badge that
+    // tooltip fits on. No rendering.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "hitTestFootprint"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          VroomFootprintHit hit{};
+          if (!vroom_chart_hit_test_footprint(
+                  chart_, static_cast<float>(args[0].asNumber()),
+                  static_cast<float>(args[1].asNumber()), &hit)) {
+            return jsi::Value::null();
+          }
+
+          const int32_t n =
+              vroom_chart_footprints_at(chart_, hit.candle_time_ms, nullptr, 0);
+          std::vector<int32_t> idx(static_cast<size_t>(n > 0 ? n : 0));
+          if (n > 0) {
+            vroom_chart_footprints_at(chart_, hit.candle_time_ms, idx.data(), n);
+          }
+          jsi::Array indices(rt2, idx.size());
+          for (size_t i = 0; i < idx.size(); ++i) {
+            indices.setValueAtIndex(rt2, i, jsi::Value(idx[i]));
+          }
+
+          jsi::Object pane(rt2);
+          pane.setProperty(rt2, "left", hit.pane_left);
+          pane.setProperty(rt2, "top", hit.pane_top);
+          pane.setProperty(rt2, "right", hit.pane_right);
+          pane.setProperty(rt2, "bottom", hit.pane_bottom);
+
+          jsi::Object obj(rt2);
+          obj.setProperty(rt2, "side", hit.side);
+          obj.setProperty(rt2, "candleTimeMs",
+                          static_cast<double>(hit.candle_time_ms));
+          obj.setProperty(rt2, "x", hit.center_x);
+          obj.setProperty(rt2, "y", hit.center_y);
+          obj.setProperty(rt2, "radius", hit.radius);
+          obj.setProperty(rt2, "pane", std::move(pane));
+          obj.setProperty(rt2, "indices", std::move(indices));
+          return obj;
+        });
+  }
+
+  if (name == "setFootprintHover") {
+    // setFootprintHover(candleTimeMs, side) — highlight one badge; side -1
+    // clears. Touch has no hover, so on RN this tracks the tapped badge.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setFootprintHover"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_footprint_hover(
+              chart_, static_cast<int64_t>(args[0].asNumber()),
+              static_cast<int32_t>(args[1].asNumber()));
           return jsi::Value::undefined();
         });
   }

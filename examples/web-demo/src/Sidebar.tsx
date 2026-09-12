@@ -239,6 +239,8 @@ export type SidebarProps = {
     setShowPriceLines: (v: boolean) => void;
     priceLineStyle: PriceLineStyleChoice;
     setPriceLineStyle: (v: PriceLineStyleChoice) => void;
+    showFootprints: boolean;
+    setShowFootprints: (v: boolean) => void;
     drawMode: ChartMode;
     drawTool: DrawTool;
     toggleLineTool: () => void;
@@ -487,6 +489,12 @@ export function Sidebar({
             </select>
           </Row>
         )}
+        <ToggleRow
+          label="Footprints"
+          checked={overlays.showFootprints}
+          onChange={overlays.setShowFootprints}
+          title="Mark sample entries (+) and exits (−) above the bar they filled in. Hover a badge for the trade details; switch interval to watch them regroup."
+        />
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={overlays.toggleLineTool}

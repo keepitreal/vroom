@@ -25,6 +25,7 @@
 #include "chart_internal.h"
 #include "crosshair.h"
 #include "drawings.h"
+#include "footprints.h"
 #include "labels.h"
 #include "liquidity.h"
 #include "ma.h"
@@ -123,6 +124,14 @@ void VroomChart::ensure_bollinger() {
                               bollinger.basis_kind, bb_middle_cache,
                               bb_upper_cache, bb_lower_cache);
     bollinger_dirty = false;
+}
+
+void VroomChart::ensure_footprint_buckets() {
+    if (!footprint_buckets_dirty) return;
+    footprint_buckets = vroom::footprints::build_buckets(
+        candles.data(), candles.size(), candle_duration_ms, footprints.data(),
+        footprints.size());
+    footprint_buckets_dirty = false;
 }
 
 void VroomChart::draw_chart(SkCanvas* canvas) {
@@ -480,6 +489,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         //       stays readable.
         vroom::price_lines::draw(canvas, *this, lay, bounds, candle_right,
                                    candle_area_h);
+
+        // 7.56. Footprint badges — data-anchored chrome that must not be hidden
+        //       by candles or overlays, so it draws with the price lines rather
+        //       than back at the drawings layer. Below the crosshair, which the
+        //       user is actively pointing with.
+        ensure_footprint_buckets();
+        vroom::footprints::draw(canvas, *this, lay, bounds, window_ms);
     }
 
     // 7.6. Indicator panes stacked below the candles, ordered by enable

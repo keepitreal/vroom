@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'guides/gestures-and-viewport',
         'guides/drawing-tools',
         'guides/price-lines',
+        'guides/footprints',
       ],
     },
     {

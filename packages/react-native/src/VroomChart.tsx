@@ -36,8 +36,11 @@ import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
 import type { ChartFrame } from './jsi.d';
-import type { VroomChartProps } from './types';
+import type { Footprint, VroomChartProps } from './types';
 import './jsi.d';
+
+// Mirrors VroomFootprintSide in packages/core/include/vroom/vroom_chart.h.
+const FOOTPRINT_SELL = 1;
 
 function isSkImage(frame: ChartFrame): frame is SkImage {
   return typeof (frame as SkImage).getImageInfo === 'function';
@@ -80,6 +83,9 @@ export function VroomChart(props: VroomChartProps) {
     onPriceLineDrag,
     onPriceLineDragEnd,
     onPriceLineClose,
+    footprints,
+    footprintsStyle,
+    onFootprint,
   } = props;
 
   // Fill the parent by default: measure via onLayout. Explicit width/height
@@ -109,6 +115,11 @@ export function VroomChart(props: VroomChartProps) {
           }
         : undefined,
     [priceLines, priceLinesStyle, onPriceLineClose],
+  );
+
+  const footprintsProp = useMemo(
+    () => (footprints ? { prints: footprints, style: footprintsStyle } : undefined),
+    [footprints, footprintsStyle],
   );
 
   // RN-Skia's recorder reads these SharedValues on the UI/render runtime, a
@@ -173,6 +184,7 @@ export function VroomChart(props: VroomChartProps) {
     bollingerBands,
     volume,
     priceLinesProp,
+    footprintsProp,
     { seriesKey, transitionMs, transitionEasing, intervalTransition, reduceMotion, onFrame },
   );
 
@@ -180,6 +192,11 @@ export function VroomChart(props: VroomChartProps) {
   // pinch is disabled. A ref (not state) so gesture callbacks read it
   // synchronously without re-subscribing. Tap dismisses it.
   const crosshairActive = useRef(false);
+
+  // Whether a footprint badge is currently open, so a tap that misses every badge
+  // knows whether it has a tooltip to dismiss. A ref for the same reason as
+  // crosshairActive: gesture callbacks read it synchronously.
+  const footprintActive = useRef(false);
 
   // timeMs of the candle last reported through onCrosshair, so a drag fires a
   // 'move' event only when it crosses into a *different* candle (one per
@@ -753,13 +770,59 @@ export function VroomChart(props: VroomChartProps) {
       });
     });
 
-  // A tap activates a price line's close button, and otherwise dismisses the
-  // crosshair while it's up. Any other tap is a no-op, so it never interferes
-  // with normal pan/pinch.
+  // A tap activates a price line's close button, selects or dismisses a footprint
+  // badge, and otherwise dismisses the crosshair while it's up. Any other tap is a
+  // no-op, so it never interferes with normal pan/pinch.
   const tap = Gesture.Tap()
     .runOnJS(true)
     .onStart((e) => {
       if (!handle) return;
+
+      // Badges get first refusal: one is a ~9px circle, while a price line's grab
+      // band spans the pane and would otherwise swallow any badge it crosses.
+      // Touch has no hover, so a tap is what opens a footprint here, and the next
+      // tap anywhere closes it.
+      const prints = footprints ?? [];
+      const fp = prints.length ? handle.hitTestFootprint(e.x, e.y) : null;
+      if (fp) {
+        handle.setFootprintHover(fp.candleTimeMs, fp.side);
+        const frame = handle.render();
+        if (frame) applyFrame(frame);
+        const wasActive = footprintActive.current;
+        footprintActive.current = true;
+        onFootprint?.({
+          active: true,
+          reason: wasActive ? 'move' : 'show',
+          side: fp.side === FOOTPRINT_SELL ? 'sell' : 'buy',
+          timeMs: fp.candleTimeMs,
+          // The core reports indices into the array we last pushed, which is this
+          // same prop — so this rejoins each badge to the consumer's own objects.
+          footprints: fp.indices
+            .map((i) => prints[i])
+            .filter((f): f is Footprint => f != null),
+          badge: { x: fp.x, y: fp.y, radius: fp.radius },
+          pane: fp.pane,
+        });
+        return;
+      }
+      // A tap that missed every badge dismisses the open one, so the host tooltip
+      // goes away the same way the crosshair does.
+      if (footprintActive.current) {
+        footprintActive.current = false;
+        handle.setFootprintHover(0, -1);
+        const frame = handle.render();
+        if (frame) applyFrame(frame);
+        onFootprint?.({
+          active: false,
+          reason: 'hide',
+          side: null,
+          timeMs: null,
+          footprints: [],
+          badge: null,
+          pane: null,
+        });
+      }
+
       // The close button is a tap target whether or not the crosshair is up.
       const pl = hitPriceLine(e.x, e.y);
       if (pl && pl.part === 1) {

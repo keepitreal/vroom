@@ -1,7 +1,7 @@
 import { Picker } from '@react-native-picker/picker';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
@@ -13,8 +13,12 @@ import {
   type Candle,
   type ChartType,
   type CrosshairEvent,
+  type Footprint,
+  type FootprintEvent,
+  type FootprintSide,
   type IntervalTransition,
   type MovingAverageOverlay,
+  type PlotRect,
   type PriceLine,
 } from 'react-native-vroom-chart';
 
@@ -157,6 +161,119 @@ function mockPriceLines(candles: Candle[]): DemoPriceLine[] {
       lineStyle: 'solid',
     }),
   ];
+}
+
+// A footprint plus the extras this app wants in its tooltip. The library only
+// reads id/timeMs/side/price and hands the whole object back on tap, so a host can
+// hang whatever it likes off it.
+type DemoFootprint = Footprint & { size: number };
+
+// Sample fills, using *raw* trade times rather than bar-open times — the point
+// being that vroom buckets each one onto whichever candle's window contains it.
+// Placed a few bars back from the newest so they land inside the default viewport
+// at every interval.
+//
+// Deliberately includes several buys inside one candle (which must collapse to a
+// single badge) and a candle holding both a buy and a sell (two stacked badges).
+function mockFootprints(candles: Candle[]): DemoFootprint[] {
+  if (candles.length < 60) return [];
+  const newest = candles.length - 1;
+  const stepMs =
+    candles.length > 1 ? candles[1].timeMs - candles[0].timeMs : MINUTE;
+
+  const out: DemoFootprint[] = [];
+  let n = 0;
+  // `barsBack` picks the candle; `frac` places the fill inside its window, so
+  // nothing lands exactly on a bar boundary.
+  const add = (
+    barsBack: number,
+    frac: number,
+    side: FootprintSide,
+    size: number,
+  ) => {
+    const bar = candles[newest - barsBack];
+    if (!bar) return;
+    out.push({
+      id: `fp-${n++}`,
+      timeMs: bar.timeMs + Math.floor(stepMs * frac),
+      side,
+      price: bar.close,
+      size,
+    });
+  };
+
+  // An entry and the exit that closes it, on separate bars.
+  add(40, 0.4, 'buy', 1.5);
+  add(31, 0.6, 'sell', 1.5);
+  // A position scaled into over one bar: three fills, one badge.
+  add(20, 0.15, 'buy', 0.5);
+  add(20, 0.5, 'buy', 0.75);
+  add(20, 0.85, 'buy', 0.25);
+  // A bar that both bought and sold — two stacked badges, buy lower because its
+  // last fill came first.
+  add(8, 0.3, 'buy', 2);
+  add(8, 0.7, 'sell', 2);
+  return out;
+}
+
+// The tooltip the *host* renders for a tapped footprint — vroom draws no overlay
+// of its own, it just says which badge was tapped, which trades are on that bar,
+// where the badge is, and how much room the plot has. Parked beside the badge
+// rather than above it so a bar holding both a buy and a sell keeps both visible.
+function FootprintTooltip({
+  hover,
+}: {
+  hover: {
+    side: FootprintSide;
+    trades: DemoFootprint[];
+    badge: { x: number; y: number; radius: number };
+    pane: PlotRect;
+  } | null;
+}) {
+  if (!hover) return null;
+  const { side, trades, badge, pane } = hover;
+  // Only the tapped badge's own side; the event carries the whole bar so a host
+  // could just as easily show both.
+  const mine = trades.filter((t) => t.side === side);
+  if (mine.length === 0) return null;
+  const total = mine.reduce((sum, t) => sum + t.size, 0);
+  const latest = mine[mine.length - 1];
+  const accent = side === 'buy' ? '#26a69a' : '#ef5350';
+  const width = 190;
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.fpTooltip,
+        {
+          width,
+          // To the badge's right, vertically centered on it. A badge close to the
+          // right edge would push the tooltip past the plot, so that case flips to
+          // the left side instead. `pane` comes from the event, so this measures
+          // the candle area rather than the screen — the price axis isn't room.
+          left:
+            badge.x + badge.radius + 8 + width > pane.right
+              ? Math.max(pane.left + 8, badge.x - badge.radius - 8 - width)
+              : badge.x + badge.radius + 8,
+          top: Math.max(pane.top + 8, badge.y - 30),
+        },
+      ]}
+    >
+      <View style={styles.fpTooltipHeader}>
+        <Text style={[styles.fpTooltipBadge, { backgroundColor: accent }]}>
+          {side === 'buy' ? 'Buy' : 'Sell'}
+        </Text>
+        <Text style={styles.fpTooltipTime}>
+          {new Date(latest.timeMs).toLocaleTimeString()}
+        </Text>
+      </View>
+      <Text style={styles.fpTooltipBody}>
+        {total}
+        {mine.length > 1 ? ` in ${mine.length} fills` : ''} at{' '}
+        {latest.price?.toFixed(2) ?? '—'}
+      </Text>
+    </View>
+  );
 }
 
 function fmtVol(v: number): string {
@@ -326,6 +443,47 @@ export default function App() {
       return !on;
     });
   }, [candles]);
+  // Footprints. The chart draws the badges and reports which one was tapped; the
+  // tooltip is entirely this app's — that split is the whole point of the API.
+  const [showFootprints, setShowFootprints] = useState(false);
+  // Re-derived from whatever series is loaded rather than seeded once at toggle
+  // time: this bench regenerates its mock candles on every interval and price-scale
+  // change, so fills pinned to the old bars would fall outside the new series and
+  // vanish. Anchored a few bars back from the newest, they stay inside the default
+  // viewport at every interval — which is what makes the tap path testable.
+  const footprints = useMemo(() => mockFootprints(candles), [candles]);
+  const [footprintHover, setFootprintHover] = useState<{
+    side: FootprintSide;
+    trades: DemoFootprint[];
+    badge: { x: number; y: number; radius: number };
+    pane: PlotRect;
+  } | null>(null);
+  // A new series moves every badge, so a tooltip left over from the old one would
+  // point at nothing.
+  useEffect(() => {
+    setFootprintHover(null);
+  }, [candles]);
+  const toggleFootprints = useCallback(() => {
+    setShowFootprints((on) => {
+      if (on) setFootprintHover(null);
+      return !on;
+    });
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+  const onFootprint = useCallback((e: FootprintEvent) => {
+    if (!e.active || !e.badge || !e.pane || e.side == null) {
+      setFootprintHover(null);
+      return;
+    }
+    Haptics.selectionAsync().catch(() => {});
+    setFootprintHover({
+      side: e.side,
+      trades: e.footprints as DemoFootprint[],
+      badge: e.badge,
+      pane: e.pane,
+    });
+  }, []);
+
   const onPriceLineDragEnd = useCallback((id: string, price: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setPriceLines((prev) =>
@@ -454,6 +612,10 @@ export default function App() {
             ) : null}
           </View>
 
+          {/* Wrapped so the footprint tooltip can be absolutely positioned over
+              the chart — RN Views are position:relative by default, so the
+              wrapper is the tooltip's coordinate space. */}
+          <View style={styles.chartWrap}>
           {/* Not keyed on the interval: the chart detects the switch itself and
               animates into the new data, which a remount would prevent. */}
           <VroomChart
@@ -490,7 +652,11 @@ export default function App() {
             priceLines={showPriceLines ? priceLines : undefined}
             onPriceLineDragEnd={onPriceLineDragEnd}
             onPriceLineClose={onPriceLineClose}
+            footprints={showFootprints ? footprints : undefined}
+            onFootprint={onFootprint}
           />
+          <FootprintTooltip hover={footprintHover} />
+          </View>
 
           <View style={styles.footer}>
             <View style={styles.footerRow}>
@@ -613,6 +779,18 @@ export default function App() {
               </Pressable>
 
               <Pressable
+                style={[styles.fnBtn, showFootprints && styles.fnBtnActive]}
+                onPress={toggleFootprints}
+                accessibilityLabel="Footprints. Mark sample entries and exits above the bars they filled in; tap a badge for its trades."
+              >
+                <Text
+                  style={[styles.fnSymbol, showFootprints && styles.fnSymbolActive]}
+                >
+                  ⊕
+                </Text>
+              </Pressable>
+
+              <Pressable
                 style={styles.fnBtn}
                 onPress={() => setMenuOpen(true)}
               >
@@ -679,7 +857,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
+  chartWrap: { flex: 1 },
   chart: { flex: 1 },
+  fpTooltip: {
+    position: 'absolute',
+    backgroundColor: 'rgba(22,27,34,0.95)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#30363d',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  fpTooltipHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  fpTooltipBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    color: '#08121a',
+    fontSize: 12,
+    fontWeight: '700',
+    overflow: 'hidden',
+  },
+  fpTooltipTime: { color: '#8b949e', fontSize: 12 },
+  fpTooltipBody: { color: '#c9d1d9', fontSize: 13, fontWeight: '600' },
   footer: {
     paddingVertical: 10,
     borderTopWidth: StyleSheet.hairlineWidth,

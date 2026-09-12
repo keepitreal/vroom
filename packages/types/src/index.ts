@@ -725,6 +725,119 @@ export type PriceLinesStyle = {
   hoverBoost?: number;
 };
 
+/** Which side of a position a footprint marks. */
+export type FootprintSide = 'buy' | 'sell';
+
+/**
+ * A single filled trade, drawn as a circular badge above the candle it fell in —
+ * the "footprint" a trader leaves on the chart: `buy` marks an entry (a `+`
+ * badge in the bull color), `sell` marks an exit (a `−` badge in the bear color).
+ *
+ * `timeMs` is the raw execution time, *not* a bar-open time. The chart buckets
+ * each footprint into whichever candle's window contains it, so the same array
+ * renders correctly at every interval — switch from 1m to 1h and the badges
+ * re-group onto the wider bars on their own.
+ *
+ * At most two badges render per candle: one for that bar's buys and one for its
+ * sells, however many trades went into each. Hovering (or tapping) a badge hands
+ * every footprint on that candle back through `onFootprint`, so a bar holding
+ * twenty fills still shows one badge and still reports all twenty.
+ */
+export type Footprint = {
+  /** Stable unique id, echoed back in `onFootprint`. */
+  id: string;
+  /** Execution time as Unix epoch milliseconds, unsnapped. */
+  timeMs: number;
+  /** Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph. */
+  side: FootprintSide;
+  /**
+   * Execution price. Ignored by the renderer (badges sit above the bar, not at
+   * the fill), and carried through to `onFootprint` for your own UI.
+   */
+  price?: number;
+};
+
+/** Shared layout/style for every footprint badge, passed via `footprintsStyle`. */
+export type FootprintsStyle = {
+  /** Badge radius in px. Default 9. */
+  radius?: number;
+  /**
+   * Vertical gap between the two stacked badges on a candle that has both a buy
+   * and a sell. Default 4 — wide enough that each stays independently hoverable.
+   */
+  gap?: number;
+  /** Gap between the candle's high and the first badge, in px. Default 8. */
+  margin?: number;
+  /**
+   * How much the hovered badge brightens, as a channel multiplier. 1 disables
+   * the highlight (the halo ring still draws). Default 1.25.
+   */
+  hoverBoost?: number;
+};
+
+/**
+ * The chart's plot area in logical px relative to the chart element's top-left:
+ * the candles and everything drawn over them, with the price and time axis
+ * strips excluded.
+ *
+ * This is the rect to test a floating UI against, and it is deliberately *not*
+ * the element's own box — the element includes the axis strips, so measuring it
+ * overstates the room beside anything near an edge.
+ */
+export type PlotRect = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+};
+
+/**
+ * Fired when the pointer enters, moves between, or leaves footprint badges (on
+ * touch platforms, when one is tapped or dismissed).
+ *
+ * The chart draws no tooltip of its own — this event is the hook for yours.
+ * Position your UI off `badge` and `pane`, both in the same coordinate space as
+ * the chart element, and fill it from `footprints`.
+ */
+export type FootprintEvent = {
+  /** True while a badge is hovered/tapped; false when it's dismissed. */
+  active: boolean;
+  /**
+   * Why this event fired:
+   *   'show' — a badge became hovered/tapped from nothing
+   *   'move' — the pointer moved to a *different* badge without leaving in between
+   *   'hide' — the badge was dismissed
+   */
+  reason: 'show' | 'move' | 'hide';
+  /** Which badge — its buys or its sells. Null when inactive. */
+  side: FootprintSide | null;
+  /** Bar-open time (epoch ms) of the candle the badge sits on. Null when inactive. */
+  timeMs: number | null;
+  /**
+   * Every footprint bucketed into that candle, *both* sides, ascending by
+   * `timeMs`. Empty when inactive. Filter on `side` to show only the hovered
+   * badge's trades, or render the whole bar's activity at once.
+   */
+  footprints: Footprint[];
+  /**
+   * The badge's center and radius in logical px relative to the chart element's
+   * top-left — anchor your tooltip to it. Null when inactive.
+   */
+  badge: { x: number; y: number; radius: number } | null;
+  /**
+   * The plot area the badge sits in, for choosing which side of it your tooltip
+   * fits on. Null when inactive (there is nothing to place).
+   *
+   * Only you know how big your tooltip is, so the chart reports the rect rather
+   * than picking a side:
+   *
+   * ```ts
+   * const fitsRight = badge.x + badge.radius + 8 + width <= pane.right;
+   * ```
+   */
+  pane: PlotRect | null;
+};
+
 /**
  * MACD indicator config. Rendered in its own pane below the candles: the gap
  * between a fast and a slow moving average, a signal line smoothing that gap,
@@ -875,6 +988,23 @@ export type VroomChartCoreProps = {
   priceLines?: PriceLine[];
   /** Shared layout/style for every entry in `priceLines`. */
   priceLinesStyle?: PriceLinesStyle;
+  /**
+   * Executed trades to mark on the chart as circular badges above the bar they
+   * fell in — where a position was entered and exited.
+   *
+   * Pass raw fills with their real execution times; the chart groups them onto
+   * candles itself and re-groups on interval changes, so one array serves every
+   * timeframe. Order doesn't matter.
+   */
+  footprints?: Footprint[];
+  /** Shared layout/style for every entry in `footprints`. */
+  footprintsStyle?: FootprintsStyle;
+  /**
+   * Fired when a footprint badge is hovered (tapped on touch platforms) or
+   * dismissed. The chart renders no tooltip itself — use this to place your own,
+   * anchored to `e.badge`, kept inside `e.pane`, and filled from `e.footprints`.
+   */
+  onFootprint?: (e: FootprintEvent) => void;
   /**
    * Fired continuously while a draggable price line is being dragged, with the
    * price under the pointer. Use it for a live readout (e.g. an order ticket);

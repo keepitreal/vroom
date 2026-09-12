@@ -13,6 +13,7 @@
 
 #include "chart.h"
 #include "drawings.h"
+#include "footprints.h"
 #include "labels.h"
 #include "price_lines.h"
 #include "viewport.h"
@@ -186,6 +187,9 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
+    // New bars (or a whole new interval) mean the footprint grouping no longer
+    // matches the data — regroup on next use.
+    chart->footprint_buckets_dirty = true;
 
     // Infer the candle period from the first interval. Robust enough for
     // uniform-duration series (the only kind we model today).
@@ -1020,6 +1024,110 @@ extern "C" void vroom_chart_set_price_line_drag(VroomChart* chart, int32_t index
     }
     chart->dragged_price_line = index;
     chart->dragged_price_line_price = price;
+    chart->mark_dirty();
+}
+
+// ---- Footprints ------------------------------------------------------------
+
+extern "C" void vroom_chart_set_footprints(VroomChart* chart,
+                                           const VroomFootprint* prints,
+                                           size_t count,
+                                           const VroomFootprintStyle* style) {
+    if (!chart) return;
+    // Stored in the caller's order: vroom_chart_footprints_at hands these indices
+    // back, and they're only useful if they still address the caller's array.
+    if (count > 0 && prints) {
+        chart->footprints.assign(prints, prints + count);
+    } else {
+        chart->footprints.clear();
+    }
+    if (style) chart->footprint_style = *style;
+    chart->footprint_buckets_dirty = true;
+    // A badge that no longer exists must not keep its highlight.
+    if (chart->footprints.empty()) chart->hovered_footprint_side = -1;
+    chart->mark_dirty();
+}
+
+extern "C" bool vroom_chart_hit_test_footprint(VroomChart* chart, float x_px,
+                                               float y_px,
+                                               VroomFootprintHit* out) {
+    if (!chart || chart->footprints.empty() || chart->candles.empty()) return false;
+    chart->ensure_footprint_buckets();
+    if (chart->footprint_buckets.empty()) return false;
+
+    // Same bounds and pane geometry as draw_chart, so the badges hit where they
+    // render.
+    const auto lay = chart->layout();
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+
+    const auto hit = vroom::footprints::hit_test(*chart, lay, bounds, x_px, y_px);
+    if (hit.side < 0) return false;
+    if (out) *out = hit;
+    return true;
+}
+
+extern "C" int32_t vroom_chart_footprints_at(VroomChart* chart,
+                                             int64_t candle_time_ms,
+                                             int32_t* out_indices, int32_t max) {
+    if (!chart || chart->footprints.empty()) return 0;
+    chart->ensure_footprint_buckets();
+
+    const auto& buckets = chart->footprint_buckets;
+    const auto it = std::lower_bound(
+        buckets.begin(), buckets.end(), candle_time_ms,
+        [](const vroom::footprints::Bucket& b, int64_t t) {
+            return b.candle_time_ms < t;
+        });
+    if (it == buckets.end() || it->candle_time_ms != candle_time_ms) return 0;
+
+    // Both sides, ascending by time — merge the two already-sorted lists rather
+    // than re-sorting them.
+    const auto& buys = it->buys;
+    const auto& sells = it->sells;
+    const int32_t total = static_cast<int32_t>(buys.size() + sells.size());
+    if (!out_indices || max <= 0) return total;
+
+    const auto& fps = chart->footprints;
+    int32_t written = 0;
+    size_t bi = 0;
+    size_t si = 0;
+    while (written < max && (bi < buys.size() || si < sells.size())) {
+        bool take_buy;
+        if (bi >= buys.size()) {
+            take_buy = false;
+        } else if (si >= sells.size()) {
+            take_buy = true;
+        } else {
+            const int64_t tb = fps[static_cast<size_t>(buys[bi])].time_ms;
+            const int64_t ts = fps[static_cast<size_t>(sells[si])].time_ms;
+            take_buy = tb <= ts;
+        }
+        out_indices[written++] = take_buy ? buys[bi++] : sells[si++];
+    }
+    return total;
+}
+
+extern "C" void vroom_chart_set_footprint_hover(VroomChart* chart,
+                                                int64_t candle_time_ms,
+                                                int32_t side) {
+    if (!chart) return;
+    if (side != VROOM_FOOTPRINT_BUY && side != VROOM_FOOTPRINT_SELL) {
+        side = -1;
+        candle_time_ms = 0;
+    }
+    if (chart->hovered_footprint_side == side &&
+        chart->hovered_footprint_time_ms == candle_time_ms) {
+        return;  // hover fires on every pointer move; don't redraw for nothing
+    }
+    chart->hovered_footprint_side = side;
+    chart->hovered_footprint_time_ms = candle_time_ms;
     chart->mark_dirty();
 }
 

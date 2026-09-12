@@ -11,6 +11,8 @@ import type {
   CrosshairCandle,
   CrosshairInfo,
   DrawingSpec,
+  FootprintHit,
+  FootprintsSpec,
   LiquiditySpec,
   MACDSpec,
   OverlaySpec,
@@ -74,6 +76,9 @@ interface WebChartInstance {
   hitTestPriceLine(x: number, y: number): { index: number; part: number } | null;
   setPriceLineHover(index: number, part: number): void;
   setPriceLineDrag(index: number, price: number): void;
+  setFootprints(footprints: FootprintsSpec): void;
+  hitTestFootprint(x: number, y: number): FootprintHit | null;
+  setFootprintHover(candleTimeMs: number, side: number): void;
   setDraft(
     aTime: number,
     aPrice: number,
@@ -276,6 +281,15 @@ class WasmHandle implements VroomChartHandle {
   }
   setPriceLineDrag(index: number, price: number): void {
     this.wc.setPriceLineDrag(index, price);
+  }
+  setFootprints(footprints: FootprintsSpec): void {
+    this.wc.setFootprints(footprints);
+  }
+  hitTestFootprint(x: number, y: number): FootprintHit | null {
+    return this.wc.hitTestFootprint(x, y);
+  }
+  setFootprintHover(candleTimeMs: number, side: number): void {
+    this.wc.setFootprintHover(candleTimeMs, side);
   }
   setDraft(
     aTime: number,
