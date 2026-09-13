@@ -301,6 +301,9 @@ export type FVGParams = {
   borderWidth: number;
   showLabels: boolean;
   labelDistance: number;
+  showInverse: boolean;
+  inverseBullishColor: string;
+  inverseBearishColor: string;
 };
 
 export const DEFAULT_FVG_PARAMS: FVGParams = {
@@ -318,6 +321,9 @@ export const DEFAULT_FVG_PARAMS: FVGParams = {
   borderWidth: 1,
   showLabels: true,
   labelDistance: 10,
+  showInverse: false,
+  inverseBullishColor: '#26a69a',
+  inverseBearishColor: '#ff9800',
 };
 
 export type VolumeParams = {
@@ -541,6 +547,9 @@ export function deriveIndicatorProps(
       borderWidth: fvgParams.borderWidth,
       showLabels: fvgParams.showLabels,
       labelDistance: fvgParams.labelDistance,
+      showInverse: fvgParams.showInverse,
+      inverseBullishColor: fvgParams.inverseBullishColor,
+      inverseBearishColor: fvgParams.inverseBearishColor,
     },
     volume: {
       enabled: state.volume.enabled,
@@ -1713,6 +1722,35 @@ function DetailScreen({
                   onChange={(c) => onFvgParamsChange!({ bearishColor: c })}
                 />
               </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Show inverse</span>
+                <Toggle
+                  value={fvg.showInverse}
+                  onChange={(v) => onFvgParamsChange!({ showInverse: v })}
+                />
+              </div>
+              {fvg.showInverse && (
+                <>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Inverse bullish</span>
+                    <Swatches
+                      value={fvg.inverseBullishColor}
+                      onChange={(c) =>
+                        onFvgParamsChange!({ inverseBullishColor: c })
+                      }
+                    />
+                  </div>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Inverse bearish</span>
+                    <Swatches
+                      value={fvg.inverseBearishColor}
+                      onChange={(c) =>
+                        onFvgParamsChange!({ inverseBearishColor: c })
+                      }
+                    />
+                  </div>
+                </>
+              )}
               <div style={paramRow}>
                 <span style={paramLabel}>Fill opacity</span>
                 <Segmented

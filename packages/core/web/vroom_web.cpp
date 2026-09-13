@@ -295,7 +295,8 @@ class WebChart {
   // deleteAfterFill, extendBoxes, boxLength, bullishColor, bearishColor,
   // opacity, borderEnabled, borderStyle, borderWidth, bullishBorderColor,
   // bearishBorderColor, labelsEnabled, label, labelDistance, labelColor,
-  // labelFontSize}. `label` is copied by the setter.
+  // labelFontSize, showInverse, inverseBullishColor, inverseBearishColor,
+  // inverseLabel}. Both labels are copied by the setter.
   void setFairValueGaps(const em::val& s) {
     VroomFairValueGaps cfg{};
     cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
@@ -319,6 +320,11 @@ class WebChart {
     cfg.label_distance = s["labelDistance"].as<int32_t>();
     cfg.label_color = s["labelColor"].as<uint32_t>();
     cfg.label_font_size = s["labelFontSize"].as<float>();
+    cfg.show_inverse = s["showInverse"].as<bool>() ? 1 : 0;
+    cfg.inverse_bullish_color = s["inverseBullishColor"].as<uint32_t>();
+    cfg.inverse_bearish_color = s["inverseBearishColor"].as<uint32_t>();
+    const std::string inverse_label = s["inverseLabel"].as<std::string>();
+    cfg.inverse_label = inverse_label.c_str();
     vroom_chart_set_fair_value_gaps(chart_, &cfg);
   }
   // `s` is a JS object {enabled, heightFrac, opacity, radiusPx, upColor,

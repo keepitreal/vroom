@@ -267,6 +267,9 @@ export type FVGParams = {
   borderWidth: number;
   showLabels: boolean;
   labelDistance: number;
+  showInverse: boolean;
+  inverseBullishColor: string;
+  inverseBearishColor: string;
 };
 
 export const DEFAULT_FVG_PARAMS: FVGParams = {
@@ -284,6 +287,9 @@ export const DEFAULT_FVG_PARAMS: FVGParams = {
   borderWidth: 1,
   showLabels: true,
   labelDistance: 10,
+  showInverse: false,
+  inverseBullishColor: '#26a69a',
+  inverseBearishColor: '#ff9800',
 };
 
 // Ichimoku's five lines, each with a `<key>Visible` / `<key>Color` pair on
@@ -1092,6 +1098,37 @@ function DetailScreen({
                   onChange={(c) => onFvgParamsChange!({ bearishColor: c })}
                 />
               </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Show inverse</Text>
+                <Switch
+                  value={fvg.showInverse}
+                  onValueChange={(v) => onFvgParamsChange!({ showInverse: v })}
+                  trackColor={{ true: '#238636', false: '#30363d' }}
+                  thumbColor="#f0f6fc"
+                />
+              </View>
+              {fvg.showInverse ? (
+                <>
+                  <View style={styles.paramRow}>
+                    <Text style={styles.paramLabel}>Inverse bullish</Text>
+                    <Swatches
+                      value={fvg.inverseBullishColor}
+                      onChange={(c) =>
+                        onFvgParamsChange!({ inverseBullishColor: c })
+                      }
+                    />
+                  </View>
+                  <View style={styles.paramRow}>
+                    <Text style={styles.paramLabel}>Inverse bearish</Text>
+                    <Swatches
+                      value={fvg.inverseBearishColor}
+                      onChange={(c) =>
+                        onFvgParamsChange!({ inverseBearishColor: c })
+                      }
+                    />
+                  </View>
+                </>
+              ) : null}
               <View style={styles.paramRow}>
                 <Text style={styles.paramLabel}>Fill opacity</Text>
                 <Segmented

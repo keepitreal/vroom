@@ -286,6 +286,37 @@ happened.
 Filling is always tracked, so toggling `deleteAfterFill` or switching `fillType`
 costs nothing but a redraw.
 
+### Inversion
+
+Closing through a gap doesn't have to be the end of it. With `showInverse`, the
+box carries on with its polarity flipped: the band price rejected on the way
+through becomes a zone of the opposite kind, and it stays on the chart until
+price reclaims it.
+
+```tsx
+<VroomChart candles={candles} fairValueGaps={{ enabled: true, showInverse: true }} />
+```
+
+| Was | Becomes | Ends when |
+| --- | --- | --- |
+| Bullish gap, closed below | bearish resistance overhead | a close back above its top |
+| Bearish gap, closed above | bullish support underneath | a close back below its bottom |
+
+Invalidation mirrors the fill exactly, `fillType` and all, so under `'wick'` a
+high or low reaching the far edge is enough to end the inversion too.
+
+The inverse box starts where the original one stops — the close of the bar that
+filled the gap — so the two never overlap, and it measures its own `boxLength`
+from there. Colors come from `inverseBullishColor` / `inverseBearishColor`,
+which describe the polarity of the *zone*, not the gap: a violated bullish gap
+is a bearish zone, so `inverseBearishColor` is what paints it. Labels read
+`'iFVG'` unless you set `inverseLabel`.
+
+`deleteAfterFill` still governs only the original box, which makes the default
+pairing read well — the original vanishes at the fill and the inverse picks up
+from there. Turn `deleteAfterFill` off and you see both halves of the story: the
+gap up to its fill, then the zone it turned into.
+
 ### Options
 
 | Option | Default | Notes |
@@ -296,14 +327,15 @@ costs nothing but a redraw.
 | `deleteAfterFill` | `true` | Hide a filled gap, rather than truncating it. |
 | `extendBoxes` | `false` | Run boxes to the newest bar instead of `boxLength`. |
 | `boxLength` | `20` | Box width in bars, clamped to ≥ 1. |
+| `showInverse` | `false` | Keep a filled gap on the chart with its polarity flipped. |
 
 With `waitForClose` off, a gap formed by the still-forming bar appears
 immediately — and disappears again if that bar fills back in. Turn it on if you
 only want confirmed setups.
 
 Only these four options rescan the series: `enabled`, `maxBarsBack`,
-`waitForClose` and `fillType`. Box geometry, colors and labels are applied when
-drawing, so they're cheap to bind to a control.
+`waitForClose` and `fillType`. Box geometry, colors, labels and `showInverse`
+are all applied when drawing, so they're cheap to bind to a control.
 
 ### Styling
 

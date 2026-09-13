@@ -1,6 +1,8 @@
 #include "fvg_overlay.h"
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <string>
 
 #pragma clang diagnostic push
@@ -31,51 +33,85 @@ sk_sp<SkPathEffect> dash_for(int32_t border_style) {
     return nullptr;
 }
 
-// One gap resolved to pixels. `bullish` picks which of the paired colors apply.
-struct Box {
-    SkRect rect;
-    bool bullish;
+// A stretch of time one box covers. A gap draws one of these while it is open
+// and, under show_inverse, a second of the opposite polarity once it has been
+// violated.
+struct Span {
+    int64_t start_ms;
+    int64_t end_ms;
+    bool bullish;  // polarity of THIS span, already flipped for an inverse
+    bool inverse;
+    bool open;     // still running at the newest bar rather than cut short
 };
 
-// The time a box's right edge stops at.
-//
-// An unfilled box runs its configured length, or — when extended — to the end of
-// the newest bar. A filled one stops at the far side of the bar that filled it,
-// whichever of the two comes first, so the shading covers exactly the span the
-// gap was open for.
-int64_t right_edge_ms(const VroomChart& chart, const vroom::fvg::Gap& g) {
+// The spans `g` draws, written to `out` oldest first, returning how many. Zero
+// when the gap is set to disappear on the fill and has no inversion to show.
+std::size_t spans_for(const VroomChart& chart,
+                      const vroom::fvg::Gap& g,
+                      std::array<Span, 2>& out) {
+    const VroomFairValueGaps& cfg = chart.fvg;
     const int64_t dur = chart.candle_duration_ms;
-    int64_t right = chart.fvg.extend_boxes
-                        ? chart.candles.back().time_ms + dur
-                        : g.time_ms + static_cast<int64_t>(chart.fvg.box_length) * dur;
-    if (g.filled_ms != 0) right = std::min(right, g.filled_ms + dur);
-    return right;
+    const int64_t newest_end = chart.candles.back().time_ms + dur;
+    const int64_t length = static_cast<int64_t>(cfg.box_length) * dur;
+    std::size_t n = 0;
+
+    // The original. It runs its configured length, or — when extended — to the
+    // end of the newest bar, and stops at the far side of the bar that filled
+    // it, so the shading covers exactly the span the gap was open for.
+    if (g.filled_ms == 0 || !cfg.delete_after_fill) {
+        int64_t end = cfg.extend_boxes ? newest_end : g.time_ms + length;
+        const bool open = g.filled_ms == 0;
+        if (!open) end = std::min(end, g.filled_ms + dur);
+        if (end > g.time_ms) out[n++] = Span{g.time_ms, end, g.bullish, false, open};
+    }
+
+    // The inversion, anchored past the close of the breaking bar so it picks up
+    // exactly where the original stops and the two never overlap. It measures
+    // its own length from there and ends where price reclaimed the band.
+    if (cfg.show_inverse && g.filled_ms != 0) {
+        const int64_t start = g.filled_ms + dur;
+        int64_t end = cfg.extend_boxes ? newest_end : start + length;
+        const bool open = g.invalidated_ms == 0;
+        if (!open) end = std::min(end, g.invalidated_ms + dur);
+        if (end > start) out[n++] = Span{start, end, !g.bullish, true, open};
+    }
+    return n;
 }
 
-// Resolves `g` to pixels, or returns false when it shouldn't draw at all —
-// filled and set to disappear, degenerate, or entirely off to one side.
+// One span resolved to pixels, or false when it lands entirely off to one side.
 bool box_for(const VroomChart& chart,
              const vroom::Layout& lay,
              const vroom::PriceBounds& bounds,
              int64_t window_ms,
              float candle_right,
              const vroom::fvg::Gap& g,
-             Box* out) {
-    if (g.filled_ms != 0 && chart.fvg.delete_after_fill) return false;
-
-    const int64_t right_ms = right_edge_ms(chart, g);
-    if (right_ms <= g.time_ms) return false;
-
+             const Span& s,
+             SkRect* out) {
     const float left =
-        vroom::x_at_time(lay, chart.visible_start_ms, window_ms, g.time_ms);
+        vroom::x_at_time(lay, chart.visible_start_ms, window_ms, s.start_ms);
     const float right =
-        vroom::x_at_time(lay, chart.visible_start_ms, window_ms, right_ms);
+        vroom::x_at_time(lay, chart.visible_start_ms, window_ms, s.end_ms);
     if (right < 0.f || left > candle_right) return false;
 
-    out->rect = SkRect::MakeLTRB(left, vroom::price_to_y(lay, bounds, g.top),
-                                 right, vroom::price_to_y(lay, bounds, g.bottom));
-    out->bullish = g.bullish;
+    *out = SkRect::MakeLTRB(left, vroom::price_to_y(lay, bounds, g.top), right,
+                            vroom::price_to_y(lay, bounds, g.bottom));
     return true;
+}
+
+// The fill color a span shades with, before opacity.
+SkColor fill_color(const VroomFairValueGaps& cfg, const Span& s) {
+    if (s.inverse) {
+        return s.bullish ? cfg.inverse_bullish_color : cfg.inverse_bearish_color;
+    }
+    return s.bullish ? cfg.bullish_color : cfg.bearish_color;
+}
+
+// The color a span's border and label take. Inverse spans have no paired border
+// color of their own, so they reuse their fill at full alpha — the same
+// relationship bullishBorderColor already has with bullishColor by default.
+SkColor line_color(const VroomFairValueGaps& cfg, const Span& s) {
+    if (s.inverse) return SkColorSetA(fill_color(cfg, s), 0xff);
+    return s.bullish ? cfg.bullish_border_color : cfg.bearish_border_color;
 }
 
 // Whether there is anything at all to draw, and the cache is safe to walk.
@@ -114,18 +150,23 @@ void draw_boxes(SkCanvas* canvas,
 
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    std::array<Span, 2> spans;
     for (const vroom::fvg::Gap& g : chart.fvg_cache) {
-        Box b;
-        if (!box_for(chart, lay, bounds, window_ms, candle_right, g, &b)) continue;
+        const std::size_t n = spans_for(chart, g, spans);
+        for (std::size_t i = 0; i < n; ++i) {
+            SkRect rect;
+            if (!box_for(chart, lay, bounds, window_ms, candle_right, g, spans[i],
+                         &rect)) {
+                continue;
+            }
 
-        const SkColor base = b.bullish ? cfg.bullish_color : cfg.bearish_color;
-        fill.setColor(with_opacity(base, cfg.opacity));
-        canvas->drawRect(b.rect, fill);
+            fill.setColor(with_opacity(fill_color(cfg, spans[i]), cfg.opacity));
+            canvas->drawRect(rect, fill);
 
-        if (cfg.border_enabled) {
-            border.setColor(b.bullish ? cfg.bullish_border_color
-                                      : cfg.bearish_border_color);
-            canvas->drawRect(b.rect, border);
+            if (cfg.border_enabled) {
+                border.setColor(line_color(cfg, spans[i]));
+                canvas->drawRect(rect, border);
+            }
         }
     }
     canvas->restore();
@@ -140,7 +181,8 @@ void draw_labels(SkCanvas* canvas,
                  float candle_area_h) {
     if (!active(chart, canvas, candle_right, candle_area_h)) return;
     const VroomFairValueGaps& cfg = chart.fvg;
-    if (!cfg.labels_enabled || chart.fvg_label.empty()) return;
+    const bool any_inverse = cfg.show_inverse && !chart.fvg_inverse_label.empty();
+    if (!cfg.labels_enabled || (chart.fvg_label.empty() && !any_inverse)) return;
 
     auto tf = vroom::axis_typeface();
     if (!tf) return;
@@ -151,10 +193,18 @@ void draw_labels(SkCanvas* canvas,
     font.setSubpixel(true);
     font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
 
-    const std::string& text = chart.fvg_label;
-    SkRect tb;
-    const float text_w =
-        font.measureText(text.data(), text.size(), SkTextEncoding::kUTF8, &tb);
+    // Indexed by Span::inverse, so a span picks its own text and metrics.
+    struct Label {
+        const std::string* text;
+        float width;
+        SkRect bounds;
+    };
+    Label labels[2] = {{&chart.fvg_label, 0.f, {}},
+                       {&chart.fvg_inverse_label, 0.f, {}}};
+    for (Label& l : labels) {
+        l.width = font.measureText(l.text->data(), l.text->size(),
+                                   SkTextEncoding::kUTF8, &l.bounds);
+    }
 
     // Extended boxes all stop at the newest bar, so their labels go out into the
     // empty slots past it rather than on top of the shading.
@@ -171,29 +221,40 @@ void draw_labels(SkCanvas* canvas,
 
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    std::array<Span, 2> spans;
     for (const vroom::fvg::Gap& g : chart.fvg_cache) {
-        Box b;
-        if (!box_for(chart, lay, bounds, window_ms, candle_right, g, &b)) continue;
+        const std::size_t n = spans_for(chart, g, spans);
+        for (std::size_t i = 0; i < n; ++i) {
+            const Span& s = spans[i];
+            const Label& l = labels[s.inverse ? 1 : 0];
+            if (l.text->empty()) continue;
 
-        // A filled box stops early even under extend, so it keeps its label
-        // inside; only boxes still running to the newest bar move theirs out —
-        // and only while the pane has the room, since the newest candle sits
-        // flush right until the user pans.
-        const bool outside = cfg.extend_boxes && g.filled_ms == 0 &&
-                             extend_x + text_w <= candle_right;
-        // A box whose right end runs past the pane would have its label sliced
-        // mid-glyph by the clip, so hold the text inside the plot instead.
-        const float x = std::min(outside ? extend_x
-                                         : b.rect.right() - kLabelPadX - text_w,
-                                 candle_right - kLabelPadX - text_w);
-        if (x + text_w < 0.f) continue;
+            SkRect rect;
+            if (!box_for(chart, lay, bounds, window_ms, candle_right, g, s,
+                         &rect)) {
+                continue;
+            }
 
-        const SkColor border = b.bullish ? cfg.bullish_border_color
-                                         : cfg.bearish_border_color;
-        paint.setColor(SkColorGetA(cfg.label_color) != 0 ? cfg.label_color : border);
-        canvas->drawString(text.c_str(), x,
-                           b.rect.centerY() - (tb.fTop + tb.fBottom) * 0.5f, font,
-                           paint);
+            // A box that was cut short stops early even under extend, so it
+            // keeps its label inside; only boxes still running to the newest
+            // bar move theirs out — and only while the pane has the room, since
+            // the newest candle sits flush right until the user pans.
+            const bool outside = cfg.extend_boxes && s.open &&
+                                 extend_x + l.width <= candle_right;
+            // A box whose right end runs past the pane would have its label
+            // sliced mid-glyph by the clip, so hold the text inside the plot.
+            const float x =
+                std::min(outside ? extend_x : rect.right() - kLabelPadX - l.width,
+                         candle_right - kLabelPadX - l.width);
+            if (x + l.width < 0.f) continue;
+
+            paint.setColor(SkColorGetA(cfg.label_color) != 0 ? cfg.label_color
+                                                             : line_color(cfg, s));
+            canvas->drawString(
+                l.text->c_str(), x,
+                rect.centerY() - (l.bounds.fTop + l.bounds.fBottom) * 0.5f, font,
+                paint);
+        }
     }
     canvas->restore();
 }

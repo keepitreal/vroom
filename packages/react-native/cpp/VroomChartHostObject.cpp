@@ -1033,7 +1033,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
     // deleteAfterFill, extendBoxes, boxLength, bullishColor, bearishColor,
     // opacity, borderEnabled, borderStyle, borderWidth, bullishBorderColor,
     // bearishBorderColor, labelsEnabled, label, labelDistance, labelColor,
-    // labelFontSize}) — the Fair Value Gap overlay. No render; the next
+    // labelFontSize, showInverse, inverseBullishColor, inverseBearishColor,
+    // inverseLabel}) — the Fair Value Gap overlay. No render; the next
     // render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
@@ -1070,13 +1071,21 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           cfg.bearish_border_color =
               static_cast<uint32_t>(num("bearishBorderColor"));
           cfg.labels_enabled = flag("labelsEnabled");
-          // Held alive until the setter, which copies it.
+          // Held alive until the setter, which copies them.
           const std::string label =
               s.getProperty(rt2, "label").asString(rt2).utf8(rt2);
           cfg.label = label.c_str();
           cfg.label_distance = static_cast<int32_t>(num("labelDistance"));
           cfg.label_color = static_cast<uint32_t>(num("labelColor"));
           cfg.label_font_size = static_cast<float>(num("labelFontSize"));
+          cfg.show_inverse = flag("showInverse");
+          cfg.inverse_bullish_color =
+              static_cast<uint32_t>(num("inverseBullishColor"));
+          cfg.inverse_bearish_color =
+              static_cast<uint32_t>(num("inverseBearishColor"));
+          const std::string inverse_label =
+              s.getProperty(rt2, "inverseLabel").asString(rt2).utf8(rt2);
+          cfg.inverse_label = inverse_label.c_str();
           vroom_chart_set_fair_value_gaps(chart_, &cfg);
           return jsi::Value::undefined();
         });

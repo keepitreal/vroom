@@ -112,6 +112,9 @@ typedef struct VroomIchimoku {
 // price range; it runs `box_length` slots right, or to the pane edge when
 // `extend_boxes`. Only enabled, max_bars_back, wait_for_close and fill_type
 // recompute — geometry and style are applied at draw time.
+//
+// With `show_inverse`, a filled gap draws a second box of the opposite polarity
+// starting where the first one ends, lasting until price reclaims the band.
 typedef struct VroomFairValueGaps {
     int32_t  enabled;             // 0/1
     int32_t  max_bars_back;       // bars to scan (clamped >= 0; default 300)
@@ -133,6 +136,11 @@ typedef struct VroomFairValueGaps {
     int32_t  label_distance;      // slots of clearance, extend_boxes only (>= 0)
     uint32_t label_color;         // alpha 0 falls back to the box's border color
     float    label_font_size;     // px; <= 0 falls back to the axis font size
+    int32_t  show_inverse;        // 0/1: keep drawing a filled gap, polarity flipped
+    uint32_t inverse_bullish_color;  // fill where the inverted zone is bullish,
+                                     // i.e. where a bearish gap was violated
+    uint32_t inverse_bearish_color;  // fill where a bullish gap was violated
+    const char* inverse_label;    // UTF-8, copied by the setter; NULL = "iFVG"
 } VroomFairValueGaps;
 
 // MACD, drawn in its own pane below the candles: the difference between a fast

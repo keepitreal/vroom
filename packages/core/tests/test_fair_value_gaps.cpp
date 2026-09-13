@@ -133,6 +133,85 @@ TEST_CASE("fvg::compute fills a bearish gap from above") {
     CHECK(g[0].filled_ms == 3 * kStep);
 }
 
+TEST_CASE("fvg::compute inverts a filled bullish gap and leaves it live") {
+    // Bullish gap 10..14 around bar 1, closed through at bar 4. Price then
+    // drifts lower, so the bearish zone it inverted into still stands.
+    auto c = from_hlc({{10, 6, 9},
+                       {15, 9, 14},
+                       {18, 14, 17},
+                       {17, 9, 13},
+                       {14, 8, 9},
+                       {11, 7, 8},
+                       {10, 6, 7}});
+
+    auto g = run(c);
+    REQUIRE(g.size() == 1);
+    CHECK(g[0].filled_ms == 4 * kStep);
+    CHECK(g[0].invalidated_ms == 0);
+}
+
+TEST_CASE("fvg::compute ends the inversion on a close back past the far edge") {
+    // Same gap and fill, but bar 5 reclaims the whole band from below.
+    auto c = from_hlc({{10, 6, 9},
+                       {15, 9, 14},
+                       {18, 14, 17},
+                       {17, 9, 13},
+                       {14, 8, 9},
+                       {16, 9, 15}});
+
+    auto g = run(c);
+    REQUIRE(g.size() == 1);
+    CHECK(g[0].filled_ms == 4 * kStep);
+    CHECK(g[0].invalidated_ms == 5 * kStep);
+}
+
+TEST_CASE("fvg::compute inverts a bearish gap into support and back out") {
+    // Bearish gap 16..20 around bar 1. Bar 3 closes above its top, turning it
+    // into support; bar 5 closes below its bottom and the zone is done.
+    auto c = from_hlc({{24, 20, 21},
+                       {21, 15, 16},
+                       {16, 12, 13},
+                       {22, 14, 21},
+                       {22, 15, 20},
+                       {21, 14, 15}});
+
+    auto g = run(c);
+    REQUIRE(g.size() == 1);
+    CHECK_FALSE(g[0].bullish);
+    CHECK(g[0].filled_ms == 3 * kStep);
+    CHECK(g[0].invalidated_ms == 5 * kStep);
+}
+
+TEST_CASE("fvg::compute invalidates on a wick when fill_type is wick") {
+    // Bullish gap 10..14. Bar 3 wicks below the bottom, bar 4 wicks back to
+    // the top — neither bar closes past either edge.
+    auto c = from_hlc({{10, 6, 9},
+                       {15, 9, 14},
+                       {18, 14, 17},
+                       {17, 9, 13},
+                       {14, 8, 9}});
+
+    auto g = run(c, 1000, false, vroom::fvg::kFillWick);
+    REQUIRE(g.size() == 1);
+    CHECK(g[0].filled_ms == 3 * kStep);
+    CHECK(g[0].invalidated_ms == 4 * kStep);
+}
+
+TEST_CASE("fvg::compute ignores bars past the far edge before the fill") {
+    // Bar 3 closes at 20, well above the gap's top, but the gap has not been
+    // filled yet — there is no inversion for it to invalidate.
+    auto c = from_hlc({{10, 6, 9},
+                       {15, 9, 14},
+                       {18, 14, 17},
+                       {21, 14, 20},
+                       {19, 8, 9}});
+
+    auto g = run(c);
+    REQUIRE(g.size() == 1);
+    CHECK(g[0].filled_ms == 4 * kStep);
+    CHECK(g[0].invalidated_ms == 0);
+}
+
 TEST_CASE("fvg::compute handles degenerate input") {
     std::vector<vroom::fvg::Gap> out{vroom::fvg::Gap{}};
 

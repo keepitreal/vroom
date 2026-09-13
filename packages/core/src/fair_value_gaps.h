@@ -20,6 +20,9 @@ struct Gap {
     double  bottom = 0.0;   // lower price edge
     bool    bullish = false;
     int64_t filled_ms = 0;  // open time of the bar that filled it; 0 = unfilled
+    // Open time of the bar that reclaimed the zone after it inverted; 0 while
+    // the inversion still stands. Only meaningful once filled_ms is set.
+    int64_t invalidated_ms = 0;
 };
 
 // Which price settles that a gap has been traded back through.
@@ -37,8 +40,14 @@ enum FillType : int {
 // withholds a gap whose third candle is still the newest, live bar.
 //
 // The fill scan walks forward from i+2 and records the first bar to reach the
-// far edge — the bottom of a bullish gap, the top of a bearish one. It always
-// runs, so hiding versus truncating a filled box stays a drawing concern.
+// far edge — the bottom of a bullish gap, the top of a bearish one.
+//
+// Closing through a gap inverts it: the band price just rejected becomes a
+// zone of the opposite polarity, resistance overhead where a bullish gap was
+// and support underfoot where a bearish one was. A second scan resumes after
+// the fill and records the bar that reclaims the band the other way, ending
+// the inversion. Both scans always run, so whether a filled or inverted box is
+// drawn at all stays a drawing concern.
 void compute(const ::VroomCandle* candles, std::size_t n, int max_bars_back,
              bool wait_for_close, int fill_type, std::vector<Gap>& out);
 

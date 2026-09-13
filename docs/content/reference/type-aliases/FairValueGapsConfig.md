@@ -14,18 +14,22 @@ type FairValueGapsConfig = {
   enabled?: boolean;
   extendBoxes?: boolean;
   fillType?: "close" | "wick";
+  inverseBearishColor?: VroomColor;
+  inverseBullishColor?: VroomColor;
+  inverseLabel?: string;
   label?: string;
   labelColor?: VroomColor;
   labelDistance?: number;
   labelFontSize?: number;
   maxBarsBack?: number;
   opacity?: number;
+  showInverse?: boolean;
   showLabels?: boolean;
   waitForClose?: boolean;
 };
 ```
 
-Source: [types/src/index.ts:669](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L669)
+Source: [types/src/index.ts:670](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L670)
 
 Fair Value Gap overlay config. Shaded boxes on the price pane marking
 three-candle imbalances — a run so fast the first and third candles' wicks
@@ -39,8 +43,9 @@ and runs `boxLength` bars to the right, or to the pane's edge under
 
 Gaps are tracked until price trades back through them — see `fillType` for
 which price settles that, and `deleteAfterFill` for what happens once it
-does. Unlike the line overlays, the boxes are pure geometry: they don't feed
-the automatic y-axis fit.
+does. With `showInverse`, a filled gap carries on as a zone of the opposite
+polarity. Unlike the line overlays, the boxes are pure geometry: they don't
+feed the automatic y-axis fit.
 
 ## Properties
 
@@ -50,7 +55,7 @@ the automatic y-axis fit.
 optional bearishBorderColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:715](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L715)
+Source: [types/src/index.ts:716](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L716)
 
 Outline color for bearish gaps. Defaults to `bearishColor` at full alpha.
 
@@ -62,7 +67,7 @@ Outline color for bearish gaps. Defaults to `bearishColor` at full alpha.
 optional bearishColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:702](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L702)
+Source: [types/src/index.ts:703](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L703)
 
 Fill color for bearish gaps. Default red.
 
@@ -74,7 +79,7 @@ Fill color for bearish gaps. Default red.
 optional borderStyle?: "solid" | "dotted" | "dashed";
 ```
 
-Source: [types/src/index.ts:709](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L709)
+Source: [types/src/index.ts:710](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L710)
 
 Outline style. Default `'solid'`.
 
@@ -86,7 +91,7 @@ Outline style. Default `'solid'`.
 optional borderVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:707](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L707)
+Source: [types/src/index.ts:708](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L708)
 
 Draw the box outline. Default true.
 
@@ -98,7 +103,7 @@ Draw the box outline. Default true.
 optional borderWidth?: number;
 ```
 
-Source: [types/src/index.ts:711](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L711)
+Source: [types/src/index.ts:712](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L712)
 
 Outline stroke width in px. Default 1.
 
@@ -110,7 +115,7 @@ Outline stroke width in px. Default 1.
 optional boxLength?: number;
 ```
 
-Source: [types/src/index.ts:697](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L697)
+Source: [types/src/index.ts:698](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L698)
 
 Box width in bars when `extendBoxes` is off. Default 20, clamped to >= 1.
 
@@ -122,7 +127,7 @@ Box width in bars when `extendBoxes` is off. Default 20, clamped to >= 1.
 optional bullishBorderColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:713](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L713)
+Source: [types/src/index.ts:714](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L714)
 
 Outline color for bullish gaps. Defaults to `bullishColor` at full alpha.
 
@@ -134,7 +139,7 @@ Outline color for bullish gaps. Defaults to `bullishColor` at full alpha.
 optional bullishColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:700](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L700)
+Source: [types/src/index.ts:701](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L701)
 
 Fill color for bullish gaps (hex string or packed ARGB). Default green.
 
@@ -146,7 +151,7 @@ Fill color for bullish gaps (hex string or packed ARGB). Default green.
 optional deleteAfterFill?: boolean;
 ```
 
-Source: [types/src/index.ts:690](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L690)
+Source: [types/src/index.ts:691](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L691)
 
 Hide a gap once it's been filled. Default true. When false the box stays
 but stops at the bar that filled it, leaving a record of the rebalance.
@@ -159,7 +164,7 @@ but stops at the bar that filled it, leaving a record of the rebalance.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:671](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L671)
+Source: [types/src/index.ts:672](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L672)
 
 Draw the indicator. Default false.
 
@@ -171,7 +176,7 @@ Draw the indicator. Default false.
 optional extendBoxes?: boolean;
 ```
 
-Source: [types/src/index.ts:695](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L695)
+Source: [types/src/index.ts:696](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L696)
 
 Run every box to the right edge of the pane instead of ending it after
 `boxLength` bars. Default false. A filled box still stops at its fill bar.
@@ -184,11 +189,49 @@ Run every box to the right edge of the pane instead of ending it after
 optional fillType?: "close" | "wick";
 ```
 
-Source: [types/src/index.ts:685](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L685)
+Source: [types/src/index.ts:686](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L686)
 
 Which price counts as trading back through the gap. `'close'` (default)
 needs a candle to close past the far edge; `'wick'` settles it the moment
 a high or low reaches through.
+
+---
+
+### inverseBearishColor?
+
+```ts
+optional inverseBearishColor?: VroomColor;
+```
+
+Source: [types/src/index.ts:754](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L754)
+
+Fill color for inverted zones that are bearish — that is, for _bullish_
+gaps price has broken below. Defaults to `bearishColor`.
+
+---
+
+### inverseBullishColor?
+
+```ts
+optional inverseBullishColor?: VroomColor;
+```
+
+Source: [types/src/index.ts:749](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L749)
+
+Fill color for inverted zones that are bullish — that is, for _bearish_
+gaps price has broken above. Defaults to `bullishColor`.
+
+---
+
+### inverseLabel?
+
+```ts
+optional inverseLabel?: string;
+```
+
+Source: [types/src/index.ts:756](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L756)
+
+Label text on inverted boxes. Default `'iFVG'`.
 
 ---
 
@@ -198,7 +241,7 @@ a high or low reaches through.
 optional label?: string;
 ```
 
-Source: [types/src/index.ts:720](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L720)
+Source: [types/src/index.ts:721](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L721)
 
 Label text. Default `'FVG'`.
 
@@ -210,7 +253,7 @@ Label text. Default `'FVG'`.
 optional labelColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:728](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L728)
+Source: [types/src/index.ts:729](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L729)
 
 Label color. Defaults to the box's border color.
 
@@ -222,7 +265,7 @@ Label color. Defaults to the box's border color.
 optional labelDistance?: number;
 ```
 
-Source: [types/src/index.ts:726](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L726)
+Source: [types/src/index.ts:727](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L727)
 
 Bars of clearance between the box and its label, used only under
 `extendBoxes` — a fixed-length box places the label inside its right end.
@@ -236,7 +279,7 @@ Default 10, clamped to >= 0.
 optional labelFontSize?: number;
 ```
 
-Source: [types/src/index.ts:730](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L730)
+Source: [types/src/index.ts:731](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L731)
 
 Label font size in px. Defaults to the axis font size.
 
@@ -248,7 +291,7 @@ Label font size in px. Defaults to the axis font size.
 optional maxBarsBack?: number;
 ```
 
-Source: [types/src/index.ts:673](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L673)
+Source: [types/src/index.ts:674](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L674)
 
 How many bars back to scan for gaps. Default 300, clamped to >= 0.
 
@@ -260,9 +303,29 @@ How many bars back to scan for gaps. Default 300, clamped to >= 0.
 optional opacity?: number;
 ```
 
-Source: [types/src/index.ts:704](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L704)
+Source: [types/src/index.ts:705](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L705)
 
 Fill opacity 0..1, applied to whichever fill color is in play. Default 0.15.
+
+---
+
+### showInverse?
+
+```ts
+optional showInverse?: boolean;
+```
+
+Source: [types/src/index.ts:744](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L744)
+
+Keep drawing a gap after it's been filled, with its polarity flipped — the
+band price rejected on the way through becomes a zone of the opposite
+kind. Default false.
+
+The inverse box starts where the original one stops, at the close of the
+bar that filled the gap, and lasts until price reclaims the band the other
+way (by the same rule `fillType` sets). This pairs with the default
+`deleteAfterFill: true`: the original box vanishes at the fill and the
+inverse takes over from there.
 
 ---
 
@@ -272,7 +335,7 @@ Fill opacity 0..1, applied to whichever fill color is in play. Default 0.15.
 optional showLabels?: boolean;
 ```
 
-Source: [types/src/index.ts:718](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L718)
+Source: [types/src/index.ts:719](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L719)
 
 Draw a text label on each box. Default true.
 
@@ -284,7 +347,7 @@ Draw a text label on each box. Default true.
 optional waitForClose?: boolean;
 ```
 
-Source: [types/src/index.ts:679](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L679)
+Source: [types/src/index.ts:680](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L680)
 
 Withhold a gap until its third candle closes. Default false, so a gap
 formed by the still-forming bar appears immediately and disappears again

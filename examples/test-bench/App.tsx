@@ -717,6 +717,9 @@ export default function App() {
               borderWidth: fvgParams.borderWidth,
               showLabels: fvgParams.showLabels,
               labelDistance: fvgParams.labelDistance,
+              showInverse: fvgParams.showInverse,
+              inverseBullishColor: fvgParams.inverseBullishColor,
+              inverseBearishColor: fvgParams.inverseBearishColor,
             }}
             priceLines={showPriceLines ? priceLines : undefined}
             onPriceLineDragEnd={onPriceLineDragEnd}
