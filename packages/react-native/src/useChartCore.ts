@@ -12,6 +12,7 @@ import type {
   BollingerBandsConfig,
   Candle,
   ChartType,
+  FairValueGapsConfig,
   IchimokuConfig,
   MACDConfig,
   MovingAverageOverlay,
@@ -147,6 +148,46 @@ function ichimokuToSpec(cfg: IchimokuConfig | undefined) {
     bullishCloudColor: color(cfg?.bullishCloudColor, DEFAULT_ICH_GREEN),
     bearishCloudColor: color(cfg?.bearishCloudColor, DEFAULT_ICH_RED),
     cloudOpacity: cfg?.cloudOpacity ?? 0.15,
+  };
+}
+
+// Fair Value Gap defaults. The border colors fall back to the fill color, so a
+// config that only restyles the fill keeps its outline in the same hue.
+const DEFAULT_FVG_GREEN = 0xff26a69a;
+const DEFAULT_FVG_RED = 0xffef5350;
+const FVG_FILL_TYPES = ['close', 'wick'] as const;
+const FVG_BORDER_STYLES = ['solid', 'dotted', 'dashed'] as const;
+
+function fvgToSpec(cfg: FairValueGapsConfig | undefined) {
+  const color = (v: string | number | undefined, fallback: number) =>
+    (v != null ? parseColor(v) : null) ?? fallback;
+  const bullish = color(cfg?.bullishColor, DEFAULT_FVG_GREEN);
+  const bearish = color(cfg?.bearishColor, DEFAULT_FVG_RED);
+  return {
+    enabled: cfg?.enabled ?? false,
+    maxBarsBack: cfg?.maxBarsBack ?? 300,
+    waitForClose: cfg?.waitForClose ?? false,
+    fillType: Math.max(0, FVG_FILL_TYPES.indexOf(cfg?.fillType ?? 'close')),
+    deleteAfterFill: cfg?.deleteAfterFill ?? true,
+    extendBoxes: cfg?.extendBoxes ?? false,
+    boxLength: cfg?.boxLength ?? 20,
+    bullishColor: bullish,
+    bearishColor: bearish,
+    opacity: cfg?.opacity ?? 0.15,
+    borderEnabled: cfg?.borderVisible ?? true,
+    borderStyle: Math.max(
+      0,
+      FVG_BORDER_STYLES.indexOf(cfg?.borderStyle ?? 'solid'),
+    ),
+    borderWidth: cfg?.borderWidth ?? 1,
+    bullishBorderColor: color(cfg?.bullishBorderColor, bullish),
+    bearishBorderColor: color(cfg?.bearishBorderColor, bearish),
+    labelsEnabled: cfg?.showLabels ?? true,
+    label: cfg?.label ?? 'FVG',
+    labelDistance: cfg?.labelDistance ?? 10,
+    // Alpha 0 is the core's "inherit the border color" sentinel.
+    labelColor: color(cfg?.labelColor, 0),
+    labelFontSize: cfg?.labelFontSize ?? 0,
   };
 }
 
@@ -348,6 +389,7 @@ export function useChartCore(
   vwap?: VWAPConfig,
   bollingerBands?: BollingerBandsConfig,
   ichimoku?: IchimokuConfig,
+  fairValueGaps?: FairValueGapsConfig,
   volume?: VolumeConfig,
   priceLines?: PriceLinesProp,
   footprints?: FootprintsProp,
@@ -443,6 +485,7 @@ export function useChartCore(
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
   const ichimokuKey = ichimoku ? JSON.stringify(ichimoku) : '';
+  const fvgKey = fairValueGaps ? JSON.stringify(fairValueGaps) : '';
   const volumeKey = volume ? JSON.stringify(volume) : '';
   const priceLinesKey = priceLines ? JSON.stringify(priceLines) : '';
   const footprintsKey = footprints ? JSON.stringify(footprints) : '';
@@ -571,6 +614,7 @@ export function useChartCore(
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
     h.setVWAP(vwapToSpec(vwap));
     h.setBollinger(bollingerToSpec(bollingerBands));
+    h.setFairValueGaps(fvgToSpec(fairValueGaps));
     h.setVolume(volumeToSpec(volume));
     // setVolume snaps the collapse scalar to its `enabled`, which would cut a
     // toggle animation short whenever this effect re-runs (a streaming candle, a
@@ -591,10 +635,10 @@ export function useChartCore(
     // frame 0 is pixel-identical to what's on screen, so there's nothing to show
     // in the meantime anyway.
     if (!morphing) setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/volume/
-    // priceLines/footprints are represented by their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/fairValueGaps/
+    // volume/priceLines/footprints are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
+  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

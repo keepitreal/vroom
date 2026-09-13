@@ -1,9 +1,9 @@
 # Indicators
 
-vroom ships six indicator families. Two render in their own **pane below the
-candles** (RSI, MACD); four are **overlays drawn on the price pane** (moving
-averages, VWAP, Bollinger Bands, Ichimoku). Each is configured through its own
-prop and is off until you enable it.
+vroom ships seven indicator families. Two render in their own **pane below the
+candles** (RSI, MACD); five are **overlays drawn on the price pane** (moving
+averages, VWAP, Bollinger Bands, Ichimoku, Fair Value Gaps). Each is configured
+through its own prop and is off until you enable it.
 
 ## RSI
 
@@ -249,3 +249,90 @@ edges are independent, so you can shade the cloud without stroking its borders.
 
 Each line starts at the first fully-formed window of its own lookback, so span B
 (52 bars by default) begins latest.
+
+## Fair Value Gaps
+
+Shaded boxes over three-candle imbalances — a run so fast the first and third
+candles' wicks never overlap, leaving a band of price that was skipped. See
+[`FairValueGapsConfig`](../reference/index.md).
+
+```tsx
+<VroomChart candles={candles} fairValueGaps={{ enabled: true }} />
+```
+
+A gap forms around the middle bar of the three:
+
+| Direction | Condition | Box spans |
+| --- | --- | --- |
+| Bullish | `candles[i - 1].high < candles[i + 1].low` | that untouched range, shaded green |
+| Bearish | `candles[i - 1].low > candles[i + 1].high` | that untouched range, shaded red |
+
+Each box is anchored to the middle bar's open and runs `boxLength` bars to the
+right. Boxes draw behind the candles, so the bars that formed the imbalance stay
+readable over their own shading, and their labels draw in front.
+
+### Filling
+
+A gap is *filled* once price trades back through it — down to the bottom of a
+bullish gap, up to the top of a bearish one. `fillType` picks which price
+settles that: `'close'` (the default) needs a candle to close past the far edge,
+while `'wick'` settles it the moment a high or low reaches through.
+
+What happens next is `deleteAfterFill`. On by default, so a filled gap
+disappears and only live imbalances remain. Turn it off and the box stays but
+stops at the bar that filled it, leaving a record of where the rebalance
+happened.
+
+Filling is always tracked, so toggling `deleteAfterFill` or switching `fillType`
+costs nothing but a redraw.
+
+### Options
+
+| Option | Default | Notes |
+| --- | --- | --- |
+| `maxBarsBack` | `300` | Bars to scan, clamped to ≥ 0. `0` finds nothing. |
+| `waitForClose` | `false` | Withhold a gap until its third candle closes. |
+| `fillType` | `'close'` | `'close'` or `'wick'`. |
+| `deleteAfterFill` | `true` | Hide a filled gap, rather than truncating it. |
+| `extendBoxes` | `false` | Run boxes to the newest bar instead of `boxLength`. |
+| `boxLength` | `20` | Box width in bars, clamped to ≥ 1. |
+
+With `waitForClose` off, a gap formed by the still-forming bar appears
+immediately — and disappears again if that bar fills back in. Turn it on if you
+only want confirmed setups.
+
+Only these four options rescan the series: `enabled`, `maxBarsBack`,
+`waitForClose` and `fillType`. Box geometry, colors and labels are applied when
+drawing, so they're cheap to bind to a control.
+
+### Styling
+
+```tsx
+<VroomChart
+  candles={candles}
+  fairValueGaps={{
+    enabled: true,
+    bullishColor: '#26a69a',
+    bearishColor: '#ff9800',
+    opacity: 0.15,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    label: 'FVG',
+  }}
+/>
+```
+
+The fill takes a color per direction plus a shared `opacity`. The outline is
+separate: hide it with `borderVisible`, style it `'solid'`, `'dotted'` or
+`'dashed'`, and override its color per direction with `bullishBorderColor` /
+`bearishBorderColor` — both of which default to the matching fill color, so
+restyling only the fill keeps the outline in the same hue.
+
+Labels are on by default and read `'FVG'`. A fixed-length box carries its label
+inside its right end; an extended one puts it out in the empty slots past the
+newest candle, `labelDistance` bars clear of it. Set `labelColor` to override
+the border color it otherwise inherits, and `labelFontSize` to override the axis
+font size.
+
+Like every other price-pane overlay, gap boxes don't feed the automatic y-axis
+fit, which frames the candles alone.

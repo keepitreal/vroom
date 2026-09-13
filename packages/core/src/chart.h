@@ -22,6 +22,7 @@
 #include "include/core/SkRefCnt.h"
 #pragma clang diagnostic pop
 
+#include "fair_value_gaps.h"
 #include "footprints_layout.h"
 #include "labels.h"
 #include "price_format.h"
@@ -203,6 +204,23 @@ struct VroomChart {
     std::vector<double> ich_chikou_cache;
     bool ichimoku_dirty = true;
 
+    // Fair Value Gap overlay (price pane; no pane reserved). The cache holds the
+    // detected imbalances in absolute time/price, oldest first, so box geometry
+    // and style are free to change without re-scanning — only the detection
+    // inputs below dirty it. Recomputed lazily by ensure_fvg() when fvg_dirty.
+    //
+    // Defaults: 300 bars back, close-settled fills, deleted once filled, 20-slot
+    // boxes in green/red at 15%, solid 1px border, labels on.
+    VroomFairValueGaps fvg{0, 300, 0, 0, 1, 0, 20,
+                           0xff26a69a, 0xffef5350, 0.15f,
+                           1, 0, 1.f, 0xff26a69a, 0xffef5350,
+                           1, nullptr, 10, 0u, 0.f};
+    // Owns the label text, so the caller may free theirs as soon as the setter
+    // returns. `fvg.label` is left null and this is what the renderer reads.
+    std::string fvg_label = "FVG";
+    std::vector<vroom::fvg::Gap> fvg_cache;
+    bool fvg_dirty = true;
+
     // Volume bars (price pane, under the candles). On by default with every
     // style field left on its inherit sentinel, so an untouched chart looks
     // exactly as it did before the config existed. No cache — bar heights come
@@ -371,6 +389,9 @@ struct VroomChart {
     // Recomputes the Ichimoku caches when ichimoku_dirty and the indicator is
     // enabled.
     void ensure_ichimoku();
+
+    // Redetects the Fair Value Gaps when fvg_dirty and the indicator is enabled.
+    void ensure_fvg();
 
     // The main drawing pass. Calls into the labels and candles modules, and owns
     // the per-frame animation clock (see begin_frame) so every host gets it —

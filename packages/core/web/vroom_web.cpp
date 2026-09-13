@@ -291,6 +291,36 @@ class WebChart {
     cfg.cloud_opacity = s["cloudOpacity"].as<float>();
     vroom_chart_set_ichimoku(chart_, &cfg);
   }
+  // `s` is a JS object {enabled, maxBarsBack, waitForClose, fillType,
+  // deleteAfterFill, extendBoxes, boxLength, bullishColor, bearishColor,
+  // opacity, borderEnabled, borderStyle, borderWidth, bullishBorderColor,
+  // bearishBorderColor, labelsEnabled, label, labelDistance, labelColor,
+  // labelFontSize}. `label` is copied by the setter.
+  void setFairValueGaps(const em::val& s) {
+    VroomFairValueGaps cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.max_bars_back = s["maxBarsBack"].as<int32_t>();
+    cfg.wait_for_close = s["waitForClose"].as<bool>() ? 1 : 0;
+    cfg.fill_type = s["fillType"].as<int32_t>();
+    cfg.delete_after_fill = s["deleteAfterFill"].as<bool>() ? 1 : 0;
+    cfg.extend_boxes = s["extendBoxes"].as<bool>() ? 1 : 0;
+    cfg.box_length = s["boxLength"].as<int32_t>();
+    cfg.bullish_color = s["bullishColor"].as<uint32_t>();
+    cfg.bearish_color = s["bearishColor"].as<uint32_t>();
+    cfg.opacity = s["opacity"].as<float>();
+    cfg.border_enabled = s["borderEnabled"].as<bool>() ? 1 : 0;
+    cfg.border_style = s["borderStyle"].as<int32_t>();
+    cfg.border_width = s["borderWidth"].as<float>();
+    cfg.bullish_border_color = s["bullishBorderColor"].as<uint32_t>();
+    cfg.bearish_border_color = s["bearishBorderColor"].as<uint32_t>();
+    cfg.labels_enabled = s["labelsEnabled"].as<bool>() ? 1 : 0;
+    const std::string label = s["label"].as<std::string>();
+    cfg.label = label.c_str();
+    cfg.label_distance = s["labelDistance"].as<int32_t>();
+    cfg.label_color = s["labelColor"].as<uint32_t>();
+    cfg.label_font_size = s["labelFontSize"].as<float>();
+    vroom_chart_set_fair_value_gaps(chart_, &cfg);
+  }
   // `s` is a JS object {enabled, heightFrac, opacity, radiusPx, upColor,
   // downColor}. Negative floats / zero colors mean "inherit the theme".
   void setVolume(const em::val& s) {
@@ -764,6 +794,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setVWAP", &WebChart::setVWAP)
       .function("setBollinger", &WebChart::setBollinger)
       .function("setIchimoku", &WebChart::setIchimoku)
+      .function("setFairValueGaps", &WebChart::setFairValueGaps)
       .function("setVolume", &WebChart::setVolume)
       .function("setVolumeCollapse", &WebChart::setVolumeCollapse)
       .function("setAxisCollapse", &WebChart::setAxisCollapse)

@@ -56,6 +56,7 @@ if(VROOM_BUILD_TESTS)
         tests/test_vwap.cpp
         tests/test_bollinger.cpp
         tests/test_ichimoku.cpp
+        tests/test_fair_value_gaps.cpp
         tests/test_price_line_layout.cpp
         tests/test_footprints_layout.cpp
         tests/test_volume_anim.cpp
@@ -76,6 +77,7 @@ if(VROOM_BUILD_TESTS)
         src/vwap.cpp
         src/bollinger.cpp
         src/ichimoku.cpp
+        src/fair_value_gaps.cpp
         src/volume_anim.cpp
     )
     target_include_directories(vroom_tests PRIVATE include src tests)

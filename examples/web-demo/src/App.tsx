@@ -32,10 +32,12 @@ import {
   DEFAULT_VWAP_PARAMS,
   DEFAULT_BOLLINGER_PARAMS,
   DEFAULT_ICHIMOKU_PARAMS,
+  DEFAULT_FVG_PARAMS,
   DEFAULT_VOLUME_PARAMS,
   deriveIndicatorProps,
   enabledCount,
   type BollingerParams,
+  type FVGParams,
   type IchimokuParams,
   type IndicatorId,
   type IndicatorState,
@@ -947,6 +949,7 @@ export function App() {
   const [ichimokuParams, setIchimokuParams] = useState<IchimokuParams>(
     DEFAULT_ICHIMOKU_PARAMS,
   );
+  const [fvgParams, setFvgParams] = useState<FVGParams>(DEFAULT_FVG_PARAMS);
   const [volumeParams, setVolumeParams] = useState<VolumeParams>(
     DEFAULT_VOLUME_PARAMS,
   );
@@ -971,6 +974,10 @@ export function App() {
   const patchIchimoku = useCallback(
     (patch: Partial<IchimokuParams>) =>
       setIchimokuParams((p) => ({ ...p, ...patch })),
+    [],
+  );
+  const patchFvg = useCallback(
+    (patch: Partial<FVGParams>) => setFvgParams((p) => ({ ...p, ...patch })),
     [],
   );
   const patchVolume = useCallback(
@@ -1009,6 +1016,7 @@ export function App() {
     vwapParams,
     bbParams,
     ichimokuParams,
+    fvgParams,
     volumeParams,
   );
   const activeCount = enabledCount(indicators);
@@ -1190,6 +1198,8 @@ export function App() {
         onBbParamsChange={patchBb}
         ichimokuParams={ichimokuParams}
         onIchimokuParamsChange={patchIchimoku}
+        fvgParams={fvgParams}
+        onFvgParamsChange={patchFvg}
         volumeParams={volumeParams}
         onVolumeParamsChange={patchVolume}
       />

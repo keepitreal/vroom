@@ -11,6 +11,7 @@ import type {
   CrosshairCandle,
   CrosshairInfo,
   IchimokuSpec,
+  FairValueGapsSpec,
   DrawingSpec,
   FootprintHit,
   FootprintsSpec,
@@ -69,6 +70,7 @@ interface WebChartInstance {
   setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
   setIchimoku(spec: IchimokuSpec): void;
+  setFairValueGaps(spec: FairValueGapsSpec): void;
   setVolume(spec: VolumeSpec): void;
   setVolumeCollapse(t: number, easing: number): void;
   setAxisCollapse(yT: number, xT: number): void;
@@ -253,6 +255,16 @@ class WasmHandle implements VroomChartHandle {
       chikouColor: spec.chikouColor >>> 0,
       bullishCloudColor: spec.bullishCloudColor >>> 0,
       bearishCloudColor: spec.bearishCloudColor >>> 0,
+    });
+  }
+  setFairValueGaps(spec: FairValueGapsSpec): void {
+    this.wc.setFairValueGaps({
+      ...spec,
+      bullishColor: spec.bullishColor >>> 0,
+      bearishColor: spec.bearishColor >>> 0,
+      bullishBorderColor: spec.bullishBorderColor >>> 0,
+      bearishBorderColor: spec.bearishBorderColor >>> 0,
+      labelColor: spec.labelColor >>> 0,
     });
   }
   setVolume(spec: VolumeSpec): void {

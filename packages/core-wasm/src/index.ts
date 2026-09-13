@@ -39,6 +39,7 @@ export type {
   OverlaySpec,
   BollingerSpec,
   IchimokuSpec,
+  FairValueGapsSpec,
   MACDSpec,
   RSISpec,
   VWAPSpec,

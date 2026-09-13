@@ -281,6 +281,37 @@ export interface ChartHandle {
     cloudOpacity: number;
   }): void;
   /**
+   * Configures the Fair Value Gap overlay (shaded imbalance boxes on the price
+   * pane). Colors are packed 0xAARRGGBB; opacity is 0..1.
+   *
+   * `maxBarsBack`, `boxLength` and `labelDistance` are all counted in candle
+   * slots. `fillType` is 0 for a close past the far edge or 1 for a wick
+   * reaching it, and `borderStyle` is 0 solid / 1 dotted / 2 dashed. Only
+   * enabled, maxBarsBack, waitForClose and fillType rescan for gaps.
+   */
+  setFairValueGaps(spec: {
+    enabled: boolean;
+    maxBarsBack: number;
+    waitForClose: boolean;
+    fillType: number;
+    deleteAfterFill: boolean;
+    extendBoxes: boolean;
+    boxLength: number;
+    bullishColor: number;
+    bearishColor: number;
+    opacity: number;
+    borderEnabled: boolean;
+    borderStyle: number;
+    borderWidth: number;
+    bullishBorderColor: number;
+    bearishBorderColor: number;
+    labelsEnabled: boolean;
+    label: string;
+    labelDistance: number;
+    labelColor: number;
+    labelFontSize: number;
+  }): void;
+  /**
    * Configures the volume bars under the candles. `heightFrac` is the tallest
    * bar as a fraction of the price pane. The style fields carry an inherit
    * sentinel: a negative number or a transparent color falls back to the

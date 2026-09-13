@@ -215,6 +215,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
     chart->ichimoku_dirty = true;
+    chart->fvg_dirty = true;
     // New bars (or a whole new interval) mean the footprint grouping no longer
     // matches the data — regroup on next use.
     chart->footprint_buckets_dirty = true;
@@ -247,6 +248,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
     chart->ichimoku_dirty = true;
+    chart->fvg_dirty = true;
     chart->mark_dirty();
 }
 
@@ -259,6 +261,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
     chart->ichimoku_dirty = true;
+    chart->fvg_dirty = true;
     chart->mark_dirty();
 }
 
@@ -1549,6 +1552,42 @@ extern "C" void vroom_chart_set_ichimoku(VroomChart* chart,
     // Turning it on mid-session misses the reserve the default framing makes,
     // and the leading spans would sit off the right edge until the user panned.
     if (turned_on) reserve_ichimoku_future(chart);
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_fair_value_gaps(VroomChart* chart,
+                                                const VroomFairValueGaps* cfg) {
+    if (!chart || !cfg) return;
+    VroomFairValueGaps next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    next.wait_for_close = next.wait_for_close ? 1 : 0;
+    next.delete_after_fill = next.delete_after_fill ? 1 : 0;
+    next.extend_boxes = next.extend_boxes ? 1 : 0;
+    next.border_enabled = next.border_enabled ? 1 : 0;
+    next.labels_enabled = next.labels_enabled ? 1 : 0;
+    next.fill_type = next.fill_type == vroom::fvg::kFillWick
+                         ? vroom::fvg::kFillWick
+                         : vroom::fvg::kFillClose;
+    next.border_style = std::clamp(next.border_style, 0, 2);
+    if (next.max_bars_back < 0) next.max_bars_back = 0;
+    if (next.box_length < 1) next.box_length = 1;
+    if (next.label_distance < 0) next.label_distance = 0;
+    next.opacity = std::clamp(next.opacity, 0.f, 1.f);
+
+    // The label is owned here; the struct's pointer is not retained, so the
+    // caller may free theirs as soon as this returns.
+    if (next.label) chart->fvg_label = next.label;
+    next.label = nullptr;
+
+    // Only the detection inputs force a rescan. Box geometry, colors, borders
+    // and labels all read the same cache at draw time.
+    const VroomFairValueGaps& cur = chart->fvg;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.max_bars_back != next.max_bars_back ||
+                           cur.wait_for_close != next.wait_for_close ||
+                           cur.fill_type != next.fill_type;
+    chart->fvg = next;
+    if (recompute) chart->fvg_dirty = true;
     chart->mark_dirty();
 }
 

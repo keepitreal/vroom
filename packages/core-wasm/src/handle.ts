@@ -200,6 +200,47 @@ export type IchimokuSpec = {
 };
 
 /**
+ * The Fair Value Gap overlay, in the core's numeric encoding. Colors are packed
+ * 0xAARRGGBB.
+ *
+ * `boxLength`, `maxBarsBack` and `labelDistance` are all counted in candle
+ * slots. Only `enabled`, `maxBarsBack`, `waitForClose` and `fillType` make the
+ * core rescan for gaps — everything else is applied when drawing.
+ */
+export type FairValueGapsSpec = {
+  enabled: boolean;
+  /** Slots back to scan for gaps. */
+  maxBarsBack: number;
+  /** Withhold a gap until its third candle closes. */
+  waitForClose: boolean;
+  /** 0 = a close past the far edge fills the gap, 1 = a wick reaching it does. */
+  fillType: number;
+  /** Hide a filled gap outright, rather than truncating it at its fill bar. */
+  deleteAfterFill: boolean;
+  /** Run boxes to the newest bar instead of ending them after boxLength slots. */
+  extendBoxes: boolean;
+  boxLength: number;
+  bullishColor: number;
+  bearishColor: number;
+  /** 0..1, multiplied into the fill color's alpha. */
+  opacity: number;
+  borderEnabled: boolean;
+  /** 0 = solid, 1 = dotted, 2 = dashed. */
+  borderStyle: number;
+  borderWidth: number;
+  bullishBorderColor: number;
+  bearishBorderColor: number;
+  labelsEnabled: boolean;
+  label: string;
+  /** Slots of clearance past the newest bar, used only under extendBoxes. */
+  labelDistance: number;
+  /** Alpha 0 falls back to the box's border color. */
+  labelColor: number;
+  /** Non-positive falls back to the axis font size. */
+  labelFontSize: number;
+};
+
+/**
  * The MACD pane, in the core's numeric encoding. The style fields carry an
  * inherit sentinel — a non-positive width or a fully transparent color tells
  * the core to fall back to its default (or, for the histogram, to the theme
@@ -564,6 +605,8 @@ export interface VroomChartHandle {
    * show the leading spans, which sit past the newest candle.
    */
   setIchimoku(spec: IchimokuSpec): void;
+  /** The Fair Value Gap overlay (shaded imbalance boxes on the price pane). */
+  setFairValueGaps(spec: FairValueGapsSpec): void;
   setVolume(spec: VolumeSpec): void;
   /**
    * Staggered volume-bar collapse: 0 = full height, 1 = all bars flat. Bars fall

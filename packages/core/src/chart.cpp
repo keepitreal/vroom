@@ -26,6 +26,7 @@
 #include "crosshair.h"
 #include "drawings.h"
 #include "footprints.h"
+#include "fvg_overlay.h"
 #include "ichimoku.h"
 #include "labels.h"
 #include "liquidity.h"
@@ -135,6 +136,13 @@ void VroomChart::ensure_ichimoku() {
                              ich_kijun_cache, ich_senkou_a_cache,
                              ich_senkou_b_cache, ich_chikou_cache);
     ichimoku_dirty = false;
+}
+
+void VroomChart::ensure_fvg() {
+    if (!fvg.enabled || !fvg_dirty) return;
+    vroom::fvg::compute(candles.data(), candles.size(), fvg.max_bars_back,
+                        fvg.wait_for_close != 0, fvg.fill_type, fvg_cache);
+    fvg_dirty = false;
 }
 
 void VroomChart::ensure_footprint_buckets() {
@@ -294,6 +302,15 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             // 4.6. Liquidity bands (resting-order depth).
             vroom::liquidity::draw(canvas, *this, lay, bounds, candle_right,
                                    candle_area_h);
+
+            // 4.65. Fair Value Gap boxes — behind the candles, so the bars that
+            // formed each imbalance still read over their own shading.
+            if (fvg.enabled) {
+                ensure_fvg();
+                vroom::fvg_overlay::draw_boxes(canvas, *this, lay, bounds,
+                                               window_ms, candle_right,
+                                               candle_area_h);
+            }
 
             // 4.7. Bollinger Band fill.
             if (bollinger.enabled) {
@@ -568,6 +585,11 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     if (!fade_out) {
         vroom::price_indicator::draw(canvas, *this, lay, bounds,
                                      candle_right, candle_area_h);
+
+        // 7.54. Fair Value Gap labels — the boxes themselves are back behind
+        //       the candles, but their text has to clear the bars it sits over.
+        vroom::fvg_overlay::draw_labels(canvas, *this, lay, bounds, window_ms,
+                                        candle_right, candle_area_h);
 
         // 7.55. Consumer-supplied price status lines — same tier as the
         //       current-price indicator (their badges must cover the labels
