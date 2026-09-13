@@ -238,6 +238,13 @@ export type FairValueGapsSpec = {
   labelColor: number;
   /** Non-positive falls back to the axis font size. */
   labelFontSize: number;
+  /** Keep drawing a filled gap with its polarity flipped, until price reclaims it. */
+  showInverse: boolean;
+  /** Fill for an inverted zone that is bullish, i.e. a violated bearish gap. */
+  inverseBullishColor: number;
+  /** Fill for an inverted zone that is bearish, i.e. a violated bullish gap. */
+  inverseBearishColor: number;
+  inverseLabel: string;
 };
 
 /**

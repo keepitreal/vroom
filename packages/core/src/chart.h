@@ -214,10 +214,13 @@ struct VroomChart {
     VroomFairValueGaps fvg{0, 300, 0, 0, 1, 0, 20,
                            0xff26a69a, 0xffef5350, 0.15f,
                            1, 0, 1.f, 0xff26a69a, 0xffef5350,
-                           1, nullptr, 10, 0u, 0.f};
-    // Owns the label text, so the caller may free theirs as soon as the setter
-    // returns. `fvg.label` is left null and this is what the renderer reads.
+                           1, nullptr, 10, 0u, 0.f,
+                           0, 0xff26a69a, 0xffef5350, nullptr};
+    // Owns the label texts, so the caller may free theirs as soon as the setter
+    // returns. `fvg.label` and `fvg.inverse_label` are left null and these are
+    // what the renderer reads.
     std::string fvg_label = "FVG";
+    std::string fvg_inverse_label = "iFVG";
     std::vector<vroom::fvg::Gap> fvg_cache;
     bool fvg_dirty = true;
 

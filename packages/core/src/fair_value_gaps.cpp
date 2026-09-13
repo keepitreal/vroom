@@ -6,14 +6,19 @@ namespace vroom::fvg {
 
 namespace {
 
-// True once `c` has traded back through the far edge of the gap — the bottom of
-// a bullish gap, the top of a bearish one. Under kFillClose the candle has to
-// close past it; under kFillWick the wick reaching it is enough.
-bool fills(const ::VroomCandle& c, const Gap& g, int fill_type) {
+// True once `c` has traded through the far edge of the band as seen from
+// `bullish` — the bottom when bullish, the top when bearish. Under kFillClose
+// the candle has to close past it; under kFillWick the wick reaching it is
+// enough.
+//
+// Polarity is a parameter rather than `g.bullish` because the same test settles
+// both events: a gap is filled when price crosses it in its own direction, and
+// the zone it inverts into is reclaimed when price crosses back the other way.
+bool crossed(const ::VroomCandle& c, const Gap& g, bool bullish, int fill_type) {
     if (fill_type == kFillWick) {
-        return g.bullish ? c.low <= g.bottom : c.high >= g.top;
+        return bullish ? c.low <= g.bottom : c.high >= g.top;
     }
-    return g.bullish ? c.close <= g.bottom : c.close >= g.top;
+    return bullish ? c.close <= g.bottom : c.close >= g.top;
 }
 
 }  // namespace
@@ -47,9 +52,20 @@ void compute(const ::VroomCandle* candles, std::size_t n, int max_bars_back,
         }
         g.time_ms = candles[i].time_ms;
 
-        for (std::size_t j = i + 2; j < n; ++j) {
-            if (fills(candles[j], g, fill_type)) {
+        std::size_t j = i + 2;
+        for (; j < n; ++j) {
+            if (crossed(candles[j], g, g.bullish, fill_type)) {
                 g.filled_ms = candles[j].time_ms;
+                break;
+            }
+        }
+
+        // Resume after the filling bar with the polarity flipped. Starting at
+        // j + 1 is what keeps an earlier bar that happened to sit past the
+        // opposite edge from counting — the inversion does not exist yet.
+        for (++j; g.filled_ms != 0 && j < n; ++j) {
+            if (crossed(candles[j], g, !g.bullish, fill_type)) {
+                g.invalidated_ms = candles[j].time_ms;
                 break;
             }
         }

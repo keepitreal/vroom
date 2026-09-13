@@ -188,6 +188,10 @@ function fvgToSpec(cfg: FairValueGapsConfig | undefined) {
     // Alpha 0 is the core's "inherit the border color" sentinel.
     labelColor: color(cfg?.labelColor, 0),
     labelFontSize: cfg?.labelFontSize ?? 0,
+    showInverse: cfg?.showInverse ?? false,
+    inverseBullishColor: color(cfg?.inverseBullishColor, bullish),
+    inverseBearishColor: color(cfg?.inverseBearishColor, bearish),
+    inverseLabel: cfg?.inverseLabel ?? 'iFVG',
   };
 }
 

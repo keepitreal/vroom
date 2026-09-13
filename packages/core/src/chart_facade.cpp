@@ -1565,6 +1565,7 @@ extern "C" void vroom_chart_set_fair_value_gaps(VroomChart* chart,
     next.extend_boxes = next.extend_boxes ? 1 : 0;
     next.border_enabled = next.border_enabled ? 1 : 0;
     next.labels_enabled = next.labels_enabled ? 1 : 0;
+    next.show_inverse = next.show_inverse ? 1 : 0;
     next.fill_type = next.fill_type == vroom::fvg::kFillWick
                          ? vroom::fvg::kFillWick
                          : vroom::fvg::kFillClose;
@@ -1574,13 +1575,16 @@ extern "C" void vroom_chart_set_fair_value_gaps(VroomChart* chart,
     if (next.label_distance < 0) next.label_distance = 0;
     next.opacity = std::clamp(next.opacity, 0.f, 1.f);
 
-    // The label is owned here; the struct's pointer is not retained, so the
+    // The labels are owned here; the struct's pointers are not retained, so the
     // caller may free theirs as soon as this returns.
     if (next.label) chart->fvg_label = next.label;
     next.label = nullptr;
+    if (next.inverse_label) chart->fvg_inverse_label = next.inverse_label;
+    next.inverse_label = nullptr;
 
-    // Only the detection inputs force a rescan. Box geometry, colors, borders
-    // and labels all read the same cache at draw time.
+    // Only the detection inputs force a rescan. Box geometry, colors, borders,
+    // labels and the inverse pass all read the same cache at draw time —
+    // invalidation is detected unconditionally alongside the fill.
     const VroomFairValueGaps& cur = chart->fvg;
     const bool recompute = cur.enabled != next.enabled ||
                            cur.max_bars_back != next.max_bars_back ||

@@ -265,6 +265,8 @@ class WasmHandle implements VroomChartHandle {
       bullishBorderColor: spec.bullishBorderColor >>> 0,
       bearishBorderColor: spec.bearishBorderColor >>> 0,
       labelColor: spec.labelColor >>> 0,
+      inverseBullishColor: spec.inverseBullishColor >>> 0,
+      inverseBearishColor: spec.inverseBearishColor >>> 0,
     });
   }
   setVolume(spec: VolumeSpec): void {

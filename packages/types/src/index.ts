@@ -663,8 +663,9 @@ export type IchimokuConfig = {
  *
  * Gaps are tracked until price trades back through them — see `fillType` for
  * which price settles that, and `deleteAfterFill` for what happens once it
- * does. Unlike the line overlays, the boxes are pure geometry: they don't feed
- * the automatic y-axis fit.
+ * does. With `showInverse`, a filled gap carries on as a zone of the opposite
+ * polarity. Unlike the line overlays, the boxes are pure geometry: they don't
+ * feed the automatic y-axis fit.
  */
 export type FairValueGapsConfig = {
   /** Draw the indicator. Default false. */
@@ -728,6 +729,31 @@ export type FairValueGapsConfig = {
   labelColor?: VroomColor;
   /** Label font size in px. Defaults to the axis font size. */
   labelFontSize?: number;
+
+  /**
+   * Keep drawing a gap after it's been filled, with its polarity flipped — the
+   * band price rejected on the way through becomes a zone of the opposite
+   * kind. Default false.
+   *
+   * The inverse box starts where the original one stops, at the close of the
+   * bar that filled the gap, and lasts until price reclaims the band the other
+   * way (by the same rule `fillType` sets). This pairs with the default
+   * `deleteAfterFill: true`: the original box vanishes at the fill and the
+   * inverse takes over from there.
+   */
+  showInverse?: boolean;
+  /**
+   * Fill color for inverted zones that are bullish — that is, for *bearish*
+   * gaps price has broken above. Defaults to `bullishColor`.
+   */
+  inverseBullishColor?: VroomColor;
+  /**
+   * Fill color for inverted zones that are bearish — that is, for *bullish*
+   * gaps price has broken below. Defaults to `bearishColor`.
+   */
+  inverseBearishColor?: VroomColor;
+  /** Label text on inverted boxes. Default `'iFVG'`. */
+  inverseLabel?: string;
 };
 
 /**

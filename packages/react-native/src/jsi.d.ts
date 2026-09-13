@@ -310,6 +310,10 @@ export interface ChartHandle {
     labelDistance: number;
     labelColor: number;
     labelFontSize: number;
+    showInverse: boolean;
+    inverseBullishColor: number;
+    inverseBearishColor: number;
+    inverseLabel: string;
   }): void;
   /**
    * Configures the volume bars under the candles. `heightFrac` is the tallest
