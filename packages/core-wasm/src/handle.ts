@@ -159,6 +159,47 @@ export type BollingerSpec = {
 };
 
 /**
+ * The Ichimoku overlay, in the core's numeric encoding. Colors are packed
+ * 0xAARRGGBB; widths are stroke px.
+ *
+ * `displacement` is in candle slots and is applied when drawing, not when
+ * computing: the leading spans are plotted that many slots past the bar they
+ * came from (running past the newest candle into empty time) and chikou that
+ * many behind.
+ */
+export type IchimokuSpec = {
+  enabled: boolean;
+  tenkanPeriod: number;
+  kijunPeriod: number;
+  senkouBPeriod: number;
+  /** Slots the leading spans lead by and chikou lags by. */
+  displacement: number;
+  tenkanColor: number;
+  tenkanWidth: number;
+  tenkanEnabled: boolean;
+  kijunColor: number;
+  kijunWidth: number;
+  kijunEnabled: boolean;
+  senkouAColor: number;
+  senkouAWidth: number;
+  senkouAEnabled: boolean;
+  senkouBColor: number;
+  senkouBWidth: number;
+  senkouBEnabled: boolean;
+  chikouColor: number;
+  chikouWidth: number;
+  chikouEnabled: boolean;
+  /** Shade the cloud between the leading spans. */
+  cloudEnabled: boolean;
+  /** Fill where senkou A is above senkou B. */
+  bullishCloudColor: number;
+  /** Fill where senkou A is below senkou B. */
+  bearishCloudColor: number;
+  /** 0..1, multiplied into the cloud color's alpha. */
+  cloudOpacity: number;
+};
+
+/**
  * The MACD pane, in the core's numeric encoding. The style fields carry an
  * inherit sentinel — a non-positive width or a fully transparent color tells
  * the core to fall back to its default (or, for the histogram, to the theme
@@ -518,6 +559,11 @@ export interface VroomChartHandle {
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
+  /**
+   * The Ichimoku overlay. Enabling it also pulls the view forward far enough to
+   * show the leading spans, which sit past the newest candle.
+   */
+  setIchimoku(spec: IchimokuSpec): void;
   setVolume(spec: VolumeSpec): void;
   /**
    * Staggered volume-bar collapse: 0 = full height, 1 = all bars flat. Bars fall

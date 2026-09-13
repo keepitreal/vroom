@@ -25,6 +25,12 @@ namespace vroom::ma_overlay {
 // `break_before` (optional, aligned with `visible`) forces a new subpath at any
 // index where it is non-zero — used by VWAP to break the line at session
 // resets. Pass nullptr for continuous lines (SMA/EMA).
+//
+// `time_shift_ms` offsets where each value lands on the time axis, for a series
+// drawn away from the bar it was computed on (Ichimoku's leading and lagging
+// spans). The shifted time need not be a bar that exists: projection is linear,
+// so a leading span runs past the newest candle into empty time. `visible` is
+// then the *source* slice — see ichimoku::shifted_source_range.
 void draw(SkCanvas* canvas,
           const Layout& lay,
           const PriceBounds& bounds,
@@ -39,7 +45,8 @@ void draw(SkCanvas* canvas,
           uint32_t color,
           float width,
           const unsigned char* break_before = nullptr,
-          float opacity = 1.f);
+          float opacity = 1.f,
+          int64_t time_shift_ms = 0);
 
 // The close-price polyline of line-chart mode. Equivalent to draw() fed the
 // visible closes, plus the interval morph: `from` / `from_n` is the outgoing
@@ -154,5 +161,31 @@ void fill_between(SkCanvas* canvas,
                   float candle_area_h,
                   uint32_t color,
                   float opacity);
+
+// Ichimoku's cloud: the region between two aligned series, filled with
+// `above_color` where `a` is over `b` and `below_color` where it is under, both
+// at their alpha × `opacity`.
+//
+// Each run is split at every crossover, with the interpolated meeting point
+// added to the contour on both sides, so the two tones abut exactly instead of
+// overlapping or leaving a seam. NaN in either series breaks the run, as in
+// fill_between. `time_shift_ms` shifts the whole cloud along the time axis the
+// same way draw() does.
+void fill_cloud(SkCanvas* canvas,
+                const Layout& lay,
+                const PriceBounds& bounds,
+                const ::VroomCandle* visible,
+                std::size_t n,
+                const double* a_visible,
+                const double* b_visible,
+                int64_t window_ms,
+                int64_t visible_start_ms,
+                int64_t candle_duration_ms,
+                float candle_right,
+                float candle_area_h,
+                uint32_t above_color,
+                uint32_t below_color,
+                float opacity,
+                int64_t time_shift_ms = 0);
 
 }  // namespace vroom::ma_overlay

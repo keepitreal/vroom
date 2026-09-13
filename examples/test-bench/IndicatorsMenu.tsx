@@ -21,7 +21,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { MAKind, MASource } from 'react-native-vroom-chart';
 
-export type IndicatorId = 'bb' | 'ema' | 'macd' | 'ma' | 'rsi' | 'vwap';
+export type IndicatorId =
+  | 'bb'
+  | 'ema'
+  | 'ichimoku'
+  | 'macd'
+  | 'ma'
+  | 'rsi'
+  | 'vwap';
 
 export type IndicatorConfig = {
   enabled: boolean;
@@ -49,6 +56,12 @@ export const INDICATORS: IndicatorMeta[] = [
     name: 'Exponential Moving Average',
     description:
       'A moving average that weights recent prices more heavily, so it reacts faster to new moves than a simple average.',
+  },
+  {
+    id: 'ichimoku',
+    name: 'Ichimoku Cloud',
+    description:
+      'Five lines read together: two fast averages, a cloud projected 26 bars ahead that marks future support and resistance, and a lagging line showing where price sat then.',
   },
   {
     id: 'macd',
@@ -79,6 +92,7 @@ export const INDICATORS: IndicatorMeta[] = [
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
   bb: { enabled: false },
   ema: { enabled: false },
+  ichimoku: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
   rsi: { enabled: false },
@@ -182,6 +196,62 @@ export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
   fillOpacity: 0.1,
 };
 
+// Ichimoku params (single instance; the enable toggle lives in IndicatorState
+// above). One width is shared by all five lines.
+export type IchimokuParams = {
+  tenkanPeriod: number;
+  kijunPeriod: number;
+  senkouBPeriod: number;
+  displacement: number;
+  tenkanVisible: boolean;
+  tenkanColor: string;
+  kijunVisible: boolean;
+  kijunColor: string;
+  senkouAVisible: boolean;
+  senkouAColor: string;
+  senkouBVisible: boolean;
+  senkouBColor: string;
+  chikouVisible: boolean;
+  chikouColor: string;
+  width: number;
+  cloudVisible: boolean;
+  bullishCloudColor: string;
+  bearishCloudColor: string;
+  cloudOpacity: number;
+};
+
+export const DEFAULT_ICHIMOKU_PARAMS: IchimokuParams = {
+  tenkanPeriod: 9,
+  kijunPeriod: 26,
+  senkouBPeriod: 52,
+  displacement: 26,
+  tenkanVisible: true,
+  tenkanColor: '#2962ff',
+  kijunVisible: true,
+  kijunColor: '#f85149',
+  senkouAVisible: true,
+  senkouAColor: '#26a69a',
+  senkouBVisible: true,
+  senkouBColor: '#ff9800',
+  chikouVisible: true,
+  chikouColor: '#00bcd4',
+  width: 1,
+  cloudVisible: true,
+  bullishCloudColor: '#26a69a',
+  bearishCloudColor: '#f85149',
+  cloudOpacity: 0.15,
+};
+
+// Ichimoku's five lines, each with a `<key>Visible` / `<key>Color` pair on
+// IchimokuParams — so the detail screen can render one block per line.
+const ICHIMOKU_LINES = [
+  { key: 'tenkan', label: 'Tenkan' },
+  { key: 'kijun', label: 'Kijun' },
+  { key: 'senkouA', label: 'Span A' },
+  { key: 'senkouB', label: 'Span B' },
+  { key: 'chikou', label: 'Chikou' },
+] as const;
+
 // Drives one overlay list editor (MA or EMA) in the detail screen.
 export type OverlayEditor = {
   lines: MALineParams[];
@@ -228,6 +298,8 @@ type Props = {
   onVwapParamsChange: (patch: Partial<VWAPParams>) => void;
   bbParams: BollingerParams;
   onBbParamsChange: (patch: Partial<BollingerParams>) => void;
+  ichimokuParams: IchimokuParams;
+  onIchimokuParamsChange: (patch: Partial<IchimokuParams>) => void;
 };
 
 export function IndicatorsMenu({
@@ -245,6 +317,8 @@ export function IndicatorsMenu({
   onVwapParamsChange,
   bbParams,
   onBbParamsChange,
+  ichimokuParams,
+  onIchimokuParamsChange,
 }: Props) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -293,6 +367,12 @@ export function IndicatorsMenu({
             bbParams={detail.id === 'bb' ? bbParams : undefined}
             onBbParamsChange={
               detail.id === 'bb' ? onBbParamsChange : undefined
+            }
+            ichimokuParams={
+              detail.id === 'ichimoku' ? ichimokuParams : undefined
+            }
+            onIchimokuParamsChange={
+              detail.id === 'ichimoku' ? onIchimokuParamsChange : undefined
             }
           />
         ) : (
@@ -505,6 +585,8 @@ function DetailScreen({
   onVwapParamsChange,
   bbParams,
   onBbParamsChange,
+  ichimokuParams,
+  onIchimokuParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -519,11 +601,14 @@ function DetailScreen({
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
   bbParams?: BollingerParams;
   onBbParamsChange?: (patch: Partial<BollingerParams>) => void;
+  ichimokuParams?: IchimokuParams;
+  onIchimokuParamsChange?: (patch: Partial<IchimokuParams>) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   const bb = bbParams && onBbParamsChange ? bbParams : null;
+  const ich = ichimokuParams && onIchimokuParamsChange ? ichimokuParams : null;
   return (
     <View style={styles.flex}>
       <View style={styles.navBar}>
@@ -754,6 +839,124 @@ function DetailScreen({
                     onChange={(v) => onBbParamsChange!({ fillOpacity: v })}
                   />
                 </View>
+              ) : null}
+            </>
+          ) : ich ? (
+            <>
+              <Stepper
+                label="Tenkan period"
+                value={ich.tenkanPeriod}
+                min={1}
+                max={100}
+                onChange={(n) => onIchimokuParamsChange!({ tenkanPeriod: n })}
+              />
+              <Stepper
+                label="Kijun period"
+                value={ich.kijunPeriod}
+                min={1}
+                max={200}
+                onChange={(n) => onIchimokuParamsChange!({ kijunPeriod: n })}
+              />
+              <Stepper
+                label="Span B period"
+                value={ich.senkouBPeriod}
+                min={1}
+                max={200}
+                onChange={(n) => onIchimokuParamsChange!({ senkouBPeriod: n })}
+              />
+              <Stepper
+                label="Displacement"
+                value={ich.displacement}
+                min={0}
+                max={60}
+                onChange={(n) => onIchimokuParamsChange!({ displacement: n })}
+              />
+              {ICHIMOKU_LINES.map(({ key, label }) => {
+                const visibleKey = `${key}Visible` as const;
+                const colorKey = `${key}Color` as const;
+                return (
+                  <View key={key}>
+                    <View style={styles.paramRow}>
+                      <Text style={styles.paramLabel}>{label}</Text>
+                      <Switch
+                        value={ich[visibleKey]}
+                        onValueChange={(v) =>
+                          onIchimokuParamsChange!({ [visibleKey]: v })
+                        }
+                        trackColor={{ true: '#238636', false: '#30363d' }}
+                        thumbColor="#f0f6fc"
+                        ios_backgroundColor="#30363d"
+                      />
+                    </View>
+                    {ich[visibleKey] ? (
+                      <View style={styles.paramRow}>
+                        <Text style={styles.paramLabel}>{label} color</Text>
+                        <Swatches
+                          value={ich[colorKey]}
+                          onChange={(c) =>
+                            onIchimokuParamsChange!({ [colorKey]: c })
+                          }
+                        />
+                      </View>
+                    ) : null}
+                  </View>
+                );
+              })}
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Width</Text>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={ich.width}
+                  onChange={(w) => onIchimokuParamsChange!({ width: w })}
+                />
+              </View>
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Cloud</Text>
+                <Switch
+                  value={ich.cloudVisible}
+                  onValueChange={(v) =>
+                    onIchimokuParamsChange!({ cloudVisible: v })
+                  }
+                  trackColor={{ true: '#238636', false: '#30363d' }}
+                  thumbColor="#f0f6fc"
+                  ios_backgroundColor="#30363d"
+                />
+              </View>
+              {ich.cloudVisible ? (
+                <>
+                  <View style={styles.paramRow}>
+                    <Text style={styles.paramLabel}>Bullish cloud</Text>
+                    <Swatches
+                      value={ich.bullishCloudColor}
+                      onChange={(c) =>
+                        onIchimokuParamsChange!({ bullishCloudColor: c })
+                      }
+                    />
+                  </View>
+                  <View style={styles.paramRow}>
+                    <Text style={styles.paramLabel}>Bearish cloud</Text>
+                    <Swatches
+                      value={ich.bearishCloudColor}
+                      onChange={(c) =>
+                        onIchimokuParamsChange!({ bearishCloudColor: c })
+                      }
+                    />
+                  </View>
+                  <View style={styles.paramRow}>
+                    <Text style={styles.paramLabel}>Cloud opacity</Text>
+                    <Segmented
+                      options={[
+                        { label: '10%', value: 0.1 },
+                        { label: '15%', value: 0.15 },
+                        { label: '30%', value: 0.3 },
+                      ]}
+                      value={ich.cloudOpacity}
+                      onChange={(v) =>
+                        onIchimokuParamsChange!({ cloudOpacity: v })
+                      }
+                    />
+                  </View>
+                </>
               ) : null}
             </>
           ) : (

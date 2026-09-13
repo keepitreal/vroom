@@ -50,8 +50,9 @@ function isSkImage(frame: ChartFrame): frame is SkImage {
  * Skia-rendered candlestick chart. Pass OHLCV `candles` and size it via `style`
  * (it fills its parent by default). Pan to scroll, pinch to zoom, drag the
  * price/time axes to rescale, and long-press for the crosshair. Optional
- * indicators (`rsi`, `macd`, `movingAverages`, `vwap`), colors (`theme`), and
- * events (`onCrosshair`, `onViewportChange`) are configured through props.
+ * indicators (`rsi`, `macd`, `movingAverages`, `vwap`, `bollingerBands`,
+ * `ichimoku`, and more), colors (`theme`), and events (`onCrosshair`,
+ * `onViewportChange`) are configured through props.
  *
  * @see {@link VroomChartProps} for the full prop reference.
  */
@@ -74,6 +75,7 @@ export function VroomChart(props: VroomChartProps) {
     movingAverages,
     vwap,
     bollingerBands,
+    ichimoku,
     volume,
     crosshairOffset = 40,
     onCrosshair,
@@ -182,6 +184,7 @@ export function VroomChart(props: VroomChartProps) {
     movingAverages,
     vwap,
     bollingerBands,
+    ichimoku,
     volume,
     priceLinesProp,
     footprintsProp,

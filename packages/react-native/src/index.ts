@@ -19,6 +19,7 @@ export type {
   MovingAverageOverlay,
   VWAPConfig,
   BollingerBandsConfig,
+  IchimokuConfig,
   VolumeConfig,
   ChartType,
   TransitionEasing,

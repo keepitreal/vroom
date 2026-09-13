@@ -431,7 +431,7 @@ export type UndoRedoControls = DrawingControls;
 /*
  * Indicator configs
  * -----------------
- * The six indicator configs below follow one set of conventions, so a field
+ * The seven indicator configs below follow one set of conventions, so a field
  * name means the same thing wherever it appears:
  *
  * - `enabled` turns the whole indicator on or off.
@@ -572,6 +572,82 @@ export type BollingerBandsConfig = {
   fillVisible?: boolean;
   /** Fill opacity 0..1, applied to the upper band color. Default 0.1. */
   fillOpacity?: number;
+};
+
+/**
+ * Ichimoku Kinko Hyo overlay config. Five lines on the price pane plus the
+ * cloud (kumo) shaded between the two leading spans. No pane is reserved.
+ *
+ * Unlike the other overlays, three of the lines are drawn away from the bar
+ * they were computed on:
+ *
+ * - Senkou A and B lead by `displacement` bars, so the cloud extends past the
+ *   newest candle into empty time. The chart reserves that space when it frames
+ *   itself, so the forward cloud is on screen without panning.
+ * - Chikou lags by `displacement` bars.
+ *
+ * Ichimoku is built on highs and lows rather than a single price series, so it
+ * takes no {@link MASource} or {@link MAKind}.
+ *
+ * Like the other price-pane overlays, its values don't feed the automatic
+ * y-axis fit — the cloud can run off the top or bottom of the pane on a chart
+ * scaled to the candles alone.
+ */
+export type IchimokuConfig = {
+  /** Draw the indicator. Default false. */
+  enabled?: boolean;
+  /** Tenkan-sen (conversion) lookback. Default 9, clamped to >= 1. */
+  tenkanPeriod?: number;
+  /** Kijun-sen (base) lookback. Default 26, clamped to >= 1. */
+  kijunPeriod?: number;
+  /** Senkou Span B lookback. Default 52, clamped to >= 1. */
+  senkouBPeriod?: number;
+  /**
+   * Bars the cloud leads by and Chikou lags by. Default 26, clamped to >= 0.
+   * Changing it only moves what's already drawn — the lines themselves don't
+   * recompute.
+   */
+  displacement?: number;
+
+  /** Tenkan-sen color (hex string or packed ARGB number). Default blue. */
+  tenkanColor?: string | number;
+  /** Tenkan-sen stroke width in px. Default 1. */
+  tenkanWidth?: number;
+  /** Draw the Tenkan-sen. Default true. */
+  tenkanVisible?: boolean;
+  /** Kijun-sen color. Default red. */
+  kijunColor?: string | number;
+  /** Kijun-sen stroke width in px. Default 1. */
+  kijunWidth?: number;
+  /** Draw the Kijun-sen. Default true. */
+  kijunVisible?: boolean;
+  /** Senkou Span A color. Default green. */
+  senkouAColor?: string | number;
+  /** Senkou Span A stroke width in px. Default 1. */
+  senkouAWidth?: number;
+  /** Draw the Senkou Span A edge. Default true. */
+  senkouAVisible?: boolean;
+  /** Senkou Span B color. Default orange. */
+  senkouBColor?: string | number;
+  /** Senkou Span B stroke width in px. Default 1. */
+  senkouBWidth?: number;
+  /** Draw the Senkou Span B edge. Default true. */
+  senkouBVisible?: boolean;
+  /** Chikou span color. Default teal. */
+  chikouColor?: string | number;
+  /** Chikou span stroke width in px. Default 1. */
+  chikouWidth?: number;
+  /** Draw the Chikou span. Default true. */
+  chikouVisible?: boolean;
+
+  /** Draw the cloud between the two leading spans. Default true. */
+  cloudVisible?: boolean;
+  /** Cloud fill where Senkou A is above Senkou B. Default green. */
+  bullishCloudColor?: string | number;
+  /** Cloud fill where Senkou A is below Senkou B. Default red. */
+  bearishCloudColor?: string | number;
+  /** Cloud opacity 0..1, applied to whichever cloud color is in play. Default 0.15. */
+  cloudOpacity?: number;
 };
 
 /**
@@ -977,6 +1053,8 @@ export type VroomChartCoreProps = {
   vwap?: VWAPConfig;
   /** Bollinger Bands overlay (three lines + fill on the price pane). */
   bollingerBands?: BollingerBandsConfig;
+  /** Ichimoku Kinko Hyo overlay (five lines + the cloud on the price pane). */
+  ichimoku?: IchimokuConfig;
   /** Volume bars under the candles. On by default; disable or restyle them here. */
   volume?: VolumeConfig;
   /** Resting-order / order-book liquidity bands drawn behind the candles. */

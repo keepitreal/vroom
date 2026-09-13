@@ -83,6 +83,32 @@ int64_t damp_future_delta(int64_t delta_ms, int64_t cur_future,
     return static_cast<int64_t>(static_cast<double>(delta_ms) * resist);
 }
 
+// Empty time the Ichimoku leading spans need past the newest candle. Zero
+// unless the indicator is on — the reserve is Ichimoku's alone, since it is the
+// only thing that draws where there are no candles.
+int64_t ichimoku_future_ms(const VroomChart* chart) {
+    if (!chart->ichimoku.enabled || chart->ichimoku.displacement <= 0) return 0;
+    return static_cast<int64_t>(chart->ichimoku.displacement) *
+           chart->candle_duration_ms;
+}
+
+// Pull the view forward far enough to show the leading spans. Only ever grows
+// the future gap, and only as far as a pan gesture could already take it, so a
+// user who has scrolled ahead keeps their position. A no-op before the view is
+// framed — set_candles reserves the space itself in that case.
+void reserve_ichimoku_future(VroomChart* chart) {
+    if (chart->candles.empty()) return;
+    const int64_t want = ichimoku_future_ms(chart);
+    if (want <= 0) return;
+    const int64_t window = chart->visible_end_ms - chart->visible_start_ms;
+    if (window <= 0) return;
+    const int64_t last_time = chart->candles.back().time_ms;
+    const int64_t target = std::min(want, max_future_gap(window, 0));
+    if (chart->visible_end_ms - last_time >= target) return;
+    chart->visible_end_ms = last_time + target;
+    chart->visible_start_ms = chart->visible_end_ms - window;
+}
+
 // Frame the default view. When the consumer has set a target candle body width
 // (default_candle_px), size the window so each candle renders ~that wide with the
 // right edge pinned to the latest candle; otherwise fall back to the legacy
@@ -102,16 +128,17 @@ void apply_default_framing(VroomChart* chart) {
         lay.width_px - lay.y_axis_width_px - lay.right_padding_px;
 
     // Places a window of the given width with kRightGapPx of air past the newest
-    // candle. Shifts the window forward rather than widening it, so the framing
-    // keeps whatever candle width it just computed. Falls back to a flush right
-    // edge when the layout isn't measured yet and px can't be converted to time.
+    // candle, plus whatever empty time Ichimoku's leading spans need. Shifts the
+    // window forward rather than widening it, so the framing keeps whatever
+    // candle width it just computed. Falls back to a flush right edge when the
+    // layout isn't measured yet and px can't be converted to time.
     const auto frame = [&](int64_t window_ms) {
         const int64_t gap_ms =
             usable > 0.0 && window_ms > 0
                 ? static_cast<int64_t>((kRightGapPx * static_cast<double>(window_ms)) /
                                        usable)
                 : 0;
-        chart->visible_end_ms = right_edge_ms + gap_ms;
+        chart->visible_end_ms = right_edge_ms + gap_ms + ichimoku_future_ms(chart);
         chart->visible_start_ms = chart->visible_end_ms - window_ms;
     };
 
@@ -187,6 +214,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
+    chart->ichimoku_dirty = true;
     // New bars (or a whole new interval) mean the footprint grouping no longer
     // matches the data — regroup on next use.
     chart->footprint_buckets_dirty = true;
@@ -218,6 +246,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
+    chart->ichimoku_dirty = true;
     chart->mark_dirty();
 }
 
@@ -229,6 +258,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
+    chart->ichimoku_dirty = true;
     chart->mark_dirty();
 }
 
@@ -1486,6 +1516,39 @@ extern "C" void vroom_chart_set_bollinger(VroomChart* chart,
                            cur.basis_kind != next.basis_kind;
     chart->bollinger = next;
     if (recompute) chart->bollinger_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_ichimoku(VroomChart* chart,
+                                         const VroomIchimoku* cfg) {
+    if (!chart || !cfg) return;
+    VroomIchimoku next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    next.tenkan_enabled = next.tenkan_enabled ? 1 : 0;
+    next.kijun_enabled = next.kijun_enabled ? 1 : 0;
+    next.senkou_a_enabled = next.senkou_a_enabled ? 1 : 0;
+    next.senkou_b_enabled = next.senkou_b_enabled ? 1 : 0;
+    next.chikou_enabled = next.chikou_enabled ? 1 : 0;
+    next.cloud_enabled = next.cloud_enabled ? 1 : 0;
+    if (next.tenkan_period < 1) next.tenkan_period = 1;
+    if (next.kijun_period < 1) next.kijun_period = 1;
+    if (next.senkou_b_period < 1) next.senkou_b_period = 1;
+    if (next.displacement < 0) next.displacement = 0;
+    next.cloud_opacity = std::clamp(next.cloud_opacity, 0.f, 1.f);
+
+    // Only the series-affecting fields force a recompute. Displacement is not
+    // one of them — it shifts where the caches are drawn, not what's in them.
+    const VroomIchimoku& cur = chart->ichimoku;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.tenkan_period != next.tenkan_period ||
+                           cur.kijun_period != next.kijun_period ||
+                           cur.senkou_b_period != next.senkou_b_period;
+    const bool turned_on = !cur.enabled && next.enabled;
+    chart->ichimoku = next;
+    if (recompute) chart->ichimoku_dirty = true;
+    // Turning it on mid-session misses the reserve the default framing makes,
+    // and the leading spans would sit off the right edge until the user panned.
+    if (turned_on) reserve_ichimoku_future(chart);
     chart->mark_dirty();
 }
 

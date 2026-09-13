@@ -10,6 +10,7 @@ import type {
   Coord,
   CrosshairCandle,
   CrosshairInfo,
+  IchimokuSpec,
   DrawingSpec,
   FootprintHit,
   FootprintsSpec,
@@ -67,6 +68,7 @@ interface WebChartInstance {
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
+  setIchimoku(spec: IchimokuSpec): void;
   setVolume(spec: VolumeSpec): void;
   setVolumeCollapse(t: number, easing: number): void;
   setAxisCollapse(yT: number, xT: number): void;
@@ -239,6 +241,18 @@ class WasmHandle implements VroomChartHandle {
       upperColor: spec.upperColor >>> 0,
       middleColor: spec.middleColor >>> 0,
       lowerColor: spec.lowerColor >>> 0,
+    });
+  }
+  setIchimoku(spec: IchimokuSpec): void {
+    this.wc.setIchimoku({
+      ...spec,
+      tenkanColor: spec.tenkanColor >>> 0,
+      kijunColor: spec.kijunColor >>> 0,
+      senkouAColor: spec.senkouAColor >>> 0,
+      senkouBColor: spec.senkouBColor >>> 0,
+      chikouColor: spec.chikouColor >>> 0,
+      bullishCloudColor: spec.bullishCloudColor >>> 0,
+      bearishCloudColor: spec.bearishCloudColor >>> 0,
     });
   }
   setVolume(spec: VolumeSpec): void {

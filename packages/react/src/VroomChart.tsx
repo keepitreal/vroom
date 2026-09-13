@@ -23,8 +23,9 @@ const CANVAS_STYLE: CSSProperties = {
  * via `style`/`width`/`height` (it fills its parent by default). Drag to pan,
  * pinch or wheel to zoom, drag the price/time axes to rescale, hover (mouse) or
  * long-press (touch) for the crosshair. Optional indicators (`rsi`, `macd`,
- * `movingAverages`, `vwap`), colors (`theme`), and events (`onCrosshair`,
- * `onViewportChange`) are configured through props.
+ * `movingAverages`, `vwap`, `bollingerBands`, `ichimoku`, and more), colors
+ * (`theme`), and events (`onCrosshair`, `onViewportChange`) are configured
+ * through props.
  *
  * @see {@link VroomChartProps} for the full prop reference.
  */

@@ -183,6 +183,26 @@ struct VroomChart {
     std::vector<double> bb_lower_cache;
     bool bollinger_dirty = true;
 
+    // Ichimoku overlay (price pane; no pane reserved). Caches aligned to
+    // `candles` (NaN warmup) and indexed by the bar each value was computed
+    // from — displacement is applied when drawing, so the caches survive a
+    // change to it. Recomputed lazily by ensure_ichimoku() when ichimoku_dirty.
+    // Defaults: the standard 9/26/52/26, blue tenkan / red kijun, green span A
+    // over orange span B, teal chikou, 15% cloud.
+    VroomIchimoku ichimoku{0, 9, 26, 52, 26,
+                           0xff2962ff, 1.f, 1,   // tenkan:   blue
+                           0xffef5350, 1.f, 1,   // kijun:    red
+                           0xff26a69a, 1.f, 1,   // senkou A: green
+                           0xffff6d00, 1.f, 1,   // senkou B: orange
+                           0xff00bcd4, 1.f, 1,   // chikou:   teal
+                           1, 0xff26a69a, 0xffef5350, 0.15f};
+    std::vector<double> ich_tenkan_cache;
+    std::vector<double> ich_kijun_cache;
+    std::vector<double> ich_senkou_a_cache;
+    std::vector<double> ich_senkou_b_cache;
+    std::vector<double> ich_chikou_cache;
+    bool ichimoku_dirty = true;
+
     // Volume bars (price pane, under the candles). On by default with every
     // style field left on its inherit sentinel, so an untouched chart looks
     // exactly as it did before the config existed. No cache — bar heights come
@@ -347,6 +367,10 @@ struct VroomChart {
     // Recomputes the Bollinger Band caches when bollinger_dirty and the
     // indicator is enabled.
     void ensure_bollinger();
+
+    // Recomputes the Ichimoku caches when ichimoku_dirty and the indicator is
+    // enabled.
+    void ensure_ichimoku();
 
     // The main drawing pass. Calls into the labels and candles modules, and owns
     // the per-frame animation clock (see begin_frame) so every host gets it —

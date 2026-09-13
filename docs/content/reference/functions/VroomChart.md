@@ -4,13 +4,14 @@
 function VroomChart(props): Element;
 ```
 
-Source: [react-native/src/VroomChart.tsx:58](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/VroomChart.tsx#L58)
+Source: [react-native/src/VroomChart.tsx:59](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/VroomChart.tsx#L59)
 
 Skia-rendered candlestick chart. Pass OHLCV `candles` and size it via `style`
 (it fills its parent by default). Pan to scroll, pinch to zoom, drag the
 price/time axes to rescale, and long-press for the crosshair. Optional
-indicators (`rsi`, `macd`, `movingAverages`, `vwap`), colors (`theme`), and
-events (`onCrosshair`, `onViewportChange`) are configured through props.
+indicators (`rsi`, `macd`, `movingAverages`, `vwap`, `bollingerBands`,
+`ichimoku`, and more), colors (`theme`), and events (`onCrosshair`,
+`onViewportChange`) are configured through props.
 
 ## Parameters
 

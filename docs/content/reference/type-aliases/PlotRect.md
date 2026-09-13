@@ -9,7 +9,7 @@ type PlotRect = {
 };
 ```
 
-Source: [types/src/index.ts:787](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L787)
+Source: [types/src/index.ts:863](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L863)
 
 The chart's plot area in logical px relative to the chart element's top-left:
 the candles and everything drawn over them, with the price and time axis
@@ -27,7 +27,7 @@ overstates the room beside anything near an edge.
 bottom: number;
 ```
 
-Source: [types/src/index.ts:791](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L791)
+Source: [types/src/index.ts:867](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L867)
 
 ---
 
@@ -37,7 +37,7 @@ Source: [types/src/index.ts:791](https://github.com/keepitreal/vroom/blob/main/p
 left: number;
 ```
 
-Source: [types/src/index.ts:788](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L788)
+Source: [types/src/index.ts:864](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L864)
 
 ---
 
@@ -47,7 +47,7 @@ Source: [types/src/index.ts:788](https://github.com/keepitreal/vroom/blob/main/p
 right: number;
 ```
 
-Source: [types/src/index.ts:790](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L790)
+Source: [types/src/index.ts:866](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L866)
 
 ---
 
@@ -57,4 +57,4 @@ Source: [types/src/index.ts:790](https://github.com/keepitreal/vroom/blob/main/p
 top: number;
 ```
 
-Source: [types/src/index.ts:789](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L789)
+Source: [types/src/index.ts:865](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L865)

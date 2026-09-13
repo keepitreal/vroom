@@ -38,6 +38,7 @@ export type {
   CrosshairInfo,
   OverlaySpec,
   BollingerSpec,
+  IchimokuSpec,
   MACDSpec,
   RSISpec,
   VWAPSpec,
