@@ -69,6 +69,40 @@ typedef struct VroomBollinger {
     float    fill_opacity;  // 0..1, multiplied into upper_color's alpha
 } VroomBollinger;
 
+// Ichimoku Kinko Hyo overlay drawn on the price pane: five lines plus the cloud
+// (kumo) shaded between the two leading spans. No pane is reserved.
+//
+// Three of the lines are drawn away from the bar they were computed on:
+// senkou A/B lead by `displacement` slots (so the cloud runs past the newest
+// candle into empty time) and chikou lags by the same. Displacement is applied
+// at draw time, so changing it re-renders without recomputing the series.
+typedef struct VroomIchimoku {
+    int32_t  enabled;            // 0/1
+    int32_t  tenkan_period;      // conversion lookback (clamped >= 1; default 9)
+    int32_t  kijun_period;       // base lookback (clamped >= 1; default 26)
+    int32_t  senkou_b_period;    // span B lookback (clamped >= 1; default 52)
+    int32_t  displacement;       // slots the cloud leads / chikou lags (>= 0; default 26)
+    uint32_t tenkan_color;       // 0xAARRGGBB
+    float    tenkan_width;       // stroke px
+    int32_t  tenkan_enabled;     // 0/1
+    uint32_t kijun_color;
+    float    kijun_width;
+    int32_t  kijun_enabled;
+    uint32_t senkou_a_color;
+    float    senkou_a_width;
+    int32_t  senkou_a_enabled;
+    uint32_t senkou_b_color;
+    float    senkou_b_width;
+    int32_t  senkou_b_enabled;
+    uint32_t chikou_color;
+    float    chikou_width;
+    int32_t  chikou_enabled;
+    int32_t  cloud_enabled;      // 0/1: shade between the leading spans
+    uint32_t bullish_cloud_color;  // where senkou A is above senkou B
+    uint32_t bearish_cloud_color;  // where senkou A is below senkou B
+    float    cloud_opacity;      // 0..1, multiplied into the cloud color's alpha
+} VroomIchimoku;
+
 // MACD, drawn in its own pane below the candles: the difference between a fast
 // and a slow moving average of `source`, a signal line smoothing that
 // difference, and a histogram of the gap between the two.
@@ -595,6 +629,15 @@ void vroom_chart_set_vwap(VroomChart* chart, const VroomVWAP* cfg);
 // translucent fill between the bands; no pane is reserved). Color/width/fill
 // changes only re-render; enabled/period/mult/source/basis changes recompute.
 void vroom_chart_set_bollinger(VroomChart* chart, const VroomBollinger* cfg);
+
+// Configures the Ichimoku overlay (five price-pane lines + the cloud between
+// the leading spans; no pane is reserved). Only enabled and the three periods
+// recompute; style, visibility and displacement changes just re-render.
+//
+// Enabling it also pulls the view forward so the leading spans, which sit past
+// the newest candle, are on screen — the same future gap the default framing
+// reserves when the indicator is already on at set_candles time.
+void vroom_chart_set_ichimoku(VroomChart* chart, const VroomIchimoku* cfg);
 
 // Configures the volume bars. Render-only — the bars come straight off each
 // candle's volume, so nothing is recomputed. Bars are enabled by default; pass

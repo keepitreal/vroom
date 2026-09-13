@@ -26,6 +26,7 @@
 #include "crosshair.h"
 #include "drawings.h"
 #include "footprints.h"
+#include "ichimoku.h"
 #include "labels.h"
 #include "liquidity.h"
 #include "ma.h"
@@ -124,6 +125,16 @@ void VroomChart::ensure_bollinger() {
                               bollinger.basis_kind, bb_middle_cache,
                               bb_upper_cache, bb_lower_cache);
     bollinger_dirty = false;
+}
+
+void VroomChart::ensure_ichimoku() {
+    if (!ichimoku.enabled || !ichimoku_dirty) return;
+    vroom::ichimoku::compute(candles.data(), candles.size(),
+                             ichimoku.tenkan_period, ichimoku.kijun_period,
+                             ichimoku.senkou_b_period, ich_tenkan_cache,
+                             ich_kijun_cache, ich_senkou_a_cache,
+                             ich_senkou_b_cache, ich_chikou_cache);
+    ichimoku_dirty = false;
 }
 
 void VroomChart::ensure_footprint_buckets() {
@@ -300,6 +311,41 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                 }
             }
 
+            // Ichimoku draws three of its five series away from the bar they
+            // were computed on, so each needs its own source slice: the query
+            // window shifts back by however far the drawing shifts forward. A
+            // bar of padding either side keeps a run reaching the pane edge
+            // instead of stopping at the last bar strictly inside it.
+            const int64_t ich_shift_ms =
+                static_cast<int64_t>(ichimoku.displacement) * candle_duration_ms;
+            const auto ich_slice = [&](int64_t shift_ms) {
+                return vroom::ichimoku::shifted_source_range(
+                    candles.data(), candles.size(),
+                    visible_start_ms - candle_duration_ms,
+                    visible_end_ms + candle_duration_ms, shift_ms);
+            };
+
+            // 4.75. Ichimoku cloud — behind the candles, like the Bollinger fill.
+            if (ichimoku.enabled && ichimoku.cloud_enabled) {
+                ensure_ichimoku();
+                const std::size_t sz = candles.size();
+                if (ich_senkou_a_cache.size() == sz &&
+                    ich_senkou_b_cache.size() == sz) {
+                    const auto r = ich_slice(ich_shift_ms);
+                    if (r.end > r.start) {
+                        vroom::ma_overlay::fill_cloud(
+                            canvas, lay, bounds, candles.data() + r.start,
+                            r.end - r.start,
+                            ich_senkou_a_cache.data() + r.start,
+                            ich_senkou_b_cache.data() + r.start, window_ms,
+                            visible_start_ms, candle_duration_ms, candle_right,
+                            candle_area_h, ichimoku.bullish_cloud_color,
+                            ichimoku.bearish_cloud_color,
+                            ichimoku.cloud_opacity, ich_shift_ms);
+                    }
+                }
+            }
+
             // 5. Price series — candles, a close-price line, or a blend.
             if (fade < 1.f) {
                 vroom::candles::draw(canvas, visible, n, lay, theme, bounds,
@@ -368,6 +414,46 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                            bollinger.lower_width);
                     stroke(bb_middle_cache, bollinger.middle_color,
                            bollinger.middle_width);
+                }
+            }
+
+            // 5.67. Ichimoku lines.
+            if (ichimoku.enabled) {
+                ensure_ichimoku();
+                const std::size_t sz = candles.size();
+                const auto stroke = [&](const std::vector<double>& cache,
+                                        uint32_t color, float width,
+                                        int64_t shift_ms) {
+                    if (cache.size() != sz) return;
+                    const auto r = ich_slice(shift_ms);
+                    if (r.end <= r.start) return;
+                    vroom::ma_overlay::draw(
+                        canvas, lay, bounds, candles.data() + r.start,
+                        r.end - r.start, cache.data() + r.start, window_ms,
+                        visible_start_ms, candle_duration_ms, candle_right,
+                        candle_area_h, color, width, nullptr, 1.f, shift_ms);
+                };
+                // Span B under span A where the two edges touch, then the
+                // unshifted signal lines, then chikou on top of everything.
+                if (ichimoku.senkou_b_enabled) {
+                    stroke(ich_senkou_b_cache, ichimoku.senkou_b_color,
+                           ichimoku.senkou_b_width, ich_shift_ms);
+                }
+                if (ichimoku.senkou_a_enabled) {
+                    stroke(ich_senkou_a_cache, ichimoku.senkou_a_color,
+                           ichimoku.senkou_a_width, ich_shift_ms);
+                }
+                if (ichimoku.kijun_enabled) {
+                    stroke(ich_kijun_cache, ichimoku.kijun_color,
+                           ichimoku.kijun_width, 0);
+                }
+                if (ichimoku.tenkan_enabled) {
+                    stroke(ich_tenkan_cache, ichimoku.tenkan_color,
+                           ichimoku.tenkan_width, 0);
+                }
+                if (ichimoku.chikou_enabled) {
+                    stroke(ich_chikou_cache, ichimoku.chikou_color,
+                           ichimoku.chikou_width, -ich_shift_ms);
                 }
             }
 

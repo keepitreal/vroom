@@ -1,9 +1,9 @@
 # Indicators
 
-vroom ships five indicator families. Two render in their own **pane below the
-candles** (RSI, MACD); three are **overlays drawn on the price pane** (moving
-averages, VWAP, Bollinger Bands). Each is configured through its own prop and
-is off until you enable it.
+vroom ships six indicator families. Two render in their own **pane below the
+candles** (RSI, MACD); four are **overlays drawn on the price pane** (moving
+averages, VWAP, Bollinger Bands, Ichimoku). Each is configured through its own
+prop and is off until you enable it.
 
 ## RSI
 
@@ -170,3 +170,82 @@ still computed around the window's arithmetic mean (the standard definition).
 
 The first `period − 1` candles have no value (the warmup window), so the lines
 and fill start at the first fully-formed window.
+
+## Ichimoku Cloud
+
+Five lines on the price pane plus the cloud (kumo) shaded between the two
+leading spans. See [`IchimokuConfig`](../reference/index.md).
+
+```tsx
+<VroomChart candles={candles} ichimoku={{ enabled: true }} />
+```
+
+| Line | Formula | Drawn |
+| --- | --- | --- |
+| Tenkan-sen | midpoint of the high/low range over `tenkanPeriod` | on the bar |
+| Kijun-sen | same over `kijunPeriod` | on the bar |
+| Senkou Span A | `(tenkan + kijun) / 2` | `displacement` bars ahead |
+| Senkou Span B | midpoint of the high/low range over `senkouBPeriod` | `displacement` bars ahead |
+| Chikou span | the close | `displacement` bars behind |
+
+The cloud fills between the two leading spans, tinted green where span A is
+above span B and red where it is below. The two tones meet exactly at each
+crossover.
+
+### Drawing past the newest candle
+
+The leading spans are plotted 26 bars into the future by default, where no
+candle exists yet. That is the point of them — the cloud is a forecast of
+support and resistance — so the chart reserves that much empty time on the
+right when it frames itself, and enabling the indicator later pulls the view
+forward to match. You do not need to pan to see the forward cloud.
+
+If you drive the viewport yourself with `visibleRange`, leave room for it: the
+cloud's right edge sits at `lastCandle.timeMs + displacement × interval`.
+
+Like every other price-pane overlay, Ichimoku's values don't feed the automatic
+y-axis fit, which frames the candles alone — so on a strongly trending chart the
+cloud can run off the top or bottom of the pane.
+
+### Options
+
+| Option | Default | Notes |
+| --- | --- | --- |
+| `tenkanPeriod` | `9` | Conversion-line lookback, clamped to ≥ 1. |
+| `kijunPeriod` | `26` | Base-line lookback, clamped to ≥ 1. |
+| `senkouBPeriod` | `52` | Span B lookback, clamped to ≥ 1. |
+| `displacement` | `26` | Bars the cloud leads and Chikou lags by, clamped to ≥ 0. |
+
+Changing `displacement` only moves what's already drawn — the lines don't
+recompute — so it's cheap to animate or bind to a slider.
+
+### Styling
+
+Each of the five lines takes its own color, width, and visibility, and the cloud
+takes a color per direction plus an opacity.
+
+```tsx
+<VroomChart
+  candles={candles}
+  ichimoku={{
+    enabled: true,
+    tenkanColor: '#2962ff',
+    tenkanWidth: 1,
+    kijunColor: '#ef5350',
+    senkouAColor: '#26a69a',
+    senkouBColor: '#ff6d00',
+    chikouColor: '#00bcd4',
+    bullishCloudColor: '#26a69a',
+    bearishCloudColor: '#ef5350',
+    cloudOpacity: 0.15,
+  }}
+/>
+```
+
+Every style field is optional; leave one unset and it keeps its stock look. Hide
+any part with `tenkanVisible`, `kijunVisible`, `senkouAVisible`,
+`senkouBVisible`, `chikouVisible`, or `cloudVisible` — the cloud and the span
+edges are independent, so you can shade the cloud without stroking its borders.
+
+Each line starts at the first fully-formed window of its own lookback, so span B
+(52 bars by default) begins latest.

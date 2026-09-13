@@ -58,6 +58,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/IchimokuConfig",
+          label: "IchimokuConfig"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/IntervalTransition",
           label: "IntervalTransition"
         },

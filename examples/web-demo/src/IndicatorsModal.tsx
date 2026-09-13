@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type {
   BollingerBandsConfig,
+  IchimokuConfig,
   MACDConfig,
   MAKind,
   MASource,
@@ -18,6 +19,7 @@ import type {
 export type IndicatorId =
   | 'bb'
   | 'ema'
+  | 'ichimoku'
   | 'macd'
   | 'ma'
   | 'rsi'
@@ -48,6 +50,12 @@ export const INDICATORS: IndicatorMeta[] = [
     name: 'Exponential Moving Average',
     description:
       'A moving average that weights recent prices more heavily, so it reacts faster to new moves than a simple average.',
+  },
+  {
+    id: 'ichimoku',
+    name: 'Ichimoku Cloud',
+    description:
+      'Five lines read together: two fast averages, a cloud projected 26 bars ahead that marks future support and resistance, and a lagging line showing where price sat then.',
   },
   {
     id: 'macd',
@@ -84,6 +92,7 @@ export const INDICATORS: IndicatorMeta[] = [
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
   bb: { enabled: false },
   ema: { enabled: false },
+  ichimoku: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
   rsi: { enabled: false },
@@ -223,6 +232,51 @@ export const DEFAULT_BOLLINGER_PARAMS: BollingerParams = {
   fillOpacity: 0.1,
 };
 
+export type IchimokuParams = {
+  tenkanPeriod: number;
+  kijunPeriod: number;
+  senkouBPeriod: number;
+  displacement: number;
+  tenkanVisible: boolean;
+  tenkanColor: string;
+  kijunVisible: boolean;
+  kijunColor: string;
+  senkouAVisible: boolean;
+  senkouAColor: string;
+  senkouBVisible: boolean;
+  senkouBColor: string;
+  chikouVisible: boolean;
+  chikouColor: string;
+  /** One stroke width for all five lines, to keep the panel compact. */
+  width: number;
+  cloudVisible: boolean;
+  bullishCloudColor: string;
+  bearishCloudColor: string;
+  cloudOpacity: number;
+};
+
+export const DEFAULT_ICHIMOKU_PARAMS: IchimokuParams = {
+  tenkanPeriod: 9,
+  kijunPeriod: 26,
+  senkouBPeriod: 52,
+  displacement: 26,
+  tenkanVisible: true,
+  tenkanColor: '#2962ff',
+  kijunVisible: true,
+  kijunColor: '#f85149',
+  senkouAVisible: true,
+  senkouAColor: '#26a69a',
+  senkouBVisible: true,
+  senkouBColor: '#ff9800',
+  chikouVisible: true,
+  chikouColor: '#00bcd4',
+  width: 1,
+  cloudVisible: true,
+  bullishCloudColor: '#26a69a',
+  bearishCloudColor: '#f85149',
+  cloudOpacity: 0.15,
+};
+
 export type VolumeParams = {
   opacity: number;
   height: number;
@@ -271,6 +325,16 @@ const MA_KINDS = [
   { label: 'EMA', value: 1 },
 ];
 
+// Ichimoku's five lines, each with a `<key>Visible` / `<key>Color` pair on
+// IchimokuParams — so the detail panel can render one block per line.
+const ICHIMOKU_LINES = [
+  { key: 'tenkan', label: 'Tenkan' },
+  { key: 'kijun', label: 'Kijun' },
+  { key: 'senkouA', label: 'Span A' },
+  { key: 'senkouB', label: 'Span B' },
+  { key: 'chikou', label: 'Chikou' },
+] as const;
+
 // Tap-to-cycle button used by the enum rows (price source).
 const cycleButton: React.CSSProperties = {
   display: 'flex',
@@ -293,6 +357,7 @@ export type IndicatorChartProps = {
   movingAverages: MovingAverageOverlay[];
   vwap: VWAPConfig;
   bollingerBands: BollingerBandsConfig;
+  ichimoku: IchimokuConfig;
   volume: VolumeConfig;
 };
 
@@ -304,6 +369,7 @@ export function deriveIndicatorProps(
   emaLines: MALineParams[],
   vwapParams: VWAPParams,
   bbParams: BollingerParams,
+  ichimokuParams: IchimokuParams,
   volumeParams: VolumeParams,
 ): IndicatorChartProps {
   const movingAverages: MovingAverageOverlay[] = [
@@ -388,6 +454,32 @@ export function deriveIndicatorProps(
       fillVisible: bbParams.fillVisible,
       fillOpacity: bbParams.fillOpacity,
     },
+    ichimoku: {
+      enabled: state.ichimoku.enabled,
+      tenkanPeriod: ichimokuParams.tenkanPeriod,
+      kijunPeriod: ichimokuParams.kijunPeriod,
+      senkouBPeriod: ichimokuParams.senkouBPeriod,
+      displacement: ichimokuParams.displacement,
+      tenkanColor: ichimokuParams.tenkanColor,
+      tenkanWidth: ichimokuParams.width,
+      tenkanVisible: ichimokuParams.tenkanVisible,
+      kijunColor: ichimokuParams.kijunColor,
+      kijunWidth: ichimokuParams.width,
+      kijunVisible: ichimokuParams.kijunVisible,
+      senkouAColor: ichimokuParams.senkouAColor,
+      senkouAWidth: ichimokuParams.width,
+      senkouAVisible: ichimokuParams.senkouAVisible,
+      senkouBColor: ichimokuParams.senkouBColor,
+      senkouBWidth: ichimokuParams.width,
+      senkouBVisible: ichimokuParams.senkouBVisible,
+      chikouColor: ichimokuParams.chikouColor,
+      chikouWidth: ichimokuParams.width,
+      chikouVisible: ichimokuParams.chikouVisible,
+      cloudVisible: ichimokuParams.cloudVisible,
+      bullishCloudColor: ichimokuParams.bullishCloudColor,
+      bearishCloudColor: ichimokuParams.bearishCloudColor,
+      cloudOpacity: ichimokuParams.cloudOpacity,
+    },
     volume: {
       enabled: state.volume.enabled,
       opacity: volumeParams.opacity,
@@ -456,6 +548,8 @@ export function IndicatorsModal({
   onVwapParamsChange,
   bbParams,
   onBbParamsChange,
+  ichimokuParams,
+  onIchimokuParamsChange,
   volumeParams,
   onVolumeParamsChange,
 }: {
@@ -473,6 +567,8 @@ export function IndicatorsModal({
   onVwapParamsChange: (patch: Partial<VWAPParams>) => void;
   bbParams: BollingerParams;
   onBbParamsChange: (patch: Partial<BollingerParams>) => void;
+  ichimokuParams: IchimokuParams;
+  onIchimokuParamsChange: (patch: Partial<IchimokuParams>) => void;
   volumeParams: VolumeParams;
   onVolumeParamsChange: (patch: Partial<VolumeParams>) => void;
 }) {
@@ -520,6 +616,12 @@ export function IndicatorsModal({
             bbParams={detail.id === 'bb' ? bbParams : undefined}
             onBbParamsChange={
               detail.id === 'bb' ? onBbParamsChange : undefined
+            }
+            ichimokuParams={
+              detail.id === 'ichimoku' ? ichimokuParams : undefined
+            }
+            onIchimokuParamsChange={
+              detail.id === 'ichimoku' ? onIchimokuParamsChange : undefined
             }
             volumeParams={detail.id === 'volume' ? volumeParams : undefined}
             onVolumeParamsChange={
@@ -898,6 +1000,8 @@ function DetailScreen({
   onVwapParamsChange,
   bbParams,
   onBbParamsChange,
+  ichimokuParams,
+  onIchimokuParamsChange,
   volumeParams,
   onVolumeParamsChange,
 }: {
@@ -914,6 +1018,8 @@ function DetailScreen({
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
   bbParams?: BollingerParams;
   onBbParamsChange?: (patch: Partial<BollingerParams>) => void;
+  ichimokuParams?: IchimokuParams;
+  onIchimokuParamsChange?: (patch: Partial<IchimokuParams>) => void;
   volumeParams?: VolumeParams;
   onVolumeParamsChange?: (patch: Partial<VolumeParams>) => void;
 }) {
@@ -921,6 +1027,7 @@ function DetailScreen({
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   const bb = bbParams && onBbParamsChange ? bbParams : null;
+  const ich = ichimokuParams && onIchimokuParamsChange ? ichimokuParams : null;
   const vol = volumeParams && onVolumeParamsChange ? volumeParams : null;
   return (
     <>
@@ -1351,6 +1458,116 @@ function DetailScreen({
                     onChange={(v) => onBbParamsChange!({ fillOpacity: v })}
                   />
                 </div>
+              )}
+            </>
+          ) : ich ? (
+            <>
+              <Stepper
+                label="Tenkan period"
+                value={ich.tenkanPeriod}
+                min={1}
+                max={100}
+                onChange={(n) => onIchimokuParamsChange!({ tenkanPeriod: n })}
+              />
+              <Stepper
+                label="Kijun period"
+                value={ich.kijunPeriod}
+                min={1}
+                max={200}
+                onChange={(n) => onIchimokuParamsChange!({ kijunPeriod: n })}
+              />
+              <Stepper
+                label="Span B period"
+                value={ich.senkouBPeriod}
+                min={1}
+                max={200}
+                onChange={(n) => onIchimokuParamsChange!({ senkouBPeriod: n })}
+              />
+              <Stepper
+                label="Displacement"
+                value={ich.displacement}
+                min={0}
+                max={60}
+                onChange={(n) => onIchimokuParamsChange!({ displacement: n })}
+              />
+              {ICHIMOKU_LINES.map(({ key, label }) => {
+                const visibleKey = `${key}Visible` as const;
+                const colorKey = `${key}Color` as const;
+                return (
+                  <div key={key}>
+                    <div style={paramRow}>
+                      <span style={paramLabel}>{label}</span>
+                      <Toggle
+                        value={ich[visibleKey]}
+                        onChange={(v) =>
+                          onIchimokuParamsChange!({ [visibleKey]: v })
+                        }
+                      />
+                    </div>
+                    {ich[visibleKey] && (
+                      <div style={paramRow}>
+                        <span style={paramLabel}>{label} color</span>
+                        <Swatches
+                          value={ich[colorKey]}
+                          onChange={(c) =>
+                            onIchimokuParamsChange!({ [colorKey]: c })
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              <div style={paramRow}>
+                <span style={paramLabel}>Width</span>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={ich.width}
+                  onChange={(w) => onIchimokuParamsChange!({ width: w })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Cloud</span>
+                <Toggle
+                  value={ich.cloudVisible}
+                  onChange={(v) => onIchimokuParamsChange!({ cloudVisible: v })}
+                />
+              </div>
+              {ich.cloudVisible && (
+                <>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Bullish cloud</span>
+                    <Swatches
+                      value={ich.bullishCloudColor}
+                      onChange={(c) =>
+                        onIchimokuParamsChange!({ bullishCloudColor: c })
+                      }
+                    />
+                  </div>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Bearish cloud</span>
+                    <Swatches
+                      value={ich.bearishCloudColor}
+                      onChange={(c) =>
+                        onIchimokuParamsChange!({ bearishCloudColor: c })
+                      }
+                    />
+                  </div>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Cloud opacity</span>
+                    <Segmented
+                      options={[
+                        { label: '10%', value: 0.1 },
+                        { label: '15%', value: 0.15 },
+                        { label: '30%', value: 0.3 },
+                      ]}
+                      value={ich.cloudOpacity}
+                      onChange={(v) =>
+                        onIchimokuParamsChange!({ cloudOpacity: v })
+                      }
+                    />
+                  </div>
+                </>
               )}
             </>
           ) : vol ? (

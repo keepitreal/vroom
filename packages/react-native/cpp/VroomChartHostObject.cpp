@@ -74,6 +74,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setIchimoku"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolume"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolumeCollapse"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setAxisCollapse"));
@@ -968,6 +969,60 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           cfg.fill_opacity = static_cast<float>(
               s.getProperty(rt2, "fillOpacity").asNumber());
           vroom_chart_set_bollinger(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setIchimoku") {
+    // setIchimoku({enabled, tenkanPeriod, kijunPeriod, senkouBPeriod,
+    // displacement, <line>Color/<line>Width/<line>Enabled for tenkan, kijun,
+    // senkouA, senkouB and chikou, cloudEnabled, bullishCloudColor,
+    // bearishCloudColor, cloudOpacity}) — the Ichimoku overlay. No render; the
+    // next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setIchimoku"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          const auto num = [&](const char* k) {
+            return s.getProperty(rt2, k).asNumber();
+          };
+          const auto flag = [&](const char* k) {
+            return s.getProperty(rt2, k).asBool() ? 1 : 0;
+          };
+          VroomIchimoku cfg{};
+          cfg.enabled = flag("enabled");
+          cfg.tenkan_period = static_cast<int32_t>(num("tenkanPeriod"));
+          cfg.kijun_period = static_cast<int32_t>(num("kijunPeriod"));
+          cfg.senkou_b_period = static_cast<int32_t>(num("senkouBPeriod"));
+          cfg.displacement = static_cast<int32_t>(num("displacement"));
+          cfg.tenkan_color = static_cast<uint32_t>(num("tenkanColor"));
+          cfg.tenkan_width = static_cast<float>(num("tenkanWidth"));
+          cfg.tenkan_enabled = flag("tenkanEnabled");
+          cfg.kijun_color = static_cast<uint32_t>(num("kijunColor"));
+          cfg.kijun_width = static_cast<float>(num("kijunWidth"));
+          cfg.kijun_enabled = flag("kijunEnabled");
+          cfg.senkou_a_color = static_cast<uint32_t>(num("senkouAColor"));
+          cfg.senkou_a_width = static_cast<float>(num("senkouAWidth"));
+          cfg.senkou_a_enabled = flag("senkouAEnabled");
+          cfg.senkou_b_color = static_cast<uint32_t>(num("senkouBColor"));
+          cfg.senkou_b_width = static_cast<float>(num("senkouBWidth"));
+          cfg.senkou_b_enabled = flag("senkouBEnabled");
+          cfg.chikou_color = static_cast<uint32_t>(num("chikouColor"));
+          cfg.chikou_width = static_cast<float>(num("chikouWidth"));
+          cfg.chikou_enabled = flag("chikouEnabled");
+          cfg.cloud_enabled = flag("cloudEnabled");
+          cfg.bullish_cloud_color =
+              static_cast<uint32_t>(num("bullishCloudColor"));
+          cfg.bearish_cloud_color =
+              static_cast<uint32_t>(num("bearishCloudColor"));
+          cfg.cloud_opacity = static_cast<float>(num("cloudOpacity"));
+          vroom_chart_set_ichimoku(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }

@@ -246,6 +246,41 @@ export interface ChartHandle {
     fillOpacity: number;
   }): void;
   /**
+   * Configures the Ichimoku overlay (five price-pane lines + the cloud between
+   * the leading spans). Colors are packed 0xAARRGGBB; cloudOpacity is 0..1.
+   *
+   * `displacement` is in candle slots and applies at draw time: the leading
+   * spans plot that many slots ahead of the bar they came from, past the newest
+   * candle, and chikou that many behind. Enabling the overlay also pulls the
+   * view forward far enough to show them.
+   */
+  setIchimoku(spec: {
+    enabled: boolean;
+    tenkanPeriod: number;
+    kijunPeriod: number;
+    senkouBPeriod: number;
+    displacement: number;
+    tenkanColor: number;
+    tenkanWidth: number;
+    tenkanEnabled: boolean;
+    kijunColor: number;
+    kijunWidth: number;
+    kijunEnabled: boolean;
+    senkouAColor: number;
+    senkouAWidth: number;
+    senkouAEnabled: boolean;
+    senkouBColor: number;
+    senkouBWidth: number;
+    senkouBEnabled: boolean;
+    chikouColor: number;
+    chikouWidth: number;
+    chikouEnabled: boolean;
+    cloudEnabled: boolean;
+    bullishCloudColor: number;
+    bearishCloudColor: number;
+    cloudOpacity: number;
+  }): void;
+  /**
    * Configures the volume bars under the candles. `heightFrac` is the tallest
    * bar as a fraction of the price pane. The style fields carry an inherit
    * sentinel: a negative number or a transparent color falls back to the

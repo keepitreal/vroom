@@ -31,10 +31,12 @@ import {
   DEFAULT_EMA_LINE,
   DEFAULT_VWAP_PARAMS,
   DEFAULT_BOLLINGER_PARAMS,
+  DEFAULT_ICHIMOKU_PARAMS,
   DEFAULT_VOLUME_PARAMS,
   deriveIndicatorProps,
   enabledCount,
   type BollingerParams,
+  type IchimokuParams,
   type IndicatorId,
   type IndicatorState,
   type MACDParams,
@@ -942,6 +944,9 @@ export function App() {
   const [bbParams, setBbParams] = useState<BollingerParams>(
     DEFAULT_BOLLINGER_PARAMS,
   );
+  const [ichimokuParams, setIchimokuParams] = useState<IchimokuParams>(
+    DEFAULT_ICHIMOKU_PARAMS,
+  );
   const [volumeParams, setVolumeParams] = useState<VolumeParams>(
     DEFAULT_VOLUME_PARAMS,
   );
@@ -961,6 +966,11 @@ export function App() {
   const patchBb = useCallback(
     (patch: Partial<BollingerParams>) =>
       setBbParams((p) => ({ ...p, ...patch })),
+    [],
+  );
+  const patchIchimoku = useCallback(
+    (patch: Partial<IchimokuParams>) =>
+      setIchimokuParams((p) => ({ ...p, ...patch })),
     [],
   );
   const patchVolume = useCallback(
@@ -998,6 +1008,7 @@ export function App() {
     emaLines,
     vwapParams,
     bbParams,
+    ichimokuParams,
     volumeParams,
   );
   const activeCount = enabledCount(indicators);
@@ -1177,6 +1188,8 @@ export function App() {
         onVwapParamsChange={patchVwap}
         bbParams={bbParams}
         onBbParamsChange={patchBb}
+        ichimokuParams={ichimokuParams}
+        onIchimokuParamsChange={patchIchimoku}
         volumeParams={volumeParams}
         onVolumeParamsChange={patchVolume}
       />

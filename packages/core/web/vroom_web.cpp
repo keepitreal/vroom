@@ -259,6 +259,38 @@ class WebChart {
     cfg.fill_opacity = s["fillOpacity"].as<float>();
     vroom_chart_set_bollinger(chart_, &cfg);
   }
+  // `s` is a JS object {enabled, tenkanPeriod, kijunPeriod, senkouBPeriod,
+  // displacement, <line>Color/<line>Width/<line>Enabled for tenkan, kijun,
+  // senkouA, senkouB and chikou, cloudEnabled, bullishCloudColor,
+  // bearishCloudColor, cloudOpacity}.
+  void setIchimoku(const em::val& s) {
+    VroomIchimoku cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.tenkan_period = s["tenkanPeriod"].as<int32_t>();
+    cfg.kijun_period = s["kijunPeriod"].as<int32_t>();
+    cfg.senkou_b_period = s["senkouBPeriod"].as<int32_t>();
+    cfg.displacement = s["displacement"].as<int32_t>();
+    cfg.tenkan_color = s["tenkanColor"].as<uint32_t>();
+    cfg.tenkan_width = s["tenkanWidth"].as<float>();
+    cfg.tenkan_enabled = s["tenkanEnabled"].as<bool>() ? 1 : 0;
+    cfg.kijun_color = s["kijunColor"].as<uint32_t>();
+    cfg.kijun_width = s["kijunWidth"].as<float>();
+    cfg.kijun_enabled = s["kijunEnabled"].as<bool>() ? 1 : 0;
+    cfg.senkou_a_color = s["senkouAColor"].as<uint32_t>();
+    cfg.senkou_a_width = s["senkouAWidth"].as<float>();
+    cfg.senkou_a_enabled = s["senkouAEnabled"].as<bool>() ? 1 : 0;
+    cfg.senkou_b_color = s["senkouBColor"].as<uint32_t>();
+    cfg.senkou_b_width = s["senkouBWidth"].as<float>();
+    cfg.senkou_b_enabled = s["senkouBEnabled"].as<bool>() ? 1 : 0;
+    cfg.chikou_color = s["chikouColor"].as<uint32_t>();
+    cfg.chikou_width = s["chikouWidth"].as<float>();
+    cfg.chikou_enabled = s["chikouEnabled"].as<bool>() ? 1 : 0;
+    cfg.cloud_enabled = s["cloudEnabled"].as<bool>() ? 1 : 0;
+    cfg.bullish_cloud_color = s["bullishCloudColor"].as<uint32_t>();
+    cfg.bearish_cloud_color = s["bearishCloudColor"].as<uint32_t>();
+    cfg.cloud_opacity = s["cloudOpacity"].as<float>();
+    vroom_chart_set_ichimoku(chart_, &cfg);
+  }
   // `s` is a JS object {enabled, heightFrac, opacity, radiusPx, upColor,
   // downColor}. Negative floats / zero colors mean "inherit the theme".
   void setVolume(const em::val& s) {
@@ -731,6 +763,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
       .function("setBollinger", &WebChart::setBollinger)
+      .function("setIchimoku", &WebChart::setIchimoku)
       .function("setVolume", &WebChart::setVolume)
       .function("setVolumeCollapse", &WebChart::setVolumeCollapse)
       .function("setAxisCollapse", &WebChart::setAxisCollapse)

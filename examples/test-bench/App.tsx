@@ -25,6 +25,7 @@ import {
 import {
   DEFAULT_BOLLINGER_PARAMS,
   DEFAULT_EMA_LINE,
+  DEFAULT_ICHIMOKU_PARAMS,
   DEFAULT_INDICATOR_STATE,
   DEFAULT_MA_LINE,
   DEFAULT_MACD_PARAMS,
@@ -33,6 +34,7 @@ import {
   enabledCount,
   IndicatorsMenu,
   type BollingerParams,
+  type IchimokuParams,
   type IndicatorId,
   type IndicatorState,
   type MACDParams,
@@ -557,6 +559,15 @@ export default function App() {
     [],
   );
 
+  const [ichimokuParams, setIchimokuParams] = useState<IchimokuParams>(
+    DEFAULT_ICHIMOKU_PARAMS,
+  );
+  const patchIchimoku = useCallback(
+    (patch: Partial<IchimokuParams>) =>
+      setIchimokuParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
     // Seed one default line when enabling an empty MA/EMA group.
@@ -654,6 +665,32 @@ export default function App() {
               lowerWidth: bbParams.width,
               fillVisible: bbParams.fillVisible,
               fillOpacity: bbParams.fillOpacity,
+            }}
+            ichimoku={{
+              enabled: indicators.ichimoku.enabled,
+              tenkanPeriod: ichimokuParams.tenkanPeriod,
+              kijunPeriod: ichimokuParams.kijunPeriod,
+              senkouBPeriod: ichimokuParams.senkouBPeriod,
+              displacement: ichimokuParams.displacement,
+              tenkanColor: ichimokuParams.tenkanColor,
+              tenkanWidth: ichimokuParams.width,
+              tenkanVisible: ichimokuParams.tenkanVisible,
+              kijunColor: ichimokuParams.kijunColor,
+              kijunWidth: ichimokuParams.width,
+              kijunVisible: ichimokuParams.kijunVisible,
+              senkouAColor: ichimokuParams.senkouAColor,
+              senkouAWidth: ichimokuParams.width,
+              senkouAVisible: ichimokuParams.senkouAVisible,
+              senkouBColor: ichimokuParams.senkouBColor,
+              senkouBWidth: ichimokuParams.width,
+              senkouBVisible: ichimokuParams.senkouBVisible,
+              chikouColor: ichimokuParams.chikouColor,
+              chikouWidth: ichimokuParams.width,
+              chikouVisible: ichimokuParams.chikouVisible,
+              cloudVisible: ichimokuParams.cloudVisible,
+              bullishCloudColor: ichimokuParams.bullishCloudColor,
+              bearishCloudColor: ichimokuParams.bearishCloudColor,
+              cloudOpacity: ichimokuParams.cloudOpacity,
             }}
             priceLines={showPriceLines ? priceLines : undefined}
             onPriceLineDragEnd={onPriceLineDragEnd}
@@ -831,6 +868,8 @@ export default function App() {
           onVwapParamsChange={patchVwap}
           bbParams={bbParams}
           onBbParamsChange={patchBb}
+          ichimokuParams={ichimokuParams}
+          onIchimokuParamsChange={patchIchimoku}
         />
 
         <StatusBar style="light" />

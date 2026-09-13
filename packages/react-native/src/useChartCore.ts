@@ -12,6 +12,7 @@ import type {
   BollingerBandsConfig,
   Candle,
   ChartType,
+  IchimokuConfig,
   MACDConfig,
   MovingAverageOverlay,
   PriceLine,
@@ -107,6 +108,45 @@ function bollingerToSpec(cfg: BollingerBandsConfig | undefined) {
     lowerWidth: cfg?.lowerWidth ?? 1,
     fillEnabled: cfg?.fillVisible ?? true,
     fillOpacity: cfg?.fillOpacity ?? 0.1,
+  };
+}
+
+// Ichimoku defaults. Green and red do double duty: they color span A and kijun,
+// and tint the cloud for whichever span is on top.
+const DEFAULT_ICH_GREEN = 0xff26a69a;
+const DEFAULT_ICH_RED = 0xffef5350;
+const DEFAULT_ICH_BLUE = 0xff2962ff;
+const DEFAULT_ICH_ORANGE = 0xffff6d00;
+const DEFAULT_ICH_TEAL = 0xff00bcd4;
+
+function ichimokuToSpec(cfg: IchimokuConfig | undefined) {
+  const color = (v: string | number | undefined, fallback: number) =>
+    (v != null ? parseColor(v) : null) ?? fallback;
+  return {
+    enabled: cfg?.enabled ?? false,
+    tenkanPeriod: cfg?.tenkanPeriod ?? 9,
+    kijunPeriod: cfg?.kijunPeriod ?? 26,
+    senkouBPeriod: cfg?.senkouBPeriod ?? 52,
+    displacement: cfg?.displacement ?? 26,
+    tenkanColor: color(cfg?.tenkanColor, DEFAULT_ICH_BLUE),
+    tenkanWidth: cfg?.tenkanWidth ?? 1,
+    tenkanEnabled: cfg?.tenkanVisible ?? true,
+    kijunColor: color(cfg?.kijunColor, DEFAULT_ICH_RED),
+    kijunWidth: cfg?.kijunWidth ?? 1,
+    kijunEnabled: cfg?.kijunVisible ?? true,
+    senkouAColor: color(cfg?.senkouAColor, DEFAULT_ICH_GREEN),
+    senkouAWidth: cfg?.senkouAWidth ?? 1,
+    senkouAEnabled: cfg?.senkouAVisible ?? true,
+    senkouBColor: color(cfg?.senkouBColor, DEFAULT_ICH_ORANGE),
+    senkouBWidth: cfg?.senkouBWidth ?? 1,
+    senkouBEnabled: cfg?.senkouBVisible ?? true,
+    chikouColor: color(cfg?.chikouColor, DEFAULT_ICH_TEAL),
+    chikouWidth: cfg?.chikouWidth ?? 1,
+    chikouEnabled: cfg?.chikouVisible ?? true,
+    cloudEnabled: cfg?.cloudVisible ?? true,
+    bullishCloudColor: color(cfg?.bullishCloudColor, DEFAULT_ICH_GREEN),
+    bearishCloudColor: color(cfg?.bearishCloudColor, DEFAULT_ICH_RED),
+    cloudOpacity: cfg?.cloudOpacity ?? 0.15,
   };
 }
 
@@ -307,6 +347,7 @@ export function useChartCore(
   movingAverages?: MovingAverageOverlay[],
   vwap?: VWAPConfig,
   bollingerBands?: BollingerBandsConfig,
+  ichimoku?: IchimokuConfig,
   volume?: VolumeConfig,
   priceLines?: PriceLinesProp,
   footprints?: FootprintsProp,
@@ -401,6 +442,7 @@ export function useChartCore(
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
+  const ichimokuKey = ichimoku ? JSON.stringify(ichimoku) : '';
   const volumeKey = volume ? JSON.stringify(volume) : '';
   const priceLinesKey = priceLines ? JSON.stringify(priceLines) : '';
   const footprintsKey = footprints ? JSON.stringify(footprints) : '';
@@ -409,6 +451,10 @@ export function useChartCore(
     const h = handleRef.current;
     if (!h) return;
     h.setSize(size.width, size.height, size.pxRatio ?? 1);
+    // Ahead of setCandles, like setDefaultCandleWidth below: the default framing
+    // runs inside setCandles and reserves room past the newest candle for
+    // Ichimoku's leading spans, so it has to already know they're coming.
+    h.setIchimoku(ichimokuToSpec(ichimoku));
     // Drive the initial zoom from a target candle width. Pushed once, before the
     // first setCandles (while the core window is still 0/0), and only when the
     // caller isn't explicitly controlling the range.
@@ -545,10 +591,10 @@ export function useChartCore(
     // frame 0 is pixel-identical to what's on screen, so there's nothing to show
     // in the meantime anyway.
     if (!morphing) setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/volume/priceLines/
-    // footprints are represented by their *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/volume/
+    // priceLines/footprints are represented by their *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
+  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

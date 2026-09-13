@@ -198,7 +198,8 @@ void draw(SkCanvas* canvas,
           uint32_t color,
           float width,
           const unsigned char* break_before,
-          float opacity) {
+          float opacity,
+          int64_t time_shift_ms) {
     if (!canvas || !values_visible || n == 0 || candle_right <= 0.f ||
         candle_area_h <= 0.f) {
         return;
@@ -216,8 +217,8 @@ void draw(SkCanvas* canvas,
             continue;
         }
         const float x = vroom::candle_center_x(
-            lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
-            window_ms);
+            lay, visible[i].time_ms + time_shift_ms, candle_duration_ms,
+            visible_start_ms, window_ms);
         const float y = vroom::price_to_y(lay, bounds, v);
         if (pen_down && !(break_before && break_before[i])) {
             path.lineTo(x, y);
@@ -470,6 +471,121 @@ void fill_between(SkCanvas* canvas,
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
     canvas->drawPath(path.detach(), fill);
+    canvas->restore();
+}
+
+void fill_cloud(SkCanvas* canvas,
+                const Layout& lay,
+                const PriceBounds& bounds,
+                const ::VroomCandle* visible,
+                std::size_t n,
+                const double* a_visible,
+                const double* b_visible,
+                int64_t window_ms,
+                int64_t visible_start_ms,
+                int64_t candle_duration_ms,
+                float candle_right,
+                float candle_area_h,
+                uint32_t above_color,
+                uint32_t below_color,
+                float opacity,
+                int64_t time_shift_ms) {
+    if (!canvas || !a_visible || !b_visible || n == 0 || candle_right <= 0.f ||
+        candle_area_h <= 0.f) {
+        return;
+    }
+    opacity = std::clamp(opacity, 0.f, 1.f);
+    if (opacity <= 0.f) return;
+
+    // A vertex of the cloud: one x with the two edge heights there. At a
+    // crossover the two collapse onto the same y, which is what lets the
+    // neighboring contours meet on a point instead of overlapping.
+    struct Vertex {
+        float x, ya, yb;
+    };
+
+    SkPathBuilder above_path;
+    SkPathBuilder below_path;
+    std::vector<Vertex> contour;
+
+    // Closes the accumulated vertices into the path for whichever side is on
+    // top: forward along edge a, back along edge b.
+    const auto flush = [&](int sign) {
+        if (contour.size() >= 2) {
+            SkPathBuilder& into = sign >= 0 ? above_path : below_path;
+            into.moveTo(contour[0].x, contour[0].ya);
+            for (std::size_t k = 1; k < contour.size(); ++k) {
+                into.lineTo(contour[k].x, contour[k].ya);
+            }
+            for (std::size_t k = contour.size(); k-- > 0;) {
+                into.lineTo(contour[k].x, contour[k].yb);
+            }
+            into.close();
+        }
+        contour.clear();
+    };
+
+    const auto vertex_at = [&](std::size_t k) {
+        return Vertex{
+            vroom::candle_center_x(lay, visible[k].time_ms + time_shift_ms,
+                                   candle_duration_ms, visible_start_ms,
+                                   window_ms),
+            vroom::price_to_y(lay, bounds, a_visible[k]),
+            vroom::price_to_y(lay, bounds, b_visible[k]),
+        };
+    };
+
+    std::size_t i = 0;
+    while (i < n) {
+        if (!std::isfinite(a_visible[i]) || !std::isfinite(b_visible[i])) {
+            ++i;
+            continue;
+        }
+        std::size_t e = i;
+        while (e + 1 < n && std::isfinite(a_visible[e + 1]) &&
+               std::isfinite(b_visible[e + 1])) {
+            ++e;
+        }
+
+        int sign = 0;
+        Vertex prev{};
+        for (std::size_t k = i; k <= e; ++k) {
+            const Vertex v = vertex_at(k);
+            const double d = a_visible[k] - b_visible[k];
+            const int s = d > 0.0 ? 1 : (d < 0.0 ? -1 : 0);
+            if (sign != 0 && s != 0 && s != sign) {
+                // The spans swapped between the previous bar and this one. Meet
+                // them at the crossing so both tones end on the same point.
+                const double d0 = a_visible[k - 1] - b_visible[k - 1];
+                const float t = static_cast<float>(d0 / (d0 - d));
+                const float xc = prev.x + (v.x - prev.x) * t;
+                const float yc = prev.ya + (v.ya - prev.ya) * t;
+                contour.push_back(Vertex{xc, yc, yc});
+                flush(sign);
+                contour.push_back(Vertex{xc, yc, yc});
+                sign = s;
+            } else if (sign == 0) {
+                sign = s;
+            }
+            contour.push_back(v);
+            prev = v;
+        }
+        flush(sign);
+        i = e + 1;
+    }
+
+    SkPaint fill;
+    fill.setAntiAlias(true);
+    fill.setStyle(SkPaint::kFill_Style);
+
+    canvas->save();
+    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    fill.setColor(static_cast<SkColor>(above_color));
+    fill.setAlphaf(fill.getAlphaf() * opacity);
+    canvas->drawPath(above_path.detach(), fill);
+    fill.setColor(static_cast<SkColor>(below_color));
+    fill.setAlphaf(fill.getAlphaf() * opacity);
+    canvas->drawPath(below_path.detach(), fill);
     canvas->restore();
 }
 
