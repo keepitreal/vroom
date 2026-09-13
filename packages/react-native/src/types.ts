@@ -17,6 +17,7 @@ export type {
   VWAPConfig,
   BollingerBandsConfig,
   IchimokuConfig,
+  FairValueGapsConfig,
   VolumeConfig,
   MACDConfig,
   ChartType,

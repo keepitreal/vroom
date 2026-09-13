@@ -38,6 +38,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/FairValueGapsConfig",
+          label: "FairValueGapsConfig"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/Footprint",
           label: "Footprint"
         },

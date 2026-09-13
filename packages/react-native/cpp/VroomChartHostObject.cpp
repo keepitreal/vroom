@@ -75,6 +75,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setIchimoku"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setFairValueGaps"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolume"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVolumeCollapse"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setAxisCollapse"));
@@ -1023,6 +1024,60 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
               static_cast<uint32_t>(num("bearishCloudColor"));
           cfg.cloud_opacity = static_cast<float>(num("cloudOpacity"));
           vroom_chart_set_ichimoku(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setFairValueGaps") {
+    // setFairValueGaps({enabled, maxBarsBack, waitForClose, fillType,
+    // deleteAfterFill, extendBoxes, boxLength, bullishColor, bearishColor,
+    // opacity, borderEnabled, borderStyle, borderWidth, bullishBorderColor,
+    // bearishBorderColor, labelsEnabled, label, labelDistance, labelColor,
+    // labelFontSize}) — the Fair Value Gap overlay. No render; the next
+    // render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setFairValueGaps"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          const auto num = [&](const char* k) {
+            return s.getProperty(rt2, k).asNumber();
+          };
+          const auto flag = [&](const char* k) {
+            return s.getProperty(rt2, k).asBool() ? 1 : 0;
+          };
+          VroomFairValueGaps cfg{};
+          cfg.enabled = flag("enabled");
+          cfg.max_bars_back = static_cast<int32_t>(num("maxBarsBack"));
+          cfg.wait_for_close = flag("waitForClose");
+          cfg.fill_type = static_cast<int32_t>(num("fillType"));
+          cfg.delete_after_fill = flag("deleteAfterFill");
+          cfg.extend_boxes = flag("extendBoxes");
+          cfg.box_length = static_cast<int32_t>(num("boxLength"));
+          cfg.bullish_color = static_cast<uint32_t>(num("bullishColor"));
+          cfg.bearish_color = static_cast<uint32_t>(num("bearishColor"));
+          cfg.opacity = static_cast<float>(num("opacity"));
+          cfg.border_enabled = flag("borderEnabled");
+          cfg.border_style = static_cast<int32_t>(num("borderStyle"));
+          cfg.border_width = static_cast<float>(num("borderWidth"));
+          cfg.bullish_border_color =
+              static_cast<uint32_t>(num("bullishBorderColor"));
+          cfg.bearish_border_color =
+              static_cast<uint32_t>(num("bearishBorderColor"));
+          cfg.labels_enabled = flag("labelsEnabled");
+          // Held alive until the setter, which copies it.
+          const std::string label =
+              s.getProperty(rt2, "label").asString(rt2).utf8(rt2);
+          cfg.label = label.c_str();
+          cfg.label_distance = static_cast<int32_t>(num("labelDistance"));
+          cfg.label_color = static_cast<uint32_t>(num("labelColor"));
+          cfg.label_font_size = static_cast<float>(num("labelFontSize"));
+          vroom_chart_set_fair_value_gaps(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }

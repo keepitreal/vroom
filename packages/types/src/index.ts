@@ -431,7 +431,7 @@ export type UndoRedoControls = DrawingControls;
 /*
  * Indicator configs
  * -----------------
- * The seven indicator configs below follow one set of conventions, so a field
+ * The eight indicator configs below follow one set of conventions, so a field
  * name means the same thing wherever it appears:
  *
  * - `enabled` turns the whole indicator on or off.
@@ -648,6 +648,86 @@ export type IchimokuConfig = {
   bearishCloudColor?: string | number;
   /** Cloud opacity 0..1, applied to whichever cloud color is in play. Default 0.15. */
   cloudOpacity?: number;
+};
+
+/**
+ * Fair Value Gap overlay config. Shaded boxes on the price pane marking
+ * three-candle imbalances — a run so fast the first and third candles' wicks
+ * never overlap, leaving a band of price that was skipped.
+ *
+ * A gap is bullish when `candles[i - 1].high < candles[i + 1].low` and bearish
+ * when `candles[i - 1].low > candles[i + 1].high`, and spans the untouched
+ * range between those two wicks. Each box is anchored to the middle bar's open
+ * and runs `boxLength` bars to the right, or to the pane's edge under
+ * `extendBoxes`.
+ *
+ * Gaps are tracked until price trades back through them — see `fillType` for
+ * which price settles that, and `deleteAfterFill` for what happens once it
+ * does. Unlike the line overlays, the boxes are pure geometry: they don't feed
+ * the automatic y-axis fit.
+ */
+export type FairValueGapsConfig = {
+  /** Draw the indicator. Default false. */
+  enabled?: boolean;
+  /** How many bars back to scan for gaps. Default 300, clamped to >= 0. */
+  maxBarsBack?: number;
+  /**
+   * Withhold a gap until its third candle closes. Default false, so a gap
+   * formed by the still-forming bar appears immediately and disappears again
+   * if that bar fills back in.
+   */
+  waitForClose?: boolean;
+  /**
+   * Which price counts as trading back through the gap. `'close'` (default)
+   * needs a candle to close past the far edge; `'wick'` settles it the moment
+   * a high or low reaches through.
+   */
+  fillType?: 'close' | 'wick';
+  /**
+   * Hide a gap once it's been filled. Default true. When false the box stays
+   * but stops at the bar that filled it, leaving a record of the rebalance.
+   */
+  deleteAfterFill?: boolean;
+  /**
+   * Run every box to the right edge of the pane instead of ending it after
+   * `boxLength` bars. Default false. A filled box still stops at its fill bar.
+   */
+  extendBoxes?: boolean;
+  /** Box width in bars when `extendBoxes` is off. Default 20, clamped to >= 1. */
+  boxLength?: number;
+
+  /** Fill color for bullish gaps (hex string or packed ARGB). Default green. */
+  bullishColor?: VroomColor;
+  /** Fill color for bearish gaps. Default red. */
+  bearishColor?: VroomColor;
+  /** Fill opacity 0..1, applied to whichever fill color is in play. Default 0.15. */
+  opacity?: number;
+
+  /** Draw the box outline. Default true. */
+  borderVisible?: boolean;
+  /** Outline style. Default `'solid'`. */
+  borderStyle?: 'solid' | 'dotted' | 'dashed';
+  /** Outline stroke width in px. Default 1. */
+  borderWidth?: number;
+  /** Outline color for bullish gaps. Defaults to `bullishColor` at full alpha. */
+  bullishBorderColor?: VroomColor;
+  /** Outline color for bearish gaps. Defaults to `bearishColor` at full alpha. */
+  bearishBorderColor?: VroomColor;
+
+  /** Draw a text label on each box. Default true. */
+  showLabels?: boolean;
+  /** Label text. Default `'FVG'`. */
+  label?: string;
+  /**
+   * Bars of clearance between the box and its label, used only under
+   * `extendBoxes` — a fixed-length box places the label inside its right end.
+   * Default 10, clamped to >= 0.
+   */
+  labelDistance?: number;
+  /** Label color. Defaults to the box's border color. */
+  labelColor?: VroomColor;
+  /** Label font size in px. Defaults to the axis font size. */
+  labelFontSize?: number;
 };
 
 /**
@@ -1055,6 +1135,8 @@ export type VroomChartCoreProps = {
   bollingerBands?: BollingerBandsConfig;
   /** Ichimoku Kinko Hyo overlay (five lines + the cloud on the price pane). */
   ichimoku?: IchimokuConfig;
+  /** Fair Value Gap overlay (shaded imbalance boxes on the price pane). */
+  fairValueGaps?: FairValueGapsConfig;
   /** Volume bars under the candles. On by default; disable or restyle them here. */
   volume?: VolumeConfig;
   /** Resting-order / order-book liquidity bands drawn behind the candles. */

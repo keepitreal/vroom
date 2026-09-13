@@ -15,6 +15,7 @@ import {
   type OverlaySpec,
   type BollingerSpec,
   type IchimokuSpec,
+  type FairValueGapsSpec,
   type MACDSpec,
   type RSISpec,
   type VWAPSpec,
@@ -161,6 +162,48 @@ function ichimokuToSpec(cfg: VroomChartCoreProps['ichimoku']): IchimokuSpec {
     bullishCloudColor: color(cfg?.bullishCloudColor, DEFAULT_ICH_GREEN),
     bearishCloudColor: color(cfg?.bearishCloudColor, DEFAULT_ICH_RED),
     cloudOpacity: cfg?.cloudOpacity ?? 0.15,
+  };
+}
+
+// Fair Value Gap defaults. The border colors fall back to the fill color, so a
+// config that only restyles the fill keeps its outline in the same hue.
+const DEFAULT_FVG_GREEN = 0xff26a69a;
+const DEFAULT_FVG_RED = 0xffef5350;
+const FVG_FILL_TYPES = ['close', 'wick'] as const;
+const FVG_BORDER_STYLES = ['solid', 'dotted', 'dashed'] as const;
+
+function fvgToSpec(
+  cfg: VroomChartCoreProps['fairValueGaps'],
+): FairValueGapsSpec {
+  const color = (v: string | number | undefined, fallback: number) =>
+    (v != null ? parseColor(v) : null) ?? fallback;
+  const bullish = color(cfg?.bullishColor, DEFAULT_FVG_GREEN);
+  const bearish = color(cfg?.bearishColor, DEFAULT_FVG_RED);
+  return {
+    enabled: cfg?.enabled ?? false,
+    maxBarsBack: cfg?.maxBarsBack ?? 300,
+    waitForClose: cfg?.waitForClose ?? false,
+    fillType: Math.max(0, FVG_FILL_TYPES.indexOf(cfg?.fillType ?? 'close')),
+    deleteAfterFill: cfg?.deleteAfterFill ?? true,
+    extendBoxes: cfg?.extendBoxes ?? false,
+    boxLength: cfg?.boxLength ?? 20,
+    bullishColor: bullish,
+    bearishColor: bearish,
+    opacity: cfg?.opacity ?? 0.15,
+    borderEnabled: cfg?.borderVisible ?? true,
+    borderStyle: Math.max(
+      0,
+      FVG_BORDER_STYLES.indexOf(cfg?.borderStyle ?? 'solid'),
+    ),
+    borderWidth: cfg?.borderWidth ?? 1,
+    bullishBorderColor: color(cfg?.bullishBorderColor, bullish),
+    bearishBorderColor: color(cfg?.bearishBorderColor, bearish),
+    labelsEnabled: cfg?.showLabels ?? true,
+    label: cfg?.label ?? 'FVG',
+    labelDistance: cfg?.labelDistance ?? 10,
+    // Alpha 0 is the core's "inherit the border color" sentinel.
+    labelColor: color(cfg?.labelColor, 0),
+    labelFontSize: cfg?.labelFontSize ?? 0,
   };
 }
 
@@ -393,6 +436,7 @@ export function useChartCore(
     vwap,
     bollingerBands,
     ichimoku,
+    fairValueGaps,
     volume,
     drawings,
     liquidity,
@@ -535,6 +579,7 @@ export function useChartCore(
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
   const ichimokuKey = ichimoku ? JSON.stringify(ichimoku) : '';
+  const fvgKey = fairValueGaps ? JSON.stringify(fairValueGaps) : '';
   const volumeKey = volume ? JSON.stringify(volume) : '';
   const drawingsKey = drawings ? JSON.stringify(drawings) : '';
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
@@ -656,6 +701,7 @@ export function useChartCore(
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
     h.setVWAP(vwapToSpec(vwap));
     h.setBollinger(bollingerToSpec(bollingerBands));
+    h.setFairValueGaps(fvgToSpec(fairValueGaps));
     h.setVolume(volumeToSpec(volume));
     // setVolume snaps the collapse scalar to its `enabled`, which would cut a
     // toggle animation short whenever this effect re-runs (a streaming candle,
@@ -683,10 +729,10 @@ export function useChartCore(
         : EMPTY_FOOTPRINTS,
     );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/volume/
-    // drawings/liquidity/priceLines/footprints tracked via *Key deps.
+    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/fairValueGaps/
+    // volume/drawings/liquidity/priceLines/footprints tracked via *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

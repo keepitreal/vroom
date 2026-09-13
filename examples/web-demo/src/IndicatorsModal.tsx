@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type {
   BollingerBandsConfig,
+  FairValueGapsConfig,
   IchimokuConfig,
   MACDConfig,
   MAKind,
@@ -19,6 +20,7 @@ import type {
 export type IndicatorId =
   | 'bb'
   | 'ema'
+  | 'fvg'
   | 'ichimoku'
   | 'macd'
   | 'ma'
@@ -50,6 +52,12 @@ export const INDICATORS: IndicatorMeta[] = [
     name: 'Exponential Moving Average',
     description:
       'A moving average that weights recent prices more heavily, so it reacts faster to new moves than a simple average.',
+  },
+  {
+    id: 'fvg',
+    name: 'Fair Value Gaps',
+    description:
+      'Shades the price a three-candle run skipped over, where the first and third wicks never met. Those gaps tend to draw price back to fill them.',
   },
   {
     id: 'ichimoku',
@@ -92,6 +100,7 @@ export const INDICATORS: IndicatorMeta[] = [
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
   bb: { enabled: false },
   ema: { enabled: false },
+  fvg: { enabled: false },
   ichimoku: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
@@ -277,6 +286,40 @@ export const DEFAULT_ICHIMOKU_PARAMS: IchimokuParams = {
   cloudOpacity: 0.15,
 };
 
+export type FVGParams = {
+  maxBarsBack: number;
+  waitForClose: boolean;
+  fillType: 'close' | 'wick';
+  deleteAfterFill: boolean;
+  extendBoxes: boolean;
+  boxLength: number;
+  bullishColor: string;
+  bearishColor: string;
+  opacity: number;
+  borderVisible: boolean;
+  borderStyle: 'solid' | 'dotted' | 'dashed';
+  borderWidth: number;
+  showLabels: boolean;
+  labelDistance: number;
+};
+
+export const DEFAULT_FVG_PARAMS: FVGParams = {
+  maxBarsBack: 300,
+  waitForClose: false,
+  fillType: 'close',
+  deleteAfterFill: true,
+  extendBoxes: false,
+  boxLength: 20,
+  bullishColor: '#26a69a',
+  bearishColor: '#ff9800',
+  opacity: 0.15,
+  borderVisible: true,
+  borderStyle: 'solid',
+  borderWidth: 1,
+  showLabels: true,
+  labelDistance: 10,
+};
+
 export type VolumeParams = {
   opacity: number;
   height: number;
@@ -358,6 +401,7 @@ export type IndicatorChartProps = {
   vwap: VWAPConfig;
   bollingerBands: BollingerBandsConfig;
   ichimoku: IchimokuConfig;
+  fairValueGaps: FairValueGapsConfig;
   volume: VolumeConfig;
 };
 
@@ -370,6 +414,7 @@ export function deriveIndicatorProps(
   vwapParams: VWAPParams,
   bbParams: BollingerParams,
   ichimokuParams: IchimokuParams,
+  fvgParams: FVGParams,
   volumeParams: VolumeParams,
 ): IndicatorChartProps {
   const movingAverages: MovingAverageOverlay[] = [
@@ -480,6 +525,23 @@ export function deriveIndicatorProps(
       bearishCloudColor: ichimokuParams.bearishCloudColor,
       cloudOpacity: ichimokuParams.cloudOpacity,
     },
+    fairValueGaps: {
+      enabled: state.fvg.enabled,
+      maxBarsBack: fvgParams.maxBarsBack,
+      waitForClose: fvgParams.waitForClose,
+      fillType: fvgParams.fillType,
+      deleteAfterFill: fvgParams.deleteAfterFill,
+      extendBoxes: fvgParams.extendBoxes,
+      boxLength: fvgParams.boxLength,
+      bullishColor: fvgParams.bullishColor,
+      bearishColor: fvgParams.bearishColor,
+      opacity: fvgParams.opacity,
+      borderVisible: fvgParams.borderVisible,
+      borderStyle: fvgParams.borderStyle,
+      borderWidth: fvgParams.borderWidth,
+      showLabels: fvgParams.showLabels,
+      labelDistance: fvgParams.labelDistance,
+    },
     volume: {
       enabled: state.volume.enabled,
       opacity: volumeParams.opacity,
@@ -550,6 +612,8 @@ export function IndicatorsModal({
   onBbParamsChange,
   ichimokuParams,
   onIchimokuParamsChange,
+  fvgParams,
+  onFvgParamsChange,
   volumeParams,
   onVolumeParamsChange,
 }: {
@@ -569,6 +633,8 @@ export function IndicatorsModal({
   onBbParamsChange: (patch: Partial<BollingerParams>) => void;
   ichimokuParams: IchimokuParams;
   onIchimokuParamsChange: (patch: Partial<IchimokuParams>) => void;
+  fvgParams: FVGParams;
+  onFvgParamsChange: (patch: Partial<FVGParams>) => void;
   volumeParams: VolumeParams;
   onVolumeParamsChange: (patch: Partial<VolumeParams>) => void;
 }) {
@@ -622,6 +688,10 @@ export function IndicatorsModal({
             }
             onIchimokuParamsChange={
               detail.id === 'ichimoku' ? onIchimokuParamsChange : undefined
+            }
+            fvgParams={detail.id === 'fvg' ? fvgParams : undefined}
+            onFvgParamsChange={
+              detail.id === 'fvg' ? onFvgParamsChange : undefined
             }
             volumeParams={detail.id === 'volume' ? volumeParams : undefined}
             onVolumeParamsChange={
@@ -748,12 +818,14 @@ function Stepper({
   value,
   min,
   max,
+  step = 1,
   onChange,
 }: {
   label: string;
   value: number;
   min: number;
   max: number;
+  step?: number;
   onChange: (value: number) => void;
 }) {
   const stepBtn: React.CSSProperties = {
@@ -771,7 +843,7 @@ function Stepper({
     <div style={paramRow}>
       <span style={paramLabel}>{label}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button style={stepBtn} onClick={() => onChange(Math.max(min, value - 1))}>
+        <button style={stepBtn} onClick={() => onChange(Math.max(min, value - step))}>
           −
         </button>
         <span
@@ -784,7 +856,7 @@ function Stepper({
         >
           {value}
         </span>
-        <button style={stepBtn} onClick={() => onChange(Math.min(max, value + 1))}>
+        <button style={stepBtn} onClick={() => onChange(Math.min(max, value + step))}>
           +
         </button>
       </div>
@@ -823,14 +895,14 @@ function Swatches({
   );
 }
 
-function Segmented({
+function Segmented<T extends string | number>({
   options,
   value,
   onChange,
 }: {
-  options: { label: string; value: number }[];
-  value: number;
-  onChange: (value: number) => void;
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (value: T) => void;
 }) {
   return (
     <div
@@ -1002,6 +1074,8 @@ function DetailScreen({
   onBbParamsChange,
   ichimokuParams,
   onIchimokuParamsChange,
+  fvgParams,
+  onFvgParamsChange,
   volumeParams,
   onVolumeParamsChange,
 }: {
@@ -1020,6 +1094,8 @@ function DetailScreen({
   onBbParamsChange?: (patch: Partial<BollingerParams>) => void;
   ichimokuParams?: IchimokuParams;
   onIchimokuParamsChange?: (patch: Partial<IchimokuParams>) => void;
+  fvgParams?: FVGParams;
+  onFvgParamsChange?: (patch: Partial<FVGParams>) => void;
   volumeParams?: VolumeParams;
   onVolumeParamsChange?: (patch: Partial<VolumeParams>) => void;
 }) {
@@ -1028,6 +1104,7 @@ function DetailScreen({
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   const bb = bbParams && onBbParamsChange ? bbParams : null;
   const ich = ichimokuParams && onIchimokuParamsChange ? ichimokuParams : null;
+  const fvg = fvgParams && onFvgParamsChange ? fvgParams : null;
   const vol = volumeParams && onVolumeParamsChange ? volumeParams : null;
   return (
     <>
@@ -1568,6 +1645,133 @@ function DetailScreen({
                     />
                   </div>
                 </>
+              )}
+            </>
+          ) : fvg ? (
+            <>
+              <Stepper
+                label="Bars back to scan"
+                value={fvg.maxBarsBack}
+                min={0}
+                max={1000}
+                step={50}
+                onChange={(n) => onFvgParamsChange!({ maxBarsBack: n })}
+              />
+              <div style={paramRow}>
+                <span style={paramLabel}>Wait for close</span>
+                <Toggle
+                  value={fvg.waitForClose}
+                  onChange={(v) => onFvgParamsChange!({ waitForClose: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Filled by</span>
+                <Segmented
+                  options={[
+                    { label: 'Close', value: 'close' as const },
+                    { label: 'Wick', value: 'wick' as const },
+                  ]}
+                  value={fvg.fillType}
+                  onChange={(v) => onFvgParamsChange!({ fillType: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Hide once filled</span>
+                <Toggle
+                  value={fvg.deleteAfterFill}
+                  onChange={(v) => onFvgParamsChange!({ deleteAfterFill: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Extend boxes</span>
+                <Toggle
+                  value={fvg.extendBoxes}
+                  onChange={(v) => onFvgParamsChange!({ extendBoxes: v })}
+                />
+              </div>
+              {!fvg.extendBoxes && (
+                <Stepper
+                  label="Box length"
+                  value={fvg.boxLength}
+                  min={1}
+                  max={100}
+                  step={5}
+                  onChange={(n) => onFvgParamsChange!({ boxLength: n })}
+                />
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Bullish</span>
+                <Swatches
+                  value={fvg.bullishColor}
+                  onChange={(c) => onFvgParamsChange!({ bullishColor: c })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Bearish</span>
+                <Swatches
+                  value={fvg.bearishColor}
+                  onChange={(c) => onFvgParamsChange!({ bearishColor: c })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Fill opacity</span>
+                <Segmented
+                  options={[
+                    { label: '10%', value: 0.1 },
+                    { label: '15%', value: 0.15 },
+                    { label: '30%', value: 0.3 },
+                    { label: '50%', value: 0.5 },
+                  ]}
+                  value={fvg.opacity}
+                  onChange={(v) => onFvgParamsChange!({ opacity: v })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Border</span>
+                <Toggle
+                  value={fvg.borderVisible}
+                  onChange={(v) => onFvgParamsChange!({ borderVisible: v })}
+                />
+              </div>
+              {fvg.borderVisible && (
+                <>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Border style</span>
+                    <Segmented
+                      options={[
+                        { label: 'Solid', value: 'solid' as const },
+                        { label: 'Dotted', value: 'dotted' as const },
+                        { label: 'Dashed', value: 'dashed' as const },
+                      ]}
+                      value={fvg.borderStyle}
+                      onChange={(v) => onFvgParamsChange!({ borderStyle: v })}
+                    />
+                  </div>
+                  <div style={paramRow}>
+                    <span style={paramLabel}>Border width</span>
+                    <Segmented
+                      options={MA_WIDTHS}
+                      value={fvg.borderWidth}
+                      onChange={(w) => onFvgParamsChange!({ borderWidth: w })}
+                    />
+                  </div>
+                </>
+              )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Labels</span>
+                <Toggle
+                  value={fvg.showLabels}
+                  onChange={(v) => onFvgParamsChange!({ showLabels: v })}
+                />
+              </div>
+              {fvg.showLabels && fvg.extendBoxes && (
+                <Stepper
+                  label="Label distance"
+                  value={fvg.labelDistance}
+                  min={0}
+                  max={50}
+                  onChange={(n) => onFvgParamsChange!({ labelDistance: n })}
+                />
               )}
             </>
           ) : vol ? (

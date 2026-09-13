@@ -103,6 +103,38 @@ typedef struct VroomIchimoku {
     float    cloud_opacity;      // 0..1, multiplied into the cloud color's alpha
 } VroomIchimoku;
 
+// Fair Value Gap overlay drawn on the price pane: shaded boxes over three-candle
+// imbalances, where candle i-1 and i+1's wicks fail to overlap and leave a band
+// of price that was skipped. Bullish when candles[i-1].high < candles[i+1].low,
+// bearish when candles[i-1].low > candles[i+1].high. No pane is reserved.
+//
+// Each box is anchored to the middle bar's open time and spans the untouched
+// price range; it runs `box_length` slots right, or to the pane edge when
+// `extend_boxes`. Only enabled, max_bars_back, wait_for_close and fill_type
+// recompute — geometry and style are applied at draw time.
+typedef struct VroomFairValueGaps {
+    int32_t  enabled;             // 0/1
+    int32_t  max_bars_back;       // bars to scan (clamped >= 0; default 300)
+    int32_t  wait_for_close;      // 0/1: withhold a gap until its 3rd bar closes
+    int32_t  fill_type;           // 0 = close through the far edge, 1 = wick
+    int32_t  delete_after_fill;   // 0/1: hide a gap once filled (else truncate it)
+    int32_t  extend_boxes;        // 0/1: run boxes to the pane edge
+    int32_t  box_length;          // box width in slots (clamped >= 1; default 20)
+    uint32_t bullish_color;       // 0xAARRGGBB fill where the gap is bullish
+    uint32_t bearish_color;       // fill where the gap is bearish
+    float    opacity;             // 0..1, multiplied into the fill color's alpha
+    int32_t  border_enabled;      // 0/1: stroke the box outline
+    int32_t  border_style;        // 0 = solid, 1 = dotted, 2 = dashed
+    float    border_width;        // stroke px
+    uint32_t bullish_border_color;
+    uint32_t bearish_border_color;
+    int32_t  labels_enabled;      // 0/1: draw `label` on each box
+    const char* label;            // UTF-8, copied by the setter; NULL = "FVG"
+    int32_t  label_distance;      // slots of clearance, extend_boxes only (>= 0)
+    uint32_t label_color;         // alpha 0 falls back to the box's border color
+    float    label_font_size;     // px; <= 0 falls back to the axis font size
+} VroomFairValueGaps;
+
 // MACD, drawn in its own pane below the candles: the difference between a fast
 // and a slow moving average of `source`, a signal line smoothing that
 // difference, and a histogram of the gap between the two.
@@ -638,6 +670,14 @@ void vroom_chart_set_bollinger(VroomChart* chart, const VroomBollinger* cfg);
 // the newest candle, are on screen — the same future gap the default framing
 // reserves when the indicator is already on at set_candles time.
 void vroom_chart_set_ichimoku(VroomChart* chart, const VroomIchimoku* cfg);
+
+// Configures the Fair Value Gap overlay (shaded imbalance boxes on the price
+// pane; no pane is reserved). Only enabled, max_bars_back, wait_for_close and
+// fill_type recompute; box geometry, style and labels just re-render.
+//
+// `cfg->label` is copied, so the caller may free it as soon as this returns.
+void vroom_chart_set_fair_value_gaps(VroomChart* chart,
+                                     const VroomFairValueGaps* cfg);
 
 // Configures the volume bars. Render-only — the bars come straight off each
 // candle's volume, so nothing is recomputed. Bars are enabled by default; pass

@@ -25,6 +25,7 @@ import {
 import {
   DEFAULT_BOLLINGER_PARAMS,
   DEFAULT_EMA_LINE,
+  DEFAULT_FVG_PARAMS,
   DEFAULT_ICHIMOKU_PARAMS,
   DEFAULT_INDICATOR_STATE,
   DEFAULT_MA_LINE,
@@ -34,6 +35,7 @@ import {
   enabledCount,
   IndicatorsMenu,
   type BollingerParams,
+  type FVGParams,
   type IchimokuParams,
   type IndicatorId,
   type IndicatorState,
@@ -568,6 +570,13 @@ export default function App() {
     [],
   );
 
+  const [fvgParams, setFvgParams] = useState<FVGParams>(DEFAULT_FVG_PARAMS);
+  const patchFvg = useCallback(
+    (patch: Partial<FVGParams>) =>
+      setFvgParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
+
   const toggleIndicator = useCallback((id: IndicatorId, enabled: boolean) => {
     setIndicators((prev) => ({ ...prev, [id]: { ...prev[id], enabled } }));
     // Seed one default line when enabling an empty MA/EMA group.
@@ -691,6 +700,23 @@ export default function App() {
               bullishCloudColor: ichimokuParams.bullishCloudColor,
               bearishCloudColor: ichimokuParams.bearishCloudColor,
               cloudOpacity: ichimokuParams.cloudOpacity,
+            }}
+            fairValueGaps={{
+              enabled: indicators.fvg.enabled,
+              maxBarsBack: fvgParams.maxBarsBack,
+              waitForClose: fvgParams.waitForClose,
+              fillType: fvgParams.fillType,
+              deleteAfterFill: fvgParams.deleteAfterFill,
+              extendBoxes: fvgParams.extendBoxes,
+              boxLength: fvgParams.boxLength,
+              bullishColor: fvgParams.bullishColor,
+              bearishColor: fvgParams.bearishColor,
+              opacity: fvgParams.opacity,
+              borderVisible: fvgParams.borderVisible,
+              borderStyle: fvgParams.borderStyle,
+              borderWidth: fvgParams.borderWidth,
+              showLabels: fvgParams.showLabels,
+              labelDistance: fvgParams.labelDistance,
             }}
             priceLines={showPriceLines ? priceLines : undefined}
             onPriceLineDragEnd={onPriceLineDragEnd}
@@ -870,6 +896,8 @@ export default function App() {
           onBbParamsChange={patchBb}
           ichimokuParams={ichimokuParams}
           onIchimokuParamsChange={patchIchimoku}
+          fvgParams={fvgParams}
+          onFvgParamsChange={patchFvg}
         />
 
         <StatusBar style="light" />
