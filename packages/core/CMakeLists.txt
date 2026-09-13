@@ -52,6 +52,7 @@ if(VROOM_BUILD_TESTS)
         tests/test_ticks.cpp
         tests/test_rsi.cpp
         tests/test_macd.cpp
+        tests/test_atr.cpp
         tests/test_ma.cpp
         tests/test_vwap.cpp
         tests/test_bollinger.cpp
@@ -72,6 +73,7 @@ if(VROOM_BUILD_TESTS)
         src/ticks.cpp
         src/rsi.cpp
         src/macd.cpp
+        src/atr.cpp
         src/ma.cpp
         src/series_ma.cpp
         src/vwap.cpp

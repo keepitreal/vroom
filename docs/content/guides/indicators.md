@@ -1,7 +1,7 @@
 # Indicators
 
-vroom ships seven indicator families. Two render in their own **pane below the
-candles** (RSI, MACD); five are **overlays drawn on the price pane** (moving
+vroom ships eight indicator families. Three render in their own **pane below the
+candles** (RSI, MACD, ATR); five are **overlays drawn on the price pane** (moving
 averages, VWAP, Bollinger Bands, Ichimoku, Fair Value Gaps). Each is configured
 through its own prop and is off until you enable it.
 
@@ -98,8 +98,61 @@ for a flat, single-color histogram.
 Hide any part with `lineVisible`, `signalVisible`, `histogramVisible`, or
 `zeroLineVisible` — the pane rescales to fit whatever is left on show.
 
-> When both RSI and MACD are enabled, both panes stack below the chart; the most
-> recently enabled one is appended at the bottom.
+> RSI, MACD, and ATR each take their own pane. Enable more than one and they
+> stack below the chart in the order you turned them on, the most recent at the
+> bottom. Each pane is a fixed share of the chart height, so the candles keep
+> what's left.
+
+## ATR
+
+Average True Range in its own pane below the candles: a single line measuring
+volatility. See [`ATRConfig`](../reference/index.md).
+
+```tsx
+<VroomChart candles={candles} atr={{ enabled: true, period: 14 }} />
+```
+
+True Range is the widest of three spans on a bar — its own high-low, and the
+distance from each of its extremes to the previous close:
+
+```
+TR = max(high - low, |high - prevClose|, |low - prevClose|)
+```
+
+The two gap terms are what the bar's own range misses: a market that opens well
+away from yesterday's close moved further than its session range admits. The
+first bar has no previous close, so its TR is just `high - low`. ATR is that
+series smoothed over `period` bars — default 14, Wilder's original.
+
+### Smoothing
+
+`smoothing` ([`ATRSmoothing`](../reference/index.md)) picks how the true-range
+series is averaged:
+
+- `'rma'` (default) — Wilder's running average, `alpha = 1/period`. The slowest
+  of the three, and what every published ATR level assumes.
+- `'sma'` — a flat window average.
+- `'ema'` — the ordinary exponential average, `alpha = 2/(period+1)`, which
+  reacts fastest to a volatility spike.
+
+All three produce their first value at index `period - 1`, one bar earlier than
+RSI: true range is defined from the very first bar, so no close-to-close warmup
+is needed.
+
+### Reading the pane
+
+ATR measures volatility, not direction. It is strictly positive, unbounded, and
+denominated in price units, so the pane fits `0..peak` anchored at its bottom
+edge rather than RSI's fixed 0–100 or MACD's symmetric-about-zero. The axis
+label marks the peak on show, formatted like the price scale. Drag that axis
+strip to zoom the pane vertically.
+
+```tsx
+<VroomChart
+  candles={candles}
+  atr={{ enabled: true, period: 20, smoothing: 'ema', lineColor: '#26a69a', lineWidth: 2 }}
+/>
+```
 
 ## Moving averages (SMA / EMA)
 

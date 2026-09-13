@@ -211,6 +211,7 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     chart->candles.assign(data, data + count);
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
+    chart->atr_dirty = true;
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
@@ -244,6 +245,7 @@ extern "C" void vroom_chart_append_candle(VroomChart* chart, const VroomCandle* 
     chart->candles.push_back(*c);
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
+    chart->atr_dirty = true;
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
@@ -257,6 +259,7 @@ extern "C" void vroom_chart_update_last(VroomChart* chart, const VroomCandle* c)
     chart->candles.back() = *c;
     chart->rsi_dirty = true;
     chart->macd_dirty = true;
+    chart->atr_dirty = true;
     chart->overlays_dirty = true;
     chart->vwap_dirty = true;
     chart->bollinger_dirty = true;
@@ -664,7 +667,9 @@ extern "C" void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px) {
 extern "C" void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px) {
     if (!chart || dy_px == 0.f) return;
 
-    const int pane_count = (chart->rsi.enabled ? 1 : 0) + (chart->macd.enabled ? 1 : 0);
+    const int pane_count = (chart->rsi.enabled ? 1 : 0) +
+                           (chart->macd.enabled ? 1 : 0) +
+                           (chart->atr.enabled ? 1 : 0);
     if (pane_count == 0) return;  // nothing below the chart to resize
 
     const auto lay = chart->layout();
@@ -713,42 +718,41 @@ extern "C" void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px,
     const auto lay = chart->layout();
     if (lay.indicator_area_h <= 0.f) return;
 
-    // Rebuild the same ordered pane stack draw_chart uses (most recently
-    // enabled pane sorts to the bottom) to find which pane y_px falls in.
-    struct ActivePane { int order; int type; };  // type: 0 = RSI, 1 = MACD
-    ActivePane panes[2];
-    int count = 0;
-    if (chart->rsi.enabled) panes[count++] = {chart->rsi_order, 0};
-    if (chart->macd.enabled) panes[count++] = {chart->macd_order, 1};
+    // The same ordered pane stack the draw pass uses, so the pane under y_px is
+    // the one the user sees there.
+    vroom::IndicatorPane panes[vroom::kMaxPanes];
+    const int count = chart->indicator_panes(panes);
     if (count == 0) return;
-    if (count == 2 && panes[0].order > panes[1].order) {
-        const ActivePane tmp = panes[0];
-        panes[0] = panes[1];
-        panes[1] = tmp;
-    }
 
     const float pane_h =
         chart->height_px * chart->theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
     if (pane_h <= 0.f) return;
 
-    int target = -1;  // 0 = RSI, 1 = MACD
+    const vroom::IndicatorPane* target = nullptr;
     float pane_top = vroom::price_pane_bottom(lay);
     for (int i = 0; i < count; ++i) {
         const float pane_bottom = pane_top + pane_h;
         if (y_px >= pane_top && y_px < pane_bottom) {
-            target = panes[i].type;
+            target = &panes[i];
             break;
         }
         pane_top = pane_bottom;
     }
-    if (target < 0) return;  // not over a pane
+    if (!target) return;  // not over a pane
 
     // Drag down (dy > 0) widens the visible value range (zoom out), matching
     // scale_price_axis's sign. The zoom is the inverse of the range scale.
     double range_scale = 1.0 + static_cast<double>(dy_px) / kAxisDragSensitivity;
     if (range_scale < 0.05) range_scale = 0.05;  // never collapse or flip
 
-    double& zoom = target == 0 ? chart->rsi_y_scale : chart->macd_y_scale;
+    double* zoom_ptr = nullptr;
+    switch (target->kind) {
+        case vroom::PaneKind::Rsi:  zoom_ptr = &chart->rsi_y_scale;  break;
+        case vroom::PaneKind::Macd: zoom_ptr = &chart->macd_y_scale; break;
+        case vroom::PaneKind::Atr:  zoom_ptr = &chart->atr_y_scale;  break;
+    }
+    if (!zoom_ptr) return;
+    double& zoom = *zoom_ptr;
     double next = zoom / range_scale;
     next = std::clamp(next, 0.1, 10.0);
     if (next == zoom) return;
@@ -1468,6 +1472,27 @@ extern "C" void vroom_chart_set_macd(VroomChart* chart, const VroomMACD* cfg) {
 
     chart->macd = next;
     if (recompute) chart->macd_dirty = true;
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_atr(VroomChart* chart, const VroomATR* cfg) {
+    if (!chart || !cfg) return;
+    VroomATR next = *cfg;
+    next.enabled = next.enabled ? 1 : 0;
+    if (next.period < 1) next.period = 1;
+
+    // Only the series-affecting fields force a recompute; color and width
+    // changes are render-only.
+    const VroomATR& cur = chart->atr;
+    const bool recompute = cur.enabled != next.enabled ||
+                           cur.period != next.period ||
+                           cur.smoothing != next.smoothing;
+
+    if (next.enabled && !cur.enabled) chart->atr_order = chart->pane_seq++;
+    else if (!next.enabled) chart->atr_order = -1;
+
+    chart->atr = next;
+    if (recompute) chart->atr_dirty = true;
     chart->mark_dirty();
 }
 

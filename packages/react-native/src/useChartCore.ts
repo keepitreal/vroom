@@ -10,6 +10,7 @@ import { packCandles } from './packCandles';
 import { applyTheme, parseColor, FLOAT_LINE_TIP_PULSE } from './theme';
 import type {
   BollingerBandsConfig,
+  ATRConfig,
   Candle,
   ChartType,
   FairValueGapsConfig,
@@ -39,6 +40,9 @@ const MA_SOURCES = [
   'hlc3',
   'ohlc4',
 ] as const;
+
+// Mirrors vroom::atr::Smoothing order in packages/core/src/atr.h.
+const ATR_SMOOTHINGS = ['rma', 'sma', 'ema'] as const;
 
 // An unset style color marshals as the core's transparent inherit sentinel.
 const inheritColor = (v: string | number | undefined): number =>
@@ -221,6 +225,16 @@ function macdToSpec(cfg: MACDConfig | undefined) {
   };
 }
 
+function atrToSpec(cfg: ATRConfig | undefined) {
+  return {
+    enabled: cfg?.enabled ?? false,
+    period: cfg?.period ?? 14,
+    smoothing: Math.max(0, ATR_SMOOTHINGS.indexOf(cfg?.smoothing ?? 'rma')),
+    lineColor: inheritColor(cfg?.lineColor),
+    lineWidth: cfg?.lineWidth ?? -1,
+  };
+}
+
 // Unset style fields go down as the core's inherit sentinels (negative float,
 // transparent color) rather than as literal defaults, so the theme keys stay in
 // charge of anything the consumer didn't set.
@@ -389,6 +403,7 @@ export function useChartCore(
   theme?: VroomTheme,
   rsi?: RSIConfig,
   macd?: MACDConfig,
+  atr?: ATRConfig,
   movingAverages?: MovingAverageOverlay[],
   vwap?: VWAPConfig,
   bollingerBands?: BollingerBandsConfig,
@@ -485,6 +500,7 @@ export function useChartCore(
   const themeKey = theme ? JSON.stringify(theme) : '';
   const rsiKey = rsi ? JSON.stringify(rsi) : '';
   const macdKey = macd ? JSON.stringify(macd) : '';
+  const atrKey = atr ? JSON.stringify(atr) : '';
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
@@ -615,6 +631,7 @@ export function useChartCore(
     }
     h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));
+    h.setATR(atrToSpec(atr));
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
     h.setVWAP(vwapToSpec(vwap));
     h.setBollinger(bollingerToSpec(bollingerBands));
@@ -639,10 +656,11 @@ export function useChartCore(
     // frame 0 is pixel-identical to what's on screen, so there's nothing to show
     // in the meantime anyway.
     if (!morphing) setPicture(h.render());
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/fairValueGaps/
-    // volume/priceLines/footprints are represented by their *Key deps.
+    // theme/rsi/macd/atr/movingAverages/vwap/bollingerBands/ichimoku/
+    // fairValueGaps/volume/priceLines/footprints are represented by their *Key
+    // deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
+  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

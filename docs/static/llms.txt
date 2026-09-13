@@ -14,7 +14,7 @@
 
 ## Guides
 
-- [Indicators](https://vroom-docs.vercel.app/guides/indicators): Configuring RSI, MACD, moving averages (SMA/EMA), and VWAP with code samples.
+- [Indicators](https://vroom-docs.vercel.app/guides/indicators): Configuring RSI, MACD, ATR, moving averages (SMA/EMA), and VWAP with code samples.
 - [Theming](https://vroom-docs.vercel.app/guides/theming): Color overrides, shape & size knobs (wick width, rounded candles, volume), and candle borders.
 - [Gestures & Viewport](https://vroom-docs.vercel.app/guides/gestures-and-viewport): Pan, pinch, zoom, axis drag, visibleRange, and defaultCandleWidth.
 - [Crosshair & Events](https://vroom-docs.vercel.app/guides/crosshair-and-events): onCrosshair callback, future-time snapping, haptics, and onViewportChange.

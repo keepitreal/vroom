@@ -230,6 +230,16 @@ class WebChart {
     cfg.zero_visible = s["zeroVisible"].as<bool>() ? 1 : 0;
     vroom_chart_set_macd(chart_, &cfg);
   }
+  // `s` is a JS object {enabled, period, smoothing, lineColor, lineWidth}.
+  void setATR(const em::val& s) {
+    VroomATR cfg{};
+    cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
+    cfg.period = s["period"].as<int32_t>();
+    cfg.smoothing = s["smoothing"].as<int32_t>();
+    cfg.line_color = s["lineColor"].as<uint32_t>();
+    cfg.line_width = s["lineWidth"].as<float>();
+    vroom_chart_set_atr(chart_, &cfg);
+  }
   // `s` is a JS object {enabled, resetOffsetMin, color, width}.
   void setVWAP(const em::val& s) {
     VroomVWAP cfg{};
@@ -796,6 +806,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("getCrosshairInfo", &WebChart::getCrosshairInfo)
       .function("setRSI", &WebChart::setRSI)
       .function("setMACD", &WebChart::setMACD)
+      .function("setATR", &WebChart::setATR)
       .function("setOverlays", &WebChart::setOverlays)
       .function("setVWAP", &WebChart::setVWAP)
       .function("setBollinger", &WebChart::setBollinger)

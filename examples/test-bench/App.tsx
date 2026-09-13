@@ -30,6 +30,7 @@ import {
   DEFAULT_INDICATOR_STATE,
   DEFAULT_MA_LINE,
   DEFAULT_MACD_PARAMS,
+  DEFAULT_ATR_PARAMS,
   DEFAULT_RSI_PARAMS,
   DEFAULT_VWAP_PARAMS,
   enabledCount,
@@ -39,6 +40,7 @@ import {
   type IchimokuParams,
   type IndicatorId,
   type IndicatorState,
+  type ATRParams,
   type MACDParams,
   type MALineParams,
   type RSIParams,
@@ -525,6 +527,12 @@ export default function App() {
       setMacdParams((prev) => ({ ...prev, ...patch })),
     [],
   );
+  const [atrParams, setAtrParams] = useState<ATRParams>(DEFAULT_ATR_PARAMS);
+  const patchAtr = useCallback(
+    (patch: Partial<ATRParams>) =>
+      setAtrParams((prev) => ({ ...prev, ...patch })),
+    [],
+  );
 
   // Moving-average overlay lines (ribbons). Each list is edited in its detail
   // screen and combined into the `movingAverages` prop below.
@@ -653,6 +661,7 @@ export default function App() {
             onCrosshair={handleCrosshair}
             rsi={{ enabled: indicators.rsi.enabled, ...rsiParams }}
             macd={{ enabled: indicators.macd.enabled, ...macdParams }}
+            atr={{ enabled: indicators.atr.enabled, ...atrParams }}
             movingAverages={movingAverages}
             vwap={{
               enabled: indicators.vwap.enabled,
@@ -891,6 +900,8 @@ export default function App() {
           onRsiParamsChange={patchRsi}
           macdParams={macdParams}
           onMacdParamsChange={patchMacd}
+          atrParams={atrParams}
+          onAtrParamsChange={patchAtr}
           maEditor={maEditor}
           emaEditor={emaEditor}
           vwapParams={vwapParams}

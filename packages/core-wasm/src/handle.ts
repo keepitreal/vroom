@@ -282,6 +282,22 @@ export type MACDSpec = {
 };
 
 /**
+ * The ATR pane, in the core's numeric encoding. The style fields carry the same
+ * inherit sentinel as MACD — a non-positive width or a fully transparent color
+ * tells the core to fall back to its default.
+ */
+export type ATRSpec = {
+  enabled: boolean;
+  period: number;
+  /** 0 = Wilder's RMA, 1 = SMA, 2 = EMA. */
+  smoothing: number;
+  /** Packed 0xAARRGGBB. */
+  lineColor: number;
+  /** Stroke width in px. */
+  lineWidth: number;
+};
+
+/**
  * The volume bars, in the core's numeric encoding. The style fields carry an
  * inherit sentinel — a negative number or a fully transparent color tells the
  * core to fall back to the matching theme key.
@@ -604,6 +620,7 @@ export interface VroomChartHandle {
 
   setRSI(spec: RSISpec): void;
   setMACD(spec: MACDSpec): void;
+  setATR(spec: ATRSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;

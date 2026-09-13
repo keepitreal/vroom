@@ -30,6 +30,8 @@ export type {
   VisibleRange,
   RSIConfig,
   MACDConfig,
+  ATRConfig,
+  ATRSmoothing,
   MASource,
   MAKind,
   MovingAverageOverlay,

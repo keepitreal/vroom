@@ -8,6 +8,16 @@ const typedocSidebar = {
       items: [
         {
           type: "doc",
+          id: "reference/type-aliases/ATRConfig",
+          label: "ATRConfig"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/ATRSmoothing",
+          label: "ATRSmoothing"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/BollingerBandsConfig",
           label: "BollingerBandsConfig"
         },

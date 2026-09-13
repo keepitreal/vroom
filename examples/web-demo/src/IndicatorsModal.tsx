@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import type {
+  ATRConfig,
+  ATRSmoothing,
   BollingerBandsConfig,
   FairValueGapsConfig,
   IchimokuConfig,
@@ -18,6 +20,7 @@ import type {
 // list<->detail navigation.
 
 export type IndicatorId =
+  | 'atr'
   | 'bb'
   | 'ema'
   | 'fvg'
@@ -41,6 +44,12 @@ type IndicatorMeta = {
 };
 
 export const INDICATORS: IndicatorMeta[] = [
+  {
+    id: 'atr',
+    name: 'ATR',
+    description:
+      'Average True Range — volatility in price units, from the widest of each bar\u2019s own range and its two gaps to the previous close.',
+  },
   {
     id: 'bb',
     name: 'Bollinger Bands',
@@ -98,6 +107,7 @@ export const INDICATORS: IndicatorMeta[] = [
 ];
 
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
+  atr: { enabled: false },
   bb: { enabled: false },
   ema: { enabled: false },
   fvg: { enabled: false },
@@ -180,6 +190,20 @@ export const DEFAULT_MACD_PARAMS: MACDParams = {
   histogramUpColor: '#26a69a',
   histogramDownColor: '#f85149',
   zeroLineVisible: true,
+};
+
+export type ATRParams = {
+  period: number;
+  smoothing: ATRSmoothing;
+  lineColor: string;
+  width: number;
+};
+
+export const DEFAULT_ATR_PARAMS: ATRParams = {
+  period: 14,
+  smoothing: 'rma',
+  lineColor: '#26a69a',
+  width: 1.5,
 };
 
 export type MALineParams = {
@@ -373,6 +397,11 @@ const MA_KINDS = [
   { label: 'SMA', value: 0 },
   { label: 'EMA', value: 1 },
 ];
+const ATR_SMOOTHINGS: { label: string; value: ATRSmoothing }[] = [
+  { label: 'RMA', value: 'rma' },
+  { label: 'SMA', value: 'sma' },
+  { label: 'EMA', value: 'ema' },
+];
 
 // Ichimoku's five lines, each with a `<key>Visible` / `<key>Color` pair on
 // IchimokuParams — so the detail panel can render one block per line.
@@ -403,6 +432,7 @@ const cycleButton: React.CSSProperties = {
 export type IndicatorChartProps = {
   rsi: RSIConfig;
   macd: MACDConfig;
+  atr: ATRConfig;
   movingAverages: MovingAverageOverlay[];
   vwap: VWAPConfig;
   bollingerBands: BollingerBandsConfig;
@@ -415,6 +445,7 @@ export function deriveIndicatorProps(
   state: IndicatorState,
   rsiParams: RSIParams,
   macdParams: MACDParams,
+  atrParams: ATRParams,
   maLines: MALineParams[],
   emaLines: MALineParams[],
   vwapParams: VWAPParams,
@@ -482,6 +513,13 @@ export function deriveIndicatorProps(
       histogramUpColor: macdParams.histogramUpColor,
       histogramDownColor: macdParams.histogramDownColor,
       zeroLineVisible: macdParams.zeroLineVisible,
+    },
+    atr: {
+      enabled: state.atr.enabled,
+      period: atrParams.period,
+      smoothing: atrParams.smoothing,
+      lineColor: atrParams.lineColor,
+      lineWidth: atrParams.width,
     },
     movingAverages,
     vwap: {
@@ -613,6 +651,8 @@ export function IndicatorsModal({
   onRsiParamsChange,
   macdParams,
   onMacdParamsChange,
+  atrParams,
+  onAtrParamsChange,
   maEditor,
   emaEditor,
   vwapParams,
@@ -634,6 +674,8 @@ export function IndicatorsModal({
   onRsiParamsChange: (patch: Partial<RSIParams>) => void;
   macdParams: MACDParams;
   onMacdParamsChange: (patch: Partial<MACDParams>) => void;
+  atrParams: ATRParams;
+  onAtrParamsChange: (patch: Partial<ATRParams>) => void;
   maEditor: OverlayEditor;
   emaEditor: OverlayEditor;
   vwapParams: VWAPParams;
@@ -676,6 +718,10 @@ export function IndicatorsModal({
             macdParams={detail.id === 'macd' ? macdParams : undefined}
             onMacdParamsChange={
               detail.id === 'macd' ? onMacdParamsChange : undefined
+            }
+            atrParams={detail.id === 'atr' ? atrParams : undefined}
+            onAtrParamsChange={
+              detail.id === 'atr' ? onAtrParamsChange : undefined
             }
             editor={
               detail.id === 'ma'
@@ -1076,6 +1122,8 @@ function DetailScreen({
   onRsiParamsChange,
   macdParams,
   onMacdParamsChange,
+  atrParams,
+  onAtrParamsChange,
   editor,
   vwapParams,
   onVwapParamsChange,
@@ -1096,6 +1144,8 @@ function DetailScreen({
   onRsiParamsChange?: (patch: Partial<RSIParams>) => void;
   macdParams?: MACDParams;
   onMacdParamsChange?: (patch: Partial<MACDParams>) => void;
+  atrParams?: ATRParams;
+  onAtrParamsChange?: (patch: Partial<ATRParams>) => void;
   editor?: OverlayEditor;
   vwapParams?: VWAPParams;
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
@@ -1110,6 +1160,7 @@ function DetailScreen({
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
+  const atr = atrParams && onAtrParamsChange ? atrParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   const bb = bbParams && onBbParamsChange ? bbParams : null;
   const ich = ichimokuParams && onIchimokuParamsChange ? ichimokuParams : null;
@@ -1395,6 +1446,40 @@ function DetailScreen({
                 <Toggle
                   value={macd.zeroLineVisible}
                   onChange={(v) => onMacdParamsChange!({ zeroLineVisible: v })}
+                />
+              </div>
+            </>
+          ) : atr ? (
+            <>
+              <Stepper
+                label="Period"
+                value={atr.period}
+                min={1}
+                max={100}
+                onChange={(n) => onAtrParamsChange!({ period: n })}
+              />
+              <div style={paramRow}>
+                <span style={paramLabel}>Smoothing</span>
+                <Segmented
+                  options={ATR_SMOOTHINGS}
+                  value={atr.smoothing}
+                  onChange={(v) => onAtrParamsChange!({ smoothing: v })}
+                />
+              </div>
+              <SectionLabel>STYLE</SectionLabel>
+              <div style={paramRow}>
+                <span style={paramLabel}>ATR color</span>
+                <Swatches
+                  value={atr.lineColor}
+                  onChange={(c) => onAtrParamsChange!({ lineColor: c })}
+                />
+              </div>
+              <div style={paramRow}>
+                <span style={paramLabel}>Line width</span>
+                <Segmented
+                  options={MA_WIDTHS}
+                  value={atr.width}
+                  onChange={(w) => onAtrParamsChange!({ width: w })}
                 />
               </div>
             </>

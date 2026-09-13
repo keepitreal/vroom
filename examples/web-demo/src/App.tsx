@@ -27,6 +27,7 @@ import {
   DEFAULT_INDICATOR_STATE,
   DEFAULT_RSI_PARAMS,
   DEFAULT_MACD_PARAMS,
+  DEFAULT_ATR_PARAMS,
   DEFAULT_MA_LINE,
   DEFAULT_EMA_LINE,
   DEFAULT_VWAP_PARAMS,
@@ -41,6 +42,7 @@ import {
   type IchimokuParams,
   type IndicatorId,
   type IndicatorState,
+  type ATRParams,
   type MACDParams,
   type MALineParams,
   type RSIParams,
@@ -940,6 +942,7 @@ export function App() {
   );
   const [rsiParams, setRsiParams] = useState<RSIParams>(DEFAULT_RSI_PARAMS);
   const [macdParams, setMacdParams] = useState<MACDParams>(DEFAULT_MACD_PARAMS);
+  const [atrParams, setAtrParams] = useState<ATRParams>(DEFAULT_ATR_PARAMS);
   const [maLines, setMaLines] = useState<MALineParams[]>([DEFAULT_MA_LINE]);
   const [emaLines, setEmaLines] = useState<MALineParams[]>([DEFAULT_EMA_LINE]);
   const [vwapParams, setVwapParams] = useState<VWAPParams>(DEFAULT_VWAP_PARAMS);
@@ -960,6 +963,10 @@ export function App() {
   );
   const patchMacd = useCallback(
     (patch: Partial<MACDParams>) => setMacdParams((p) => ({ ...p, ...patch })),
+    [],
+  );
+  const patchAtr = useCallback(
+    (patch: Partial<ATRParams>) => setAtrParams((p) => ({ ...p, ...patch })),
     [],
   );
   const patchVwap = useCallback(
@@ -1011,6 +1018,7 @@ export function App() {
     indicators,
     rsiParams,
     macdParams,
+    atrParams,
     maLines,
     emaLines,
     vwapParams,
@@ -1190,6 +1198,8 @@ export function App() {
         onRsiParamsChange={patchRsi}
         macdParams={macdParams}
         onMacdParamsChange={patchMacd}
+        atrParams={atrParams}
+        onAtrParamsChange={patchAtr}
         maEditor={maEditor}
         emaEditor={emaEditor}
         vwapParams={vwapParams}
