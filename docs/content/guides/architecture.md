@@ -30,7 +30,7 @@ The core (`packages/core/`) is a C++17 library that does all the heavy lifting:
 
 - **Rendering**: Draws candles, volume bars, indicators, gridlines, axes, crosshair, and drawing tools directly to an `SkCanvas`
 - **Layout**: Computes pixel positions from data-space coordinates, handling pan/zoom transforms
-- **Indicators**: Computes RSI, MACD, VWAP, Bollinger Bands, Ichimoku, Fair Value Gaps, SMA, and EMA from OHLCV data
+- **Indicators**: Computes RSI, MACD, ATR, VWAP, Bollinger Bands, Ichimoku, Fair Value Gaps, SMA, and EMA from OHLCV data
 - **Gestures**: Processes pan, pinch, zoom, and axis-drag inputs, updating the viewport
 - **Crosshair**: Snaps to candle-aligned time slots and computes OHLCV at the cursor position
 
