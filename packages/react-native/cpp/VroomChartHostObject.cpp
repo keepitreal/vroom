@@ -71,6 +71,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairInfo"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setRSI"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMACD"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setATR"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setOverlays"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVWAP"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setBollinger"));
@@ -861,6 +862,34 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           cfg.zero_visible =
               s.getProperty(rt2, "zeroVisible").asBool() ? 1 : 0;
           vroom_chart_set_macd(chart_, &cfg);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setATR") {
+    // setATR({enabled, period, smoothing, lineColor, lineWidth}) — configures
+    // the ATR pane. No render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setATR"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto s = args[0].asObject(rt2);
+          VroomATR cfg{};
+          cfg.enabled = s.getProperty(rt2, "enabled").asBool() ? 1 : 0;
+          cfg.period = static_cast<int32_t>(
+              s.getProperty(rt2, "period").asNumber());
+          cfg.smoothing = static_cast<int32_t>(
+              s.getProperty(rt2, "smoothing").asNumber());
+          cfg.line_color = static_cast<uint32_t>(
+              s.getProperty(rt2, "lineColor").asNumber());
+          cfg.line_width = static_cast<float>(
+              s.getProperty(rt2, "lineWidth").asNumber());
+          vroom_chart_set_atr(chart_, &cfg);
           return jsi::Value::undefined();
         });
   }

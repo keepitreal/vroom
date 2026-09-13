@@ -41,6 +41,7 @@ export type {
   IchimokuSpec,
   FairValueGapsSpec,
   MACDSpec,
+  ATRSpec,
   RSISpec,
   VWAPSpec,
   VolumeSpec,

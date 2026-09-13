@@ -20,6 +20,8 @@
 #include "include/core/SkRect.h"
 #pragma clang diagnostic pop
 
+#include "atr.h"
+#include "atr_pane.h"
 #include "bollinger.h"
 #include "candles.h"
 #include "chart_internal.h"
@@ -61,7 +63,8 @@ vroom::Layout VroomChart::layout() const {
     const float axis_w = axis_width_px > 0.f
         ? axis_width_px
         : width_px * theme.floats[VROOM_FLOAT_Y_AXIS_WIDTH_RATIO];
-    const int pane_count = (rsi.enabled ? 1 : 0) + (macd.enabled ? 1 : 0);
+    const int pane_count =
+        (rsi.enabled ? 1 : 0) + (macd.enabled ? 1 : 0) + (atr.enabled ? 1 : 0);
     const float indicator_h = static_cast<float>(pane_count) * height_px *
                               theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
     return vroom::Layout{
@@ -99,6 +102,79 @@ void VroomChart::ensure_macd() {
                          macd.signal_ma_kind, macd_cache, macd_signal_cache,
                          macd_hist_cache);
     macd_dirty = false;
+}
+
+void VroomChart::ensure_atr() {
+    if (!atr.enabled || !atr_dirty) return;
+    vroom::atr::compute(candles.data(), candles.size(), atr.period,
+                        atr.smoothing, atr_cache);
+    atr_dirty = false;
+}
+
+int VroomChart::indicator_panes(vroom::IndicatorPane out[vroom::kMaxPanes]) const {
+    int count = 0;
+    if (rsi.enabled) out[count++] = {rsi_order, vroom::PaneKind::Rsi};
+    if (macd.enabled) out[count++] = {macd_order, vroom::PaneKind::Macd};
+    if (atr.enabled) out[count++] = {atr_order, vroom::PaneKind::Atr};
+    // Insertion sort: at most three entries, already nearly ordered.
+    for (int i = 1; i < count; ++i) {
+        const vroom::IndicatorPane key = out[i];
+        int j = i - 1;
+        for (; j >= 0 && out[j].order > key.order; --j) out[j + 1] = out[j];
+        out[j + 1] = key;
+    }
+    return count;
+}
+
+void VroomChart::draw_indicator_panes(SkCanvas* canvas,
+                                      const vroom::Layout& lay,
+                                      const VroomCandle* visible,
+                                      std::size_t n, std::size_t first,
+                                      int64_t window_ms, float candle_right,
+                                      float pane_top) {
+    vroom::IndicatorPane panes[vroom::kMaxPanes];
+    const int count = indicator_panes(panes);
+    const float pane_h =
+        height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
+
+    // A cache only lines up with the candles once its ensure_* has run against
+    // the current series; until then there is nothing to plot.
+    const auto visible_slice = [&](const std::vector<double>& cache) -> const double* {
+        return cache.size() == candles.size() ? cache.data() + first : nullptr;
+    };
+
+    for (int i = 0; i < count; ++i) {
+        const float pane_bottom = pane_top + pane_h;
+        switch (panes[i].kind) {
+            case vroom::PaneKind::Rsi: {
+                ensure_rsi();
+                vroom::rsi_pane::draw(
+                    canvas, *this, lay, visible, n, visible_slice(rsi_cache),
+                    rsi.ma_visible ? visible_slice(rsi_ma_cache) : nullptr,
+                    window_ms, visible_start_ms, candle_duration_ms,
+                    candle_right, pane_top, pane_bottom);
+                break;
+            }
+            case vroom::PaneKind::Macd: {
+                ensure_macd();
+                vroom::macd_pane::draw(
+                    canvas, *this, lay, visible, n, visible_slice(macd_cache),
+                    visible_slice(macd_signal_cache),
+                    visible_slice(macd_hist_cache), window_ms, visible_start_ms,
+                    candle_duration_ms, candle_right, pane_top, pane_bottom);
+                break;
+            }
+            case vroom::PaneKind::Atr: {
+                ensure_atr();
+                vroom::atr_pane::draw(canvas, *this, lay, visible, n,
+                                      visible_slice(atr_cache), window_ms,
+                                      visible_start_ms, candle_duration_ms,
+                                      candle_right, pane_top, pane_bottom);
+                break;
+            }
+        }
+        pane_top = pane_bottom;
+    }
 }
 
 void VroomChart::ensure_overlays() {
@@ -498,62 +574,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             // paint before axis masks so overflow still clips). Transforms
             // keep the settled z-order after the price indicator.
             if (fade_in && lay.indicator_area_h > 0.f) {
-                struct ActivePane {
-                    int order;
-                    int type;
-                };
-                ActivePane panes[2];
-                int count = 0;
-                if (rsi.enabled) panes[count++] = {rsi_order, 0};
-                if (macd.enabled) panes[count++] = {macd_order, 1};
-                if (count == 2 && panes[0].order > panes[1].order) {
-                    const ActivePane tmp = panes[0];
-                    panes[0] = panes[1];
-                    panes[1] = tmp;
-                }
-
-                const float pane_h =
-                    height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
-                float pane_top = candle_area_h;
-                for (int i = 0; i < count; ++i) {
-                    const float pane_bottom = pane_top + pane_h;
-                    if (panes[i].type == 0) {
-                        ensure_rsi();
-                        const double* rsi_vis =
-                            rsi_cache.size() == candles.size()
-                                ? rsi_cache.data() + range.start
-                                : nullptr;
-                        const double* rsi_ma_vis =
-                            (rsi.ma_visible &&
-                             rsi_ma_cache.size() == candles.size())
-                                ? rsi_ma_cache.data() + range.start
-                                : nullptr;
-                        vroom::rsi_pane::draw(
-                            canvas, *this, lay, visible, n, rsi_vis, rsi_ma_vis,
-                            window_ms, visible_start_ms, candle_duration_ms,
-                            candle_right, pane_top, pane_bottom);
-                    } else {
-                        ensure_macd();
-                        const double* macd_vis =
-                            macd_cache.size() == candles.size()
-                                ? macd_cache.data() + range.start
-                                : nullptr;
-                        const double* sig_vis =
-                            macd_signal_cache.size() == candles.size()
-                                ? macd_signal_cache.data() + range.start
-                                : nullptr;
-                        const double* hist_vis =
-                            macd_hist_cache.size() == candles.size()
-                                ? macd_hist_cache.data() + range.start
-                                : nullptr;
-                        vroom::macd_pane::draw(
-                            canvas, *this, lay, visible, n, macd_vis, sig_vis,
-                            hist_vis, window_ms, visible_start_ms,
-                            candle_duration_ms, candle_right, pane_top,
-                            pane_bottom);
-                    }
-                    pane_top = pane_bottom;
-                }
+                draw_indicator_panes(canvas, lay, visible, n, range.start,
+                                     window_ms, candle_right, candle_area_h);
             }
         }
 
@@ -611,50 +633,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      INDICATOR_HEIGHT_FRAC of the height; the candle pane already shrank
     //      to fit them (see layout()). A fade already drew them with the scene.
     if (!fade_swap && lay.indicator_area_h > 0.f) {
-        struct ActivePane { int order; int type; };  // type: 0 = RSI, 1 = MACD
-        ActivePane panes[2];
-        int count = 0;
-        if (rsi.enabled) panes[count++] = {rsi_order, 0};
-        if (macd.enabled) panes[count++] = {macd_order, 1};
-        if (count == 2 && panes[0].order > panes[1].order) {
-            const ActivePane tmp = panes[0];
-            panes[0] = panes[1];
-            panes[1] = tmp;
-        }
-
-        const float pane_h =
-            height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
-        float pane_top = candle_area_h;  // == price_pane_bottom(lay)
-        for (int i = 0; i < count; ++i) {
-            const float pane_bottom = pane_top + pane_h;
-            if (panes[i].type == 0) {
-                ensure_rsi();
-                const double* rsi_vis = rsi_cache.size() == candles.size()
-                    ? rsi_cache.data() + range.start : nullptr;
-                const double* rsi_ma_vis =
-                    (rsi.ma_visible && rsi_ma_cache.size() == candles.size())
-                        ? rsi_ma_cache.data() + range.start : nullptr;
-                vroom::rsi_pane::draw(canvas, *this, lay, visible, n, rsi_vis,
-                                      rsi_ma_vis, window_ms, visible_start_ms,
-                                      candle_duration_ms, candle_right, pane_top,
-                                      pane_bottom);
-            } else {
-                ensure_macd();
-                const double* macd_vis = macd_cache.size() == candles.size()
-                    ? macd_cache.data() + range.start : nullptr;
-                const double* sig_vis =
-                    macd_signal_cache.size() == candles.size()
-                        ? macd_signal_cache.data() + range.start : nullptr;
-                const double* hist_vis =
-                    macd_hist_cache.size() == candles.size()
-                        ? macd_hist_cache.data() + range.start : nullptr;
-                vroom::macd_pane::draw(canvas, *this, lay, visible, n, macd_vis,
-                                       sig_vis, hist_vis, window_ms,
-                                       visible_start_ms, candle_duration_ms,
-                                       candle_right, pane_top, pane_bottom);
-            }
-            pane_top = pane_bottom;
-        }
+        // candle_area_h == price_pane_bottom(lay), the top of the band.
+        draw_indicator_panes(canvas, lay, visible, n, range.start, window_ms,
+                             candle_right, candle_area_h);
     }
 
     // 7.7. Crosshair — drawn last so it sits on top of everything, including the

@@ -202,6 +202,18 @@ export interface ChartHandle {
     zeroVisible: boolean;
   }): void;
   /**
+   * Configures the ATR pane. smoothing: 0=RMA (Wilder), 1=SMA, 2=EMA;
+   * lineColor is packed 0xAARRGGBB where 0 means inherit, and a non-positive
+   * width inherits the default stroke.
+   */
+  setATR(spec: {
+    enabled: boolean;
+    period: number;
+    smoothing: number;
+    lineColor: number;
+    lineWidth: number;
+  }): void;
+  /**
    * Replaces the full set of MA/EMA overlay lines drawn on the price pane.
    * kind: 0=SMA, 1=EMA; source: 0=close,1=open,2=high,3=low,4=hl2,5=hlc3,6=ohlc4;
    * color: packed 0xAARRGGBB; width: stroke px.

@@ -17,6 +17,7 @@ import {
   type IchimokuSpec,
   type FairValueGapsSpec,
   type MACDSpec,
+  type ATRSpec,
   type RSISpec,
   type VWAPSpec,
   type VolumeSpec,
@@ -52,6 +53,9 @@ function prefersReducedMotion(): boolean {
 
 // Mirrors vroom::ma::Source order (packages/core/src/ma.h).
 const MA_SOURCES = ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'] as const;
+
+// Mirrors vroom::atr::Smoothing order (packages/core/src/atr.h).
+const ATR_SMOOTHINGS = ['rma', 'sma', 'ema'] as const;
 
 // An unset style color marshals as the core's transparent inherit sentinel.
 const inheritColor = (v: string | number | undefined): number =>
@@ -234,6 +238,16 @@ function macdToSpec(cfg: VroomChartCoreProps['macd']): MACDSpec {
     histDownFadingColor: inheritColor(cfg?.histogramDownFadingColor),
     zeroColor: inheritColor(cfg?.zeroLineColor),
     zeroVisible: cfg?.zeroLineVisible ?? true,
+  };
+}
+
+function atrToSpec(cfg: VroomChartCoreProps['atr']): ATRSpec {
+  return {
+    enabled: cfg?.enabled ?? false,
+    period: cfg?.period ?? 14,
+    smoothing: Math.max(0, ATR_SMOOTHINGS.indexOf(cfg?.smoothing ?? 'rma')),
+    lineColor: inheritColor(cfg?.lineColor),
+    lineWidth: cfg?.lineWidth ?? -1,
   };
 }
 
@@ -436,6 +450,7 @@ export function useChartCore(
     theme,
     rsi,
     macd,
+    atr,
     movingAverages,
     vwap,
     bollingerBands,
@@ -579,6 +594,7 @@ export function useChartCore(
   const themeKey = theme ? JSON.stringify(theme) : '';
   const rsiKey = rsi ? JSON.stringify(rsi) : '';
   const macdKey = macd ? JSON.stringify(macd) : '';
+  const atrKey = atr ? JSON.stringify(atr) : '';
   const maKey = movingAverages ? JSON.stringify(movingAverages) : '';
   const vwapKey = vwap ? JSON.stringify(vwap) : '';
   const bollingerKey = bollingerBands ? JSON.stringify(bollingerBands) : '';
@@ -702,6 +718,7 @@ export function useChartCore(
     if (prefersReducedMotion()) h.setFloat(FloatKey.LineTipPulse, 0);
     h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));
+    h.setATR(atrToSpec(atr));
     h.setOverlays((movingAverages ?? []).map(overlayToNumeric));
     h.setVWAP(vwapToSpec(vwap));
     h.setBollinger(bollingerToSpec(bollingerBands));
@@ -733,10 +750,11 @@ export function useChartCore(
         : EMPTY_FOOTPRINTS,
     );
     scheduleRender();
-    // theme/rsi/macd/movingAverages/vwap/bollingerBands/ichimoku/fairValueGaps/
-    // volume/drawings/liquidity/priceLines/footprints tracked via *Key deps.
+    // theme/rsi/macd/atr/movingAverages/vwap/bollingerBands/ichimoku/
+    // fairValueGaps/volume/drawings/liquidity/priceLines/footprints tracked via
+    // *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

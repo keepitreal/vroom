@@ -5,6 +5,7 @@
 
 import type { IntervalTransition } from '@vroomchart/types';
 import type {
+  ATRSpec,
   AxisMetrics,
   BollingerSpec,
   Coord,
@@ -66,6 +67,7 @@ interface WebChartInstance {
   getCrosshairInfo(): CrosshairInfo | null;
   setRSI(spec: RSISpec): void;
   setMACD(spec: MACDSpec): void;
+  setATR(spec: ATRSpec): void;
   setOverlays(overlays: OverlaySpec[]): void;
   setVWAP(spec: VWAPSpec): void;
   setBollinger(spec: BollingerSpec): void;
@@ -230,6 +232,9 @@ class WasmHandle implements VroomChartHandle {
       histDownFadingColor: spec.histDownFadingColor >>> 0,
       zeroColor: spec.zeroColor >>> 0,
     });
+  }
+  setATR(spec: ATRSpec): void {
+    this.wc.setATR({ ...spec, lineColor: spec.lineColor >>> 0 });
   }
   setOverlays(overlays: OverlaySpec[]): void {
     this.wc.setOverlays(overlays);

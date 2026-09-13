@@ -168,7 +168,7 @@ That's the whole required surface: `candles`. Everything else is optional.
 
 ## Indicators
 
-Four indicator families. Two render in their own pane below the candles (RSI, MACD); two are overlays drawn on the price pane (moving averages, VWAP).
+Five indicator families. Three render in their own pane below the candles (RSI, MACD, ATR); two are overlays drawn on the price pane (moving averages, VWAP).
 
 ### RSI
 
@@ -191,7 +191,19 @@ MACD (fast/slow/signal EMAs) in its own pane below the candles.
 <VroomChart candles={candles} macd={{ enabled: true, fast: 12, slow: 26, signal: 9 }} />
 ```
 
-Defaults: `fast` 12, `slow` 26, `signal` 9. When both RSI and MACD are enabled, both panes stack below the chart.
+Defaults: `fast` 12, `slow` 26, `signal` 9.
+
+### ATR
+
+Average True Range in its own pane below the candles: volatility in price units, from the widest of each bar's own high-low range and its two gaps to the previous close.
+
+```tsx
+<VroomChart candles={candles} atr={{ enabled: true, period: 14, smoothing: "rma" }} />
+```
+
+Defaults: `period` 14, `smoothing` `"rma"` (Wilder's running average; `"sma"` and `"ema"` are the alternatives). The pane fits `0..peak` from its bottom edge rather than centering on a reference level.
+
+Panes stack below the chart in the order you enable them, most recent at the bottom.
 
 ### Moving averages (SMA / EMA)
 

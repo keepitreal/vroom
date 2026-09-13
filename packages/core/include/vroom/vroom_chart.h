@@ -204,6 +204,23 @@ typedef struct VroomRSI {
     int32_t  bands_visible;  // 0/1
 } VroomRSI;
 
+// Average True Range, drawn in its own pane below the candles: a single line
+// measuring volatility in price units. True Range is the widest of the bar's
+// own high-low span and the two gaps from its extremes to the previous close,
+// smoothed over `period` bars.
+//
+// The style fields carry the same inherit sentinel as VroomMACD: a fully
+// transparent color falls back to the built-in default and a non-positive width
+// falls back to 1.5.
+typedef struct VroomATR {
+    int32_t  enabled;    // 0/1
+    int32_t  period;     // lookback in candles (clamped >= 1; default 14)
+    int32_t  smoothing;  // 0 = Wilder's RMA, 1 = SMA, 2 = EMA
+
+    uint32_t line_color;  // 0 inherits the default teal
+    float    line_width;  // stroke px; <= 0 inherits 1.5
+} VroomATR;
+
 // Session VWAP, drawn as a single line on the price pane. The session resets
 // each UTC day shifted by `reset_offset_min` minutes, and the line lifts its pen
 // at each reset. Color 0 inherits the default cyan; a non-positive width
@@ -654,6 +671,11 @@ void vroom_chart_set_rsi(VroomChart* chart, const VroomRSI* cfg);
 // kind changes recompute the series; color, width, and visibility changes only
 // re-render.
 void vroom_chart_set_macd(VroomChart* chart, const VroomMACD* cfg);
+
+// Configures the ATR indicator (its own pane below the candles, stacking in
+// enable order like RSI and MACD). Period and smoothing changes recompute the
+// series; color and width changes only re-render.
+void vroom_chart_set_atr(VroomChart* chart, const VroomATR* cfg);
 
 // Replaces the full set of moving-average overlay lines (SMA/EMA) drawn on the
 // price pane. Pass count 0 to clear them. Overlays don't reserve a pane.

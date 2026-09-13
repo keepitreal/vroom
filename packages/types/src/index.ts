@@ -1090,6 +1090,39 @@ export type MACDConfig = {
 };
 
 /**
+ * How the true-range series is smoothed into ATR. `'rma'` is Wilder's original
+ * (alpha = 1/period) and the conventional default; the other two are the
+ * ordinary moving averages applied to the same series.
+ *
+ * Distinct from {@link MAKind}, which the other indicators use — RMA is
+ * specific to Wilder's indicators and isn't offered elsewhere.
+ */
+export type ATRSmoothing = 'rma' | 'sma' | 'ema';
+
+/**
+ * ATR (Average True Range) indicator config. Rendered in its own pane below the
+ * candles: a single line measuring volatility in price units.
+ *
+ * True Range is the widest of the bar's own high-low span and the two gaps from
+ * its extremes to the previous close, so an overnight jump the bar's range
+ * misses still counts. ATR smooths that series over `period` bars. It is
+ * strictly positive and unbounded, so the pane fits 0..peak from its bottom
+ * edge rather than centering on a reference level.
+ */
+export type ATRConfig = {
+  /** Draw the pane. Default false. */
+  enabled?: boolean;
+  /** Lookback in candles. Default 14. */
+  period?: number;
+  /** Smoothing applied to the true-range series. Default `'rma'`. */
+  smoothing?: ATRSmoothing;
+  /** Line color (hex string or packed ARGB number). Default teal. */
+  lineColor?: string | number;
+  /** Line stroke width in px. Default 1.5. */
+  lineWidth?: number;
+};
+
+/**
  * Platform-agnostic props shared by every vroom chart component. Each platform
  * extends this with its own `style` typing (and any platform-only props) to
  * form its public `VroomChartProps`.
@@ -1153,6 +1186,8 @@ export type VroomChartCoreProps = {
   rsi?: RSIConfig;
   /** MACD indicator (its own pane below the candles). Omit/disable to hide it. */
   macd?: MACDConfig;
+  /** ATR indicator (its own pane below the candles). Omit/disable to hide it. */
+  atr?: ATRConfig;
   /** Moving-average overlay lines (SMA/EMA) drawn on the price pane. */
   movingAverages?: MovingAverageOverlay[];
   /** VWAP overlay (session anchor, configurable reset). */

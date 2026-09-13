@@ -9,6 +9,7 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,23 @@
 #include "viewport.h"
 
 class SkCanvas;
+
+namespace vroom {
+
+// Which indicator owns a below-chart pane. Panes are otherwise
+// interchangeable: they are all the same height and stack in enable order.
+enum class PaneKind { Rsi, Macd, Atr };
+
+// Count of PaneKind values — the most panes that can be stacked at once.
+constexpr int kMaxPanes = 3;
+
+// One enabled pane and the sequence number it claimed when it was turned on.
+struct IndicatorPane {
+    int order;
+    PaneKind kind;
+};
+
+}  // namespace vroom
 
 struct VroomChart {
     // --- bridge / lifecycle -------------------------------------------------
@@ -148,11 +166,23 @@ struct VroomChart {
     // default auto-fit amplitude; >1 zooms in, <1 zooms out. Anchored at zero.
     double macd_y_scale = 1.0;
 
+    // ATR, drawn in its own pane. atr_cache is aligned to `candles` (NaN
+    // warmup), recomputed lazily by ensure_atr() when atr_dirty.
+    // Defaults: 14-period true range under Wilder smoothing, style fields on
+    // their inherit sentinel.
+    VroomATR atr{0, 14, 0, 0u, -1.f};
+    std::vector<double> atr_cache;
+    bool atr_dirty = true;
+    // User y-axis zoom for the ATR pane (drag on its y-axis strip). 1.0 = the
+    // default 0..peak fit; >1 zooms in, <1 zooms out. Anchored at the baseline.
+    double atr_y_scale = 1.0;
+
     // Stacking order for the indicator panes: each indicator gets the next
     // sequence number on its off->on transition, so the most recently enabled
     // pane sorts last (bottom). -1 = not currently enabled.
     int rsi_order = -1;
     int macd_order = -1;
+    int atr_order = -1;
     int pane_seq = 0;
 
     // Moving-average overlay lines (SMA/EMA) drawn on the price pane. Not panes
@@ -395,6 +425,22 @@ struct VroomChart {
 
     // Redetects the Fair Value Gaps when fvg_dirty and the indicator is enabled.
     void ensure_fvg();
+
+    // Recomputes the ATR cache when atr_dirty and the indicator is enabled.
+    void ensure_atr();
+
+    // The enabled panes written to `out` top to bottom, returning how many.
+    // Both the draw pass and the y-axis hit test read this, so the stack they
+    // see can't drift apart.
+    int indicator_panes(vroom::IndicatorPane out[vroom::kMaxPanes]) const;
+
+    // Draws the pane stack into the band below the candles, starting at
+    // `pane_top`. Shared by the settled draw and the interval-morph fade, which
+    // paint the panes at different points in the z-order.
+    void draw_indicator_panes(SkCanvas* canvas, const vroom::Layout& lay,
+                              const VroomCandle* visible, std::size_t n,
+                              std::size_t first, int64_t window_ms,
+                              float candle_right, float pane_top);
 
     // The main drawing pass. Calls into the labels and candles modules, and owns
     // the per-frame animation clock (see begin_frame) so every host gets it —

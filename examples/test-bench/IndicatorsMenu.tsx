@@ -1,11 +1,11 @@
 // Full-screen Indicators menu: an alphabetical list that drills into a per-
 // indicator detail screen. The detail screen has an enable/disable toggle plus
-// the name and description; parameter controls (period, source, color…) will
+// the name and description; parameter controls (period, source, colorâ¦) will
 // be added here once the indicators themselves are implemented.
 //
 // State is controlled by the host (App owns which indicators are enabled so it
-// can later feed the chart); this component only owns the list↔detail
-// navigation. No bottom sheet — browsing a catalog wants a full screen.
+// can later feed the chart); this component only owns the listâdetail
+// navigation. No bottom sheet â browsing a catalog wants a full screen.
 
 import { useEffect, useState } from 'react';
 import {
@@ -19,9 +19,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { MAKind, MASource } from 'react-native-vroom-chart';
+import type { ATRSmoothing, MAKind, MASource } from 'react-native-vroom-chart';
 
 export type IndicatorId =
+  | 'atr'
   | 'bb'
   | 'ema'
   | 'fvg'
@@ -33,7 +34,7 @@ export type IndicatorId =
 
 export type IndicatorConfig = {
   enabled: boolean;
-  // Parameters (period, source, color, …) will live here per indicator.
+  // Parameters (period, source, color, â¦) will live here per indicator.
 };
 
 export type IndicatorState = Record<IndicatorId, IndicatorConfig>;
@@ -47,10 +48,16 @@ type IndicatorMeta = {
 // Listed alphabetically by name. Add search once the list grows.
 export const INDICATORS: IndicatorMeta[] = [
   {
+    id: 'atr',
+    name: 'ATR',
+    description:
+      'Average True Range — volatility in price units, from the widest of each bar’s own range and its two gaps to the previous close.',
+  },
+  {
     id: 'bb',
     name: 'Bollinger Bands',
     description:
-      'A moving-average basis with bands ±N standard deviations away — the bands widen with volatility and squeeze when it fades.',
+      'A moving-average basis with bands Â±N standard deviations away â the bands widen with volatility and squeeze when it fades.',
   },
   {
     id: 'ema',
@@ -74,7 +81,7 @@ export const INDICATORS: IndicatorMeta[] = [
     id: 'macd',
     name: 'MACD',
     description:
-      'Moving Average Convergence Divergence — momentum from the gap between two EMAs, drawn with a signal line and histogram.',
+      'Moving Average Convergence Divergence â momentum from the gap between two EMAs, drawn with a signal line and histogram.',
   },
   {
     id: 'ma',
@@ -86,17 +93,18 @@ export const INDICATORS: IndicatorMeta[] = [
     id: 'rsi',
     name: 'RSI',
     description:
-      'Relative Strength Index — a 0–100 momentum oscillator that flags overbought and oversold conditions.',
+      'Relative Strength Index â a 0â100 momentum oscillator that flags overbought and oversold conditions.',
   },
   {
     id: 'vwap',
     name: 'VWAP',
     description:
-      'Volume Weighted Average Price — the average price over the session weighted by traded volume.',
+      'Volume Weighted Average Price â the average price over the session weighted by traded volume.',
   },
 ];
 
 export const DEFAULT_INDICATOR_STATE: IndicatorState = {
+  atr: { enabled: false },
   bb: { enabled: false },
   ema: { enabled: false },
   fvg: { enabled: false },
@@ -138,6 +146,16 @@ export const DEFAULT_MACD_PARAMS: MACDParams = {
   fast: 12,
   slow: 26,
   signal: 9,
+};
+
+export type ATRParams = {
+  period: number;
+  smoothing: ATRSmoothing;
+};
+
+export const DEFAULT_ATR_PARAMS: ATRParams = {
+  period: 14,
+  smoothing: 'rma',
 };
 
 // One moving-average overlay line (the MA type is implied by which list it's
@@ -293,7 +311,7 @@ export const DEFAULT_FVG_PARAMS: FVGParams = {
 };
 
 // Ichimoku's five lines, each with a `<key>Visible` / `<key>Color` pair on
-// IchimokuParams — so the detail screen can render one block per line.
+// IchimokuParams â so the detail screen can render one block per line.
 const ICHIMOKU_LINES = [
   { key: 'tenkan', label: 'Tenkan' },
   { key: 'kijun', label: 'Kijun' },
@@ -342,6 +360,8 @@ type Props = {
   onRsiParamsChange: (patch: Partial<RSIParams>) => void;
   macdParams: MACDParams;
   onMacdParamsChange: (patch: Partial<MACDParams>) => void;
+  atrParams: ATRParams;
+  onAtrParamsChange: (patch: Partial<ATRParams>) => void;
   maEditor: OverlayEditor;
   emaEditor: OverlayEditor;
   vwapParams: VWAPParams;
@@ -363,6 +383,8 @@ export function IndicatorsMenu({
   onRsiParamsChange,
   macdParams,
   onMacdParamsChange,
+  atrParams,
+  onAtrParamsChange,
   maEditor,
   emaEditor,
   vwapParams,
@@ -406,6 +428,10 @@ export function IndicatorsMenu({
             macdParams={detail.id === 'macd' ? macdParams : undefined}
             onMacdParamsChange={
               detail.id === 'macd' ? onMacdParamsChange : undefined
+            }
+            atrParams={detail.id === 'atr' ? atrParams : undefined}
+            onAtrParamsChange={
+              detail.id === 'atr' ? onAtrParamsChange : undefined
             }
             editor={
               detail.id === 'ma'
@@ -478,7 +504,7 @@ function ListScreen({
             {state[item.id].enabled ? (
               <Text style={styles.onBadge}>On</Text>
             ) : null}
-            <Text style={styles.chevron}>›</Text>
+            <Text style={styles.chevron}>âº</Text>
           </Pressable>
         )}
       />
@@ -509,7 +535,7 @@ function Stepper({
           style={styles.stepBtn}
           onPress={() => onChange(Math.max(min, value - step))}
         >
-          <Text style={styles.stepText}>−</Text>
+          <Text style={styles.stepText}>â</Text>
         </Pressable>
         <Text style={styles.stepValue}>{value}</Text>
         <Pressable
@@ -612,7 +638,7 @@ function OverlayLineEditor({
         <Text style={styles.paramLabel}>Source</Text>
         <Pressable style={styles.cycleBtn} onPress={cycleSource}>
           <Text style={styles.cycleText}>{line.source}</Text>
-          <Text style={styles.cycleCaret}>⟳</Text>
+          <Text style={styles.cycleCaret}>â³</Text>
         </Pressable>
       </View>
       <View style={styles.paramRow}>
@@ -640,6 +666,8 @@ function DetailScreen({
   onRsiParamsChange,
   macdParams,
   onMacdParamsChange,
+  atrParams,
+  onAtrParamsChange,
   editor,
   vwapParams,
   onVwapParamsChange,
@@ -658,6 +686,8 @@ function DetailScreen({
   onRsiParamsChange?: (patch: Partial<RSIParams>) => void;
   macdParams?: MACDParams;
   onMacdParamsChange?: (patch: Partial<MACDParams>) => void;
+  atrParams?: ATRParams;
+  onAtrParamsChange?: (patch: Partial<ATRParams>) => void;
   editor?: OverlayEditor;
   vwapParams?: VWAPParams;
   onVwapParamsChange?: (patch: Partial<VWAPParams>) => void;
@@ -670,6 +700,7 @@ function DetailScreen({
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
+  const atr = atrParams && onAtrParamsChange ? atrParams : null;
   const vwap = vwapParams && onVwapParamsChange ? vwapParams : null;
   const bb = bbParams && onBbParamsChange ? bbParams : null;
   const ich = ichimokuParams && onIchimokuParamsChange ? ichimokuParams : null;
@@ -678,7 +709,7 @@ function DetailScreen({
     <View style={styles.flex}>
       <View style={styles.navBar}>
         <Pressable style={styles.navSideLeft} onPress={onBack} hitSlop={8}>
-          <Text style={styles.navAction}>‹ Indicators</Text>
+          <Text style={styles.navAction}>â¹ Indicators</Text>
         </Pressable>
         <View style={styles.navSide} />
       </View>
@@ -765,6 +796,28 @@ function DetailScreen({
                 max={50}
                 onChange={(n) => onMacdParamsChange!({ signal: n })}
               />
+            </>
+          ) : atr ? (
+            <>
+              <Stepper
+                label="Period"
+                value={atr.period}
+                min={1}
+                max={100}
+                onChange={(n) => onAtrParamsChange!({ period: n })}
+              />
+              <View style={styles.paramRow}>
+                <Text style={styles.paramLabel}>Smoothing</Text>
+                <Segmented
+                  options={[
+                    { label: 'RMA', value: 'rma' as const },
+                    { label: 'SMA', value: 'sma' as const },
+                    { label: 'EMA', value: 'ema' as const },
+                  ]}
+                  value={atr.smoothing}
+                  onChange={(v) => onAtrParamsChange!({ smoothing: v })}
+                />
+              </View>
             </>
           ) : editor ? (
             <>
@@ -854,7 +907,7 @@ function DetailScreen({
                   }}
                 >
                   <Text style={styles.cycleText}>{bb.source}</Text>
-                  <Text style={styles.cycleCaret}>⟳</Text>
+                  <Text style={styles.cycleCaret}>â³</Text>
                 </Pressable>
               </View>
               <View style={styles.paramRow}>
@@ -1198,7 +1251,7 @@ function DetailScreen({
             </>
           ) : (
             <Text style={styles.placeholder}>
-              Parameters (period, source, color…) will appear here once this
+              Parameters (period, source, colorâ¦) will appear here once this
               indicator is implemented.
             </Text>
           )}

@@ -20,6 +20,8 @@ export type {
   FairValueGapsConfig,
   VolumeConfig,
   MACDConfig,
+  ATRConfig,
+  ATRSmoothing,
   ChartType,
   TransitionEasing,
   IntervalTransition,
