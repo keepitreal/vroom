@@ -18,6 +18,7 @@
 
 #include "curve.h"
 #include "gradient.h"
+#include "line_morph.h"
 #include "tip_pulse.h"
 #include "viewport.h"
 
@@ -50,6 +51,83 @@ void stroke_path(SkCanvas* canvas,
 }
 
 inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
+
+// Slot `k` of an indicator series in screen space, blended from the outgoing
+// capture toward the new value. Slot 0 is the rightmost vertex on both sides —
+// the pairing a timeframe switch preserves, same as close_vertex below.
+//
+// The capture is in fractions of the candle area and the price band, so it
+// lands on the pixels it occupied pre-switch even though both the surface and
+// the bounds may have changed under it.
+MorphVertex series_vertex(const Layout& lay,
+                          const PriceBounds& bounds,
+                          const ::VroomCandle* visible,
+                          std::size_t n,
+                          const double* values,
+                          int64_t window_ms,
+                          int64_t visible_start_ms,
+                          int64_t candle_duration_ms,
+                          int64_t time_shift_ms,
+                          const LineMorph* from,
+                          std::size_t from_count,
+                          float morph_t,
+                          std::size_t k) {
+    MorphVertex to;
+    if (values && k < n) {
+        const std::size_t i = n - 1 - k;
+        const double v = values[i];
+        if (std::isfinite(v)) {
+            to = MorphVertex{
+                vroom::candle_center_x(lay, visible[i].time_ms + time_shift_ms,
+                                       candle_duration_ms, visible_start_ms,
+                                       window_ms),
+                vroom::price_to_y(lay, bounds, v), true};
+        }
+    }
+    MorphVertex frm;
+    if (k < from_count) {
+        const LineSnapshot& s = from->pts[k];
+        if (s.valid) {
+            frm = MorphVertex{s.x * vroom::candle_area_width(lay),
+                              vroom::y_at_fraction(lay, s.y), true};
+        }
+    }
+    return vroom::morph_vertex(to, frm, morph_t);
+}
+
+// The same series walked left to right into `out`, for the two fills — they
+// need to look ahead for crossovers and back along the opposite edge, so they
+// can't stream the way the stroke does. out[j] is slot slots-1-j.
+void resolve_series(const Layout& lay,
+                    const PriceBounds& bounds,
+                    const ::VroomCandle* visible,
+                    std::size_t n,
+                    const double* values,
+                    int64_t window_ms,
+                    int64_t visible_start_ms,
+                    int64_t candle_duration_ms,
+                    int64_t time_shift_ms,
+                    const LineMorph* from,
+                    float morph_t,
+                    std::size_t slots,
+                    std::vector<MorphVertex>& out) {
+    const std::size_t from_count = vroom::morph_line_count(from, morph_t);
+    out.clear();
+    out.reserve(slots);
+    for (std::size_t j = 0; j < slots; ++j) {
+        out.push_back(series_vertex(lay, bounds, visible, n, values, window_ms,
+                                    visible_start_ms, candle_duration_ms,
+                                    time_shift_ms, from, from_count, morph_t,
+                                    slots - 1 - j));
+    }
+}
+
+// How many vertices a morphing series spans: the new slice and the capture can
+// disagree on length, and every slot either defines has to be walked.
+inline std::size_t series_slots(std::size_t n, const LineMorph* from,
+                                float morph_t) {
+    return std::max(n, vroom::morph_line_count(from, morph_t));
+}
 
 // Width of the background-colored ring that separates the tip dot from the line
 // and from the pulse expanding out behind it.
@@ -199,31 +277,42 @@ void draw(SkCanvas* canvas,
           float width,
           const unsigned char* break_before,
           float opacity,
-          int64_t time_shift_ms) {
-    if (!canvas || !values_visible || n == 0 || candle_right <= 0.f ||
-        candle_area_h <= 0.f) {
-        return;
-    }
+          int64_t time_shift_ms,
+          const LineMorph* from,
+          float morph_t) {
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     opacity = std::clamp(opacity, 0.f, 1.f);
     if (opacity <= 0.f) return;
+    morph_t = std::clamp(morph_t, 0.f, 1.f);
 
+    const std::size_t from_count = vroom::morph_line_count(from, morph_t);
+    const std::size_t slots = std::max(n, from_count);
+    if (slots == 0 || (!values_visible && from_count == 0)) return;
+
+    // Descending slots, which walks the line left to right. Settled (no
+    // capture) this visits exactly the source indices 0..n-1 in order, so the
+    // path is the one it has always emitted.
     // SkPathBuilder (not SkPath's edit methods, removed in newer Skia tips).
     SkPathBuilder path;
     bool pen_down = false;
-    for (std::size_t i = 0; i < n; ++i) {
-        const double v = values_visible[i];
-        if (!std::isfinite(v)) {
+    for (std::size_t j = 0; j < slots; ++j) {
+        const std::size_t k = slots - 1 - j;
+        const MorphVertex p = series_vertex(
+            lay, bounds, visible, n, values_visible, window_ms,
+            visible_start_ms, candle_duration_ms, time_shift_ms, from,
+            from_count, morph_t, k);
+        if (!p.valid) {
             pen_down = false;
             continue;
         }
-        const float x = vroom::candle_center_x(
-            lay, visible[i].time_ms + time_shift_ms, candle_duration_ms,
-            visible_start_ms, window_ms);
-        const float y = vroom::price_to_y(lay, bounds, v);
-        if (pen_down && !(break_before && break_before[i])) {
-            path.lineTo(x, y);
+        // Session breaks are a property of the incoming data, so a slot the new
+        // series doesn't reach can't carry one.
+        const bool breaks =
+            break_before && k < n && break_before[n - 1 - k] != 0;
+        if (pen_down && !breaks) {
+            path.lineTo(p.x, p.y);
         } else {
-            path.moveTo(x, y);
+            path.moveTo(p.x, p.y);
             pen_down = true;
         }
     }
@@ -420,42 +509,51 @@ void fill_between(SkCanvas* canvas,
                   float candle_right,
                   float candle_area_h,
                   uint32_t color,
-                  float opacity) {
-    if (!canvas || !upper_visible || !lower_visible || n == 0 ||
-        candle_right <= 0.f || candle_area_h <= 0.f) {
-        return;
-    }
+                  float opacity,
+                  const LineMorph* upper_from,
+                  const LineMorph* lower_from,
+                  float morph_t) {
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     opacity = std::clamp(opacity, 0.f, 1.f);
     if (opacity <= 0.f) return;
+    morph_t = std::clamp(morph_t, 0.f, 1.f);
 
-    // One closed contour per maximal run where both series are finite; a
+    const std::size_t slots =
+        std::max(series_slots(n, upper_from, morph_t),
+                 series_slots(n, lower_from, morph_t));
+    if (slots == 0) return;
+
+    // Both edges resolved left to right first: mid-morph a vertex is a blend of
+    // the captured shape and the new one, and the fill has to be stitched from
+    // the same positions the two lines are stroked at.
+    static thread_local std::vector<MorphVertex> upper;
+    static thread_local std::vector<MorphVertex> lower;
+    resolve_series(lay, bounds, visible, n, upper_visible, window_ms,
+                   visible_start_ms, candle_duration_ms, 0, upper_from, morph_t,
+                   slots, upper);
+    resolve_series(lay, bounds, visible, n, lower_visible, window_ms,
+                   visible_start_ms, candle_duration_ms, 0, lower_from, morph_t,
+                   slots, lower);
+
+    // One closed contour per maximal run where both edges are defined; a
     // single-point run has no area. Multiple runs (e.g. around a data gap)
     // become multiple contours in one path.
     SkPathBuilder path;
     std::size_t i = 0;
-    while (i < n) {
-        if (!std::isfinite(upper_visible[i]) ||
-            !std::isfinite(lower_visible[i])) {
+    while (i < slots) {
+        if (!upper[i].valid || !lower[i].valid) {
             ++i;
             continue;
         }
         std::size_t e = i;
-        while (e + 1 < n && std::isfinite(upper_visible[e + 1]) &&
-               std::isfinite(lower_visible[e + 1])) {
-            ++e;
-        }
+        while (e + 1 < slots && upper[e + 1].valid && lower[e + 1].valid) ++e;
         if (e > i) {
-            const auto x_at = [&](std::size_t k) {
-                return vroom::candle_center_x(lay, visible[k].time_ms,
-                                              candle_duration_ms,
-                                              visible_start_ms, window_ms);
-            };
-            path.moveTo(x_at(i), vroom::price_to_y(lay, bounds, upper_visible[i]));
+            path.moveTo(upper[i].x, upper[i].y);
             for (std::size_t k = i + 1; k <= e; ++k) {
-                path.lineTo(x_at(k), vroom::price_to_y(lay, bounds, upper_visible[k]));
+                path.lineTo(upper[k].x, upper[k].y);
             }
             for (std::size_t k = e + 1; k-- > i;) {
-                path.lineTo(x_at(k), vroom::price_to_y(lay, bounds, lower_visible[k]));
+                path.lineTo(lower[k].x, lower[k].y);
             }
             path.close();
         }
@@ -489,13 +587,27 @@ void fill_cloud(SkCanvas* canvas,
                 uint32_t above_color,
                 uint32_t below_color,
                 float opacity,
-                int64_t time_shift_ms) {
-    if (!canvas || !a_visible || !b_visible || n == 0 || candle_right <= 0.f ||
-        candle_area_h <= 0.f) {
-        return;
-    }
+                int64_t time_shift_ms,
+                const LineMorph* a_from,
+                const LineMorph* b_from,
+                float morph_t) {
+    if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
     opacity = std::clamp(opacity, 0.f, 1.f);
     if (opacity <= 0.f) return;
+    morph_t = std::clamp(morph_t, 0.f, 1.f);
+
+    const std::size_t slots = std::max(series_slots(n, a_from, morph_t),
+                                       series_slots(n, b_from, morph_t));
+    if (slots == 0) return;
+
+    static thread_local std::vector<MorphVertex> edge_a;
+    static thread_local std::vector<MorphVertex> edge_b;
+    resolve_series(lay, bounds, visible, n, a_visible, window_ms,
+                   visible_start_ms, candle_duration_ms, time_shift_ms, a_from,
+                   morph_t, slots, edge_a);
+    resolve_series(lay, bounds, visible, n, b_visible, window_ms,
+                   visible_start_ms, candle_duration_ms, time_shift_ms, b_from,
+                   morph_t, slots, edge_b);
 
     // A vertex of the cloud: one x with the two edge heights there. At a
     // crossover the two collapse onto the same y, which is what lets the
@@ -525,38 +637,33 @@ void fill_cloud(SkCanvas* canvas,
         contour.clear();
     };
 
-    const auto vertex_at = [&](std::size_t k) {
-        return Vertex{
-            vroom::candle_center_x(lay, visible[k].time_ms + time_shift_ms,
-                                   candle_duration_ms, visible_start_ms,
-                                   window_ms),
-            vroom::price_to_y(lay, bounds, a_visible[k]),
-            vroom::price_to_y(lay, bounds, b_visible[k]),
-        };
+    // Which tone a run takes, read off the drawn geometry rather than the raw
+    // values: y grows downward, so a above b means ya is the smaller. Mid-morph
+    // the values belong to two different resolutions and only the interpolated
+    // positions say where the edges actually sit.
+    const auto separation = [&](std::size_t k) {
+        return static_cast<double>(edge_b[k].y - edge_a[k].y);
     };
 
     std::size_t i = 0;
-    while (i < n) {
-        if (!std::isfinite(a_visible[i]) || !std::isfinite(b_visible[i])) {
+    while (i < slots) {
+        if (!edge_a[i].valid || !edge_b[i].valid) {
             ++i;
             continue;
         }
         std::size_t e = i;
-        while (e + 1 < n && std::isfinite(a_visible[e + 1]) &&
-               std::isfinite(b_visible[e + 1])) {
-            ++e;
-        }
+        while (e + 1 < slots && edge_a[e + 1].valid && edge_b[e + 1].valid) ++e;
 
         int sign = 0;
         Vertex prev{};
         for (std::size_t k = i; k <= e; ++k) {
-            const Vertex v = vertex_at(k);
-            const double d = a_visible[k] - b_visible[k];
+            const Vertex v = Vertex{edge_a[k].x, edge_a[k].y, edge_b[k].y};
+            const double d = separation(k);
             const int s = d > 0.0 ? 1 : (d < 0.0 ? -1 : 0);
             if (sign != 0 && s != 0 && s != sign) {
                 // The spans swapped between the previous bar and this one. Meet
                 // them at the crossing so both tones end on the same point.
-                const double d0 = a_visible[k - 1] - b_visible[k - 1];
+                const double d0 = separation(k - 1);
                 const float t = static_cast<float>(d0 / (d0 - d));
                 const float xc = prev.x + (v.x - prev.x) * t;
                 const float yc = prev.ya + (v.ya - prev.ya) * t;

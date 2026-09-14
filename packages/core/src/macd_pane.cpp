@@ -20,6 +20,9 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "line_morph.h"
+#include "macd.h"
+#include "pane_series.h"
 #include "style_inherit.h"
 #include "theme.h"
 #include "viewport.h"
@@ -34,7 +37,6 @@ constexpr SkColor kMacdLine = 0xff2962ff;    // blue MACD line
 constexpr SkColor kSignalLine = 0xffff6d00;  // orange signal line
 constexpr SkColor kZeroLine = 0xff484f58;    // zero reference
 constexpr SkColor kDivider = 0xff21262d;     // pane separator
-constexpr float kPadFrac = 0.85f;            // keep curves off the band edges
 constexpr float kLineWidth = 1.5f;           // default stroke for both lines
 constexpr float kFadedAlpha = 0.5f;          // easing histogram bars
 
@@ -58,34 +60,42 @@ void draw(SkCanvas* canvas,
           int64_t candle_duration_ms,
           float candle_right,
           float pane_top,
-          float pane_bottom) {
-    if (!canvas || n == 0 || candle_right <= 0.f) return;
+          float pane_bottom,
+          const vroom::LineMorph* macd_from,
+          const vroom::LineMorph* signal_from,
+          const vroom::LineMorph* hist_from,
+          float morph_t) {
+    if (!canvas || candle_right <= 0.f) return;
     const float band_h = pane_bottom - pane_top;
     if (band_h <= 0.f) return;
+    morph_t = std::clamp(morph_t, 0.f, 1.f);
+    // A fade's outgoing half has no new data at all, so the captures are the
+    // whole frame. Nothing on either side means nothing to paint, shell
+    // included.
+    const std::size_t hist_slots =
+        vroom::pane_series::slots(n, hist_from, morph_t);
+    if (n == 0 && hist_slots == 0 &&
+        vroom::morph_line_count(macd_from, morph_t) == 0 &&
+        vroom::morph_line_count(signal_from, morph_t) == 0) {
+        return;
+    }
 
     const VroomMACD& cfg = chart.macd;
     const float mid = (pane_top + pane_bottom) * 0.5f;
-    // User y-zoom scales the amplitude about the zero line (mid). 1.0 = the
-    // default auto-fit; >1 zooms in, <1 zooms out.
-    const float half =
-        band_h * 0.5f * kPadFrac * static_cast<float>(chart.macd_y_scale);
 
     // Auto-scale symmetric about zero across the finite values on show, so
-    // hiding a series lets the rest fill the pane.
-    double scale = 0.0;
-    auto track = [&](const double* s, bool shown) {
-        if (!s || !shown) return;
-        for (std::size_t i = 0; i < n; ++i) {
-            if (std::isfinite(s[i])) scale = std::max(scale, std::abs(s[i]));
-        }
-    };
-    track(macd_visible, cfg.line_visible != 0);
-    track(signal_visible, cfg.signal_visible != 0);
-    track(hist_visible, cfg.hist_visible != 0);
+    // hiding a series lets the rest fill the pane. User y-zoom scales the
+    // amplitude about the zero line; 1.0 is the default auto-fit.
+    const double scale = vroom::macd::autoscale(
+        cfg.line_visible ? macd_visible : nullptr,
+        cfg.signal_visible ? signal_visible : nullptr,
+        cfg.hist_visible ? hist_visible : nullptr, n);
 
     auto y_for = [&](double v) -> float {
-        if (scale <= 0.0) return mid;
-        return mid - static_cast<float>(v / scale) * half;
+        return pane_bottom -
+               static_cast<float>(
+                   vroom::macd::band_fraction(v, scale, chart.macd_y_scale)) *
+                   band_h;
     };
 
     // Mask the band (candles can overflow below the shortened price pane).
@@ -115,7 +125,9 @@ void draw(SkCanvas* canvas,
     // Histogram bars: from the zero line to y_for(hist), 4-color — above or
     // below zero, each in a building and an easing shade. A bar is building
     // while it grows away from zero and easing while it falls back toward it.
-    if (hist_visible && cfg.hist_visible) {
+    if ((hist_visible || hist_from) && cfg.hist_visible) {
+        // The new resolution's width from the first frame, matching how
+        // candles::draw widens its bodies while their positions still slide.
         const float body_w =
             vroom::candle_body_width(lay, window_ms, candle_duration_ms);
         const float half_body = body_w * 0.5f;
@@ -126,68 +138,65 @@ void draw(SkCanvas* canvas,
             color_or(cfg.hist_down_color, chart.theme.colors[VROOM_COLOR_ACCENT_BEAR]);
         const SkColor up_easing = faded_or(cfg.hist_up_fading_color, up);
         const SkColor down_easing = faded_or(cfg.hist_down_fading_color, down);
-        for (std::size_t i = 0; i < n; ++i) {
-            const double h = hist_visible[i];
-            if (!std::isfinite(h)) continue;
-            const bool have_prev = i > 0 && std::isfinite(hist_visible[i - 1]);
-            const double prev = have_prev ? hist_visible[i - 1] : h;
-            bool building = true;
-            if (have_prev) {
-                building = h >= 0.0 ? h >= prev : h <= prev;
+        const std::size_t hist_from_count =
+            vroom::morph_line_count(hist_from, morph_t);
+        // Bars read their sign and direction off the drawn geometry rather than
+        // the values: mid-morph a top is a blend of two resolutions' numbers,
+        // and only where it ended up says which side of zero it is on. y grows
+        // downward, so above zero is the smaller y.
+        MorphVertex prev;
+        for (std::size_t j = 0; j < hist_slots; ++j) {
+            const MorphVertex p = vroom::pane_series::vertex(
+                lay, visible, n, hist_visible, window_ms, visible_start_ms,
+                candle_duration_ms, pane_top, pane_bottom, hist_from,
+                hist_from_count, morph_t, hist_slots - 1 - j, y_for);
+            if (!p.valid) {
+                prev = MorphVertex{};
+                continue;
             }
+            const bool above = p.y <= zero_y;
+            // Building while the bar grows away from zero, easing while it
+            // falls back toward it.
+            const bool building =
+                !prev.valid || (above ? p.y <= prev.y : p.y >= prev.y);
             SkPaint bar;
             bar.setAntiAlias(true);
-            if (h >= 0.0) {
+            if (above) {
                 bar.setColor(building ? up : up_easing);
             } else {
                 bar.setColor(building ? down : down_easing);
             }
-            const float cx = vroom::candle_center_x(
-                lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
-                window_ms);
-            const float vy = y_for(h);
-            const float top = std::min(zero_y, vy);
-            const float bot = std::max(zero_y, vy);
-            canvas->drawRect(
-                SkRect::MakeLTRB(cx - half_body, top, cx + half_body, bot), bar);
+            canvas->drawRect(SkRect::MakeLTRB(p.x - half_body,
+                                              std::min(zero_y, p.y),
+                                              p.x + half_body,
+                                              std::max(zero_y, p.y)),
+                             bar);
+            prev = p;
         }
     }
 
     // MACD + signal lines.
-    auto stroke_series = [&](const double* series, SkColor color, float width) {
-        if (!series) return;
-        SkPathBuilder path;
-        bool pen_down = false;
-        for (std::size_t i = 0; i < n; ++i) {
-            const double v = series[i];
-            if (!std::isfinite(v)) {
-                pen_down = false;
-                continue;
-            }
-            const float x = vroom::candle_center_x(
-                lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
-                window_ms);
-            const float y = y_for(v);
-            if (pen_down) {
-                path.lineTo(x, y);
-            } else {
-                path.moveTo(x, y);
-                pen_down = true;
-            }
-        }
+    auto stroke_series = [&](const double* series, const vroom::LineMorph* from,
+                             SkColor color, float width) {
+        if (!series && !from) return;
         SkPaint line;
         line.setAntiAlias(true);
         line.setColor(color);
         line.setStyle(SkPaint::kStroke_Style);
         line.setStrokeWidth(width);
-        canvas->drawPath(path.detach(), line);
+        canvas->drawPath(
+            vroom::pane_series::build_path(
+                lay, visible, n, series, window_ms, visible_start_ms,
+                candle_duration_ms, pane_top, pane_bottom, from, morph_t, y_for),
+            line);
     };
     if (cfg.signal_visible) {
-        stroke_series(signal_visible, color_or(cfg.signal_color, kSignalLine),
+        stroke_series(signal_visible, signal_from,
+                      color_or(cfg.signal_color, kSignalLine),
                       width_or(cfg.signal_width, kLineWidth));
     }
     if (cfg.line_visible) {  // MACD over signal
-        stroke_series(macd_visible, color_or(cfg.line_color, kMacdLine),
+        stroke_series(macd_visible, macd_from, color_or(cfg.line_color, kMacdLine),
                       width_or(cfg.line_width, kLineWidth));
     }
 

@@ -13,6 +13,7 @@ class SkCanvas;
 namespace vroom {
 struct CandleSnapshot;
 struct Layout;
+struct LineMorph;
 struct PriceBounds;
 }  // namespace vroom
 
@@ -31,6 +32,12 @@ namespace vroom::ma_overlay {
 // spans). The shifted time need not be a bar that exists: projection is linear,
 // so a leading span runs past the newest candle into empty time. `visible` is
 // then the *source* slice — see ichimoku::shifted_source_range.
+//
+// `from` / `morph_t` are the interval morph, the indicator counterpart of what
+// draw_close_line does for the price series: the capture holds this series'
+// outgoing shape indexed from the right (slot 0 = newest) and each vertex
+// slides from where it sat before the timeframe switch to where it sits now.
+// A null capture (the default) draws `values_visible` alone.
 void draw(SkCanvas* canvas,
           const Layout& lay,
           const PriceBounds& bounds,
@@ -46,7 +53,9 @@ void draw(SkCanvas* canvas,
           float width,
           const unsigned char* break_before = nullptr,
           float opacity = 1.f,
-          int64_t time_shift_ms = 0);
+          int64_t time_shift_ms = 0,
+          const LineMorph* from = nullptr,
+          float morph_t = 1.f);
 
 // The close-price polyline of line-chart mode. Equivalent to draw() fed the
 // visible closes, plus the interval morph: `from` / `from_n` is the outgoing
@@ -147,6 +156,9 @@ void draw_close_tip(SkCanvas* canvas,
 // Runs where either series is NaN are skipped, so the fill never bridges the
 // warmup gap. Plain-alpha SkPaint fill, no gradient ramp (see gradient.h).
 // Clipped to the candle area like draw().
+//
+// Takes a capture per edge so the fill is built from the same interpolated
+// vertices its two lines are, and can't detach from them mid-morph.
 void fill_between(SkCanvas* canvas,
                   const Layout& lay,
                   const PriceBounds& bounds,
@@ -160,7 +172,10 @@ void fill_between(SkCanvas* canvas,
                   float candle_right,
                   float candle_area_h,
                   uint32_t color,
-                  float opacity);
+                  float opacity,
+                  const LineMorph* upper_from = nullptr,
+                  const LineMorph* lower_from = nullptr,
+                  float morph_t = 1.f);
 
 // Ichimoku's cloud: the region between two aligned series, filled with
 // `above_color` where `a` is over `b` and `below_color` where it is under, both
@@ -171,6 +186,10 @@ void fill_between(SkCanvas* canvas,
 // overlapping or leaving a seam. NaN in either series breaks the run, as in
 // fill_between. `time_shift_ms` shifts the whole cloud along the time axis the
 // same way draw() does.
+//
+// Morphs per edge like fill_between. Which tone a run takes is read off the
+// interpolated vertices rather than the raw values, so a crossover that only
+// exists mid-morph still splits the cloud where the two edges actually meet.
 void fill_cloud(SkCanvas* canvas,
                 const Layout& lay,
                 const PriceBounds& bounds,
@@ -186,6 +205,9 @@ void fill_cloud(SkCanvas* canvas,
                 uint32_t above_color,
                 uint32_t below_color,
                 float opacity,
-                int64_t time_shift_ms = 0);
+                int64_t time_shift_ms = 0,
+                const LineMorph* a_from = nullptr,
+                const LineMorph* b_from = nullptr,
+                float morph_t = 1.f);
 
 }  // namespace vroom::ma_overlay

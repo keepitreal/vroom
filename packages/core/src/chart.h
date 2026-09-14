@@ -26,6 +26,7 @@
 #include "fair_value_gaps.h"
 #include "footprints_layout.h"
 #include "labels.h"
+#include "line_morph.h"
 #include "price_format.h"
 #include "theme.h"
 #include "viewport.h"
@@ -101,6 +102,13 @@ struct VroomChart {
     std::vector<vroom::CandleSnapshot> morph_from;
     float interval_morph_t = 1.f;  // 1 = not morphing
     bool interval_morph_fade = false;
+    // The outgoing shape of every indicator series that was on screen, captured
+    // alongside the candles and keyed by identity so a toggle landing in the
+    // same commit as the switch can't pair two different lines (see
+    // line_morph.h). A timeframe switch invalidates every indicator cache at
+    // once, so without this the lines would pop to their new values while the
+    // candles under them reshape.
+    std::vector<vroom::LineMorph> morph_lines;
     // The pre-switch price scale and time window. The candle capture above is
     // normalized against these, and the axes keep rendering their old ticks from
     // them while fading out (see labels::interval_phase), so a label is never
@@ -429,6 +437,23 @@ struct VroomChart {
     // Recomputes the ATR cache when atr_dirty and the indicator is enabled.
     void ensure_atr();
 
+    // Fills morph_lines with the outgoing shape of every enabled indicator,
+    // normalized the way morph_from is. Called by begin_interval_morph while
+    // the pre-switch candles and caches are still resident — after the swap
+    // there is nothing left to capture. `range` is the visible slice and
+    // `bounds` the price band the capture is taken against, both shared with
+    // the candle capture so the two land on the same pixels.
+    void capture_morph_lines(const vroom::Layout& lay,
+                             const vroom::PriceBounds& bounds,
+                             vroom::IndexRange range, int64_t window_ms);
+
+    // Source indices whose *displaced* plot time lands in the visible window,
+    // for an Ichimoku span drawn at `time_ms + shift_ms`. A bar of padding
+    // either side keeps a run reaching the pane edge instead of stopping at the
+    // last bar strictly inside it. Shared by the cloud, the lines and the
+    // interval-morph capture so all three slice the same bars.
+    vroom::IndexRange ichimoku_source_range(int64_t shift_ms) const;
+
     // The enabled panes written to `out` top to bottom, returning how many.
     // Both the draw pass and the y-axis hit test read this, so the stack they
     // see can't drift apart.
@@ -440,7 +465,30 @@ struct VroomChart {
     void draw_indicator_panes(SkCanvas* canvas, const vroom::Layout& lay,
                               const VroomCandle* visible, std::size_t n,
                               std::size_t first, int64_t window_ms,
-                              float candle_right, float pane_top);
+                              float candle_right, float pane_top,
+                              bool use_capture, float morph_t);
+
+    // The price-pane indicator overlays, split where the candles sit in the
+    // z-order: the Bollinger band and Ichimoku cloud go behind them, the moving
+    // averages, VWAP, Bollinger and Ichimoku lines over them.
+    //
+    // `use_capture` and `morph_t` carry the interval morph, on the same terms
+    // the candles take it. A transform pairs each series with its capture (see
+    // morph_lines) and eases toward the new shape. A fade's outgoing half
+    // passes n = 0 with morph_t = 0, replaying the capture alone. A settled
+    // frame passes no capture at all.
+    void draw_overlay_fills(SkCanvas* canvas, const vroom::Layout& lay,
+                            const vroom::PriceBounds& bounds,
+                            const VroomCandle* visible, std::size_t n,
+                            std::size_t first, int64_t window_ms,
+                            float candle_right, float candle_area_h,
+                            bool use_capture, float morph_t);
+    void draw_overlay_lines(SkCanvas* canvas, const vroom::Layout& lay,
+                            const vroom::PriceBounds& bounds,
+                            const VroomCandle* visible, std::size_t n,
+                            std::size_t first, int64_t window_ms,
+                            float candle_right, float candle_area_h,
+                            bool use_capture, float morph_t);
 
     // The main drawing pass. Calls into the labels and candles modules, and owns
     // the per-frame animation clock (see begin_frame) so every host gets it —

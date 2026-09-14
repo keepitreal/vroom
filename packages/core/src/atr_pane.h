@@ -13,6 +13,7 @@ class SkCanvas;
 
 namespace vroom {
 struct Layout;
+struct LineMorph;
 }  // namespace vroom
 
 struct VroomChart;
@@ -23,6 +24,12 @@ namespace vroom::atr_pane {
 // is the cached ATR series aligned with `visible` (NaN where undefined). ATR is
 // strictly positive and unbounded, so the pane fits 0..peak anchored at its
 // bottom edge rather than centering on a reference level.
+//
+// `from` / `morph_t` are the interval morph: the capture holds the curve's
+// outgoing shape indexed from the right (slot 0 = newest), in fractions of the
+// band, so the pane is free to re-fit across the switch without the shape
+// moving. The peak label eases between the two fits. A fade's outgoing half
+// passes n = 0 with morph_t = 0, which paints the capture alone.
 void draw(SkCanvas* canvas,
           const VroomChart& chart,
           const Layout& lay,
@@ -34,6 +41,8 @@ void draw(SkCanvas* canvas,
           int64_t candle_duration_ms,
           float candle_right,
           float pane_top,
-          float pane_bottom);
+          float pane_bottom,
+          const LineMorph* from = nullptr,
+          float morph_t = 1.f);
 
 }  // namespace vroom::atr_pane
