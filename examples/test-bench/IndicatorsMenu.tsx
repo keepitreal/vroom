@@ -18,7 +18,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import {
+  SafeAreaProvider,
+  SafeAreaView,
+} from 'react-native-safe-area-context';
 import type { ATRSmoothing, MAKind, MASource } from 'react-native-vroom-chart';
 
 export type IndicatorId =
@@ -414,55 +417,60 @@ export function IndicatorsMenu({
       presentationStyle="fullScreen"
       onRequestClose={detail ? () => setDetailId(null) : onClose}
     >
-      <SafeAreaView style={styles.container}>
-        {detail ? (
-          <DetailScreen
-            meta={detail}
-            enabled={state[detail.id].enabled}
-            onToggle={(v) => onToggle(detail.id, v)}
-            onBack={() => setDetailId(null)}
-            rsiParams={detail.id === 'rsi' ? rsiParams : undefined}
-            onRsiParamsChange={
-              detail.id === 'rsi' ? onRsiParamsChange : undefined
-            }
-            macdParams={detail.id === 'macd' ? macdParams : undefined}
-            onMacdParamsChange={
-              detail.id === 'macd' ? onMacdParamsChange : undefined
-            }
-            atrParams={detail.id === 'atr' ? atrParams : undefined}
-            onAtrParamsChange={
-              detail.id === 'atr' ? onAtrParamsChange : undefined
-            }
-            editor={
-              detail.id === 'ma'
-                ? maEditor
-                : detail.id === 'ema'
-                  ? emaEditor
-                  : undefined
-            }
-            vwapParams={detail.id === 'vwap' ? vwapParams : undefined}
-            onVwapParamsChange={
-              detail.id === 'vwap' ? onVwapParamsChange : undefined
-            }
-            bbParams={detail.id === 'bb' ? bbParams : undefined}
-            onBbParamsChange={
-              detail.id === 'bb' ? onBbParamsChange : undefined
-            }
-            ichimokuParams={
-              detail.id === 'ichimoku' ? ichimokuParams : undefined
-            }
-            onIchimokuParamsChange={
-              detail.id === 'ichimoku' ? onIchimokuParamsChange : undefined
-            }
-            fvgParams={detail.id === 'fvg' ? fvgParams : undefined}
-            onFvgParamsChange={
-              detail.id === 'fvg' ? onFvgParamsChange : undefined
-            }
-          />
-        ) : (
-          <ListScreen state={state} onClose={onClose} onSelect={setDetailId} />
-        )}
-      </SafeAreaView>
+      {/* A Modal is its own native view hierarchy, so the app-root provider's
+          insets never reach it and SafeAreaView measures zero, leaving the nav
+          bar under the status bar. Each modal root needs its own provider. */}
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container}>
+          {detail ? (
+            <DetailScreen
+              meta={detail}
+              enabled={state[detail.id].enabled}
+              onToggle={(v) => onToggle(detail.id, v)}
+              onBack={() => setDetailId(null)}
+              rsiParams={detail.id === 'rsi' ? rsiParams : undefined}
+              onRsiParamsChange={
+                detail.id === 'rsi' ? onRsiParamsChange : undefined
+              }
+              macdParams={detail.id === 'macd' ? macdParams : undefined}
+              onMacdParamsChange={
+                detail.id === 'macd' ? onMacdParamsChange : undefined
+              }
+              atrParams={detail.id === 'atr' ? atrParams : undefined}
+              onAtrParamsChange={
+                detail.id === 'atr' ? onAtrParamsChange : undefined
+              }
+              editor={
+                detail.id === 'ma'
+                  ? maEditor
+                  : detail.id === 'ema'
+                    ? emaEditor
+                    : undefined
+              }
+              vwapParams={detail.id === 'vwap' ? vwapParams : undefined}
+              onVwapParamsChange={
+                detail.id === 'vwap' ? onVwapParamsChange : undefined
+              }
+              bbParams={detail.id === 'bb' ? bbParams : undefined}
+              onBbParamsChange={
+                detail.id === 'bb' ? onBbParamsChange : undefined
+              }
+              ichimokuParams={
+                detail.id === 'ichimoku' ? ichimokuParams : undefined
+              }
+              onIchimokuParamsChange={
+                detail.id === 'ichimoku' ? onIchimokuParamsChange : undefined
+              }
+              fvgParams={detail.id === 'fvg' ? fvgParams : undefined}
+              onFvgParamsChange={
+                detail.id === 'fvg' ? onFvgParamsChange : undefined
+              }
+            />
+          ) : (
+            <ListScreen state={state} onClose={onClose} onSelect={setDetailId} />
+          )}
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }
