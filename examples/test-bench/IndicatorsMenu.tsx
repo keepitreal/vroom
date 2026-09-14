@@ -1,11 +1,11 @@
 // Full-screen Indicators menu: an alphabetical list that drills into a per-
 // indicator detail screen. The detail screen has an enable/disable toggle plus
-// the name and description; parameter controls (period, source, colorâ¦) will
+// the name and description; parameter controls (period, source, color…) will
 // be added here once the indicators themselves are implemented.
 //
 // State is controlled by the host (App owns which indicators are enabled so it
-// can later feed the chart); this component only owns the listâdetail
-// navigation. No bottom sheet â browsing a catalog wants a full screen.
+// can later feed the chart); this component only owns the list↔detail
+// navigation. No bottom sheet — browsing a catalog wants a full screen.
 
 import { useEffect, useState } from 'react';
 import {
@@ -34,7 +34,7 @@ export type IndicatorId =
 
 export type IndicatorConfig = {
   enabled: boolean;
-  // Parameters (period, source, color, â¦) will live here per indicator.
+  // Parameters (period, source, color, …) will live here per indicator.
 };
 
 export type IndicatorState = Record<IndicatorId, IndicatorConfig>;
@@ -57,7 +57,7 @@ export const INDICATORS: IndicatorMeta[] = [
     id: 'bb',
     name: 'Bollinger Bands',
     description:
-      'A moving-average basis with bands Â±N standard deviations away â the bands widen with volatility and squeeze when it fades.',
+      'A moving-average basis with bands ±N standard deviations away — the bands widen with volatility and squeeze when it fades.',
   },
   {
     id: 'ema',
@@ -81,7 +81,7 @@ export const INDICATORS: IndicatorMeta[] = [
     id: 'macd',
     name: 'MACD',
     description:
-      'Moving Average Convergence Divergence â momentum from the gap between two EMAs, drawn with a signal line and histogram.',
+      'Moving Average Convergence Divergence — momentum from the gap between two EMAs, drawn with a signal line and histogram.',
   },
   {
     id: 'ma',
@@ -93,13 +93,13 @@ export const INDICATORS: IndicatorMeta[] = [
     id: 'rsi',
     name: 'RSI',
     description:
-      'Relative Strength Index â a 0â100 momentum oscillator that flags overbought and oversold conditions.',
+      'Relative Strength Index — a 0–100 momentum oscillator that flags overbought and oversold conditions.',
   },
   {
     id: 'vwap',
     name: 'VWAP',
     description:
-      'Volume Weighted Average Price â the average price over the session weighted by traded volume.',
+      'Volume Weighted Average Price — the average price over the session weighted by traded volume.',
   },
 ];
 
@@ -311,7 +311,7 @@ export const DEFAULT_FVG_PARAMS: FVGParams = {
 };
 
 // Ichimoku's five lines, each with a `<key>Visible` / `<key>Color` pair on
-// IchimokuParams â so the detail screen can render one block per line.
+// IchimokuParams — so the detail screen can render one block per line.
 const ICHIMOKU_LINES = [
   { key: 'tenkan', label: 'Tenkan' },
   { key: 'kijun', label: 'Kijun' },
@@ -504,7 +504,7 @@ function ListScreen({
             {state[item.id].enabled ? (
               <Text style={styles.onBadge}>On</Text>
             ) : null}
-            <Text style={styles.chevron}>âº</Text>
+            <Text style={styles.chevron}>›</Text>
           </Pressable>
         )}
       />
@@ -535,7 +535,7 @@ function Stepper({
           style={styles.stepBtn}
           onPress={() => onChange(Math.max(min, value - step))}
         >
-          <Text style={styles.stepText}>â</Text>
+          <Text style={styles.stepText}>−</Text>
         </Pressable>
         <Text style={styles.stepValue}>{value}</Text>
         <Pressable
@@ -638,7 +638,7 @@ function OverlayLineEditor({
         <Text style={styles.paramLabel}>Source</Text>
         <Pressable style={styles.cycleBtn} onPress={cycleSource}>
           <Text style={styles.cycleText}>{line.source}</Text>
-          <Text style={styles.cycleCaret}>â³</Text>
+          <Text style={styles.cycleCaret}>⟳</Text>
         </Pressable>
       </View>
       <View style={styles.paramRow}>
@@ -709,7 +709,7 @@ function DetailScreen({
     <View style={styles.flex}>
       <View style={styles.navBar}>
         <Pressable style={styles.navSideLeft} onPress={onBack} hitSlop={8}>
-          <Text style={styles.navAction}>â¹ Indicators</Text>
+          <Text style={styles.navAction}>‹ Indicators</Text>
         </Pressable>
         <View style={styles.navSide} />
       </View>
@@ -907,7 +907,7 @@ function DetailScreen({
                   }}
                 >
                   <Text style={styles.cycleText}>{bb.source}</Text>
-                  <Text style={styles.cycleCaret}>â³</Text>
+                  <Text style={styles.cycleCaret}>⟳</Text>
                 </Pressable>
               </View>
               <View style={styles.paramRow}>
@@ -1251,7 +1251,7 @@ function DetailScreen({
             </>
           ) : (
             <Text style={styles.placeholder}>
-              Parameters (period, source, colorâ¦) will appear here once this
+              Parameters (period, source, color…) will appear here once this
               indicator is implemented.
             </Text>
           )}
