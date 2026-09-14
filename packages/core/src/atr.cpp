@@ -48,4 +48,20 @@ void compute(const ::VroomCandle* candles, std::size_t n, int period,
     }
 }
 
+double autoscale(const double* visible, std::size_t n) {
+    double scale = 0.0;
+    if (!visible) return scale;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (std::isfinite(visible[i])) scale = std::max(scale, visible[i]);
+    }
+    return scale;
+}
+
+double band_fraction(double v, double scale, double y_scale) {
+    // Nothing on show yet — everything sits on the baseline rather than
+    // dividing by zero.
+    if (!(scale > 0.0)) return 0.0;
+    return (v / scale) * kBandPadFraction * y_scale;
+}
+
 }  // namespace vroom::atr

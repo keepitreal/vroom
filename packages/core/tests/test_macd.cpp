@@ -140,3 +140,40 @@ TEST_CASE("macd::compute") {
         CHECK(macd[3] != doctest::Approx(close_macd[3]));
     }
 }
+
+TEST_CASE("macd::autoscale fits the band symmetrically about zero") {
+    const double line[] = {1.0, -6.0, 2.0};
+    const double signal[] = {3.0, 1.0, 0.5};
+    const double hist[] = {std::nan(""), 2.0, 1.5};
+
+    SUBCASE("the largest magnitude across every series shown") {
+        CHECK(vroom::macd::autoscale(line, signal, hist, 3) == doctest::Approx(6.0));
+    }
+
+    SUBCASE("a hidden series is passed as null so the rest fill the band") {
+        CHECK(vroom::macd::autoscale(nullptr, signal, hist, 3) == doctest::Approx(3.0));
+    }
+
+    SUBCASE("nothing to plot fits to zero") {
+        CHECK(vroom::macd::autoscale(nullptr, nullptr, nullptr, 3) == doctest::Approx(0.0));
+    }
+}
+
+TEST_CASE("macd::band_fraction maps the amplitude about the pane center") {
+    const double pad = vroom::macd::kBandPadFraction;
+
+    SUBCASE("zero is the pane center, and the extremes are symmetric") {
+        CHECK(vroom::macd::band_fraction(0.0, 4.0, 1.0) == doctest::Approx(0.5));
+        CHECK(vroom::macd::band_fraction(4.0, 4.0, 1.0) == doctest::Approx(0.5 + 0.5 * pad));
+        CHECK(vroom::macd::band_fraction(-4.0, 4.0, 1.0) == doctest::Approx(0.5 - 0.5 * pad));
+    }
+
+    SUBCASE("y-zoom stretches about zero, which stays put") {
+        CHECK(vroom::macd::band_fraction(0.0, 4.0, 3.0) == doctest::Approx(0.5));
+        CHECK(vroom::macd::band_fraction(2.0, 4.0, 2.0) == doctest::Approx(0.5 + 0.5 * pad));
+    }
+
+    SUBCASE("a degenerate fit collapses onto the zero line") {
+        CHECK(vroom::macd::band_fraction(1.0, 0.0, 1.0) == doctest::Approx(0.5));
+    }
+}

@@ -13,6 +13,7 @@ class SkCanvas;
 
 namespace vroom {
 struct Layout;
+struct LineMorph;
 }  // namespace vroom
 
 struct VroomChart;
@@ -23,6 +24,13 @@ namespace vroom::macd_pane {
 // series are aligned with `visible` (NaN where undefined). The vertical scale
 // auto-fits the visible values symmetrically about zero; shares the candles'
 // horizontal mapping (candle_center_x) so it scrolls in lock-step.
+//
+// The three `*_from` captures plus `morph_t` are the interval morph: each holds
+// its series' outgoing shape in fractions of the band, indexed from the right
+// (slot 0 = newest), so the pane can re-fit across the switch without the shape
+// moving. Histogram bars reshape the way candle bodies do — their tops slide
+// while the zero line, which is fixed to the band center, stays put. A fade's
+// outgoing half passes n = 0 with morph_t = 0, painting the captures alone.
 void draw(SkCanvas* canvas,
           const VroomChart& chart,
           const Layout& lay,
@@ -36,6 +44,10 @@ void draw(SkCanvas* canvas,
           int64_t candle_duration_ms,
           float candle_right,
           float pane_top,
-          float pane_bottom);
+          float pane_bottom,
+          const LineMorph* macd_from = nullptr,
+          const LineMorph* signal_from = nullptr,
+          const LineMorph* hist_from = nullptr,
+          float morph_t = 1.f);
 
 }  // namespace vroom::macd_pane

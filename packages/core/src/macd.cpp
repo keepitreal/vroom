@@ -1,6 +1,7 @@
 #include "macd.h"
 
-#include <cmath>  // std::nan, std::isfinite
+#include <algorithm>  // std::max
+#include <cmath>      // std::nan, std::isfinite, std::abs
 
 #include "ma.h"
 #include "series_ma.h"
@@ -34,6 +35,28 @@ void compute(const ::VroomCandle* candles, std::size_t n, int fast, int slow,
             hist_out[i] = macd_out[i] - signal_out[i];
         }
     }
+}
+
+double autoscale(const double* macd, const double* signal, const double* hist,
+                 std::size_t n) {
+    double scale = 0.0;
+    const auto track = [&](const double* s) {
+        if (!s) return;
+        for (std::size_t i = 0; i < n; ++i) {
+            if (std::isfinite(s[i])) scale = std::max(scale, std::abs(s[i]));
+        }
+    };
+    track(macd);
+    track(signal);
+    track(hist);
+    return scale;
+}
+
+double band_fraction(double v, double scale, double y_scale) {
+    // Nothing on show yet — everything collapses onto the zero line rather than
+    // dividing by zero.
+    if (!(scale > 0.0)) return 0.5;
+    return 0.5 + (v / scale) * 0.5 * kBandPadFraction * y_scale;
 }
 
 }  // namespace vroom::macd

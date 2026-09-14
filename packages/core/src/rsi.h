@@ -29,4 +29,11 @@ void compute(const ::VroomCandle* candles, std::size_t n, int period,
 void compute_ma(const std::vector<double>& rsi, int ma_period, int kind,
                 std::vector<double>& out);
 
+// Where an RSI value sits in the pane band, as a fraction of its height — 0 at
+// the bottom edge, 1 at the top. The fixed 0..100 domain maps about the band
+// center so the user's y-axis zoom (`y_scale`, 1 = the default fit) stretches
+// symmetrically around 50. Split out of the renderer so the interval-morph
+// capture maps its geometry through the same math.
+double band_fraction(double v, double y_scale);
+
 }  // namespace vroom::rsi

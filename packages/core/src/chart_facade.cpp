@@ -338,6 +338,7 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     // An asset switch reframes wholesale, so a slot-paired morph is meaningless
     // here — drop any capture rather than leaving it to reshape the wrong data.
     chart->morph_from.clear();
+    chart->morph_lines.clear();
     chart->interval_morph_t = 1.f;
     chart->interval_morph_fade = false;
     apply_default_framing(chart);
@@ -396,6 +397,7 @@ extern "C" void vroom_chart_preserve_price_envelope(VroomChart* chart,
 extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode) {
     if (!chart) return;
     chart->morph_from.clear();
+    chart->morph_lines.clear();
     chart->interval_morph_t = 1.f;
     chart->interval_morph_fade = false;
 
@@ -433,6 +435,10 @@ extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode
         };
     }
 
+    // Every indicator on screen, captured against the same slice and band so
+    // its line keeps its position relative to the candles it reshapes with.
+    chart->capture_morph_lines(lay, bounds, idx, window_ms);
+
     // The scale the capture was taken against — the axes render their outgoing
     // ticks from it, and it's about to be replaced on the chart itself.
     chart->morph_from_bounds = bounds;
@@ -452,6 +458,8 @@ extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (chart->interval_morph_t >= 1.f) {
         chart->morph_from.clear();
         chart->morph_from.shrink_to_fit();
+        chart->morph_lines.clear();
+        chart->morph_lines.shrink_to_fit();
         chart->interval_morph_fade = false;
     }
     chart->mark_dirty();

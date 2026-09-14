@@ -108,3 +108,19 @@ TEST_CASE("rsi::compute_ma") {
         CHECK(ma[4] == doctest::Approx(45.8333333));
     }
 }
+
+TEST_CASE("rsi::band_fraction maps the fixed 0..100 domain about the pane center") {
+    SUBCASE("50 is the center and the domain fills the band") {
+        CHECK(vroom::rsi::band_fraction(50.0, 1.0) == doctest::Approx(0.5));
+        CHECK(vroom::rsi::band_fraction(100.0, 1.0) == doctest::Approx(1.0));
+        CHECK(vroom::rsi::band_fraction(0.0, 1.0) == doctest::Approx(0.0));
+        CHECK(vroom::rsi::band_fraction(70.0, 1.0) == doctest::Approx(0.7));
+    }
+
+    SUBCASE("y-zoom stretches about 50, which stays put") {
+        CHECK(vroom::rsi::band_fraction(50.0, 2.0) == doctest::Approx(0.5));
+        CHECK(vroom::rsi::band_fraction(75.0, 2.0) == doctest::Approx(1.0));
+        // Zoomed in, the domain's ends run past the band and the pane clips them.
+        CHECK(vroom::rsi::band_fraction(100.0, 2.0) == doctest::Approx(1.5));
+    }
+}

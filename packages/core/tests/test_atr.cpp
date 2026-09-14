@@ -110,3 +110,38 @@ TEST_CASE("atr::compute") {
         CHECK(std::isnan(out[0]));
     }
 }
+
+TEST_CASE("atr::autoscale fits the band to the largest value on show") {
+    const double series[] = {1.0, 4.0, 2.0};
+
+    SUBCASE("the peak") { CHECK(vroom::atr::autoscale(series, 3) == doctest::Approx(4.0)); }
+
+    SUBCASE("NaN warmup is skipped rather than poisoning the fit") {
+        const double warm[] = {std::nan(""), 3.0, std::nan("")};
+        CHECK(vroom::atr::autoscale(warm, 3) == doctest::Approx(3.0));
+    }
+
+    SUBCASE("nothing to plot fits to zero") {
+        CHECK(vroom::atr::autoscale(nullptr, 3) == doctest::Approx(0.0));
+        const double all_nan[] = {std::nan(""), std::nan("")};
+        CHECK(vroom::atr::autoscale(all_nan, 2) == doctest::Approx(0.0));
+    }
+}
+
+TEST_CASE("atr::band_fraction maps the 0..peak domain off the bottom edge") {
+    SUBCASE("the baseline sits on the bottom edge and the peak at the pad") {
+        CHECK(vroom::atr::band_fraction(0.0, 4.0, 1.0) == doctest::Approx(0.0));
+        CHECK(vroom::atr::band_fraction(4.0, 4.0, 1.0) ==
+              doctest::Approx(vroom::atr::kBandPadFraction));
+    }
+
+    SUBCASE("y-zoom stretches from the baseline") {
+        CHECK(vroom::atr::band_fraction(4.0, 4.0, 2.0) ==
+              doctest::Approx(vroom::atr::kBandPadFraction * 2.0));
+        CHECK(vroom::atr::band_fraction(0.0, 4.0, 2.0) == doctest::Approx(0.0));
+    }
+
+    SUBCASE("a degenerate fit collapses onto the baseline, not a division by zero") {
+        CHECK(vroom::atr::band_fraction(1.0, 0.0, 1.0) == doctest::Approx(0.0));
+    }
+}

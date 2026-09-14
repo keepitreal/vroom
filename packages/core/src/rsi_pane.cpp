@@ -14,12 +14,16 @@
 #include "include/effects/SkDashPathEffect.h"
 #pragma clang diagnostic pop
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 
 #include "chart.h"
 #include "fonts.h"
+#include "line_morph.h"
+#include "pane_series.h"
+#include "rsi.h"
 #include "style_inherit.h"
 #include "theme.h"
 #include "viewport.h"
@@ -50,19 +54,31 @@ void draw(SkCanvas* canvas,
           int64_t candle_duration_ms,
           float candle_right,
           float pane_top,
-          float pane_bottom) {
-    if (!canvas || n == 0 || candle_right <= 0.f) return;
+          float pane_bottom,
+          const vroom::LineMorph* rsi_from,
+          const vroom::LineMorph* rsi_ma_from,
+          float morph_t) {
+    if (!canvas || candle_right <= 0.f) return;
     const float band_h = pane_bottom - pane_top;
     if (band_h <= 0.f) return;
+    morph_t = std::clamp(morph_t, 0.f, 1.f);
+    // A fade's outgoing half has no new data at all, so the captures are the
+    // whole frame. Nothing on either side means nothing to paint, shell
+    // included.
+    if (n == 0 && vroom::morph_line_count(rsi_from, morph_t) == 0 &&
+        vroom::morph_line_count(rsi_ma_from, morph_t) == 0) {
+        return;
+    }
 
     // Map 0..100 about the pane center so the user y-zoom scales symmetrically
     // around 50. z == 1 reproduces the default fit (0 -> pane_bottom, 100 ->
     // pane_top); z > 1 zooms in (taller), z < 1 zooms out (flatter).
     const VroomRSI& cfg = chart.rsi;
-    const float center_y = (pane_top + pane_bottom) * 0.5f;
-    const float z = static_cast<float>(chart.rsi_y_scale);
     auto y_for = [&](double v) -> float {
-        return center_y - static_cast<float>((v - 50.0) / 100.0) * band_h * z;
+        return pane_bottom -
+               static_cast<float>(
+                   vroom::rsi::band_fraction(v, chart.rsi_y_scale)) *
+                   band_h;
     };
 
     // Mask the band with the background so candles/volume that overflow below
@@ -98,41 +114,27 @@ void draw(SkCanvas* canvas,
 
     // Strokes a value series as a polyline; a NaN lifts the pen so undefined
     // leading values (i < period) leave a gap.
-    auto stroke_series = [&](const double* series, SkColor color, float width) {
-        if (!series) return;
-        SkPathBuilder path;
-        bool pen_down = false;
-        for (std::size_t i = 0; i < n; ++i) {
-            const double v = series[i];
-            if (!std::isfinite(v)) {
-                pen_down = false;
-                continue;
-            }
-            const float x = vroom::candle_center_x(
-                lay, visible[i].time_ms, candle_duration_ms, visible_start_ms,
-                window_ms);
-            const float y = y_for(v);
-            if (pen_down) {
-                path.lineTo(x, y);
-            } else {
-                path.moveTo(x, y);
-                pen_down = true;
-            }
-        }
+    auto stroke_series = [&](const double* series, const vroom::LineMorph* from,
+                             SkColor color, float width) {
+        if (!series && !from) return;
         SkPaint line;
         line.setAntiAlias(true);
         line.setColor(color);
         line.setStyle(SkPaint::kStroke_Style);
         line.setStrokeWidth(width);
-        canvas->drawPath(path.detach(), line);
+        canvas->drawPath(
+            vroom::pane_series::build_path(
+                lay, visible, n, series, window_ms, visible_start_ms,
+                candle_duration_ms, pane_top, pane_bottom, from, morph_t, y_for),
+            line);
     };
     if (cfg.line_visible) {
-        stroke_series(rsi_visible, color_or(cfg.line_color, kRsiLine),
+        stroke_series(rsi_visible, rsi_from, color_or(cfg.line_color, kRsiLine),
                       width_or(cfg.line_width, kLineWidth));
     }
     // Trendline on top. Its own visibility is handled upstream: a hidden
     // trendline isn't computed, so the caller passes null.
-    stroke_series(rsi_ma_visible, color_or(cfg.ma_color, kRsiMaLine),
+    stroke_series(rsi_ma_visible, rsi_ma_from, color_or(cfg.ma_color, kRsiMaLine),
                   width_or(cfg.ma_width, kLineWidth));
 
     // Caption, top-left of the pane.

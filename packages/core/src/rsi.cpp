@@ -53,4 +53,8 @@ void compute_ma(const std::vector<double>& rsi, int ma_period, int kind,
     vroom::series_ma::smooth(rsi, kind, ma_period, out);
 }
 
+double band_fraction(double v, double y_scale) {
+    return 0.5 + ((v - 50.0) / 100.0) * y_scale;
+}
+
 }  // namespace vroom::rsi
