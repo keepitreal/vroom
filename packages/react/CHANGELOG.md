@@ -1,5 +1,119 @@
 # @vroomchart/react
 
+## 0.17.0
+
+### Minor Changes
+
+- 826b701: Add the Average True Range indicator through a new `atr` prop. ATR renders in
+  its own pane below the candles, measuring volatility in price units: True Range
+  is the widest of a bar's own high-low span and the two gaps from its extremes to
+  the previous close, so an overnight move the bar's range misses still counts.
+
+  `smoothing` chooses how that series is averaged — `'rma'` (Wilder's running
+  average, the default every published ATR level assumes), `'sma'`, or `'ema'`.
+  The pane fits `0..peak` anchored at its bottom edge, since ATR is strictly
+  positive and unbounded, and labels the peak in price units.
+
+  The pane stack now holds three panes rather than two, so RSI, MACD, and ATR can
+  all be on at once; they stack in enable order with the most recent at the
+  bottom, and the y-axis strip beside each one zooms that pane.
+
+- 409a0a1: Animate indicator lines through timeframe switches. Previously only the candles
+  and the close line reshaped when the resolution changed — every moving average,
+  VWAP, Bollinger band, Ichimoku line, and the RSI, MACD and ATR panes popped
+  straight to the new resolution's values on the first frame, so the indicators
+  visibly detached from the price series they describe.
+
+  Each series now captures its outgoing shape before the switch and eases into
+  the new one, the same slot pairing the candles use. That covers the Bollinger
+  fill and Ichimoku cloud, which are stitched from the same interpolated vertices
+  as their edge lines rather than detaching from them, and the MACD histogram,
+  whose bars reshape the way candle bodies do. The ATR pane's peak label eases
+  between the two fits alongside its curve.
+
+  With `intervalTransition: 'fade'`, the indicator panes used to disappear
+  outright — background, divider and all — for the first half of the transition.
+  They now fade out with the price series and fade back in with the new data.
+
+  No API change: `intervalTransition` already selected the mode.
+
+- 7fe3fc4: Add inverse Fair Value Gaps, opt-in through `showInverse` on the existing
+  `fairValueGaps` prop. A gap that price closes through keeps its place on the
+  chart with its polarity flipped — a violated bullish gap becomes bearish
+  resistance overhead, a violated bearish gap becomes bullish support — and stays
+  there until price reclaims the band by the same rule `fillType` sets.
+
+  The inverse box starts where the original one stops, so the default pairing with
+  `deleteAfterFill` reads as one continuous story. It takes its own fill colors
+  through `inverseBullishColor` / `inverseBearishColor` and labels itself `iFVG`,
+  overridable with `inverseLabel`.
+
+- 7a609cb: Animate live price updates with the new `streamTransition` prop. A chart fed a
+  growing `candles` array used to apply every update on the next frame with no
+  motion at all: the in-progress bar jumped between shapes, and a newly closed bar
+  appeared without the series moving, so at any real tick rate the chart flickered
+  rather than ran.
+
+  Set `streamTransition: 'transform'` and the two kinds of update animate
+  separately, because they are different motions:
+
+  - A **tick** — the last bar's values change — eases that bar from its old shape
+    into its new one, carrying every indicator reading from it along with the
+    close line. Ticks that arrive faster than the animation lands resume from the
+    shape on screen rather than snapping back, so a fast feed stays smooth.
+  - An **append** — a new bar arrives — slides the window one slot left, so the
+    series translates and the new bar enters at the right edge. Only when the view
+    is still following the newest bar: panned back into history, it is left alone,
+    as is a chart driving its own `visibleRange`. A pan or pinch mid-slide takes
+    over immediately.
+
+  `streamTransitionMs` sets the duration, defaulting to 150 — shorter than
+  `transitionMs`, since ticks can land faster than a 300ms curve. Easing follows
+  `transitionEasing`, and a reduced-motion preference snaps.
+
+  Unlike a timeframe switch, the price axis holds still through a tick: the
+  interval hasn't changed, so its ticks are still the right ones.
+
+  `streamTransition` defaults to `'none'`, which behaves exactly as before.
+
+- 826f014: Add the Fair Value Gap indicator: shaded boxes over three-candle imbalances,
+  where the first and third candles' wicks never overlap and leave a band of price
+  that was skipped.
+
+  Gaps are tracked until price trades back through them — settled by a close past
+  the far edge or by a wick reaching it — and a filled gap either disappears or
+  stops at the bar that filled it. Boxes draw behind the candles with a
+  per-direction fill color and opacity, an optional solid/dotted/dashed outline,
+  and a label that sits inside the box or out past the newest candle when the
+  boxes are extended.
+
+- 7a609cb: Shade the RSI pane where the reading runs past a band. The wash fades out at
+  the rule and deepens the further past it the line goes, so the size of an
+  excursion reads at a glance rather than just the fact of one — colored from the
+  theme's `accentBull` and `accentBear`, and never opaque enough to bury the line
+  or the rule. On by default; turn it off with `rsi.extremeFill: false`.
+- a1185c8: Add the Ichimoku Cloud indicator as a price-pane overlay via the new `ichimoku`
+  prop: Tenkan, Kijun, Senkou Span A/B and Chikou, with the cloud shaded between
+  the leading spans and tinted per direction, splitting cleanly at each crossover.
+
+  Each of the five lines takes its own color, width and visibility, and the cloud
+  takes a color per direction plus an opacity.
+
+  The leading spans plot 26 bars past the newest candle by default, so the chart
+  now reserves that much empty time on the right when it frames itself, and
+  enabling the indicator later pulls the view forward to match.
+
+### Patch Changes
+
+- Updated dependencies [826b701]
+- Updated dependencies [409a0a1]
+- Updated dependencies [7fe3fc4]
+- Updated dependencies [7a609cb]
+- Updated dependencies [826f014]
+- Updated dependencies [7a609cb]
+- Updated dependencies [a1185c8]
+  - @vroomchart/core-wasm@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
