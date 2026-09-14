@@ -57,6 +57,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "beginIntervalMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginStreamMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setIntervalMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
@@ -509,6 +510,24 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
             mode = args[0].asNumber() != 0 ? 1 : 0;
           }
           vroom_chart_begin_interval_morph(chart_, mode);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "beginStreamMorph") {
+    // beginStreamMorph() — capture the visible geometry so the next setCandles
+    // can ease a live tick into place. Leaves the axes alone, and continues
+    // from the shape on screen when one is still animating. Call before
+    // setCandles.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginStreamMorph"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_begin_stream_morph(chart_);
           return jsi::Value::undefined();
         });
   }

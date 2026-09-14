@@ -5,6 +5,7 @@ import type {
   DrawTool,
   TransitionEasing,
   IntervalTransition,
+  StreamTransition,
   UndoRedoState,
 } from '@vroomchart/react';
 
@@ -204,6 +205,10 @@ export type SidebarProps = {
     setEasing: (v: TransitionEasing) => void;
     intervalTransition: IntervalTransition;
     setIntervalTransition: (v: IntervalTransition) => void;
+    streamTransition: StreamTransition;
+    setStreamTransition: (v: StreamTransition) => void;
+    streamTransitionMs: number;
+    setStreamTransitionMs: (v: number) => void;
   };
   data: {
     assets: readonly string[];
@@ -352,6 +357,27 @@ export function Sidebar({
             onChange={animation.setIntervalTransition}
           />
         </Field>
+        <Field label="Live update">
+          <Segmented
+            options={[
+              { label: 'None', value: 'none' as StreamTransition },
+              { label: 'Transform', value: 'transform' as StreamTransition },
+            ]}
+            value={animation.streamTransition}
+            onChange={animation.setStreamTransition}
+          />
+        </Field>
+        <Row label={`Live duration ${animation.streamTransitionMs}ms`}>
+          <input
+            type="range"
+            min={0}
+            max={600}
+            step={25}
+            value={animation.streamTransitionMs}
+            onChange={(e) => animation.setStreamTransitionMs(Number(e.target.value))}
+            style={{ width: 120 }}
+          />
+        </Row>
         <Row label="Easing">
           <select
             value={animation.easing}

@@ -206,6 +206,15 @@ export type TransitionEasing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
  */
 export type IntervalTransition = 'transform' | 'fade';
 
+/**
+ * How a live update to the series being displayed animates. `'none'` (default)
+ * applies it on the next frame with no animation and leaves the viewport where
+ * it is. `'transform'` eases the in-progress bar into its new values and, when
+ * the view is already pinned to the newest bar, slides the series left as each
+ * new bar arrives.
+ */
+export type StreamTransition = 'none' | 'transform';
+
 /** Active drawing tool while in `draw` mode. `null` draws nothing. */
 export type DrawTool = null | 'line' | 'box' | 'pencil' | 'path';
 
@@ -1181,6 +1190,24 @@ export type VroomChartCoreProps = {
    * motion still snaps.
    */
   intervalTransition?: IntervalTransition;
+  /**
+   * How a live update to the series already on screen animates — a tick to the
+   * in-progress bar, or a newly closed bar arriving. `'none'` (default) snaps,
+   * matching a chart with no streaming at all.
+   *
+   * `'transform'` eases the last bar (and every indicator reading from it) from
+   * its old shape into its new one. When a new bar arrives *and* the view is
+   * still pinned to the newest bar, the window advances with it so the series
+   * translates left. A view panned back into history is never moved.
+   */
+  streamTransition?: StreamTransition;
+  /**
+   * Duration (ms) of the `streamTransition` animation. Default ~150 — shorter
+   * than `transitionMs`, since ticks can arrive faster than a 300ms curve can
+   * land. `0` snaps. Follows `transitionEasing`. Ignored (snaps) when the OS
+   * requests reduced motion.
+   */
+  streamTransitionMs?: number;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

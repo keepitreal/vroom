@@ -566,10 +566,26 @@ void vroom_chart_preserve_price_envelope(VroomChart* chart,
 // to 1. No-op when nothing is visible.
 void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode);
 
-// Advances the interval morph started by vroom_chart_begin_interval_morph. `t`
-// (clamped to 0..1) is the eased progress: 0 renders the captured geometry
-// pixel-identically to the pre-swap frame, 1 renders the new candles and
-// releases the capture. Driven per-frame by the host animation loop.
+// Captures the same geometry for a live update to the series already shown —
+// a tick to the in-progress bar. Always a transform, and unlike the interval
+// morph it leaves the axes alone: the interval hasn't changed, so the ticks
+// between the labels are still the right ones and must not be faded.
+//
+// Restarting one that is still running continues from the shape on screen
+// rather than from the data under it, so ticks arriving faster than the
+// animation lands stay smooth instead of snapping back each time.
+//
+// Call before set_candles, then drive vroom_chart_set_interval_morph from 0 to
+// 1. No-op when nothing is visible. Not for an update that appends a bar: slots
+// pair from the right edge, so a new bar would shift every candle onto its
+// neighbour's geometry — advance the visible range instead and let the series
+// translate.
+void vroom_chart_begin_stream_morph(VroomChart* chart);
+
+// Advances the morph started by either begin_*_morph above. `t` (clamped to
+// 0..1) is the eased progress: 0 renders the captured geometry pixel-identically
+// to the pre-swap frame, 1 renders the new candles and releases the capture.
+// Driven per-frame by the host animation loop.
 void vroom_chart_set_interval_morph(VroomChart* chart, float t);
 
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);

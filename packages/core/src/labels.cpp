@@ -74,6 +74,9 @@ void apply_envelope(std::vector<Fade>& fades, float opacity) {
 
 IntervalPhase interval_phase(const VroomChart& chart) {
     if (chart.morph_from.empty() || chart.interval_morph_t >= 1.f) return {};
+    // A live update keeps the same interval, so its ticks are still the right
+    // ones — they stay put and keep their own per-label fades.
+    if (chart.morph_is_stream) return {};
     const float t = chart.interval_morph_t;
     constexpr float kMid = 0.5f;
     if (t < kMid) return {true, true, 1.f - t / kMid};

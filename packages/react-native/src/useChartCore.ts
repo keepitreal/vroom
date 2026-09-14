@@ -3,7 +3,13 @@ import type { MutableRefObject } from 'react';
 
 import NativeVroomChart from './NativeVroomChart';
 import type { DataTransition } from './dataTransitions';
-import { classifyTransition, inferStepMs, timeframeWindow } from './dataTransitions';
+import {
+  classifyStream,
+  classifyTransition,
+  inferStepMs,
+  isPinnedToLatest,
+  timeframeWindow,
+} from './dataTransitions';
 import { ease } from './easing';
 import type { ChartFrame, ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
@@ -24,6 +30,7 @@ import type {
   RSIConfig,
   TransitionEasing,
   IntervalTransition,
+  StreamTransition,
   VisibleRange,
   VolumeConfig,
   VroomTheme,
@@ -372,6 +379,10 @@ export type TransitionOptions = {
   transitionEasing?: TransitionEasing;
   /** `'transform'` (default) slot-lerps; `'fade'` fades out then in. */
   intervalTransition?: IntervalTransition;
+  /** `'transform'` eases live updates; `'none'` (default) snaps them. */
+  streamTransition?: StreamTransition;
+  /** Duration of the stream animation in ms. 0 snaps. Default 150. */
+  streamTransitionMs?: number;
   /** OS reduced-motion preference: skips the capture and snaps. */
   reduceMotion?: boolean;
   /** Receives every morph frame. Without one, data swaps snap. */
@@ -428,6 +439,13 @@ export function useChartCore(
     seriesKey?: string;
   } | null>(null);
   const intervalMorphRaf = useRef<number | null>(null);
+  const streamRaf = useRef<number | null>(null);
+  // Where an in-flight stream shift is headed, so cancelling it can land there
+  // rather than stranding the view mid-slide.
+  const streamWindowRef = useRef<VisibleRange | null>(null);
+  // Whether that loop is the one driving the morph scalar, so settling it never
+  // cuts short a timeframe switch that happens to overlap.
+  const streamMorphRef = useRef(false);
   const [picture, setPicture] = useState<ChartFrame | null>(null);
 
   if (!handleRef.current && size.width > 0 && size.height > 0) {
@@ -443,12 +461,25 @@ export function useChartCore(
     easing: TransitionEasing | undefined;
     reduceMotion: boolean;
     interval: IntervalTransition;
-  }>({ ms: 300, easing: undefined, reduceMotion: false, interval: 'transform' });
+    stream: StreamTransition;
+    streamMs: number;
+  }>({
+    ms: 300,
+    easing: undefined,
+    reduceMotion: false,
+    interval: 'transform',
+    stream: 'none',
+    streamMs: 150,
+  });
   animRef.current = {
     ms: Math.max(0, transition?.transitionMs ?? 300),
     easing: transition?.transitionEasing,
     reduceMotion: transition?.reduceMotion ?? false,
     interval: transition?.intervalTransition === 'fade' ? 'fade' : 'transform',
+    stream: transition?.streamTransition === 'transform' ? 'transform' : 'none',
+    // Shorter than transitionMs by default: ticks can land faster than a 300ms
+    // curve, and every one that does interrupts the last.
+    streamMs: Math.max(0, transition?.streamTransitionMs ?? 150),
   };
   const onFrameRef = useRef(transition?.onFrame);
   onFrameRef.current = transition?.onFrame;
@@ -478,11 +509,90 @@ export function useChartCore(
     intervalMorphRaf.current = requestAnimationFrame(step);
   }, []);
 
+  // Stops an in-flight stream animation and puts the chart somewhere coherent.
+  //
+  // A pending window shift always lands on its target: abandoned mid-slide it
+  // would strand the view between two bars, half a candle off the grid.
+  //
+  // `keepMorph` is for a tick restarting on top of one already running —
+  // beginStreamMorph blends out of the geometry currently on screen, so landing
+  // that geometry first would throw away the very thing it resumes from.
+  const settleStream = useCallback((keepMorph = false) => {
+    if (streamRaf.current != null) {
+      cancelAnimationFrame(streamRaf.current);
+      streamRaf.current = null;
+    }
+    const h = handleRef.current;
+    const target = streamWindowRef.current;
+    streamWindowRef.current = null;
+    if (target) h?.setVisibleRange(target.startMs, target.endMs);
+    if (streamMorphRef.current && !keepMorph) {
+      streamMorphRef.current = false;
+      h?.setIntervalMorph(1);
+    }
+  }, []);
+
+  // Runs the clock for a live update. One loop drives both halves so they land
+  // on the same frame.
+  //
+  // `window` is null for a plain tick; for an append it is where the view has to
+  // end up. The slide is measured from wherever the window is *now*, so a shift
+  // interrupting another continues from the current position instead of
+  // snapping back to the start of the last one.
+  const startStreamAnim = useCallback(
+    (h: ChartHandle, morphing: boolean, window: VisibleRange | null) => {
+      const { streamMs, easing } = animRef.current;
+      let from = window ? h.getVisibleRange() : null;
+      // What the previous frame left the window at. Anything else — a pan, a
+      // pinch — lands somewhere different, which is how the slide notices it is
+      // no longer the only thing moving the view and gets out of the way.
+      // Cheaper than teaching every gesture to cancel it, and it can't miss one.
+      let applied: VisibleRange | null = null;
+      streamWindowRef.current = window;
+      streamMorphRef.current = morphing;
+      const start = performance.now();
+      const step = (now: number) => {
+        if (from && applied) {
+          const now_w = h.getVisibleRange();
+          if (now_w.startMs !== applied.startMs || now_w.endMs !== applied.endMs) {
+            from = null;
+            streamWindowRef.current = null;
+          }
+        }
+        const p = Math.min(1, (now - start) / streamMs);
+        const e = p < 1 ? ease(easing, p) : 1;
+        if (morphing) h.setIntervalMorph(e);
+        if (from && window) {
+          applied = {
+            startMs: Math.round(from.startMs + (window.startMs - from.startMs) * e),
+            endMs: Math.round(from.endMs + (window.endMs - from.endMs) * e),
+          };
+          h.setVisibleRange(applied.startMs, applied.endMs);
+        }
+        const pic = h.render();
+        if (pic) onFrameRef.current?.(pic);
+        if (p < 1) {
+          streamRaf.current = requestAnimationFrame(step);
+        } else {
+          streamRaf.current = null;
+          streamWindowRef.current = null;
+          streamMorphRef.current = false;
+        }
+      };
+      streamRaf.current = requestAnimationFrame(step);
+    },
+    [],
+  );
+
   useEffect(() => {
     return () => {
       if (intervalMorphRaf.current != null) {
         cancelAnimationFrame(intervalMorphRaf.current);
         intervalMorphRaf.current = null;
+      }
+      if (streamRaf.current != null) {
+        cancelAnimationFrame(streamRaf.current);
+        streamRaf.current = null;
       }
     };
   }, []);
@@ -556,6 +666,58 @@ export function useChartCore(
         } | null = null;
         // The pre-swap candle envelope, used to scale-lock the y-axis below.
         let prevEnvelope: { low: number; high: number } | null = null;
+        // Set for an animated live update: whether the last bar reshapes, and
+        // the window an appended bar should pull the view to.
+        let stream: { morph: boolean; window: VisibleRange | null } | null = null;
+        if (transitionKind === 'stream' && prev != null && !explicit) {
+          const { stream: mode, streamMs, reduceMotion } = animRef.current;
+          const stepMs = inferStepMs(candles);
+          if (
+            mode === 'transform' &&
+            streamMs > 0 &&
+            stepMs != null &&
+            !reduceMotion &&
+            onFrameRef.current != null
+          ) {
+            const lastMs = candles[candles.length - 1].timeMs;
+            const prevLastMs = prev.candles[prev.candles.length - 1].timeMs;
+            if (classifyStream(prev.candles, candles) === 'append') {
+              // Pull the window along by exactly what the data advanced, so the
+              // series translates a whole slot and the newest bar holds its
+              // place on screen. Only for a view still following the newest bar
+              // — someone reading history keeps their window.
+              //
+              // No capture here: slots pair from the right edge, so the new bar
+              // would take the previous one's geometry and drag every candle
+              // onto its neighbour. Translating the window moves them by their
+              // own timestamps instead.
+              const w = h.getVisibleRange();
+              const prevStepMs = inferStepMs(prev.candles) ?? stepMs;
+              if (isPinnedToLatest(w, prevLastMs, prevStepMs)) {
+                const by = lastMs - prevLastMs;
+                stream = {
+                  morph: false,
+                  window: { startMs: w.startMs + by, endMs: w.endMs + by },
+                };
+              }
+            } else {
+              stream = { morph: true, window: null };
+            }
+          }
+          if (stream?.morph) {
+            // Keep the geometry on screen for beginStreamMorph to resume from:
+            // at any real tick rate most ticks interrupt the previous one, and
+            // that continuity is what keeps the bar from stuttering.
+            settleStream(true);
+            h.beginStreamMorph();
+          } else {
+            // An append has no use for a capture — it would pair the new bar
+            // with the old one's geometry and drag the whole series along.
+            settleStream();
+          }
+        } else if (transitionKind === 'stream') {
+          settleStream();
+        }
         if (transitionKind === 'timeframe' && prev != null) {
           const oldWindow = h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
@@ -608,6 +770,10 @@ export function useChartCore(
           // Started after the new bounds are in place: the snapshot is in band
           // fractions, so frame 0 still matches the pre-switch pixels exactly.
           if (morphing) startIntervalMorph(h);
+        } else if (stream) {
+          // After setCandles, so the capture (and the window it slides from) is
+          // measured against the data the animation is heading toward.
+          startStreamAnim(h, stream.morph, stream.window);
         } else if (transitionKind === 'reset') {
           h.resetView();
         }
@@ -660,7 +826,7 @@ export function useChartCore(
     // fairValueGaps/volume/priceLines/footprints are represented by their *Key
     // deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph]);
+  }, [candles, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, endIntervalMorph, startStreamAnim, settleStream]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

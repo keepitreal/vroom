@@ -109,3 +109,64 @@ TEST_CASE("lookup pairs a series only with its own capture") {
         CHECK(find_line_morph(lines, LineKey{LineKind::MacdSignal}) == nullptr);
     }
 }
+
+TEST_CASE("blending resumes an interrupted capture, matching series by key") {
+    using vroom::blend_line_morphs;
+
+    const auto at = [](LineKey key, float y, bool valid = true) {
+        LineMorph m;
+        m.key = key;
+        m.pts.assign(2, LineSnapshot{0.f, y, valid});
+        return m;
+    };
+
+    std::vector<LineMorph> interrupted;
+    interrupted.push_back(at(LineKey{LineKind::Rsi}, 0.2f));
+    interrupted.push_back(at(LineKey{LineKind::Overlay, 0, 7}, 0.2f));
+
+    SUBCASE("a captured series starts from where it was on screen") {
+        std::vector<LineMorph> fresh;
+        fresh.push_back(at(LineKey{LineKind::Rsi}, 0.6f));
+        blend_line_morphs(fresh, interrupted, 0.5f);
+        CHECK(fresh[0].pts[0].y == doctest::Approx(0.4f));
+        CHECK(fresh[0].pts[1].y == doctest::Approx(0.4f));
+    }
+
+    SUBCASE("an indicator enabled between two ticks keeps its fresh capture") {
+        // Nothing of it was on screen to resume from, so it draws its own shape
+        // rather than sliding out of another series' geometry.
+        std::vector<LineMorph> fresh;
+        fresh.push_back(at(LineKey{LineKind::MacdSignal}, 0.6f));
+        blend_line_morphs(fresh, interrupted, 0.5f);
+        CHECK(fresh[0].pts[0].y == doctest::Approx(0.6f));
+    }
+
+    SUBCASE("an overlay whose period changed finds no counterpart") {
+        std::vector<LineMorph> fresh;
+        fresh.push_back(at(LineKey{LineKind::Overlay, 0, 4}, 0.6f));
+        blend_line_morphs(fresh, interrupted, 0.5f);
+        CHECK(fresh[0].pts[0].y == doctest::Approx(0.6f));
+    }
+
+    SUBCASE("a warmup gap on either side leaves the slot alone") {
+        std::vector<LineMorph> fresh;
+        fresh.push_back(at(LineKey{LineKind::Rsi}, 0.6f));
+        fresh[0].pts[0].valid = false;
+        blend_line_morphs(fresh, interrupted, 0.5f);
+        CHECK(fresh[0].pts[0].valid == false);
+        CHECK(fresh[0].pts[1].y == doctest::Approx(0.4f));
+    }
+
+    SUBCASE("the pane's auto-fit eases with its line") {
+        // The ATR label reads this back mid-morph, so a snap here would show as
+        // the peak label jumping while the curve underneath slides.
+        std::vector<LineMorph> prev;
+        prev.push_back(at(LineKey{LineKind::Atr}, 0.2f));
+        prev[0].scale = 10.0;
+        std::vector<LineMorph> fresh;
+        fresh.push_back(at(LineKey{LineKind::Atr}, 0.6f));
+        fresh[0].scale = 20.0;
+        blend_line_morphs(fresh, prev, 0.5f);
+        CHECK(fresh[0].scale == doctest::Approx(15.0));
+    }
+}

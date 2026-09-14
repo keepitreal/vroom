@@ -17,6 +17,7 @@ import {
   type FootprintEvent,
   type FootprintSide,
   type IntervalTransition,
+  type StreamTransition,
   type MovingAverageOverlay,
   type PlotRect,
   type PriceLine,
@@ -108,6 +109,46 @@ function mockCandles(n: number, stepMs: number, spot: number): Candle[] {
     close = open;
   }
   return out;
+}
+
+// Moves the in-progress bar the way a trade print does: the close wanders, and
+// the high/low only ever widen to take it in. Keeps the timestamp, which is what
+// makes this a tick rather than a new bar.
+function tickLastCandle(prev: Candle[], stepMs: number): Candle[] {
+  if (prev.length === 0) return prev;
+  const last = prev[prev.length - 1];
+  const vol = Math.abs(last.close) * 0.02 * Math.sqrt(stepMs / MINUTE);
+  const close = last.close + (Math.random() - 0.5) * vol;
+  return [
+    ...prev.slice(0, -1),
+    {
+      ...last,
+      close,
+      high: Math.max(last.high, close),
+      low: Math.min(last.low, close),
+      volume: (last.volume ?? 0) + Math.random() * 50,
+    },
+  ];
+}
+
+// Closes the in-progress bar and opens the next one at its close, one step on.
+function appendCandle(prev: Candle[], stepMs: number): Candle[] {
+  if (prev.length === 0) return prev;
+  const last = prev[prev.length - 1];
+  const open = last.close;
+  const vol = Math.abs(open) * 0.02 * Math.sqrt(stepMs / MINUTE);
+  const close = open + (Math.random() - 0.5) * vol;
+  return [
+    ...prev,
+    {
+      timeMs: last.timeMs + stepMs,
+      open,
+      close,
+      high: Math.max(open, close) + Math.random() * vol * 0.5,
+      low: Math.min(open, close) - Math.random() * vol * 0.5,
+      volume: Math.random() * 1000,
+    },
+  ];
 }
 
 // A price line plus the label prefix its `text` is built from, so a drag can
@@ -372,10 +413,49 @@ function Select<T extends { label: string }>({
 export default function App() {
   const [selected, setSelected] = useState<Interval>(INTERVALS[0]);
   const [scale, setScale] = useState<PriceScale>(PRICE_SCALES[0]);
-  const candles = useMemo(
-    () => mockCandles(1000, selected.ms, scale.spot),
-    [selected, scale],
+  // State rather than a memo so the streaming controls below can push new bars
+  // into it. Re-seeded whenever the interval or asset changes, which is what the
+  // memo used to do.
+  const [candles, setCandles] = useState<Candle[]>(() =>
+    mockCandles(1000, INTERVALS[0].ms, PRICE_SCALES[0].spot),
   );
+  useEffect(() => {
+    setCandles(mockCandles(1000, selected.ms, scale.spot));
+  }, [selected, scale]);
+
+  const [streamTransition, setStreamTransition] =
+    useState<StreamTransition>('transform');
+  const [live, setLive] = useState(false);
+  // Which of the two the live loop (and the manual button) produces: a tick
+  // reshapes the last bar in place, an append translates the series left.
+  const [streamMode, setStreamMode] = useState<'tick' | 'append'>('tick');
+  const stepMs = selected.ms;
+  const pushUpdate = useCallback(() => {
+    setCandles((c) =>
+      streamMode === 'append' ? appendCandle(c, stepMs) : tickLastCandle(c, stepMs),
+    );
+  }, [streamMode, stepMs]);
+  useEffect(() => {
+    if (!live) return;
+    const id = setInterval(pushUpdate, 700);
+    return () => clearInterval(id);
+  }, [live, pushUpdate]);
+  const onPushUpdate = useCallback(() => {
+    pushUpdate();
+    Haptics.selectionAsync().catch(() => {});
+  }, [pushUpdate]);
+  const toggleLive = useCallback(() => {
+    setLive((v) => !v);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+  const toggleStreamMode = useCallback(() => {
+    setStreamMode((m) => (m === 'append' ? 'tick' : 'append'));
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
+  const toggleStreamTransition = useCallback(() => {
+    setStreamTransition((t) => (t === 'transform' ? 'none' : 'transform'));
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
 
   const [chartType, setChartType] = useState<ChartType>('candles');
   const [intervalTransition, setIntervalTransition] =
@@ -656,6 +736,7 @@ export default function App() {
             candles={candles}
             chartType={chartType}
             intervalTransition={intervalTransition}
+            streamTransition={streamTransition}
             theme={theme}
             style={styles.chart}
             onCrosshair={handleCrosshair}
@@ -767,6 +848,70 @@ export default function App() {
                   ]}
                 >
                   {intervalTransition === 'fade' ? 'Fade' : 'Xf'}
+                </Text>
+              </Pressable>
+
+              {/* Live updates. Three buttons: what a push does, one push, and
+                  whether they arrive on their own — enough to watch a tick ease
+                  in place and a series translate left without a feed. */}
+              <Pressable
+                style={[styles.fnBtn, streamMode === 'append' && styles.fnBtnActive]}
+                onPress={toggleStreamMode}
+                accessibilityLabel="Live update kind. Tick reshapes the last bar; append adds a new one."
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    streamMode === 'append' && styles.fnSymbolActive,
+                  ]}
+                >
+                  {streamMode === 'append' ? 'Add' : 'Tick'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.fnBtn}
+                onPress={onPushUpdate}
+                accessibilityLabel="Push one live update."
+              >
+                <Text style={[styles.fnSymbol, styles.fnNumber]}>+1</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, live && styles.fnBtnActive]}
+                onPress={toggleLive}
+                accessibilityLabel="Stream live updates on a timer."
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    live && styles.fnSymbolActive,
+                  ]}
+                >
+                  Live
+                </Text>
+              </Pressable>
+
+              {/* The animation itself, so its absence is one tap away when
+                  something looks wrong and you need to see the raw jump. */}
+              <Pressable
+                style={[
+                  styles.fnBtn,
+                  streamTransition === 'transform' && styles.fnBtnActive,
+                ]}
+                onPress={toggleStreamTransition}
+                accessibilityLabel="Animate live updates, or apply them instantly."
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    streamTransition === 'transform' && styles.fnSymbolActive,
+                  ]}
+                >
+                  Anim
                 </Text>
               </Pressable>
 

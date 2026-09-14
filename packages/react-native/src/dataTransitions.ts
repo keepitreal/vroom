@@ -127,6 +127,53 @@ export function classifyTransition(
 }
 
 /**
+ * What a `'stream'` update did to the series: `'tick'` revised the bar already
+ * on screen, `'append'` brought at least one new one.
+ *
+ * The two animate by different means. A tick keeps the bar count, so the morph
+ * capture's slots still pair one-to-one and the last bar can reshape in place.
+ * An append can't use that capture at all — slots pair from the right edge, so
+ * a new bar shifts every candle onto its neighbour's geometry — and instead
+ * advances the visible window, which translates the series left and lets the
+ * new bar in at the right edge.
+ */
+export type StreamKind = 'tick' | 'append';
+
+/**
+ * Which of the two a `'stream'` transition is. Read from the newest timestamp
+ * rather than a length comparison, so a rolling buffer that drops a bar from
+ * the front as it adds one to the back still reads as an append.
+ *
+ * An update that both appends and revises the bar that just closed counts as an
+ * append: the translation is the dominant motion, and the revision is a final
+ * print that has nowhere to slot-pair to.
+ */
+export function classifyStream(prev: Candle[], next: Candle[]): StreamKind {
+  if (prev.length === 0 || next.length === 0) return 'tick';
+  return next[next.length - 1].timeMs > prev[prev.length - 1].timeMs
+    ? 'append'
+    : 'tick';
+}
+
+/**
+ * Whether the view is still following the newest bar, which is what decides if
+ * an appended bar should pull the window along with it.
+ *
+ * True when the right edge sits at or past the newest bar's slot *end* — where
+ * the default framing leaves it, plus whatever gap it reserved. Someone who has
+ * panned back into history falls below that and is left where they are: nothing
+ * is more disorienting than the chart walking out from under you while you read
+ * it.
+ */
+export function isPinnedToLatest(
+  window: VisibleRange,
+  lastMs: number,
+  stepMs: number,
+): boolean {
+  return window.endMs >= lastMs + stepMs;
+}
+
+/**
  * The visible window to apply after a timeframe switch so each candle keeps
  * the exact pixel width it had before: the visible slot count is preserved and
  * the right edge re-anchors on the newest candle (any future-gap overshoot is

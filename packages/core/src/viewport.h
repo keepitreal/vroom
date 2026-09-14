@@ -108,6 +108,41 @@ inline std::size_t morph_from_count(const CandleSnapshot* from,
 // anything else = fade the outgoing snapshot out then the new scene in.
 inline bool interval_morph_is_fade(int32_t mode) { return mode != 0; }
 
+// Rewrites a fresh capture so it starts from the shape currently on screen
+// rather than from the data underneath it. Live ticks arrive faster than a
+// morph lands, so every restart interrupts one; without this the bar would jump
+// back to its un-morphed position on each tick, which is the snap the animation
+// exists to remove.
+//
+// `interrupted` is the capture being replaced and `morph_t` the progress it had
+// reached, so `dst` becomes exactly the frame that was being painted: the draw
+// path interpolates in this same fraction space (see candles::draw), which is
+// what makes a plain lerp here land pixel-exact.
+//
+// Slot 0 is the newest in both, so a differing visible count only drops the
+// oldest slots — those keep the fresh capture, which is where they already are.
+inline void blend_candle_snapshots(CandleSnapshot* dst, std::size_t dst_n,
+                                   const CandleSnapshot* interrupted,
+                                   std::size_t interrupted_n, float morph_t) {
+    if (!dst || !interrupted) return;
+    const std::size_t n = dst_n < interrupted_n ? dst_n : interrupted_n;
+    for (std::size_t k = 0; k < n; ++k) {
+        const CandleSnapshot& from = interrupted[k];
+        CandleSnapshot& to = dst[k];
+        const auto mix = [morph_t](float a, float b) {
+            return a + (b - a) * morph_t;
+        };
+        to.open = mix(from.open, to.open);
+        to.high = mix(from.high, to.high);
+        to.low = mix(from.low, to.low);
+        to.close = mix(from.close, to.close);
+        to.x = mix(from.x, to.x);
+        // `bull` stays the fresh one: the draw path colors a paired slot from
+        // the live candle and only reads the capture's flag for a slot the next
+        // update drops, where the newer direction is the better answer.
+    }
+}
+
 // Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
 // When both are 0, returns the full range (Phase 1 default-everything behavior).
 // Candles must be sorted ascending by time_ms (invariant of the public API).

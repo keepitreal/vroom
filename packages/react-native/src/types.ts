@@ -25,6 +25,7 @@ export type {
   ChartType,
   TransitionEasing,
   IntervalTransition,
+  StreamTransition,
   PriceLine,
   PriceLinesStyle,
   Footprint,

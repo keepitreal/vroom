@@ -394,12 +394,17 @@ extern "C" void vroom_chart_preserve_price_envelope(VroomChart* chart,
     chart->mark_dirty();
 }
 
-extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode) {
-    if (!chart) return;
+// Captures the visible candles and every indicator on screen into the chart's
+// morph slots, normalized so the result survives the bounds change and any
+// resize that lands mid-morph. Leaves `morph_from` empty (and the morph closed)
+// when there is nothing to capture. Shared by the timeframe switch and the live
+// stream update, which differ only in what they do with the capture afterwards.
+static void capture_morph(VroomChart* chart) {
     chart->morph_from.clear();
     chart->morph_lines.clear();
     chart->interval_morph_t = 1.f;
     chart->interval_morph_fade = false;
+    chart->morph_is_stream = false;
 
     const auto lay = chart->layout();
     const float area_w = vroom::candle_area_width(lay);
@@ -444,11 +449,51 @@ extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode
     chart->morph_from_bounds = bounds;
     chart->morph_from_start_ms = chart->visible_start_ms;
     chart->morph_from_end_ms = chart->visible_end_ms;
+}
+
+extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode) {
+    if (!chart) return;
+    capture_morph(chart);
+    if (chart->morph_from.empty()) return;
 
     // Open the morph at 0 rather than leaving it at 1: the caller still has to
     // push the new candles, and any frame painted in between should show the
     // captured geometry — which is what the pre-switch frame looked like.
     chart->interval_morph_fade = vroom::interval_morph_is_fade(mode);
+    chart->interval_morph_t = 0.f;
+}
+
+extern "C" void vroom_chart_begin_stream_morph(VroomChart* chart) {
+    if (!chart) return;
+
+    // Ticks arrive faster than the morph lands, so nearly every one interrupts
+    // the last. Keep what was on screen and fold it into the fresh capture
+    // below; dropping it would snap the bar back to its un-morphed shape on
+    // every tick. Only a stream capture is worth continuing from — a timeframe
+    // switch in flight is a different, larger motion, and a tick landing in the
+    // middle of one should let it finish rather than inherit its geometry.
+    std::vector<vroom::CandleSnapshot> interrupted;
+    std::vector<vroom::LineMorph> interrupted_lines;
+    float interrupted_t = 1.f;
+    if (chart->morph_is_stream && chart->interval_morph_t < 1.f) {
+        interrupted.swap(chart->morph_from);
+        interrupted_lines.swap(chart->morph_lines);
+        interrupted_t = chart->interval_morph_t;
+    }
+
+    capture_morph(chart);
+    if (chart->morph_from.empty()) return;
+
+    if (!interrupted.empty()) {
+        vroom::blend_candle_snapshots(chart->morph_from.data(),
+                                      chart->morph_from.size(),
+                                      interrupted.data(), interrupted.size(),
+                                      interrupted_t);
+        vroom::blend_line_morphs(chart->morph_lines, interrupted_lines,
+                                 interrupted_t);
+    }
+
+    chart->morph_is_stream = true;
     chart->interval_morph_t = 0.f;
 }
 
@@ -461,6 +506,7 @@ extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
         chart->morph_lines.clear();
         chart->morph_lines.shrink_to_fit();
         chart->interval_morph_fade = false;
+        chart->morph_is_stream = false;
     }
     chart->mark_dirty();
 }

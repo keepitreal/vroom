@@ -659,3 +659,63 @@ TEST_CASE("interval_morph_is_fade") {
         CHECK(vroom::interval_morph_is_fade(2));
     }
 }
+
+// A live tick restarts the morph before the previous one has landed, so the
+// fresh capture is rewritten to begin from the shape on screen. Getting this
+// wrong shows up as the in-progress bar snapping back on every tick.
+TEST_CASE("blend_candle_snapshots resumes from the interrupted shape") {
+    using vroom::CandleSnapshot;
+    // Slot 0 sat at 0.2 and was on its way to 0.6 when the next tick landed.
+    const CandleSnapshot interrupted{0.9f, 0.2f, 0.2f, 0.2f, 0.2f, true};
+    CandleSnapshot fresh{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, false};
+
+    SUBCASE("halfway through, the capture starts from the midpoint") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
+        CHECK(fresh.open == doctest::Approx(0.4f));
+        CHECK(fresh.high == doctest::Approx(0.4f));
+        CHECK(fresh.low == doctest::Approx(0.4f));
+        CHECK(fresh.close == doctest::Approx(0.4f));
+    }
+
+    SUBCASE("a tick landing immediately keeps the older shape whole") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.f);
+        CHECK(fresh.close == doctest::Approx(0.2f));
+    }
+
+    SUBCASE("a tick landing after the morph settled leaves the fresh capture") {
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 1.f);
+        CHECK(fresh.close == doctest::Approx(0.6f));
+    }
+
+    SUBCASE("direction comes from the fresh capture, which is never blended") {
+        // Only read for a slot a later update drops, where the newer answer is
+        // the right one — and a bool has no midpoint to lerp to anyway.
+        vroom::blend_candle_snapshots(&fresh, 1, &interrupted, 1, 0.5f);
+        CHECK(fresh.bull == false);
+    }
+}
+
+TEST_CASE("blend_candle_snapshots pairs from the right edge") {
+    using vroom::CandleSnapshot;
+    // Slot 0 is the newest in both, so a window holding one fewer bar than the
+    // previous capture drops the oldest — not the bar being ticked.
+    const CandleSnapshot interrupted[2] = {{0.9f, 0.2f, 0.2f, 0.2f, 0.2f, true},
+                                           {0.8f, 0.2f, 0.2f, 0.2f, 0.2f, true}};
+    CandleSnapshot fresh[3] = {{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true},
+                               {0.8f, 0.6f, 0.6f, 0.6f, 0.6f, true},
+                               {0.7f, 0.6f, 0.6f, 0.6f, 0.6f, true}};
+
+    vroom::blend_candle_snapshots(fresh, 3, interrupted, 2, 0.5f);
+
+    CHECK(fresh[0].close == doctest::Approx(0.4f));
+    CHECK(fresh[1].close == doctest::Approx(0.4f));
+    // No counterpart: it is already where it belongs, so it stays put.
+    CHECK(fresh[2].close == doctest::Approx(0.6f));
+}
+
+TEST_CASE("blend_candle_snapshots tolerates an absent capture") {
+    using vroom::CandleSnapshot;
+    CandleSnapshot fresh{0.9f, 0.6f, 0.6f, 0.6f, 0.6f, true};
+    vroom::blend_candle_snapshots(&fresh, 1, nullptr, 0, 0.5f);
+    CHECK(fresh.close == doctest::Approx(0.6f));
+}

@@ -33,10 +33,18 @@ import {
   FOOTPRINT_BUY,
   FOOTPRINT_SELL,
 } from '@vroomchart/core-wasm';
-import type { IntervalTransition, TransitionEasing, VroomChartCoreProps } from '@vroomchart/types';
+import type {
+  IntervalTransition,
+  StreamTransition,
+  TransitionEasing,
+  VisibleRange,
+  VroomChartCoreProps,
+} from '@vroomchart/types';
 import {
+  classifyStream,
   classifyTransition,
   inferStepMs,
+  isPinnedToLatest,
   timeframeWindow,
   type DataTransition,
 } from './dataTransitions';
@@ -447,6 +455,8 @@ export function useChartCore(
     transitionMs,
     transitionEasing,
     intervalTransition,
+    streamTransition,
+    streamTransitionMs,
     theme,
     rsi,
     macd,
@@ -478,6 +488,13 @@ export function useChartCore(
   } | null>(null);
   const rafRef = useRef<number | null>(null);
   const intervalMorphRafRef = useRef<number | null>(null);
+  const streamRafRef = useRef<number | null>(null);
+  // Where an in-flight stream shift is headed, so cancelling it can land there
+  // rather than stranding the view mid-slide.
+  const streamWindowRef = useRef<VisibleRange | null>(null);
+  // Whether that loop is the one driving the morph scalar, so settling it never
+  // cuts short a timeframe switch that happens to overlap.
+  const streamMorphRef = useRef(false);
   // Volume-bar collapse: the last value handed to the core (null until the first
   // sync), so the data effect can restore it and a toggle mid-animation can
   // reverse from where it is. Declared up here because the data effect reads it.
@@ -492,15 +509,23 @@ export function useChartCore(
     ms: number;
     easing: TransitionEasing | undefined;
     interval: IntervalTransition;
+    stream: StreamTransition;
+    streamMs: number;
   }>({
     ms: 300,
     easing: undefined,
     interval: 'transform',
+    stream: 'none',
+    streamMs: 150,
   });
   animRef.current = {
     ms: Math.max(0, transitionMs ?? 300),
     easing: transitionEasing,
     interval: intervalTransition === 'fade' ? 'fade' : 'transform',
+    stream: streamTransition === 'transform' ? 'transform' : 'none',
+    // Shorter than transitionMs by default: ticks can land faster than a 300ms
+    // curve, and every one that does interrupts the last.
+    streamMs: Math.max(0, streamTransitionMs ?? 150),
   };
 
   // Captured at mount: which core to load (stub vs Skia-WASM). Changing it after
@@ -553,6 +578,81 @@ export function useChartCore(
     intervalMorphRafRef.current = requestAnimationFrame(step);
   }, []);
 
+  // Stops an in-flight stream animation and puts the chart somewhere coherent.
+  //
+  // A pending window shift always lands on its target: abandoned mid-slide it
+  // would strand the view between two bars, half a candle off the grid.
+  //
+  // `keepMorph` is for a tick restarting on top of one already running —
+  // beginStreamMorph blends out of the geometry currently on screen, so landing
+  // that geometry first would throw away the very thing it resumes from.
+  const settleStream = useCallback((keepMorph = false) => {
+    if (streamRafRef.current != null) {
+      cancelAnimationFrame(streamRafRef.current);
+      streamRafRef.current = null;
+    }
+    const h = handleRef.current;
+    const target = streamWindowRef.current;
+    streamWindowRef.current = null;
+    if (target) h?.setVisibleRange(target.startMs, target.endMs);
+    if (streamMorphRef.current && !keepMorph) {
+      streamMorphRef.current = false;
+      h?.setIntervalMorph(1);
+    }
+  }, []);
+
+  // Runs the clock for a live update. One loop drives both halves so they land
+  // on the same frame.
+  //
+  // `window` is null for a plain tick; for an append it is where the view has to
+  // end up. The slide is measured from wherever the window is *now*, so a shift
+  // interrupting another continues from the current position instead of
+  // snapping back to the start of the last one.
+  const startStreamAnim = useCallback(
+    (h: VroomChartHandle, morphing: boolean, window: VisibleRange | null) => {
+      const { streamMs, easing } = animRef.current;
+      let from = window ? h.getVisibleRange() : null;
+      // What the previous frame left the window at. Anything else — a pan, a
+      // pinch, a wheel — lands somewhere different, which is how the slide
+      // notices it is no longer the only thing moving the view and gets out of
+      // the way. Cheaper than teaching every gesture to cancel it, and it can't
+      // miss one.
+      let applied: VisibleRange | null = null;
+      streamWindowRef.current = window;
+      streamMorphRef.current = morphing;
+      const start = performance.now();
+      const step = (now: number) => {
+        if (from && applied) {
+          const now_w = h.getVisibleRange();
+          if (now_w.startMs !== applied.startMs || now_w.endMs !== applied.endMs) {
+            from = null;
+            streamWindowRef.current = null;
+          }
+        }
+        const p = Math.min(1, (now - start) / streamMs);
+        const e = p < 1 ? ease(easing, p) : 1;
+        if (morphing) h.setIntervalMorph(e);
+        if (from && window) {
+          applied = {
+            startMs: Math.round(from.startMs + (window.startMs - from.startMs) * e),
+            endMs: Math.round(from.endMs + (window.endMs - from.endMs) * e),
+          };
+          h.setVisibleRange(applied.startMs, applied.endMs);
+        }
+        h.present();
+        if (p < 1) {
+          streamRafRef.current = requestAnimationFrame(step);
+        } else {
+          streamRafRef.current = null;
+          streamWindowRef.current = null;
+          streamMorphRef.current = false;
+        }
+      };
+      streamRafRef.current = requestAnimationFrame(step);
+    },
+    [],
+  );
+
   // Create the handle once the canvas exists; destroy on unmount.
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -569,6 +669,8 @@ export function useChartCore(
       rafRef.current = null;
       if (intervalMorphRafRef.current != null) cancelAnimationFrame(intervalMorphRafRef.current);
       intervalMorphRafRef.current = null;
+      if (streamRafRef.current != null) cancelAnimationFrame(streamRafRef.current);
+      streamRafRef.current = null;
       handleRef.current?.destroy();
       handleRef.current = null;
       setReady(false);
@@ -645,6 +747,52 @@ export function useChartCore(
         // The pre-swap candle envelope, used to scale-lock the y-axis below.
         let prevEnvelope: { low: number; high: number } | null = null;
         let willMorph = false;
+        // Set for an animated live update: whether the last bar reshapes, and
+        // the window an appended bar should pull the view to.
+        let stream: { morph: boolean; window: VisibleRange | null } | null = null;
+        if (transition === 'stream' && prev != null && !explicit) {
+          const { stream: mode, streamMs } = animRef.current;
+          const stepMs = inferStepMs(candles);
+          if (mode === 'transform' && streamMs > 0 && stepMs != null && !prefersReducedMotion()) {
+            const lastMs = candles[candles.length - 1].timeMs;
+            const prevLastMs = prev.candles[prev.candles.length - 1].timeMs;
+            if (classifyStream(prev.candles, candles) === 'append') {
+              // Pull the window along by exactly what the data advanced, so the
+              // series translates a whole slot and the newest bar holds its
+              // place on screen. Only for a view still following the newest bar
+              // — someone reading history keeps their window.
+              //
+              // No capture here: slots pair from the right edge, so the new bar
+              // would take the previous one's geometry and drag every candle
+              // onto its neighbour. Translating the window moves them by their
+              // own timestamps instead.
+              const w = h.getVisibleRange();
+              const prevStepMs = inferStepMs(prev.candles) ?? stepMs;
+              if (isPinnedToLatest(w, prevLastMs, prevStepMs)) {
+                const by = lastMs - prevLastMs;
+                stream = {
+                  morph: false,
+                  window: { startMs: w.startMs + by, endMs: w.endMs + by },
+                };
+              }
+            } else {
+              stream = { morph: true, window: null };
+            }
+          }
+          if (stream?.morph) {
+            // Keep the geometry on screen for beginStreamMorph to resume from:
+            // at any real tick rate most ticks interrupt the previous one, and
+            // that continuity is what keeps the bar from stuttering.
+            settleStream(true);
+            h.beginStreamMorph();
+          } else {
+            // An append has no use for a capture — it would pair the new bar
+            // with the old one's geometry and drag the whole series along.
+            settleStream();
+          }
+        } else if (transition === 'stream') {
+          settleStream();
+        }
         if (transition === 'timeframe' && prev != null) {
           const oldWindow = h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
@@ -703,6 +851,10 @@ export function useChartCore(
           // Started after the new bounds are in place: the snapshot is in band
           // fractions, so frame 0 still matches the pre-switch pixels exactly.
           if (willMorph) startIntervalMorph(h);
+        } else if (stream) {
+          // After setCandles, so the capture (and the window it slides from) is
+          // measured against the data the animation is heading toward.
+          startStreamAnim(h, stream.morph, stream.window);
         } else if (transition === 'reset') {
           h.resetView();
         }
@@ -754,7 +906,7 @@ export function useChartCore(
     // fairValueGaps/volume/drawings/liquidity/priceLines/footprints tracked via
     // *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph]);
+  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph, startStreamAnim, settleStream]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

@@ -16,6 +16,7 @@ import {
   type FootprintEvent,
   type TransitionEasing,
   type IntervalTransition,
+  type StreamTransition,
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
@@ -576,6 +577,11 @@ export function App() {
   });
   const [intervalTransition, setIntervalTransition] =
     useState<IntervalTransition>('transform');
+  // On by default here so the Streaming controls below exercise it without a
+  // second click; the prop itself defaults to 'none'.
+  const [streamTransition, setStreamTransition] =
+    useState<StreamTransition>('transform');
+  const [streamTransitionMs, setStreamTransitionMs] = useState(150);
   useEffect(() => {
     if (!showLiquidity) return;
     const id = setInterval(() => setLiqTick((t) => t + 1), 700);
@@ -1082,6 +1088,8 @@ export function App() {
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
+                  streamTransition={streamTransition}
+                  streamTransitionMs={streamTransitionMs}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   liquidity={showLiquidity ? demoLiquidity : undefined}
                   {...priceLineProps}
@@ -1101,6 +1109,8 @@ export function App() {
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
+                  streamTransition={streamTransition}
+                  streamTransitionMs={streamTransitionMs}
                   defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                   onCrosshair={onSecondaryCrosshair}
                   crosshairOverride={xhair}
@@ -1121,6 +1131,8 @@ export function App() {
                 transitionMs={transitionMs}
                 transitionEasing={easing}
                 intervalTransition={intervalTransition}
+                streamTransition={streamTransition}
+                streamTransitionMs={streamTransitionMs}
                 defaultCandleWidth={candleWidth > 0 ? candleWidth : undefined}
                 liquidity={showLiquidity ? demoLiquidity : undefined}
                 {...priceLineProps}
@@ -1144,6 +1156,10 @@ export function App() {
               setEasing,
               intervalTransition,
               setIntervalTransition,
+              streamTransition,
+              setStreamTransition,
+              streamTransitionMs,
+              setStreamTransitionMs,
             }}
             data={{
               assets: Object.keys(ASSETS),

@@ -158,6 +158,7 @@ class WebChart {
   void beginIntervalMorph(int32_t mode) {
     vroom_chart_begin_interval_morph(chart_, mode);
   }
+  void beginStreamMorph() { vroom_chart_begin_stream_morph(chart_); }
   void setIntervalMorph(double t) {
     vroom_chart_set_interval_morph(chart_, static_cast<float>(t));
   }
@@ -790,6 +791,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("getVisiblePriceEnvelope", &WebChart::getVisiblePriceEnvelope)
       .function("preservePriceEnvelope", &WebChart::preservePriceEnvelope)
       .function("beginIntervalMorph", &WebChart::beginIntervalMorph)
+      .function("beginStreamMorph", &WebChart::beginStreamMorph)
       .function("setIntervalMorph", &WebChart::setIntervalMorph)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)

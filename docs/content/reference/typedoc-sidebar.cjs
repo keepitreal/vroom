@@ -123,6 +123,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/StreamTransition",
+          label: "StreamTransition"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/TransitionEasing",
           label: "TransitionEasing"
         },
