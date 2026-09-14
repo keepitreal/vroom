@@ -138,6 +138,7 @@ export type RSIParams = {
   width: number;
   bandColor: string;
   bandsVisible: boolean;
+  extremeFill: boolean;
 };
 
 export const DEFAULT_RSI_PARAMS: RSIParams = {
@@ -153,6 +154,7 @@ export const DEFAULT_RSI_PARAMS: RSIParams = {
   width: 1.5,
   bandColor: '#30363d',
   bandsVisible: true,
+  extremeFill: true,
 };
 
 export type MACDParams = {
@@ -494,6 +496,7 @@ export function deriveIndicatorProps(
       maWidth: rsiParams.width,
       bandColor: rsiParams.bandColor,
       bandsVisible: rsiParams.bandsVisible,
+      extremeFill: rsiParams.extremeFill,
     },
     macd: {
       enabled: state.macd.enabled,
@@ -1310,6 +1313,13 @@ function DetailScreen({
                   />
                 </div>
               )}
+              <div style={paramRow}>
+                <span style={paramLabel}>Extreme shading</span>
+                <Toggle
+                  value={rsi.extremeFill}
+                  onChange={(v) => onRsiParamsChange!({ extremeFill: v })}
+                />
+              </div>
             </>
           ) : macd ? (
             <>

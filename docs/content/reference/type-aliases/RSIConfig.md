@@ -5,6 +5,7 @@ type RSIConfig = {
   bandColor?: string | number;
   bandsVisible?: boolean;
   enabled?: boolean;
+  extremeFill?: boolean;
   lineColor?: string | number;
   lineVisible?: boolean;
   lineWidth?: number;
@@ -64,6 +65,24 @@ optional enabled?: boolean;
 Source: [types/src/index.ts:485](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L485)
 
 Draw the pane. Default false.
+
+---
+
+### extremeFill?
+
+```ts
+optional extremeFill?: boolean;
+```
+
+Source: [types/src/index.ts:522](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L522)
+
+Shade the stretches where the RSI line sits past a band, fading out at the
+rule and deepening toward the end of the scale, so how far a reading went
+past the threshold reads at a glance. Default true.
+
+Colored from the theme's `accentBull` (overbought) and `accentBear`
+(oversold), the same pair the volume bars and MACD histogram use. Never
+reaches full opacity — the line and its rule stay legible through it.
 
 ---
 

@@ -45,6 +45,10 @@ Every style field is optional; leave one unset and the pane keeps its stock look
 Hide any part with `lineVisible`, `maVisible`, or `bandsVisible` — hiding the
 rules takes their axis labels with them.
 
+Where the line runs past a band it drags a shaded wash with it, fading out at the
+rule and deepening the further the reading goes, in the theme's `accentBull` and
+`accentBear`. Turn it off with `extremeFill: false`.
+
 ## MACD
 
 MACD in its own pane below the candles: the gap between a fast and a slow moving

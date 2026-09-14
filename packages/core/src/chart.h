@@ -156,7 +156,8 @@ struct VroomChart {
     VroomRSI rsi{0, 14, 70.0, 30.0, 14, 0, 1,
                  0u, -1.f, 1,  // RSI line
                  0u, -1.f,     // trendline
-                 0u, 1};       // band rules
+                 0u, 1,        // band rules
+                 1};           // extreme shading
     std::vector<double> rsi_cache;     // RSI per candle (NaN where undefined)
     std::vector<double> rsi_ma_cache;  // MA of rsi_cache (empty if MA off)
     bool rsi_dirty = true;

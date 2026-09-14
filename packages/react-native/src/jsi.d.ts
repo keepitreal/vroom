@@ -186,6 +186,7 @@ export interface ChartHandle {
     maWidth: number;
     bandColor: number;
     bandsVisible: boolean;
+    extremeFill: boolean;
   }): void;
   /**
    * Configures the MACD pane. source/maKind mirror setOverlays' encodings;

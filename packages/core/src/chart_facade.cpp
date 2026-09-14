@@ -1473,6 +1473,7 @@ extern "C" void vroom_chart_set_rsi(VroomChart* chart, const VroomRSI* cfg) {
     next.ma_visible = next.ma_visible ? 1 : 0;
     next.line_visible = next.line_visible ? 1 : 0;
     next.bands_visible = next.bands_visible ? 1 : 0;
+    next.extreme_fill = next.extreme_fill ? 1 : 0;
     if (next.period < 2) next.period = 2;
     if (next.ma_period < 1) next.ma_period = 1;
     next.upper_band = std::clamp(next.upper_band, 0.0, 100.0);

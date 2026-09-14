@@ -112,4 +112,58 @@ SkPath build_path(const Layout& lay,
     return path.detach();
 }
 
+// The region between the series and a horizontal rule at `y_band`, as the
+// closed counterpart to build_path. Callers clip to one side of the rule to keep
+// only the stretches that reach past it, which puts the crossings exactly where
+// Skia cuts the geometry rather than anywhere this has to solve for.
+//
+// Each run of vertices gets its own contour, tied down to the rule at both
+// ends. One contour spanning the whole series would close a warmup gap by
+// running straight through it, filling a span the line never drew.
+template <typename YFor>
+SkPath build_band_area(const Layout& lay,
+                       const ::VroomCandle* visible,
+                       std::size_t n,
+                       const double* values,
+                       int64_t window_ms,
+                       int64_t visible_start_ms,
+                       int64_t candle_duration_ms,
+                       float pane_top,
+                       float pane_bottom,
+                       const LineMorph* from,
+                       float morph_t,
+                       float y_band,
+                       YFor&& y_for) {
+    const std::size_t from_count = vroom::morph_line_count(from, morph_t);
+    const std::size_t count = std::max(n, from_count);
+    SkPathBuilder path;
+    bool open = false;
+    float last_x = 0.f;
+    for (std::size_t j = 0; j < count; ++j) {
+        const MorphVertex p =
+            vertex(lay, visible, n, values, window_ms, visible_start_ms,
+                   candle_duration_ms, pane_top, pane_bottom, from, from_count,
+                   morph_t, count - 1 - j, y_for);
+        if (!p.valid) {
+            if (open) {
+                path.lineTo(last_x, y_band);
+                path.close();
+                open = false;
+            }
+            continue;
+        }
+        if (!open) {
+            path.moveTo(p.x, y_band);
+            open = true;
+        }
+        path.lineTo(p.x, p.y);
+        last_x = p.x;
+    }
+    if (open) {
+        path.lineTo(last_x, y_band);
+        path.close();
+    }
+    return path.detach();
+}
+
 }  // namespace vroom::pane_series

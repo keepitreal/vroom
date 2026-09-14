@@ -783,7 +783,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setRSI") {
     // setRSI({enabled, period, upperBand, lowerBand, maPeriod, maKind,
     // maVisible, lineColor, lineWidth, lineVisible, maColor, maWidth,
-    // bandColor, bandsVisible}) — configures the RSI pane. No render; the next
+    // bandColor, bandsVisible, extremeFill}) — configures the RSI pane. No
+    // render; the next
     // render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
@@ -819,6 +820,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
               s.getProperty(rt2, "bandColor").asNumber());
           cfg.bands_visible =
               s.getProperty(rt2, "bandsVisible").asBool() ? 1 : 0;
+          cfg.extreme_fill =
+              s.getProperty(rt2, "extremeFill").asBool() ? 1 : 0;
           vroom_chart_set_rsi(chart_, &cfg);
           return jsi::Value::undefined();
         });

@@ -9,7 +9,9 @@
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
 #include "include/core/SkPathBuilder.h"
+#include "include/core/SkPoint.h"
 #include "include/core/SkRect.h"
+#include "include/core/SkShader.h"
 #include "include/core/SkTypeface.h"
 #include "include/effects/SkDashPathEffect.h"
 #pragma clang diagnostic pop
@@ -21,6 +23,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "gradient.h"
 #include "line_morph.h"
 #include "pane_series.h"
 #include "rsi.h"
@@ -40,6 +43,11 @@ constexpr SkColor kRefLine = 0xff30363d;    // band reference lines
 constexpr SkColor kDivider = 0xff21262d;    // pane separator
 constexpr SkScalar kDash[2] = {3.f, 3.f};
 constexpr float kLineWidth = 1.5f;          // default stroke for both lines
+// Alpha the extreme shading reaches at the end of the scale. Only a reading
+// pinned at 100 or 0 collects all of it, which is why this sits higher than the
+// wash typically paints. Still short of opaque: the RSI line and the band rule
+// sit on top of it and have to stay readable at its deepest.
+constexpr float kExtremeFillAlpha = 0.7f;
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -102,6 +110,52 @@ void draw(SkCanvas* canvas,
     // Configurable band reference lines (overbought / oversold).
     const float y_upper = y_for(cfg.upper_band);
     const float y_lower = y_for(cfg.lower_band);
+
+    // Shade the stretches that reach past a band, fading out at the rule itself
+    // and deepening toward the end of the scale — so how far the reading went
+    // past the threshold reads at a glance, not just that it did.
+    //
+    // Drawn before the rules and the lines so both stay legible on top. The
+    // region is built across the whole series and then clipped to the far side
+    // of the rule, which lands the crossings exactly without solving for them.
+    auto fill_extreme = [&](double band, double limit, SkColor base,
+                            bool above) {
+        // The ramp spans band -> limit. Pinned together (upper at 100, lower at
+        // 0) there is nothing to ramp through, and Skia would clamp the
+        // zero-length gradient to its end color: a flat slab at full alpha.
+        if (band == limit) return;
+        const float y_band = y_for(band);
+        const SkPath area = vroom::pane_series::build_band_area(
+            lay, visible, n, rsi_visible, window_ms, visible_start_ms,
+            candle_duration_ms, pane_top, pane_bottom, rsi_from, morph_t,
+            y_band, y_for);
+        if (area.isEmpty()) return;
+
+        // Anchored to the RSI value rather than the pane edge, so the shading
+        // means the same thing at any y-zoom and a shallow excursion stays
+        // faint instead of saturating on a short pane.
+        const SkPoint pts[2] = {SkPoint::Make(0.f, y_band),
+                                SkPoint::Make(0.f, y_for(limit))};
+        SkPaint fill;
+        fill.setAntiAlias(true);
+        fill.setStyle(SkPaint::kFill_Style);
+        fill.setShader(
+            vroom::linear_alpha_ramp(pts, base, 0.f, kExtremeFillAlpha));
+
+        canvas->save();
+        canvas->clipRect(
+            above ? SkRect::MakeLTRB(0.f, pane_top, candle_right, y_band)
+                  : SkRect::MakeLTRB(0.f, y_band, candle_right, pane_bottom));
+        canvas->drawPath(area, fill);
+        canvas->restore();
+    };
+    if (cfg.extreme_fill) {
+        fill_extreme(cfg.upper_band, 100.0,
+                     chart.theme.colors[VROOM_COLOR_ACCENT_BULL], true);
+        fill_extreme(cfg.lower_band, 0.0,
+                     chart.theme.colors[VROOM_COLOR_ACCENT_BEAR], false);
+    }
+
     if (cfg.bands_visible) {
         SkPaint ref;
         ref.setAntiAlias(true);

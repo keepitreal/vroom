@@ -184,7 +184,7 @@ class WebChart {
 
   // `s` is a JS object {enabled, period, upperBand, lowerBand, maPeriod,
   // maKind, maVisible, lineColor, lineWidth, lineVisible, maColor, maWidth,
-  // bandColor, bandsVisible}.
+  // bandColor, bandsVisible, extremeFill}.
   void setRSI(const em::val& s) {
     VroomRSI cfg{};
     cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
@@ -201,6 +201,7 @@ class WebChart {
     cfg.ma_width = s["maWidth"].as<float>();
     cfg.band_color = s["bandColor"].as<uint32_t>();
     cfg.bands_visible = s["bandsVisible"].as<bool>() ? 1 : 0;
+    cfg.extreme_fill = s["extremeFill"].as<bool>() ? 1 : 0;
     vroom_chart_set_rsi(chart_, &cfg);
   }
   // `s` is a JS object {enabled, fast, slow, signal, source, maKind,

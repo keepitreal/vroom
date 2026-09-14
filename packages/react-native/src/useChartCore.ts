@@ -82,6 +82,7 @@ function rsiToSpec(cfg: RSIConfig | undefined) {
     maWidth: cfg?.maWidth ?? -1,
     bandColor: inheritColor(cfg?.bandColor),
     bandsVisible: cfg?.bandsVisible ?? true,
+    extremeFill: cfg?.extremeFill ?? true,
   };
 }
 

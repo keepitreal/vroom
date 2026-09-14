@@ -118,6 +118,8 @@ export type RSISpec = {
   /** Shared by both dashed band rules. */
   bandColor: number;
   bandsVisible: boolean;
+  /** Shade the stretches past each band, colored from the theme accents. */
+  extremeFill: boolean;
 };
 
 /**

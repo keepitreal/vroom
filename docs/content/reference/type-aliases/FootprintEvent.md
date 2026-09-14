@@ -16,7 +16,7 @@ type FootprintEvent = {
 };
 ```
 
-Source: [types/src/index.ts:996](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L996)
+Source: [types/src/index.ts:1006](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1006)
 
 Fired when the pointer enters, moves between, or leaves footprint badges (on
 touch platforms, when one is tapped or dismissed).
@@ -36,7 +36,7 @@ moved: you don't need your own gesture listener to take the tooltip down.
 active: boolean;
 ```
 
-Source: [types/src/index.ts:998](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L998)
+Source: [types/src/index.ts:1008](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1008)
 
 True while a badge is hovered/tapped; false when it's dismissed.
 
@@ -54,7 +54,7 @@ badge:
   | null;
 ```
 
-Source: [types/src/index.ts:1022](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1022)
+Source: [types/src/index.ts:1032](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1032)
 
 The badge's center and radius in logical px relative to the chart element's
 top-left — anchor your tooltip to it. Null when inactive.
@@ -67,7 +67,7 @@ top-left — anchor your tooltip to it. Null when inactive.
 footprints: Footprint[];
 ```
 
-Source: [types/src/index.ts:1017](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1017)
+Source: [types/src/index.ts:1027](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1027)
 
 Every footprint bucketed into that candle, _both_ sides, ascending by
 `timeMs`. Empty when inactive. Filter on `side` to show only the hovered
@@ -81,7 +81,7 @@ badge's trades, or render the whole bar's activity at once.
 pane: PlotRect | null;
 ```
 
-Source: [types/src/index.ts:1034](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1034)
+Source: [types/src/index.ts:1044](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1044)
 
 The plot area the badge sits in, for choosing which side of it your tooltip
 fits on. Null when inactive (there is nothing to place).
@@ -101,7 +101,7 @@ const fitsRight = badge.x + badge.radius + 8 + width <= pane.right;
 reason: "show" | "move" | "hide";
 ```
 
-Source: [types/src/index.ts:1007](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1007)
+Source: [types/src/index.ts:1017](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1017)
 
 Why this event fired:
 'show' — a badge became hovered/tapped from nothing
@@ -118,7 +118,7 @@ took the pane over
 side: FootprintSide | null;
 ```
 
-Source: [types/src/index.ts:1009](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1009)
+Source: [types/src/index.ts:1019](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1019)
 
 Which badge — its buys or its sells. Null when inactive.
 
@@ -130,6 +130,6 @@ Which badge — its buys or its sells. Null when inactive.
 timeMs: number | null;
 ```
 
-Source: [types/src/index.ts:1011](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1011)
+Source: [types/src/index.ts:1021](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1021)
 
 Bar-open time (epoch ms) of the candle the badge sits on. Null when inactive.

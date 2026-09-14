@@ -202,6 +202,10 @@ typedef struct VroomRSI {
     float    ma_width;
     uint32_t band_color;     // both dashed rules; 0 inherits the default gray
     int32_t  bands_visible;  // 0/1
+    // Shade where the line sits past a band, fading out at the rule and
+    // deepening toward the end of the scale. Takes its colors from
+    // VROOM_COLOR_ACCENT_BULL / _BEAR, and never reaches full opacity. 0/1.
+    int32_t  extreme_fill;
 } VroomRSI;
 
 // Average True Range, drawn in its own pane below the candles: a single line

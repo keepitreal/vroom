@@ -510,6 +510,16 @@ export type RSIConfig = {
   bandColor?: string | number;
   /** Draw the overbought/oversold rules. Default true. */
   bandsVisible?: boolean;
+  /**
+   * Shade the stretches where the RSI line sits past a band, fading out at the
+   * rule and deepening toward the end of the scale, so how far a reading went
+   * past the threshold reads at a glance. Default true.
+   *
+   * Colored from the theme's `accentBull` (overbought) and `accentBear`
+   * (oversold), the same pair the volume bars and MACD histogram use. Never
+   * reaches full opacity — the line and its rule stay legible through it.
+   */
+  extremeFill?: boolean;
 };
 
 /**
