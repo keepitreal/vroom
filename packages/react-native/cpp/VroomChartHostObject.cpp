@@ -57,6 +57,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "beginIntervalMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginStreamMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setIntervalMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
@@ -513,6 +514,24 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
         });
   }
 
+  if (name == "beginStreamMorph") {
+    // beginStreamMorph() — capture the visible geometry so the next setCandles
+    // can ease a live tick into place. Leaves the axes alone, and continues
+    // from the shape on screen when one is still animating. Call before
+    // setCandles.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginStreamMorph"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_begin_stream_morph(chart_);
+          return jsi::Value::undefined();
+        });
+  }
+
   if (name == "setIntervalMorph") {
     // setIntervalMorph(t) — advance the capture toward the new candles. `t` is
     // pre-eased progress: 0 = the captured frame, 1 = settled (capture freed).
@@ -764,7 +783,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   if (name == "setRSI") {
     // setRSI({enabled, period, upperBand, lowerBand, maPeriod, maKind,
     // maVisible, lineColor, lineWidth, lineVisible, maColor, maWidth,
-    // bandColor, bandsVisible}) — configures the RSI pane. No render; the next
+    // bandColor, bandsVisible, extremeFill}) — configures the RSI pane. No
+    // render; the next
     // render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
@@ -800,6 +820,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
               s.getProperty(rt2, "bandColor").asNumber());
           cfg.bands_visible =
               s.getProperty(rt2, "bandsVisible").asBool() ? 1 : 0;
+          cfg.extreme_fill =
+              s.getProperty(rt2, "extremeFill").asBool() ? 1 : 0;
           vroom_chart_set_rsi(chart_, &cfg);
           return jsi::Value::undefined();
         });

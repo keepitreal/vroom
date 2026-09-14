@@ -129,4 +129,31 @@ inline MorphVertex morph_vertex(const MorphVertex& to, const MorphVertex& from,
                        from.y + (to.y - from.y) * morph_t, true};
 }
 
+// The line counterpart to viewport.h's blend_candle_snapshots: rewrites a fresh
+// capture to start from the shape on screen, so a live tick restarting the
+// morph doesn't snap the indicators back off the candles they sit on.
+//
+// Series are matched by key, so one enabled or removed between two ticks simply
+// finds no counterpart and keeps its fresh capture. A slot only one side
+// defines keeps that side, mirroring morph_vertex — the warmup gap can move by
+// a slot as bars arrive, and sliding that end reads better than blinking it.
+inline void blend_line_morphs(std::vector<LineMorph>& dst,
+                              const std::vector<LineMorph>& interrupted,
+                              float morph_t) {
+    for (LineMorph& to : dst) {
+        const LineMorph* from = find_line_morph(interrupted, to.key);
+        if (!from) continue;
+        to.scale = from->scale + (to.scale - from->scale) * morph_t;
+        const std::size_t n =
+            to.pts.size() < from->pts.size() ? to.pts.size() : from->pts.size();
+        for (std::size_t k = 0; k < n; ++k) {
+            const LineSnapshot& a = from->pts[k];
+            LineSnapshot& b = to.pts[k];
+            if (!a.valid || !b.valid) continue;
+            b.x = a.x + (b.x - a.x) * morph_t;
+            b.y = a.y + (b.y - a.y) * morph_t;
+        }
+    }
+}
+
 }  // namespace vroom

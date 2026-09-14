@@ -73,7 +73,20 @@ export interface ChartHandle {
    */
   beginIntervalMorph(mode?: IntervalTransition): void;
   /**
-   * Advance the interval morph started by beginIntervalMorph. `t` (clamped to
+   * Capture the visible geometry so the next setCandles can ease a live tick
+   * into place. Always a transform, and unlike beginIntervalMorph it leaves the
+   * axes alone — the interval hasn't changed, so its ticks must not fade.
+   * Restarting one still in flight continues from the shape on screen, so ticks
+   * arriving faster than the animation lands stay smooth. Call before
+   * setCandles, then drive setIntervalMorph from 0 to 1.
+   *
+   * Not for an update that appends a bar: slots pair from the right edge, so a
+   * new bar would shift every candle onto its neighbour's geometry. Advance the
+   * visible range instead and let the series translate.
+   */
+  beginStreamMorph(): void;
+  /**
+   * Advance the morph started by either begin method above. `t` (clamped to
    * 0..1) is the eased progress: 0 renders the captured geometry pixel-
    * identically to the pre-swap frame, 1 renders the new candles and releases
    * the capture. Driven per-frame by the host animation loop.
@@ -173,6 +186,7 @@ export interface ChartHandle {
     maWidth: number;
     bandColor: number;
     bandsVisible: boolean;
+    extremeFill: boolean;
   }): void;
   /**
    * Configures the MACD pane. source/maKind mirror setOverlays' encodings;

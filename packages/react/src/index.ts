@@ -53,6 +53,7 @@ export type {
   ChartType,
   TransitionEasing,
   IntervalTransition,
+  StreamTransition,
   DrawTool,
   DrawPoint,
   Drawing,

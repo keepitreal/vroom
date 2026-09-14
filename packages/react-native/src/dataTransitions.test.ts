@@ -3,7 +3,13 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Candle } from '@vroomchart/types';
-import { classifyTransition, inferStepMs, timeframeWindow } from './dataTransitions';
+import {
+  classifyStream,
+  classifyTransition,
+  inferStepMs,
+  isPinnedToLatest,
+  timeframeWindow,
+} from './dataTransitions';
 
 const MINUTE = 60_000;
 
@@ -186,5 +192,82 @@ describe('timeframeWindow', () => {
     const oldWindow = { startMs: NOW - 10 * MINUTE, endMs: NOW + 90 * MINUTE };
     const w = timeframeWindow(oldWindow, MINUTE, NOW, 15 * MINUTE, NOW);
     expect(w.endMs).toBe(NOW + 75 * 15 * MINUTE);
+  });
+});
+
+describe('classifyStream', () => {
+  const base = series({ count: 50, stepMs: MINUTE, endMs: 50 * MINUTE, price: 100 });
+
+  it('reads a revision to the bar already on screen as a tick', () => {
+    const next = [...base.slice(0, -1), { ...base[base.length - 1], close: 101 }];
+    expect(classifyStream(base, next)).toBe('tick');
+  });
+
+  it('reads a newer last timestamp as an append', () => {
+    const next = [
+      ...base,
+      { ...base[base.length - 1], timeMs: 51 * MINUTE },
+    ];
+    expect(classifyStream(base, next)).toBe('append');
+  });
+
+  it('reads a rolling buffer as an append even though the length held', () => {
+    // Dropping from the front as it adds to the back keeps the count identical,
+    // so anything comparing lengths would call this a tick and try to slot-pair
+    // a series that has shifted by one.
+    const next = [
+      ...base.slice(1),
+      { ...base[base.length - 1], timeMs: 51 * MINUTE },
+    ];
+    expect(next.length).toBe(base.length);
+    expect(classifyStream(base, next)).toBe('append');
+  });
+
+  it('reads an append that also revised the closing bar as an append', () => {
+    const closed = { ...base[base.length - 1], close: 99 };
+    const next = [...base.slice(0, -1), closed, { ...closed, timeMs: 51 * MINUTE }];
+    expect(classifyStream(base, next)).toBe('append');
+  });
+
+  it('treats an empty side as a tick rather than throwing', () => {
+    expect(classifyStream([], base)).toBe('tick');
+    expect(classifyStream(base, [])).toBe('tick');
+  });
+});
+
+describe('isPinnedToLatest', () => {
+  const lastMs = 50 * MINUTE;
+
+  it('is pinned when the right edge clears the newest slot', () => {
+    // Where default framing leaves it: the slot end plus a small gap.
+    expect(
+      isPinnedToLatest({ startMs: 0, endMs: lastMs + MINUTE + 5_000 }, lastMs, MINUTE),
+    ).toBe(true);
+  });
+
+  it('is pinned when the edge sits exactly on the slot end', () => {
+    expect(
+      isPinnedToLatest({ startMs: 0, endMs: lastMs + MINUTE }, lastMs, MINUTE),
+    ).toBe(true);
+  });
+
+  it('is not pinned once panned back into history', () => {
+    expect(
+      isPinnedToLatest({ startMs: 0, endMs: lastMs - 10 * MINUTE }, lastMs, MINUTE),
+    ).toBe(false);
+  });
+
+  it('is not pinned when the newest bar is only half in view', () => {
+    // Its slot runs to lastMs + step; stopping short of that means the bar is
+    // clipped, so the view is not following it.
+    expect(
+      isPinnedToLatest({ startMs: 0, endMs: lastMs + MINUTE / 2 }, lastMs, MINUTE),
+    ).toBe(false);
+  });
+
+  it('stays pinned when scrolled into the empty space past the newest bar', () => {
+    expect(
+      isPinnedToLatest({ startMs: 0, endMs: lastMs + 20 * MINUTE }, lastMs, MINUTE),
+    ).toBe(true);
   });
 });

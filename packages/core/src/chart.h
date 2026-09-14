@@ -102,6 +102,12 @@ struct VroomChart {
     std::vector<vroom::CandleSnapshot> morph_from;
     float interval_morph_t = 1.f;  // 1 = not morphing
     bool interval_morph_fade = false;
+    // Set when the capture came from a live update rather than a timeframe
+    // switch. Same slot machinery, but the axis holds still: a stream morph
+    // only reshapes the last bar, and the ticks it sits between don't move, so
+    // running them through the interval envelope would flash the whole axis on
+    // every tick (see labels::interval_phase).
+    bool morph_is_stream = false;
     // The outgoing shape of every indicator series that was on screen, captured
     // alongside the candles and keyed by identity so a toggle landing in the
     // same commit as the switch can't pair two different lines (see
@@ -150,7 +156,8 @@ struct VroomChart {
     VroomRSI rsi{0, 14, 70.0, 30.0, 14, 0, 1,
                  0u, -1.f, 1,  // RSI line
                  0u, -1.f,     // trendline
-                 0u, 1};       // band rules
+                 0u, 1,        // band rules
+                 1};           // extreme shading
     std::vector<double> rsi_cache;     // RSI per candle (NaN where undefined)
     std::vector<double> rsi_ma_cache;  // MA of rsi_cache (empty if MA off)
     bool rsi_dirty = true;

@@ -10,7 +10,7 @@ function timeframeWindow(
 ): VisibleRange;
 ```
 
-Source: [react-native/src/dataTransitions.ts:136](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/dataTransitions.ts#L136)
+Source: [react-native/src/dataTransitions.ts:183](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/dataTransitions.ts#L183)
 
 The visible window to apply after a timeframe switch so each candle keeps
 the exact pixel width it had before: the visible slot count is preserved and

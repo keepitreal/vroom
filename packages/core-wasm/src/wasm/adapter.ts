@@ -51,6 +51,7 @@ interface WebChartInstance {
   getVisiblePriceEnvelope(): { low: number; high: number } | null;
   preservePriceEnvelope(prevLow: number, prevHigh: number): void;
   beginIntervalMorph(mode: number): void;
+  beginStreamMorph(): void;
   setIntervalMorph(t: number): void;
   pan(dx: number, dy: number): void;
   translate(dx: number, dy: number): void;
@@ -170,6 +171,9 @@ class WasmHandle implements VroomChartHandle {
   }
   beginIntervalMorph(mode?: IntervalTransition): void {
     this.wc.beginIntervalMorph(mode === 'fade' ? 1 : 0);
+  }
+  beginStreamMorph(): void {
+    this.wc.beginStreamMorph();
   }
   setIntervalMorph(t: number): void {
     this.wc.setIntervalMorph(t);

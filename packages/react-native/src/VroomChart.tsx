@@ -69,6 +69,8 @@ export function VroomChart(props: VroomChartProps) {
     transitionMs,
     transitionEasing,
     intervalTransition,
+    streamTransition,
+    streamTransitionMs,
     theme,
     rsi,
     macd,
@@ -192,7 +194,16 @@ export function VroomChart(props: VroomChartProps) {
     volume,
     priceLinesProp,
     footprintsProp,
-    { seriesKey, transitionMs, transitionEasing, intervalTransition, reduceMotion, onFrame },
+    {
+      seriesKey,
+      transitionMs,
+      transitionEasing,
+      intervalTransition,
+      streamTransition,
+      streamTransitionMs,
+      reduceMotion,
+      onFrame,
+    },
   );
 
   // When the crosshair is showing, pan moves it (instead of scrolling) and

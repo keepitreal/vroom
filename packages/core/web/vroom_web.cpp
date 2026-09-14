@@ -158,6 +158,7 @@ class WebChart {
   void beginIntervalMorph(int32_t mode) {
     vroom_chart_begin_interval_morph(chart_, mode);
   }
+  void beginStreamMorph() { vroom_chart_begin_stream_morph(chart_); }
   void setIntervalMorph(double t) {
     vroom_chart_set_interval_morph(chart_, static_cast<float>(t));
   }
@@ -183,7 +184,7 @@ class WebChart {
 
   // `s` is a JS object {enabled, period, upperBand, lowerBand, maPeriod,
   // maKind, maVisible, lineColor, lineWidth, lineVisible, maColor, maWidth,
-  // bandColor, bandsVisible}.
+  // bandColor, bandsVisible, extremeFill}.
   void setRSI(const em::val& s) {
     VroomRSI cfg{};
     cfg.enabled = s["enabled"].as<bool>() ? 1 : 0;
@@ -200,6 +201,7 @@ class WebChart {
     cfg.ma_width = s["maWidth"].as<float>();
     cfg.band_color = s["bandColor"].as<uint32_t>();
     cfg.bands_visible = s["bandsVisible"].as<bool>() ? 1 : 0;
+    cfg.extreme_fill = s["extremeFill"].as<bool>() ? 1 : 0;
     vroom_chart_set_rsi(chart_, &cfg);
   }
   // `s` is a JS object {enabled, fast, slow, signal, source, maKind,
@@ -790,6 +792,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("getVisiblePriceEnvelope", &WebChart::getVisiblePriceEnvelope)
       .function("preservePriceEnvelope", &WebChart::preservePriceEnvelope)
       .function("beginIntervalMorph", &WebChart::beginIntervalMorph)
+      .function("beginStreamMorph", &WebChart::beginStreamMorph)
       .function("setIntervalMorph", &WebChart::setIntervalMorph)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)
