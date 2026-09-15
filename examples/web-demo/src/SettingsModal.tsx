@@ -63,7 +63,7 @@ const INHERIT_FIELDS: Partial<Record<keyof VroomTheme, string>> = {
   borderBear: 'fill',
   wickBull: 'fill',
   wickBear: 'fill',
-  skeleton: 'line',
+  skeleton: 'grid',
 };
 
 // The opaque color a freshly-unchecked inherit field falls back to, so the
@@ -73,7 +73,7 @@ const INHERIT_FALLBACK: Partial<Record<keyof VroomTheme, string>> = {
   borderBear: '#c0392b',
   wickBull: '#26a69a',
   wickBear: '#ef5350',
-  skeleton: '#8957e5',
+  skeleton: '#1a1e24',
 };
 
 const SECTIONS: { title: string; fields: ColorField[] }[] = [

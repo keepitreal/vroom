@@ -22,6 +22,7 @@ background refresh leaves the chart the user is reading up and interactive.
 While it's up, gestures, axis text, the price badge, the crosshair and indicator
 panes are all suppressed — the line is unrelated to the asset, so nothing is
 allowed to report a number off it. Style it with the new `theme.skeleton` color,
-which defaults to inheriting `lineColor`; the hand-off shares `transitionMs` /
+which defaults to inheriting `grid` so the line sits in the chart's existing
+tone for structure rather than data; the hand-off shares `transitionMs` /
 `transitionEasing` with the interval switch, and reduced motion holds the line
 still and skips the hand-off.

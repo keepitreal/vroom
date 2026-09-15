@@ -59,18 +59,20 @@ why the line is drawn dim and never at the contrast of a real series.
 
 ## Styling
 
-`theme.skeleton` sets the line's colour, and defaults to inheriting
-`lineColor` — the chart's own line-mode colour. The loading line is meant to
-read as the chart's series before it has anything to draw, and a neutral grey
-reads instead as a foreign placeholder laid over the chart.
+`theme.skeleton` sets the line's colour, and defaults to inheriting `grid` —
+the gridline tone. The gridlines are already how the chart draws structure
+rather than data, which is what the line is, so matching them keeps it from
+being read as a series.
 
-The line supplies its own faint, slowly breathing opacity, which is what keeps
-an accent colour from being mistaken for data. Any alpha you pass multiplies
-into that, so an opaque colour is the usual choice. For the more conventional
-skeleton look, set a grey explicitly:
+The line breathes between roughly 60% and 100% of whatever colour it ends up
+with. That's a pulse rather than a dimmer, so a recessive colour stays legible;
+any alpha you pass multiplies into it, making an opaque colour the usual choice.
+
+To make the line read as the chart's own series warming up instead, hand it the
+line colour:
 
 ```tsx
-<VroomChart candles={candles} loading={isLoading} theme={{ skeleton: '#3d444d' }} />
+<VroomChart candles={candles} loading={isLoading} theme={{ skeleton: '#8957e5' }} />
 ```
 
 See [Theming](./theming.md) for the rest of the palette.

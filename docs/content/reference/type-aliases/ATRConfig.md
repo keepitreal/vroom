@@ -10,7 +10,7 @@ type ATRConfig = {
 };
 ```
 
-Source: [types/src/index.ts:1143](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1143)
+Source: [types/src/index.ts:1144](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1144)
 
 ATR (Average True Range) indicator config. Rendered in its own pane below the
 candles: a single line measuring volatility in price units.
@@ -29,7 +29,7 @@ edge rather than centering on a reference level.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:1145](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1145)
+Source: [types/src/index.ts:1146](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1146)
 
 Draw the pane. Default false.
 
@@ -41,7 +41,7 @@ Draw the pane. Default false.
 optional lineColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1151](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1151)
+Source: [types/src/index.ts:1152](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1152)
 
 Line color (hex string or packed ARGB number). Default teal.
 
@@ -53,7 +53,7 @@ Line color (hex string or packed ARGB number). Default teal.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:1153](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1153)
+Source: [types/src/index.ts:1154](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1154)
 
 Line stroke width in px. Default 1.5.
 
@@ -65,7 +65,7 @@ Line stroke width in px. Default 1.5.
 optional period?: number;
 ```
 
-Source: [types/src/index.ts:1147](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1147)
+Source: [types/src/index.ts:1148](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1148)
 
 Lookback in candles. Default 14.
 
@@ -77,6 +77,6 @@ Lookback in candles. Default 14.
 optional smoothing?: ATRSmoothing;
 ```
 
-Source: [types/src/index.ts:1149](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1149)
+Source: [types/src/index.ts:1150](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1150)
 
 Smoothing applied to the true-range series. Default `'rma'`.

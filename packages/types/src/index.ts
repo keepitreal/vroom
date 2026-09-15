@@ -114,14 +114,15 @@ export type VroomTheme = {
   lineColor?: VroomColor;
   /**
    * The line drawn across the plot while loading (see the `loading` prop).
-   * Defaults to inheriting `lineColor`, since what the loading line is meant
-   * to look like is the chart's own series before it has any data — a neutral
-   * grey reads as a foreign placeholder laid over the chart instead.
+   * Defaults to inheriting `grid`: the gridlines are already the chart's tone
+   * for structure rather than data, which is what the line is, so matching
+   * them keeps it from being read as a series.
    *
-   * The line supplies its own faint, slowly breathing opacity (roughly 16–34%),
-   * which is what keeps an accent color from being mistaken for real data. Any
+   * The line breathes between roughly 60% and 100% of whatever color it ends
+   * up with — a pulse, not a dimmer, so a recessive color stays legible. Any
    * alpha given here multiplies into that, so an opaque color is the usual
-   * choice. Set a grey explicitly for the more conventional skeleton look.
+   * choice. Pass `lineColor` to make the line read as the chart's own series
+   * warming up instead.
    */
   skeleton?: VroomColor;
   /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */

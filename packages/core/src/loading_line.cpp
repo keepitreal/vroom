@@ -33,13 +33,14 @@ SkColor faded(SkColor c, float a) {
     return SkColorSetA(c, static_cast<U8CPU>(scaled + 0.5f));
 }
 
-// The loading line's color. A transparent `skeleton` inherits the line-chart
-// color, the same sentinel convention the candle border and wick colors use —
-// and the right default here, because what the line should look like is the
-// chart's own series before it has any data to draw.
+// The loading line's color. A transparent `skeleton` inherits the gridline
+// color, the same sentinel convention the candle border and wick colors use.
+// The gridlines are the chart's existing vocabulary for "structure, not data",
+// which is exactly what the line is: drawing it in that tone keeps it from
+// reading as a series, without needing to be scaled down to stay quiet.
 SkColor stroke_color(const VroomChart& chart) {
     const SkColor c = chart.theme.colors[VROOM_COLOR_SKELETON];
-    return SkColorGetA(c) == 0 ? chart.theme.colors[VROOM_COLOR_LINE] : c;
+    return SkColorGetA(c) == 0 ? chart.theme.colors[VROOM_COLOR_GRID] : c;
 }
 
 // Emits `pts` as a monotone cubic — the same curve the line chart draws (see
@@ -152,9 +153,11 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
         stroke_path(canvas, chart, idle_path(chart, area_w, pane_h), b);
         return;
     }
-    // Stage 2 brightens out of the breath as the line resolves, so the faint
-    // waiting curve firms up into the shape of the data before handing it over.
-    // Stage 3 then fades from full, which is where draw_fading picks up.
+    // Settle out of the breath as the line resolves, so it holds still at full
+    // strength by the time it reaches the candle centres — subtle at the
+    // default gridline tone, but it stops a bright custom color from pulsing
+    // while the data lands. Stage 3 then fades from full, where draw_fading
+    // picks up.
     const float alpha = b + (1.f - b) * chart.loading_line_t;
     stroke_path(canvas, chart,
                 morph_path(chart, lay, area_w, pane_h, chart.loading_line_t),

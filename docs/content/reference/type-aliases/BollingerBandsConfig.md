@@ -18,7 +18,7 @@ type BollingerBandsConfig = {
 };
 ```
 
-Source: [types/src/index.ts:575](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L575)
+Source: [types/src/index.ts:576](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L576)
 
 Bollinger Bands overlay config. A basis moving average of `source` over
 `period`, banded at ± `stdDev` × population standard deviation of the same
@@ -33,7 +33,7 @@ fill between the bands. No pane is reserved.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:577](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L577)
+Source: [types/src/index.ts:578](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L578)
 
 Draw the bands. Default false.
 
@@ -45,7 +45,7 @@ Draw the bands. Default false.
 optional fillOpacity?: number;
 ```
 
-Source: [types/src/index.ts:605](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L605)
+Source: [types/src/index.ts:606](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L606)
 
 Fill opacity 0..1, applied to the upper band color. Default 0.1.
 
@@ -57,7 +57,7 @@ Fill opacity 0..1, applied to the upper band color. Default 0.1.
 optional fillVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:603](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L603)
+Source: [types/src/index.ts:604](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L604)
 
 Draw the translucent fill between the bands. Default true.
 
@@ -69,7 +69,7 @@ Draw the translucent fill between the bands. Default true.
 optional lowerColor?: string | number;
 ```
 
-Source: [types/src/index.ts:599](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L599)
+Source: [types/src/index.ts:600](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L600)
 
 Lower band color. Default blue.
 
@@ -81,7 +81,7 @@ Lower band color. Default blue.
 optional lowerWidth?: number;
 ```
 
-Source: [types/src/index.ts:601](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L601)
+Source: [types/src/index.ts:602](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L602)
 
 Lower band stroke width in px. Default 1.
 
@@ -93,7 +93,7 @@ Lower band stroke width in px. Default 1.
 optional maType?: MAKind;
 ```
 
-Source: [types/src/index.ts:589](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L589)
+Source: [types/src/index.ts:590](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L590)
 
 Averaging for the basis (middle) line ([MAKind](MAKind.md)). Default 'sma'. The
 stdev always uses the window's arithmetic mean, even with an EMA basis
@@ -107,7 +107,7 @@ stdev always uses the window's arithmetic mean, even with an EMA basis
 optional middleColor?: string | number;
 ```
 
-Source: [types/src/index.ts:595](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L595)
+Source: [types/src/index.ts:596](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L596)
 
 Basis (middle) line color. Default orange.
 
@@ -119,7 +119,7 @@ Basis (middle) line color. Default orange.
 optional middleWidth?: number;
 ```
 
-Source: [types/src/index.ts:597](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L597)
+Source: [types/src/index.ts:598](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L598)
 
 Basis line stroke width in px. Default 1.
 
@@ -131,7 +131,7 @@ Basis line stroke width in px. Default 1.
 optional period?: number;
 ```
 
-Source: [types/src/index.ts:579](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L579)
+Source: [types/src/index.ts:580](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L580)
 
 Lookback in candles. Default 20, clamped to >= 1.
 
@@ -143,7 +143,7 @@ Lookback in candles. Default 20, clamped to >= 1.
 optional source?: MASource;
 ```
 
-Source: [types/src/index.ts:583](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L583)
+Source: [types/src/index.ts:584](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L584)
 
 Price source ([MASource](MASource.md)). Default 'close'.
 
@@ -155,7 +155,7 @@ Price source ([MASource](MASource.md)). Default 'close'.
 optional stdDev?: number;
 ```
 
-Source: [types/src/index.ts:581](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L581)
+Source: [types/src/index.ts:582](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L582)
 
 Standard-deviation multiplier. Default 2.
 
@@ -167,7 +167,7 @@ Standard-deviation multiplier. Default 2.
 optional upperColor?: string | number;
 ```
 
-Source: [types/src/index.ts:591](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L591)
+Source: [types/src/index.ts:592](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L592)
 
 Upper band color (hex string or packed ARGB number). Default blue.
 
@@ -179,6 +179,6 @@ Upper band color (hex string or packed ARGB number). Default blue.
 optional upperWidth?: number;
 ```
 
-Source: [types/src/index.ts:593](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L593)
+Source: [types/src/index.ts:594](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L594)
 
 Upper band stroke width in px. Default 1.

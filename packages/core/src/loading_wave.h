@@ -67,12 +67,12 @@ constexpr float kPeriodSeconds = 4.f * kTwoPi / kDriftRadPerSecond;
 // this — it is a bound, not the height it looks.
 constexpr float kAmplitudeFrac = 0.10f;
 
-// Breathing opacity. Dim enough to read as the chart's own line waiting rather
-// than as data, but no dimmer: vroom's default plot is a large near-black
-// surface, and much below this the line stops looking deliberate and starts
-// looking like a rendering artifact.
-constexpr float kBreathMin = 0.30f;
-constexpr float kBreathMax = 0.55f;
+// Breathing opacity. A pulse around full strength, not a dimmer: how quiet the
+// line reads is the *color's* job — it inherits the gridline tone by default —
+// and scaling an already-recessive grey down by a third again would leave the
+// curve indistinguishable from the background.
+constexpr float kBreathMin = 0.75f;
+constexpr float kBreathMax = 1.00f;
 // Ten breaths per curve cycle, so the breath wraps with the phase (~2.5s each)
 // and never syncs with the drift into one combined pulse.
 constexpr float kBreathCyclesPerPeriod = 10.f;

@@ -141,11 +141,12 @@ TEST_CASE("y_frac tracks the offset it is built from") {
 }
 
 TEST_CASE("the breath stays faint and within its bounds") {
-    // Visible enough to look deliberate on a large dark plot, but never at the
-    // contrast of the real series — it is a placeholder, and at full strength
-    // it would be mistaken for data.
-    CHECK(kBreathMin > 0.15f);
-    CHECK(kBreathMax < 0.7f);
+    // A pulse around full strength rather than a dimmer: the color decides how
+    // quiet the line reads (it inherits the recessive gridline tone), so the
+    // breath must not scale it down far enough to lose it against the
+    // background.
+    CHECK(kBreathMin > 0.5f);
+    CHECK(kBreathMax <= 1.f);
     CHECK(kBreathMax > kBreathMin);
     for (int ti = 0; ti <= 200; ++ti) {
         const float b = breath(static_cast<float>(ti) * 0.17f);
