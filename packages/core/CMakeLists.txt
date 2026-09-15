@@ -64,7 +64,6 @@ if(VROOM_BUILD_TESTS)
         tests/test_curve.cpp
         tests/test_tip_pulse.cpp
         tests/test_loading_wave.cpp
-        tests/test_loading_series.cpp
         tests/test_tip_anchor.cpp
         tests/test_line_morph.cpp
         tests/test_price_format.cpp

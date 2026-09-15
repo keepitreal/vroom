@@ -163,6 +163,10 @@ class WebChart {
     vroom_chart_set_loading(chart_, on ? 1 : 0, animate ? 1 : 0);
   }
   void beginLoadingMorph() { vroom_chart_begin_loading_morph(chart_); }
+  void setLoadingMorph(double t) {
+    vroom_chart_set_loading_morph(chart_, static_cast<float>(t));
+  }
+  void beginLoadingReveal() { vroom_chart_begin_loading_reveal(chart_); }
   void setIntervalMorph(double t) {
     vroom_chart_set_interval_morph(chart_, static_cast<float>(t));
   }
@@ -799,6 +803,8 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("beginStreamMorph", &WebChart::beginStreamMorph)
       .function("setLoading", &WebChart::setLoading)
       .function("beginLoadingMorph", &WebChart::beginLoadingMorph)
+      .function("setLoadingMorph", &WebChart::setLoadingMorph)
+      .function("beginLoadingReveal", &WebChart::beginLoadingReveal)
       .function("setIntervalMorph", &WebChart::setIntervalMorph)
       .function("pan", &WebChart::pan)
       .function("translate", &WebChart::translate)

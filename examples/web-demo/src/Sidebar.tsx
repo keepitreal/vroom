@@ -433,7 +433,7 @@ export function Sidebar({
           label="Loading"
           checked={data.loading}
           onChange={data.setLoading}
-          title="Hold the chart in its loading state: grey placeholder bars travelling in a wave, with no axis text, price badge, crosshair or gestures. Unchecking delivers the data, which should morph out of the skeleton rather than cut to it."
+          title="Hold the chart in its loading state: one grey line drifting in a sine wave, with no axis text, price badge, crosshair or gestures. Unchecking delivers the data — the line should reshape into the series' silhouette, then fade out as the candles grow outward from it."
         />
         <button onClick={data.onSimulateLoad} style={{ ...btn, width: '100%' }}>
           Simulate load (1.5s)

@@ -1,94 +1,95 @@
 #include "doctest.h"
 
-#include <cmath>
-
 #include "loading_wave.h"
 
 using vroom::loading_wave::at;
-using vroom::loading_wave::Frame;
-using vroom::loading_wave::kMaxAlpha;
-using vroom::loading_wave::kMaxScale;
-using vroom::loading_wave::kMinAlpha;
-using vroom::loading_wave::kMinScale;
+using vroom::loading_wave::kAmplitudeFrac;
+using vroom::loading_wave::kCyclesAcrossWidth;
 using vroom::loading_wave::kPeriodSeconds;
-using vroom::loading_wave::kSpatialRadPerBar;
 using vroom::loading_wave::kTemporalRadPerSecond;
+using vroom::loading_wave::kTwoPi;
+using vroom::loading_wave::y_frac;
 
-TEST_CASE("both outputs stay inside their range for any time and index") {
-    for (int i = 0; i < 120; ++i) {
-        for (int step = 0; step <= 40; ++step) {
-            const Frame f = at(static_cast<float>(step) * 0.05f, i);
-            CHECK(f.alpha >= kMinAlpha);
-            CHECK(f.alpha <= kMaxAlpha);
-            CHECK(f.scale >= kMinScale);
-            CHECK(f.scale <= kMaxScale);
+TEST_CASE("the offset stays within a unit sine for any time and position") {
+    for (int xi = 0; xi <= 50; ++xi) {
+        for (int ti = 0; ti <= 40; ++ti) {
+            const float v = at(static_cast<float>(ti) * 0.1f,
+                               static_cast<float>(xi) / 50.f);
+            CHECK(v >= -1.f);
+            CHECK(v <= 1.f);
         }
     }
 }
 
-TEST_CASE("alpha and scale share a phase") {
-    // The coupling is the effect: a crest has to be the tallest bar *and* the
-    // most opaque one, or it reads as two animations instead of one pulse.
-    for (int i = 0; i < 40; ++i) {
-        const Frame f = at(static_cast<float>(i) * 0.037f, i);
-        const float alpha_u = (f.alpha - kMinAlpha) / (kMaxAlpha - kMinAlpha);
-        const float scale_u = (f.scale - kMinScale) / (kMaxScale - kMinScale);
-        CHECK(alpha_u == doctest::Approx(scale_u));
-    }
+TEST_CASE("the wave travels toward the right") {
+    // A crest at x after dt must sit further right than it did at t. That
+    // direction is the whole reason the phase is (k*x - w*t) and not a sum.
+    const float dt = 0.4f;
+    // Phase pi/2 is a crest. Solve k*x = pi/2 at t=0, then again at t=dt.
+    const float k = kCyclesAcrossWidth * kTwoPi;
+    const float x0 = (kTwoPi * 0.25f) / k;
+    const float x1 = (kTwoPi * 0.25f + kTemporalRadPerSecond * dt) / k;
+    CHECK(x1 > x0);
+    CHECK(at(0.f, x0) == doctest::Approx(1.f));
+    CHECK(at(dt, x1) == doctest::Approx(1.f));
 }
 
-TEST_CASE("a crest is the extreme of both") {
-    // sin peaks at pi/2, so solve 6t = pi/2 for bar 0.
-    const float crest_t = 1.5707963f / kTemporalRadPerSecond;
-    const Frame f = at(crest_t, 0);
-    CHECK(f.alpha == doctest::Approx(kMaxAlpha));
-    CHECK(f.scale == doctest::Approx(kMaxScale));
-
-    const Frame trough = at(crest_t + kPeriodSeconds * 0.5f, 0);
-    CHECK(trough.alpha == doctest::Approx(kMinAlpha));
-    CHECK(trough.scale == doctest::Approx(kMinScale));
-}
-
-TEST_CASE("the wave travels toward higher indices") {
-    // Phase velocity is temporal/spatial = 15 bars per second. After dt, the
-    // crest that was at bar 0 must be at bar 15*dt — that direction is what
-    // makes the pulse sweep left to right rather than right to left.
-    const float crest_t = 1.5707963f / kTemporalRadPerSecond;
-    const float velocity = kTemporalRadPerSecond / kSpatialRadPerBar;
-    CHECK(velocity == doctest::Approx(15.f));
-
-    const float dt = 0.2f;
-    const int moved = static_cast<int>(velocity * dt + 0.5f);  // 3 bars
-    const Frame f = at(crest_t + dt, moved);
-    CHECK(f.alpha == doctest::Approx(kMaxAlpha));
-    CHECK(f.scale == doctest::Approx(kMaxScale));
-}
-
-TEST_CASE("time wraps by the period, so callers can pass raw elapsed seconds") {
-    for (int i = 0; i < 10; ++i) {
-        const Frame ref = at(0.31f, i);
-        for (float k : {1.f, 5.f, 40.f}) {
-            const Frame f = at(0.31f + kPeriodSeconds * k, i);
-            CHECK(f.alpha == doctest::Approx(ref.alpha).epsilon(0.001));
-            CHECK(f.scale == doctest::Approx(ref.scale).epsilon(0.001));
+TEST_CASE("a full period returns the wave to where it started") {
+    for (int xi = 0; xi <= 20; ++xi) {
+        const float x = static_cast<float>(xi) / 20.f;
+        const float ref = at(0.37f, x);
+        for (float k : {1.f, 4.f, 25.f}) {
+            CHECK(at(0.37f + kPeriodSeconds * k, x) ==
+                  doctest::Approx(ref).epsilon(0.001));
         }
     }
 }
 
-TEST_CASE("the wavelength puts about one crest on a screenful of bars") {
-    // 2*pi / 0.4 ~= 15.7 bars. Much shorter would strobe; much longer and the
-    // whole series would breathe in unison with no travel visible.
-    const float wavelength = 6.2831853f / kSpatialRadPerBar;
-    CHECK(wavelength == doctest::Approx(15.7f).epsilon(0.01));
-
-    const float crest_t = 1.5707963f / kTemporalRadPerSecond;
-    // One wavelength along the series is the same point in the cycle again.
-    const Frame f = at(crest_t, 16);
-    CHECK(f.alpha == doctest::Approx(kMaxAlpha).epsilon(0.01));
+TEST_CASE("one period moves a crest exactly one wavelength") {
+    // Phase velocity is w/k in x-fractions per second, so a period covers
+    // 1/kCyclesAcrossWidth of the width — which is what makes the wave look
+    // like it's sliding rather than flickering between two shapes.
+    const float k = kCyclesAcrossWidth * kTwoPi;
+    const float travelled = (kTemporalRadPerSecond / k) * kPeriodSeconds;
+    CHECK(travelled == doctest::Approx(1.f / kCyclesAcrossWidth));
 }
 
-TEST_CASE("the scale range is symmetric about resting size") {
-    // A wave that only grew bars would inflate the skeleton's average
-    // silhouette relative to the real series it hands off to.
-    CHECK(kMaxScale - 1.f == doctest::Approx(1.f - kMinScale));
+TEST_CASE("the requested number of crests fits across the plot") {
+    // Counting sign changes of the derivative is fussy; counting how many times
+    // the wave returns to its starting phase is equivalent and simpler.
+    CHECK(at(0.f, 0.f) == doctest::Approx(at(0.f, 1.f / kCyclesAcrossWidth))
+                              .epsilon(0.001));
+    CHECK(kCyclesAcrossWidth >= 1.f);
+    CHECK(kCyclesAcrossWidth <= 2.f);
+}
+
+TEST_CASE("y_frac centres the wave on the pane and stays inside it") {
+    for (int xi = 0; xi <= 50; ++xi) {
+        for (int ti = 0; ti <= 20; ++ti) {
+            const float y = y_frac(static_cast<float>(ti) * 0.2f,
+                                   static_cast<float>(xi) / 50.f);
+            // Comfortably off both edges, so a crest never clips the pane.
+            CHECK(y >= 0.5f - kAmplitudeFrac);
+            CHECK(y <= 0.5f + kAmplitudeFrac);
+            CHECK(y > 0.f);
+            CHECK(y < 1.f);
+        }
+    }
+}
+
+TEST_CASE("y_frac tracks the offset it is built from") {
+    for (int xi = 0; xi <= 10; ++xi) {
+        const float x = static_cast<float>(xi) / 10.f;
+        CHECK(y_frac(0.8f, x) ==
+              doctest::Approx(0.5f + kAmplitudeFrac * at(0.8f, x)));
+    }
+}
+
+TEST_CASE("the drift is slow enough to read as a placeholder") {
+    // Regression guard on feel: an earlier revision ran ~4x this fast and read
+    // as frantic. A crest should take a couple of seconds to cross the plot.
+    const float k = kCyclesAcrossWidth * kTwoPi;
+    const float cross_seconds = k / kTemporalRadPerSecond;
+    CHECK(cross_seconds > 2.f);
+    CHECK(cross_seconds < 10.f);
 }

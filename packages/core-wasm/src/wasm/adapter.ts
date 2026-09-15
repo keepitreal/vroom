@@ -54,6 +54,8 @@ interface WebChartInstance {
   beginStreamMorph(): void;
   setLoading(on: boolean, animate: boolean): void;
   beginLoadingMorph(): void;
+  setLoadingMorph(t: number): void;
+  beginLoadingReveal(): void;
   setIntervalMorph(t: number): void;
   pan(dx: number, dy: number): void;
   translate(dx: number, dy: number): void;
@@ -182,6 +184,12 @@ class WasmHandle implements VroomChartHandle {
   }
   beginLoadingMorph(): void {
     this.wc.beginLoadingMorph();
+  }
+  setLoadingMorph(t: number): void {
+    this.wc.setLoadingMorph(t);
+  }
+  beginLoadingReveal(): void {
+    this.wc.beginLoadingReveal();
   }
   setIntervalMorph(t: number): void {
     this.wc.setIntervalMorph(t);

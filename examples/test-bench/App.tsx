@@ -739,7 +739,7 @@ export default function App() {
               animates into the new data, which a remount would prevent. */}
 
           {/* `candles` is withheld while loading, as a real fetch would: the
-              skeleton is for a chart that has no data, and passing both would
+              line is for a chart that has no data, and passing both would
               (correctly) leave the real series up instead. */}
           <VroomChart
             candles={loading ? EMPTY_CANDLES : candles}
@@ -925,7 +925,7 @@ export default function App() {
                 </Text>
               </Pressable>
 
-              {/* Loading skeleton. A press holds it up so the wave can be
+              {/* Loading line. A press holds it up so the wave can be
                   watched; a second press delivers the data, which is the half
                   that exercises the hand-off morph. */}
               <Pressable

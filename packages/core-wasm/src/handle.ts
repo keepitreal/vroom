@@ -587,25 +587,47 @@ export interface VroomChartHandle {
    */
   setIntervalMorph(t: number): void;
   /**
-   * Show or hide the loading skeleton: a travelling wave of grey placeholder
-   * bars drawn in place of the chart, for a chart that is laid out but has no
-   * data yet. Suppresses the axis text, price badge, crosshair and indicator
-   * panes while it's up.
+   * Show or hide the loading line: a single stroke drawn across the plot in a
+   * slow travelling sine, for a chart that is laid out but has no data yet.
+   * Suppresses the axis text, price badge, crosshair and indicator panes while
+   * it's up.
    *
    * `on` must mean "loading *and* holding no data" — the core takes it at face
    * value rather than checking its candle buffer, since a host mid-asset-switch
    * can still be holding the previous asset's bars. Pass `animate: false` for
-   * reduced motion: the skeleton draws still and the chart may go idle.
+   * reduced motion: the line draws still and the chart may go idle.
+   *
+   * Passing `false` abandons any hand-off in flight, which is what a failed or
+   * superseded fetch wants. To hand off to data instead, use the two stages
+   * below.
    */
   setLoading(on: boolean, animate?: boolean): void;
   /**
-   * Hand the skeleton over to real data. Captures the skeleton's current
-   * (waved) geometry as a morph source and leaves the loading state, so the
-   * placeholder bars animate into the real ones and their grey blends into each
-   * bar's own bull/bear color. Call in place of beginIntervalMorph when data
-   * lands on a loading chart, then drive setIntervalMorph from 0 to 1.
+   * Hand-off stage one: reshape the loading line into the series. Freezes the
+   * sine where it is and aims each vertex at the vertical centre of the candle
+   * that will occupy its column, so the line resolves into the silhouette of
+   * the data.
+   *
+   * Call *after* setCandles — it reads them to know where to aim — then drive
+   * {@link setLoadingMorph} from 0 to 1. The axes and the candles stay
+   * suppressed throughout; stage two brings them in.
    */
   beginLoadingMorph(): void;
+  /**
+   * Advance stage one. `t` (clamped to 0..1) is the eased progress: 0 renders
+   * the frozen sine, 1 the polyline through the candle centres.
+   */
+  setLoadingMorph(t: number): void;
+  /**
+   * Hand-off stage two: the candles take over. Captures each one collapsed onto
+   * its own vertical centre at zero alpha and leaves the loading state, so the
+   * bars grow outward from the line and their color fades up as it fades out.
+   *
+   * Call once stage one has reached 1, then drive {@link setIntervalMorph} from
+   * 0 to 1 — the line's fade-out rides that same clock, so the two finish
+   * together.
+   */
+  beginLoadingReveal(): void;
 
   /** Shift the visible range by dx/dy CSS px. */
   pan(dx: number, dy: number): void;

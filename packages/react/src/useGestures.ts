@@ -33,7 +33,7 @@ type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' |
 export type GestureOptions = {
   crosshairOffset: number;
   /**
-   * Chart is showing the loading skeleton. Suppresses every pointer and wheel
+   * Chart is showing the loading line. Suppresses every pointer and wheel
    * gesture: there is no data to pan, zoom, inspect or draw against, and a
    * crosshair reading prices off a placeholder walk would be actively wrong.
    */

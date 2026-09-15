@@ -60,6 +60,8 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "beginStreamMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setLoading"));
   out.push_back(jsi::PropNameID::forAscii(rt, "beginLoadingMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setLoadingMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginLoadingReveal"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setIntervalMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
@@ -535,8 +537,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "setLoading") {
-    // setLoading(on, animate?) — show or hide the loading skeleton. `on` must
-    // mean "loading *and* holding no data"; the core takes it at face value.
+    // setLoading(on, animate?) — show or hide the loading line. `on` must mean
+    // "loading *and* holding no data"; the core takes it at face value.
     // `animate` defaults to true; pass false for reduced motion.
     return jsi::Function::createFromHostFunction(
         rt,
@@ -560,9 +562,9 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "beginLoadingMorph") {
-    // beginLoadingMorph() — capture the skeleton's waved geometry so the real
-    // data that's about to land morphs out of it. Call before setCandles, then
-    // drive setIntervalMorph from 0 to 1.
+    // beginLoadingMorph() — hand-off stage one: aim the loading line at the
+    // centres of the candles that just landed. Call *after* setCandles, then
+    // drive setLoadingMorph from 0 to 1.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "beginLoadingMorph"),
@@ -572,6 +574,41 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_begin_loading_morph(chart_);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setLoadingMorph") {
+    // setLoadingMorph(t) — advance stage one. 0 = the frozen sine, 1 = the
+    // polyline through the candle centres.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setLoadingMorph"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_set_loading_morph(
+              chart_, static_cast<float>(args[0].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "beginLoadingReveal") {
+    // beginLoadingReveal() — hand-off stage two: collapse every candle onto the
+    // line at zero alpha so it grows outward from there. Call once stage one
+    // reaches 1, then drive setIntervalMorph from 0 to 1.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginLoadingReveal"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          vroom_chart_begin_loading_reveal(chart_);
           return jsi::Value::undefined();
         });
   }

@@ -1,13 +1,8 @@
-// The travelling pulse that runs through the loading skeleton's bars — an
-// elapsed time and a bar index in, an alpha and a height scale out.
+// The travelling sine the loading line rides while a series is being fetched.
 //
-// One sine drives both outputs, in phase, so a crest is simultaneously the
-// tallest and the most opaque bar and a trough the shortest and faintest. That
-// coupling is the whole trick: two independent effects read as two effects,
-// while one shared phase reads as a single pulse moving through the series.
-//
-// Phase decreases with bar index, so crests advance toward higher indices —
-// left to right, the direction the series grows.
+// A position across the plot and an elapsed time in, a vertical offset out.
+// Phase runs as (k*x - w*t), so a crest sits at a larger x as time advances —
+// the wave moves left to right, the direction the series grows.
 //
 // Skia-free and header-only so the unit tests can cover it; see
 // tests/test_loading_wave.cpp.
@@ -18,41 +13,40 @@
 
 namespace vroom::loading_wave {
 
-// Angular frequency in time and in space. The ratio is the phase velocity:
-// 6 / 0.4 = 15 bars per second, with a wavelength of 2*pi / 0.4 ~= 15.7 bars —
-// so roughly one full wave is on screen at a time and it crosses a 60-bar
-// window in about four seconds.
-constexpr float kTemporalRadPerSecond = 6.f;
-constexpr float kSpatialRadPerBar = 0.4f;
+constexpr float kTwoPi = 6.283185307179586f;
+
+// Crests visible at once. Above about two the line starts reading as data
+// rather than as a placeholder; below one it barely looks like a wave.
+constexpr float kCyclesAcrossWidth = 1.5f;
+
+// How fast the phase advances. The line completes a cycle every 2*pi/w ~= 3.9s
+// and a crest crosses the full width in that over kCyclesAcrossWidth ~= 2.6s —
+// a drift rather than a ripple, which is the point: this runs under a chart
+// that has nothing to say yet.
+constexpr float kTemporalRadPerSecond = 1.6f;
 
 // One cycle in time. Callers wrap elapsed time by this so a chart left loading
 // for minutes doesn't lose float precision on the phase.
-constexpr float kPeriodSeconds = 6.283185307179586f / kTemporalRadPerSecond;
+constexpr float kPeriodSeconds = kTwoPi / kTemporalRadPerSecond;
 
-// Alpha floor and height scale at the extremes of the sine. The floor keeps a
-// trough legible rather than blinking out, and a scale that dips below 1 as far
-// as it rises above it keeps the series' average silhouette unchanged.
-constexpr float kMinAlpha = 0.35f;
-constexpr float kMaxAlpha = 1.f;
-constexpr float kMinScale = 0.5f;
-constexpr float kMaxScale = 1.5f;
+// Peak displacement from the centreline, as a fraction of the price pane's
+// height. The wave spans twice this, so 0.15 puts it across the middle ~30%
+// and keeps the crests well clear of the pane edges.
+constexpr float kAmplitudeFrac = 0.15f;
 
-struct Frame {
-    float alpha;  // kMinAlpha .. kMaxAlpha
-    float scale;  // kMinScale .. kMaxScale, about each bar's own midpoint
-};
+// Offset at `x_frac` (0 = left edge of the plot, 1 = right) and `elapsed_s`,
+// in -1 .. 1. Multiply by kAmplitudeFrac and the pane height for pixels.
+// Time outside one period is fine — sin wraps on its own.
+inline float at(float elapsed_s, float x_frac) {
+    return std::sin(kCyclesAcrossWidth * kTwoPi * x_frac -
+                    kTemporalRadPerSecond * elapsed_s);
+}
 
-// The pulse at `elapsed_s` for the bar at absolute index `index`. Time outside
-// one period is fine — sin wraps on its own — so a caller can hand over raw
-// elapsed seconds.
-inline Frame at(float elapsed_s, int index) {
-    const float w = std::sin(kTemporalRadPerSecond * elapsed_s -
-                             kSpatialRadPerBar * static_cast<float>(index));
-    // sin maps to 0..1 first so both outputs read as a plain lerp across their
-    // range, which is what keeps them provably in bounds.
-    const float u = 0.5f + 0.5f * w;
-    return Frame{kMinAlpha + (kMaxAlpha - kMinAlpha) * u,
-                 kMinScale + (kMaxScale - kMinScale) * u};
+// The wave's y as a fraction of the pane height (0 = pane top, 1 = bottom),
+// centred on the pane. This is the form the line capture stores, so a resize
+// mid-morph rescales instead of stranding the curve at old pixels.
+inline float y_frac(float elapsed_s, float x_frac) {
+    return 0.5f + kAmplitudeFrac * at(elapsed_s, x_frac);
 }
 
 }  // namespace vroom::loading_wave

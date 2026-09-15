@@ -438,8 +438,8 @@ typedef enum {
     VROOM_COLOR_ACCENT_BULL,       // generic up color: price indicator, volume, MACD
     VROOM_COLOR_ACCENT_BEAR,       // generic down color
     VROOM_COLOR_LINE,              // line-chart-mode close-price polyline
-    // Placeholder bars and axis pills in the loading skeleton. Drawn with the
-    // wave's own alpha, so supply an opaque color here.
+    // The loading line. Its own alpha is honored, then scaled by the fade-in
+    // and the stage-3 fade-out, so an opaque color here is the usual choice.
     VROOM_COLOR_SKELETON,
     VROOM_COLOR_COUNT_
 } VroomColorKey;
@@ -589,27 +589,43 @@ void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode);
 // translate.
 void vroom_chart_begin_stream_morph(VroomChart* chart);
 
-// Shows or hides the loading skeleton: a travelling wave of grey placeholder
-// bars drawn in place of the chart, for a chart that has been laid out but has
-// no data yet. Suppresses the axis text, price badge, crosshair and indicator
-// panes for as long as it's up.
+// Shows or hides the loading line: a single stroke drawn across the plot in a
+// slow travelling sine, for a chart that has been laid out but has no data yet.
+// Suppresses the axis text, price badge, crosshair and indicator panes for as
+// long as it's up.
 //
 // `on` must mean "loading *and* holding no data for the series being shown";
 // the core takes it at face value rather than checking the candle buffer,
 // because a host mid-asset-switch can still be holding the previous asset's
-// bars. Pass `animate` 0 for reduced motion: the skeleton draws still, and the
+// bars. Pass `animate` 0 for reduced motion: the line draws still, and the
 // chart is allowed to go idle instead of pinning a redraw loop.
+//
+// Passing 0 abandons any hand-off in flight, which is what a failed or
+// superseded fetch wants. To hand off to data instead, use the two stages
+// below.
 void vroom_chart_set_loading(VroomChart* chart, int32_t on, int32_t animate);
 
-// Hands the skeleton over to real data. Captures the skeleton's current
-// (waved) geometry as a morph source and leaves the loading state, so the
-// placeholder bars animate into the real ones and their grey blends into each
-// bar's own bull/bear color.
+// Hand-off stage one: reshapes the line into the series. Freezes the sine where
+// it is and aims each vertex at the vertical centre of the candle that will
+// occupy its column, so the line resolves into the silhouette of the data.
 //
-// Call in place of begin_interval_morph when data lands on a loading chart,
-// then drive vroom_chart_set_interval_morph from 0 to 1 as usual. No-op if the
-// skeleton isn't up.
+// Call *after* set_candles — it reads them to know where to aim — then drive
+// vroom_chart_set_loading_morph from 0 to 1. The axes and the candles stay
+// suppressed throughout; stage two brings them in. No-op if the line isn't up.
 void vroom_chart_begin_loading_morph(VroomChart* chart);
+
+// Advances stage one. `t` (clamped to 0..1) is the eased progress: 0 renders the
+// frozen sine, 1 the polyline through the candle centres.
+void vroom_chart_set_loading_morph(VroomChart* chart, float t);
+
+// Hand-off stage two: the candles take over. Captures each one collapsed onto
+// its own vertical centre at zero alpha and leaves the loading state, so the
+// bars grow outward from the line and their color fades up as it fades out.
+//
+// Call once stage one has reached 1, then drive vroom_chart_set_interval_morph
+// from 0 to 1 as usual — the line's fade-out rides that same clock, so the two
+// finish together. No-op if the line isn't up.
+void vroom_chart_begin_loading_reveal(VroomChart* chart);
 
 // Advances the morph started by either begin_*_morph above. `t` (clamped to
 // 0..1) is the eased progress: 0 renders the captured geometry pixel-identically

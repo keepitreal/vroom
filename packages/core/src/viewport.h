@@ -104,6 +104,20 @@ struct CandleSnapshot {
     float skeleton_alpha = 1.f;
 };
 
+// One vertex of the loading line's morph, holding both ends of the animation
+// so a frame is a plain lerp between them.
+//
+// The two y's are in different spaces on purpose. The sine knows nothing about
+// prices, so it's a fraction of the pane; the candle centre is a fraction of
+// the price band, the same space CandleSnapshot uses — which is what keeps the
+// line sitting exactly where the bars emerge from, since both resolve through
+// y_at_fraction.
+struct LinePoint {
+    float x;       // fraction of the candle-area width
+    float from_y;  // fraction of the pane height — the sine, frozen at capture
+    float to_y;    // fraction of the price band — the candle's vertical centre
+};
+
 // How many captured slots still contribute to a frame — 0 once the morph is
 // done, which releases the capture. Drawing routines take max(n, this) as their
 // slot count, pairing the new candle at slot k (visible[n - 1 - k]) with the

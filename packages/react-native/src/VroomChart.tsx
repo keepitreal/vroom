@@ -208,11 +208,11 @@ export function VroomChart(props: VroomChartProps) {
     loading,
   );
 
-  // Same condition useChartCore draws the skeleton on: a refresh that still has
+  // Same condition useChartCore draws the line on: a refresh that still has
   // data keeps the chart interactive. Every gesture below is gated on this —
-  // there's nothing to pan, zoom or inspect while the skeleton is up, and a
+  // there's nothing to pan, zoom or inspect while the line is up, and a
   // crosshair reading prices off a placeholder walk would be actively wrong.
-  const showSkeleton = loading === true && candles.length === 0;
+  const showLoadingLine = loading === true && candles.length === 0;
 
   // When the crosshair is showing, pan moves it (instead of scrolling) and
   // pinch is disabled. A ref (not state) so gesture callbacks read it
@@ -608,7 +608,7 @@ export function VroomChart(props: VroomChartProps) {
   };
 
   const pan = Gesture.Pan()
-    .enabled(!showSkeleton)
+    .enabled(!showLoadingLine)
     .runOnJS(true)
     .maxPointers(1)  // don't fight Pinch's two-finger gesture
     .onStart((e) => {
@@ -754,7 +754,7 @@ export function VroomChart(props: VroomChartProps) {
     enableY: false,
   });
   const pinch = Gesture.Pinch()
-    .enabled(!showSkeleton)
+    .enabled(!showLoadingLine)
     .runOnJS(true)
     .onTouchesDown((e) => {
       if (e.numberOfTouches < 2) return;
@@ -805,7 +805,7 @@ export function VroomChart(props: VroomChartProps) {
   // activates `pan` (it needs movement first), so the chart won't scroll under
   // the hold. The dot/horizontal line are lifted above the fingertip.
   const longPress = Gesture.LongPress()
-    .enabled(!showSkeleton)
+    .enabled(!showLoadingLine)
     .runOnJS(true)
     .onStart((e) => {
       if (!handle) return;
@@ -837,7 +837,7 @@ export function VroomChart(props: VroomChartProps) {
   // badge, and otherwise dismisses the crosshair while it's up. Any other tap is a
   // no-op, so it never interferes with normal pan/pinch.
   const tap = Gesture.Tap()
-    .enabled(!showSkeleton)
+    .enabled(!showLoadingLine)
     .runOnJS(true)
     .onStart((e) => {
       if (!handle) return;

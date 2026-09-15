@@ -113,10 +113,10 @@ export type VroomTheme = {
   /** Line-chart-mode close polyline color. Defaults to violet, matching the RSI line. */
   lineColor?: VroomColor;
   /**
-   * Placeholder bars and axis pills in the loading skeleton (see the `loading`
-   * prop). Defaults to a neutral grey that sits between `grid` and `axisText`
-   * in value. Supply an opaque color: the skeleton's wave animation owns the
-   * alpha channel, so any alpha given here is ignored.
+   * The line drawn across the plot while loading (see the `loading` prop).
+   * Defaults to a neutral grey that sits between `grid` and `axisText` in
+   * value. Any alpha given here is honored, then scaled by the line's fade-in
+   * and fade-out, so an opaque color is the usual choice.
    */
   skeleton?: VroomColor;
   /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
@@ -1158,14 +1158,15 @@ export type VroomChartCoreProps = {
   candles: Candle[];
   /**
    * Whether the series is still being fetched. While this is true *and*
-   * `candles` is empty, the chart draws a loading skeleton — a travelling wave
-   * of grey placeholder bars with matching volume and axis pills — in place of
-   * the scene. Gestures, the crosshair, the price badge, the axis labels and
-   * any indicator panes are all suppressed for the duration.
+   * `candles` is empty, the chart draws a single grey line across the plot,
+   * drifting in a slow sine wave, in place of the scene. Gestures, the
+   * crosshair, the price badge, the axis labels and any indicator panes are all
+   * suppressed for the duration.
    *
-   * When the data arrives the skeleton doesn't cut away: its bars morph into
-   * the real ones over `transitionMs` and their grey blends into each bar's own
-   * bull/bear color.
+   * When the data arrives the line doesn't cut away — it becomes the chart, in
+   * two steps that split `transitionMs`: it reshapes to pass through the
+   * vertical centre of every candle about to be drawn, then fades out while
+   * those candles grow outward from it and their color fades up.
    *
    * Passing `candles` alongside `loading` leaves the real chart up, so a
    * background refresh of an already-loaded series won't blank out. Default

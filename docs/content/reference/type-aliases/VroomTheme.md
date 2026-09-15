@@ -330,10 +330,10 @@ optional skeleton?: VroomColor;
 
 Source: [types/src/index.ts:121](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L121)
 
-Placeholder bars and axis pills in the loading skeleton (see the `loading`
-prop). Defaults to a neutral grey that sits between `grid` and `axisText`
-in value. Supply an opaque color: the skeleton's wave animation owns the
-alpha channel, so any alpha given here is ignored.
+The line drawn across the plot while loading (see the `loading` prop).
+Defaults to a neutral grey that sits between `grid` and `axisText` in
+value. Any alpha given here is honored, then scaled by the line's fade-in
+and fade-out, so an opaque color is the usual choice.
 
 ---
 

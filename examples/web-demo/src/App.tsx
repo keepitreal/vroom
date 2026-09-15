@@ -545,7 +545,7 @@ export function App() {
   const [sparse, setSparse] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('sparse'),
   );
-  // Loading skeleton. `?loading=1` turns it on at load so the verify flow can
+  // Loading line. `?loading=1` turns it on at load so the verify flow can
   // deep-link straight into the placeholder state.
   const [loading, setLoading] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('loading'),
@@ -1151,7 +1151,7 @@ export function App() {
                 // applies (it only takes effect on a fresh handle — mirrors a
                 // real "first load").
                 key={chartKey}
-                // Withheld while loading, as a real fetch would: the skeleton
+                // Withheld while loading, as a real fetch would: the line
                 // is for a chart that has no data, and passing both would
                 // (correctly) leave the real series up instead.
                 candles={loading ? EMPTY_CANDLES : candles}

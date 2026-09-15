@@ -103,7 +103,7 @@ const LABELS: Record<ColorField, string> = {
   crosshair: 'Crosshair',
   crosshairTarget: 'Crosshair target',
   lineColor: 'Line',
-  skeleton: 'Loading skeleton',
+  skeleton: 'Loading line',
 };
 
 const overlay: React.CSSProperties = {

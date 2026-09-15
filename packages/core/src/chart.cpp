@@ -32,8 +32,7 @@
 #include "ichimoku.h"
 #include "labels.h"
 #include "liquidity.h"
-#include "loading_series.h"
-#include "loading_skeleton.h"
+#include "loading_line.h"
 #include "loading_wave.h"
 #include "ma.h"
 #include "ma_overlay.h"
@@ -547,18 +546,19 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(SkRect::MakeWH(width_px, height_px), bg);
 
-    // 1b. Loading skeleton, in place of the scene. Above the `candles.empty()`
-    //     return because `loading` is authoritative: the host may still be
-    //     holding the previous asset's bars while the new one loads, and the
-    //     skeleton has to win over them. Returning here is also what suppresses
-    //     the axis text, price badge, crosshair and indicator panes.
+    // 1b. Loading line, in place of the scene (stages 1 and 2). Above the
+    //     `candles.empty()` return because `loading` is authoritative: the host
+    //     may still be holding the previous asset's bars while the new one
+    //     loads, and the line has to win over them. Returning here is also what
+    //     suppresses the axis text, price badge, crosshair and indicator panes
+    //     until stage 3 releases the flag.
     if (loading) {
         if (loading_fade_in < 1.f) {
             canvas->saveLayerAlphaf(nullptr, loading_fade_in);
-            vroom::loading_skeleton::draw(canvas, *this, lay);
+            vroom::loading_line::draw(canvas, *this, lay);
             canvas->restore();
         } else {
-            vroom::loading_skeleton::draw(canvas, *this, lay);
+            vroom::loading_line::draw(canvas, *this, lay);
         }
         return;
     }
@@ -721,9 +721,19 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             }
 
             // 4.5. Volume bars — drawn under the candles so candles z-index above.
-            if (volume_collapse_t < 1.f) {
+            //      Through a loading reveal they grow up off the axis on the
+            //      same clock as the candles, borrowing the collapse they
+            //      already have. They carry no morph snapshot of their own, so
+            //      without this they'd snap in at full height while the price
+            //      series is still a thread lying on the line. A render-time
+            //      override, not a state change: the host still owns the
+            //      collapse for the volume toggle.
+            const float vol_t = loading_line_revealing
+                ? std::max(volume_collapse_t, 1.f - interval_morph_t)
+                : volume_collapse_t;
+            if (vol_t < 1.f) {
                 vroom::volume::draw(canvas, visible, n, lay, theme, volume,
-                                    volume_collapse_t, volume_collapse_easing,
+                                    vol_t, volume_collapse_easing,
                                     window_ms, visible_start_ms,
                                     candle_duration_ms);
             }
@@ -799,6 +809,15 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         }
 
         if (wrap) canvas->restore();
+    }
+
+    // 5.9. Loading line, stage 3. Over the series it handed off to, on the same
+    //      clock, so it reads as the bars peeling away from the line rather than
+    //      two things dissolving independently. Before the axis masks below,
+    //      since it belongs inside the plot.
+    if (loading_line_revealing) {
+        vroom::loading_line::draw_fading(canvas, *this, lay,
+                                         1.f - interval_morph_t);
     }
 
     // 6. Axis backgrounds (mask any candle overflow). The x-axis separator
@@ -903,13 +922,16 @@ void VroomChart::begin_frame() {
         std::fmod(tip_pulse_elapsed_s + dt, vroom::tip_pulse::kPeriodSeconds);
 
     if (loading) {
-        if (loading_animate) {
+        // Frozen once a capture exists: stage 2 morphs away from the phase the
+        // sine held when the data landed, and advancing it underneath would
+        // drag the morph's own start point around.
+        if (loading_animate && loading_line.empty()) {
             loading_elapsed_s = std::fmod(loading_elapsed_s + dt,
                                           vroom::loading_wave::kPeriodSeconds);
         }
         // Ramps regardless of `loading_animate`: reduced motion suppresses the
-        // wave's movement, not the appearance of the skeleton itself, which
-        // would otherwise pop in at full strength.
+        // wave's movement, not the appearance of the line itself, which would
+        // otherwise pop in at full strength.
         constexpr float kFadeInSeconds = 0.3f;
         loading_fade_in = std::min(1.f, loading_fade_in + dt / kFadeInSeconds);
     }
@@ -919,88 +941,160 @@ void VroomChart::set_loading(bool on, bool animate) {
     loading_animate = animate;
     if (on == loading) return;  // a re-push of the same state isn't a restart
     loading = on;
-    if (!on) return;
+
+    // Either direction abandons any hand-off in flight. Going false without
+    // passing through the two stages is the cancel path (fetch failed, asset
+    // switched again mid-load), and it should leave nothing behind.
+    loading_line.clear();
+    loading_line_t = 1.f;
+    loading_line_revealing = false;
+    if (!on) {
+        mark_dirty();
+        return;
+    }
 
     loading_elapsed_s = 0.f;
     loading_fade_in = 0.f;
-    if (loading_candles.empty()) {
-        // Anchored to a fixed timestamp, not `now`: the walk's only job is to
-        // supply a silhouette, and the axis labels that would expose the dates
-        // are suppressed while it's up. A wall-clock anchor would make the
-        // series differ between runs for no visible gain.
-        loading_candles = vroom::loading_series::generate(0);
-    }
     mark_dirty();
 }
 
+// Visible slice + price bounds the two hand-off stages both need. Mirrors what
+// draw_chart computes in step 2; `n == 0` means there is nothing to hand off to.
+VroomChart::LoadingTarget VroomChart::loading_target() const {
+    LoadingTarget t{};
+    if (candles.empty()) return t;
+    const auto range = vroom::visible_indices(candles.data(), candles.size(),
+                                              visible_start_ms, visible_end_ms);
+    const std::size_t n = range.end - range.start;
+    if (n == 0) return t;
+    t.visible = candles.data() + range.start;
+    t.n = n;
+    t.bounds = price_bounds_manual
+        ? price_bounds
+        : vroom::auto_price_bounds(t.visible, n);
+    return t;
+}
+
 void VroomChart::begin_loading_morph() {
+    if (!loading) return;
+
+    const auto lay = layout();
+    const float area_w = vroom::candle_area_width(lay);
+    const auto target = loading_target();
+    if (target.n == 0 || area_w <= 0.f) return;
+
+    const int64_t window_ms = visible_end_ms - visible_start_ms;
+    const float elapsed = loading_animate ? loading_elapsed_s : 0.f;
+
+    const auto push = [&](float xf, float to_y) {
+        vroom::LinePoint p{};
+        p.x = xf;
+        // Sampling the sine at this vertex's own x is what makes the freeze
+        // invisible: the curve the user was watching passes through this point
+        // already, so stage 2 starts on the pixels stage 1 ended on.
+        p.from_y = vroom::loading_wave::y_frac(elapsed,
+                                               std::clamp(xf, 0.f, 1.f));
+        p.to_y = to_y;
+        loading_line.push_back(p);
+    };
+    // Mid-range, not mid-body: the bars grow outward symmetrically from this
+    // line, so anchoring on the body would leave one wick reaching further
+    // than the other.
+    const auto center_frac = [&](const ::VroomCandle& c) {
+        return static_cast<float>(
+            vroom::price_fraction(target.bounds, (c.high + c.low) * 0.5));
+    };
+    const auto center_x_frac = [&](const ::VroomCandle& c) {
+        return vroom::candle_center_x(lay, c.time_ms, candle_duration_ms,
+                                      visible_start_ms, window_ms) / area_w;
+    };
+
+    // Left to right, the order a polyline wants. (The reveal below indexes from
+    // the right instead, because that's what the morph machinery expects.)
+    loading_line.clear();
+    loading_line.reserve(target.n + 2);
+
+    // Spans the data doesn't reach — a short series in a wider window — are
+    // sampled at the idle curve's own resolution and flattened to the nearest
+    // candle's level. So the line still begins as the sine across the *whole*
+    // plot and eases into a level run leading into the series; leaving those
+    // spans out instead would snap the line's length on the first frame.
+    const int across = std::clamp(static_cast<int>(area_w / 3.f), 1, 512);
+    const float step = 1.f / static_cast<float>(across);
+    const float first_xf = center_x_frac(target.visible[0]);
+    const float last_xf = center_x_frac(target.visible[target.n - 1]);
+
+    for (int i = 0; static_cast<float>(i) * step < first_xf; ++i) {
+        push(static_cast<float>(i) * step, center_frac(target.visible[0]));
+    }
+    for (std::size_t i = 0; i < target.n; ++i) {
+        push(center_x_frac(target.visible[i]), center_frac(target.visible[i]));
+    }
+    for (int i = static_cast<int>(std::ceil(last_xf / step)); i <= across; ++i) {
+        push(static_cast<float>(i) * step,
+             center_frac(target.visible[target.n - 1]));
+    }
+
+    loading_line_t = 0.f;
+    // `loading` stays set: the axes, price badge and panes have no business
+    // appearing until the candles themselves do, in stage 3.
+    mark_dirty();
+}
+
+void VroomChart::begin_loading_reveal() {
     if (!loading) return;
     loading = false;
 
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
-    const std::size_t n = vroom::loading_skeleton::bar_count(*this, lay);
-    const ::VroomCandle* bars = vroom::loading_series::tail(loading_candles, n);
-    if (!bars || n == 0 || area_w <= 0.f) return;
+    const auto target = loading_target();
+    if (target.n == 0 || area_w <= 0.f) {
+        loading_line.clear();
+        mark_dirty();
+        return;
+    }
 
-    const auto bounds = vroom::auto_price_bounds(bars, n);
-    const float step = area_w / static_cast<float>(n);
-    const float elapsed = loading_animate ? loading_elapsed_s : 0.f;
+    const int64_t window_ms = visible_end_ms - visible_start_ms;
 
     // Right-to-left, matching how the morph machinery indexes slots (slot 0 =
     // newest bar at the right edge).
     morph_from.clear();
-    morph_from.reserve(n);
-    for (std::size_t slot = 0; slot < n; ++slot) {
-        const std::size_t i = n - 1 - slot;
-        const ::VroomCandle& c = bars[i];
-        const auto w = vroom::loading_wave::at(elapsed, static_cast<int>(i));
-
-        // Scale in price-fraction space about each bar's own midpoint, the same
-        // transform loading_skeleton::draw applies in pixels — so the captured
-        // geometry is exactly the bars the user is looking at.
-        const auto scaled = [&](double lo, double hi) {
-            const double mid = (vroom::price_fraction(bounds, lo) +
-                                vroom::price_fraction(bounds, hi)) * 0.5;
-            const double half = (vroom::price_fraction(bounds, hi) -
-                                 vroom::price_fraction(bounds, lo)) *
-                                0.5 * static_cast<double>(w.scale);
-            return std::pair<float, float>{static_cast<float>(mid - half),
-                                           static_cast<float>(mid + half)};
-        };
-        const auto [low_f, high_f] = scaled(c.low, c.high);
-        const auto [body_lo, body_hi] =
-            scaled(std::min(c.open, c.close), std::max(c.open, c.close));
+    morph_from.reserve(target.n);
+    for (std::size_t slot = 0; slot < target.n; ++slot) {
+        const ::VroomCandle& c = target.visible[target.n - 1 - slot];
+        const float center = static_cast<float>(
+            vroom::price_fraction(target.bounds, (c.high + c.low) * 0.5));
 
         vroom::CandleSnapshot s{};
-        s.x = ((static_cast<float>(i) + 0.5f) * step) / area_w;
-        s.high = high_f;
-        s.low = low_f;
+        s.x = vroom::candle_center_x(lay, c.time_ms, candle_duration_ms,
+                                     visible_start_ms, window_ms) / area_w;
+        // Every price collapsed onto the centre, so the slot starts as a
+        // zero-height sliver sitting on the line and the existing lerp is what
+        // grows it out to full open/high/low/close.
+        s.open = s.high = s.low = s.close = center;
         s.bull = c.close >= c.open;
-        s.open = s.bull ? body_lo : body_hi;
-        s.close = s.bull ? body_hi : body_lo;
-        // Tells candles::draw to blend this column's color out of the skeleton
-        // grey rather than out of its own bull/bear, which is what carries the
-        // grey→colored hand-off.
+        // Starts the colour blend from fully transparent rather than from the
+        // skeleton grey: the bar emerges from the line, so a grey body would
+        // just smear the line thicker on the first frames.
         s.skeleton = true;
-        s.skeleton_alpha = w.alpha;
+        s.skeleton_alpha = 0.f;
         morph_from.push_back(s);
     }
 
-    morph_from_bounds = bounds;
+    morph_from_bounds = target.bounds;
     interval_morph_t = 0.f;
-    // Slot-lerp, not crossfade: the two shapes are in the same family, so
-    // morphing column into column is what makes the placeholder *become* the
-    // data instead of one scene dissolving into another.
+    // Slot-lerp, not crossfade: each bar has a counterpart to grow out of, so
+    // pairing column to column is what makes the line *become* the data instead
+    // of one scene dissolving into another.
     interval_morph_fade = false;
     // Keeps the axes out of the interval envelope (see labels::interval_phase),
     // which is what the flag actually selects. A timeframe switch runs the
     // outgoing ticks out and the new ones in; here there are no outgoing ticks
-    // — the skeleton draws none — so that envelope would instead fade *in* the
-    // placeholder walk's arbitrary prices and then swap them for the real ones,
-    // briefly showing invented numbers on the axis. Per-label fades bring the
-    // real ticks up from nothing, which is the honest version.
+    // — stages 1 and 2 draw no axis at all — so that envelope would hold the
+    // real labels back for the first half of the reveal. Per-label fades bring
+    // them up from nothing instead, in step with the bars.
     morph_is_stream = true;
+    loading_line_revealing = true;
     mark_dirty();
 }
 
@@ -1022,8 +1116,9 @@ bool VroomChart::is_animating_now() const {
     // The pulse never finishes on its own, so this is what keeps the host loops
     // requeueing frames for it.
     if (tip_pulse_active()) return true;
-    // Same deal for the loading wave, except a still skeleton (reduced motion,
-    // once faded in) has nothing left to redraw and is allowed to go idle.
+    // Same deal for the loading line's wave, except a still line (reduced
+    // motion, once faded in) has nothing left to redraw and may go idle. The
+    // two hand-off stages are host-driven, so they need nothing here.
     if (loading && (loading_animate || loading_fade_in < 1.f)) return true;
     for (const auto& f : y_fades) {
         if (f.opacity != f.target) return true;
