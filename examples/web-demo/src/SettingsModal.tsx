@@ -53,6 +53,7 @@ export const DEFAULT_THEME: ThemeState = {
   crosshair: '#303741',
   crosshairTarget: '#3e4855',
   lineColor: '#8957e5',
+  skeleton: '#3d444d',
 };
 
 // Fields whose default is "inherit the candle body fill". Each gets an
@@ -79,7 +80,10 @@ const SECTIONS: { title: string; fields: ColorField[] }[] = [
     fields: ['bull', 'bear', 'borderBull', 'borderBear', 'wickBull', 'wickBear'],
   },
   { title: 'Price & volume', fields: ['accentBull', 'accentBear'] },
-  { title: 'Chart', fields: ['background', 'grid', 'axisText', 'badgeText', 'lineColor'] },
+  {
+    title: 'Chart',
+    fields: ['background', 'grid', 'axisText', 'badgeText', 'lineColor', 'skeleton'],
+  },
   { title: 'Crosshair', fields: ['crosshair', 'crosshairTarget'] },
 ];
 
@@ -99,6 +103,7 @@ const LABELS: Record<ColorField, string> = {
   crosshair: 'Crosshair',
   crosshairTarget: 'Crosshair target',
   lineColor: 'Line',
+  skeleton: 'Loading skeleton',
 };
 
 const overlay: React.CSSProperties = {

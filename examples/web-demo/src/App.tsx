@@ -200,6 +200,10 @@ function maybeSparse(series: Candle[], sparse: boolean): Candle[] {
   return series.slice(-SPARSE_COUNT);
 }
 
+// Hoisted so the loading state doesn't hand the chart a fresh [] each render,
+// which its data effect would read as a new series every time.
+const EMPTY_CANDLES: Candle[] = [];
+
 const baseCache = new Map<Asset, Candle[]>();
 function baseSeries(asset: Asset): Candle[] {
   const cached = baseCache.get(asset);
@@ -540,6 +544,29 @@ export function App() {
   // verify flow can deep-link; the sidebar toggle is the interactive control.
   const [sparse, setSparse] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('sparse'),
+  );
+  // Loading skeleton. `?loading=1` turns it on at load so the verify flow can
+  // deep-link straight into the placeholder state.
+  const [loading, setLoading] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('loading'),
+  );
+  const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A round trip through the real contract: loading with no data, then data.
+  // The hand-off morph is only exercised by that second step, so a toggle alone
+  // can't show it end to end.
+  const onSimulateLoad = useCallback(() => {
+    if (loadTimer.current != null) clearTimeout(loadTimer.current);
+    setLoading(true);
+    loadTimer.current = setTimeout(() => {
+      loadTimer.current = null;
+      setLoading(false);
+    }, 1500);
+  }, []);
+  useEffect(
+    () => () => {
+      if (loadTimer.current != null) clearTimeout(loadTimer.current);
+    },
+    [],
   );
   const [showLiquidity, setShowLiquidity] = useState(false);
   const [showPriceLines, setShowPriceLines] = useState(false);
@@ -1124,7 +1151,11 @@ export function App() {
                 // applies (it only takes effect on a fresh handle — mirrors a
                 // real "first load").
                 key={chartKey}
-                candles={candles}
+                // Withheld while loading, as a real fetch would: the skeleton
+                // is for a chart that has no data, and passing both would
+                // (correctly) leave the real series up instead.
+                candles={loading ? EMPTY_CANDLES : candles}
+                loading={loading}
                 seriesKey={seriesKey}
                 theme={chartTheme}
                 chartType={chartType}
@@ -1174,6 +1205,9 @@ export function App() {
               setGaps,
               sparse,
               setSparse,
+              loading,
+              setLoading,
+              onSimulateLoad,
             }}
             streaming={{
               onAddCandle,

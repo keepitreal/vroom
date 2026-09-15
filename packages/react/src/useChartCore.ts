@@ -447,6 +447,7 @@ export function useChartCore(
 ): UseChartCore {
   const {
     candles,
+    loading,
     seriesKey,
     width: widthProp,
     height: heightProp,
@@ -718,6 +719,17 @@ export function useChartCore(
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
 
+  // The core trusts `setLoading` outright, so the "and no data yet" half of the
+  // condition is decided here. Both halves matter: without `loading` a chart
+  // that legitimately has no bars would wave a placeholder forever, and without
+  // the emptiness check a background refresh of a loaded series would blank the
+  // chart the user is already reading.
+  const showSkeleton = loading === true && candles.length === 0;
+  // Tracks whether the *core* is currently showing the skeleton, which is what
+  // decides if the next data push is a hand-off. Distinct from `showSkeleton`:
+  // that is this render's intent, this is what's on screen.
+  const skeletonUpRef = useRef(false);
+
   // Push everything into the core whenever data/size/config changes, then paint.
   useEffect(() => {
     const h = handleRef.current;
@@ -728,6 +740,31 @@ export function useChartCore(
     // runs inside setCandles and reserves room past the newest candle for
     // Ichimoku's leading spans, so it has to already know they're coming.
     h.setIchimoku(ichimokuToSpec(ichimoku));
+
+    if (showSkeleton) {
+      // Clear the core's buffer, which the `candles.length > 0` gate below
+      // otherwise never does: pushing an empty array is treated as "hold the
+      // last frame" everywhere else, so a chart switching assets would still be
+      // holding the previous one's bars underneath the skeleton — and would
+      // classify the incoming series as a timeframe switch rather than a fresh
+      // load. Scoped to the loading case so that hold-the-last-frame behavior
+      // is untouched for every other empty push.
+      if (!skeletonUpRef.current) {
+        endIntervalMorph();
+        settleStream();
+        h.setCandles(packCandles([]));
+        prevDataRef.current = null;
+      }
+      h.setLoading(true, !prefersReducedMotion());
+      skeletonUpRef.current = true;
+    } else if (skeletonUpRef.current && candles.length === 0) {
+      // Loading resolved to nothing — an empty result, or an error the consumer
+      // handled. There's no geometry to morph into, so drop the skeleton rather
+      // than leaving it waving at data that isn't coming.
+      h.setLoading(false, true);
+      skeletonUpRef.current = false;
+    }
+
     if (candles.length > 0) {
       const prev = prevDataRef.current;
       const freshHandle = prev == null || prev.handle !== h;
@@ -748,6 +785,8 @@ export function useChartCore(
         // The pre-swap candle envelope, used to scale-lock the y-axis below.
         let prevEnvelope: { low: number; high: number } | null = null;
         let willMorph = false;
+        // Set when this push is the loading skeleton's hand-off to real data.
+        let handOff = false;
         // Set for an animated live update: whether the last bar reshapes, and
         // the window an appended bar should pull the view to.
         let stream: { morph: boolean; window: VisibleRange | null } | null = null;
@@ -815,6 +854,20 @@ export function useChartCore(
           endIntervalMorph();
         }
 
+        // The skeleton's data has landed. Capture its waved bars as the morph
+        // source so the placeholder becomes the series instead of cutting to
+        // it. Always classified 'initial' (the skeleton branch above cleared
+        // prevDataRef), so this runs after that branch's endIntervalMorph and
+        // owns the capture.
+        if (skeletonUpRef.current) {
+          skeletonUpRef.current = false;
+          handOff = animRef.current.ms > 0 && !prefersReducedMotion();
+          // Either way the core leaves the loading state — beginLoadingMorph
+          // does it as part of capturing, and setLoading covers the snap path.
+          if (handOff) h.beginLoadingMorph();
+          else h.setLoading(false, true);
+        }
+
         // Drive the initial zoom from a target candle width, but only on a
         // fresh handle and only when the caller isn't explicitly controlling the
         // range. Pushed before setCandles so the core's default framing (run
@@ -859,6 +912,9 @@ export function useChartCore(
         } else if (transition === 'reset') {
           h.resetView();
         }
+        // After setCandles and the framing above, so slot 0 of the capture pairs
+        // with the newest real bar at the position it will actually occupy.
+        if (handOff) startIntervalMorph(h);
         prevDataRef.current = { handle: h, candles, seriesKey };
       }
     }
@@ -907,7 +963,7 @@ export function useChartCore(
     // fairValueGaps/volume/drawings/liquidity/priceLines/footprints tracked via
     // *Key deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, width, height, candles, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph, startStreamAnim, settleStream]);
+  }, [ready, width, height, candles, showSkeleton, seriesKey, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, drawingsKey, liquidityKey, priceLinesKey, footprintsKey, scheduleRender, startIntervalMorph, endIntervalMorph, startStreamAnim, settleStream]);
 
   // Animate the candle↔line transition when `chartType` changes. The core is
   // driven per-frame with a (collapse, fade) blend; we own the eased clock here

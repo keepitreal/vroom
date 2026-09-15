@@ -23,6 +23,7 @@ type VroomTheme = {
   lineWidth?: number;
   showXAxis?: boolean;
   showYAxis?: boolean;
+  skeleton?: VroomColor;
   volumeRadius?: number;
   wickBear?: VroomColor;
   wickBull?: VroomColor;
@@ -214,7 +215,7 @@ Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 optional lineGradientOpacity?: number;
 ```
 
-Source: [types/src/index.ts:122](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L122)
+Source: [types/src/index.ts:129](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L129)
 
 Opacity of the gradient filled beneath the line-chart polyline, at its
 strongest point. The fill uses `lineColor` and ramps to fully transparent at
@@ -228,7 +229,7 @@ the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
 optional lineTension?: number;
 ```
 
-Source: [types/src/index.ts:132](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L132)
+Source: [types/src/index.ts:139](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L139)
 
 How much to round the line chart's corners, from 0 (straight segments
 between closes) to 1 (fully smooth). Defaults to 0.
@@ -246,7 +247,7 @@ gradient fill beneath the line as well, so the two stay flush.
 optional lineTipDot?: boolean;
 ```
 
-Source: [types/src/index.ts:141](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L141)
+Source: [types/src/index.ts:148](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L148)
 
 Mark the line chart's newest end with a dot. Defaults to `true`.
 
@@ -263,7 +264,7 @@ transition.
 optional lineTipPulse?: boolean;
 ```
 
-Source: [types/src/index.ts:149](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L149)
+Source: [types/src/index.ts:156](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L156)
 
 Pulse a ring outward from the tip dot, once every 2.6s. Defaults to `false`.
 
@@ -279,7 +280,7 @@ continuously — leave it off for charts that should be able to go idle.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:116](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L116)
+Source: [types/src/index.ts:123](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L123)
 
 Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 
@@ -291,7 +292,7 @@ Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:169](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L169)
+Source: [types/src/index.ts:176](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L176)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -306,7 +307,7 @@ grows into it, and the time labels and crosshair time badge fade first.
 optional showYAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:162](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L162)
+Source: [types/src/index.ts:169](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L169)
 
 Show the price (y) axis strip down the right edge. Defaults to `true`.
 
@@ -318,6 +319,21 @@ over `transitionMs` unless the OS asks for reduced motion.
 
 The axis drag-to-scale region goes with the strip, so a hidden axis can't be
 scaled by dragging it.
+
+---
+
+### skeleton?
+
+```ts
+optional skeleton?: VroomColor;
+```
+
+Source: [types/src/index.ts:121](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L121)
+
+Placeholder bars and axis pills in the loading skeleton (see the `loading`
+prop). Defaults to a neutral grey that sits between `grid` and `axisText`
+in value. Supply an opaque color: the skeleton's wave animation owns the
+alpha channel, so any alpha given here is ignored.
 
 ---
 

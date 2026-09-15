@@ -28,6 +28,7 @@ export enum ColorKey {
   AccentBull = 14,
   AccentBear = 15,
   Line = 16,
+  Skeleton = 17,
 }
 
 /** Theme float slots — mirrors the `VroomFloatKey` enum in the C facade. */
@@ -585,6 +586,26 @@ export interface VroomChartHandle {
    * the capture. Driven per-frame by the host animation loop.
    */
   setIntervalMorph(t: number): void;
+  /**
+   * Show or hide the loading skeleton: a travelling wave of grey placeholder
+   * bars drawn in place of the chart, for a chart that is laid out but has no
+   * data yet. Suppresses the axis text, price badge, crosshair and indicator
+   * panes while it's up.
+   *
+   * `on` must mean "loading *and* holding no data" — the core takes it at face
+   * value rather than checking its candle buffer, since a host mid-asset-switch
+   * can still be holding the previous asset's bars. Pass `animate: false` for
+   * reduced motion: the skeleton draws still and the chart may go idle.
+   */
+  setLoading(on: boolean, animate?: boolean): void;
+  /**
+   * Hand the skeleton over to real data. Captures the skeleton's current
+   * (waved) geometry as a morph source and leaves the loading state, so the
+   * placeholder bars animate into the real ones and their grey blends into each
+   * bar's own bull/bear color. Call in place of beginIntervalMorph when data
+   * lands on a loading chart, then drive setIntervalMorph from 0 to 1.
+   */
+  beginLoadingMorph(): void;
 
   /** Shift the visible range by dx/dy CSS px. */
   pan(dx: number, dy: number): void;

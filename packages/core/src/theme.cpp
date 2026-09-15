@@ -23,6 +23,10 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     0xff26a69a,  // ACCENT_BULL — classic teal-green (price indicator, volume, MACD)
     0xffef5350,  // ACCENT_BEAR — classic red
     0xff8957e5,  // LINE — line-chart close polyline; violet, matching the RSI line
+    // SKELETON — neutral grey, opaque: the loading wave supplies the alpha.
+    // Sits between GRID and AXIS_TEXT in value so the bars read as placeholders
+    // above the gridlines without competing with real data's contrast.
+    0xff3d444d,
 };
 
 constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {

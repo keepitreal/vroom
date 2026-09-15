@@ -112,6 +112,13 @@ export type VroomTheme = {
   crosshairTarget?: VroomColor;
   /** Line-chart-mode close polyline color. Defaults to violet, matching the RSI line. */
   lineColor?: VroomColor;
+  /**
+   * Placeholder bars and axis pills in the loading skeleton (see the `loading`
+   * prop). Defaults to a neutral grey that sits between `grid` and `axisText`
+   * in value. Supply an opaque color: the skeleton's wave animation owns the
+   * alpha channel, so any alpha given here is ignored.
+   */
+  skeleton?: VroomColor;
   /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
   lineWidth?: number;
   /**
@@ -1149,6 +1156,22 @@ export type ATRConfig = {
 export type VroomChartCoreProps = {
   /** OHLCV bars to render. The only required prop. */
   candles: Candle[];
+  /**
+   * Whether the series is still being fetched. While this is true *and*
+   * `candles` is empty, the chart draws a loading skeleton — a travelling wave
+   * of grey placeholder bars with matching volume and axis pills — in place of
+   * the scene. Gestures, the crosshair, the price badge, the axis labels and
+   * any indicator panes are all suppressed for the duration.
+   *
+   * When the data arrives the skeleton doesn't cut away: its bars morph into
+   * the real ones over `transitionMs` and their grey blends into each bar's own
+   * bull/bear color.
+   *
+   * Passing `candles` alongside `loading` leaves the real chart up, so a
+   * background refresh of an already-loaded series won't blank out. Default
+   * false.
+   */
+  loading?: boolean;
   /**
    * Identity of the data series (e.g. "BTC-USD"). When it changes between
    * renders the chart resets to the default view (most recent candles + price

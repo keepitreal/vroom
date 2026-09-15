@@ -32,6 +32,12 @@ type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' |
 
 export type GestureOptions = {
   crosshairOffset: number;
+  /**
+   * Chart is showing the loading skeleton. Suppresses every pointer and wheel
+   * gesture: there is no data to pan, zoom, inspect or draw against, and a
+   * crosshair reading prices off a placeholder walk would be actively wrong.
+   */
+  loading?: boolean;
   /** Interaction mode. In 'draw' mode panning/zooming/crosshair are suppressed. */
   mode?: ChartMode;
   /** Active drawing tool while in 'draw' mode. */
@@ -192,6 +198,10 @@ export function useGestures(
   // Keep latest opts in a ref so the effect's listeners stay stable.
   const optsRef = useRef(opts);
   optsRef.current = opts;
+
+  // An explicit dep rather than a read through optsRef: this one has to detach
+  // and reattach the listeners, which the ref deliberately avoids doing.
+  const gesturesOff = opts.loading === true;
 
   // Fresh each call, so a host changing `drawingStyle` mid-draw updates the
   // next preview / the object handed to onDrawingComplete. Paste ignores this.
@@ -714,7 +724,7 @@ export function useGestures(
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el || gesturesOff) return;
 
     const pointers = new Map<number, { x: number; y: number }>();
     let panMode: Region = 'chart';
@@ -1687,5 +1697,5 @@ export function useGestures(
       window.removeEventListener('keydown', onShiftKey);
       window.removeEventListener('keyup', onShiftKey);
     };
-  }, [containerRef, handleRef, scheduleRender, commitPath, syncPathDraft, roundPoints, liveDrawStyle, liveDrawAttrs]);
+  }, [containerRef, handleRef, scheduleRender, gesturesOff, commitPath, syncPathDraft, roundPoints, liveDrawStyle, liveDrawAttrs]);
 }

@@ -497,6 +497,17 @@ extern "C" void vroom_chart_begin_stream_morph(VroomChart* chart) {
     chart->interval_morph_t = 0.f;
 }
 
+extern "C" void vroom_chart_set_loading(VroomChart* chart, int32_t on,
+                                        int32_t animate) {
+    if (!chart) return;
+    chart->set_loading(on != 0, animate != 0);
+}
+
+extern "C" void vroom_chart_begin_loading_morph(VroomChart* chart) {
+    if (!chart) return;
+    chart->begin_loading_morph();
+}
+
 extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (!chart) return;
     chart->interval_morph_t = std::clamp(t, 0.f, 1.f);

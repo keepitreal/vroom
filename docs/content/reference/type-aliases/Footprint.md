@@ -9,7 +9,7 @@ type Footprint = {
 };
 ```
 
-Source: [types/src/index.ts:947](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L947)
+Source: [types/src/index.ts:954](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L954)
 
 A single filled trade, drawn as a circular badge above the candle it fell in —
 the "footprint" a trader leaves on the chart: `buy` marks an entry (a `+`
@@ -33,7 +33,7 @@ twenty fills still shows one badge and still reports all twenty.
 id: string;
 ```
 
-Source: [types/src/index.ts:949](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L949)
+Source: [types/src/index.ts:956](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L956)
 
 Stable unique id, echoed back in `onFootprint`.
 
@@ -45,7 +45,7 @@ Stable unique id, echoed back in `onFootprint`.
 optional price?: number;
 ```
 
-Source: [types/src/index.ts:958](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L958)
+Source: [types/src/index.ts:965](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L965)
 
 Execution price. Ignored by the renderer (badges sit above the bar, not at
 the fill), and carried through to `onFootprint` for your own UI.
@@ -58,7 +58,7 @@ the fill), and carried through to `onFootprint` for your own UI.
 side: FootprintSide;
 ```
 
-Source: [types/src/index.ts:953](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L953)
+Source: [types/src/index.ts:960](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L960)
 
 Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 
@@ -70,6 +70,6 @@ Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:951](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L951)
+Source: [types/src/index.ts:958](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L958)
 
 Execution time as Unix epoch milliseconds, unsnapped.

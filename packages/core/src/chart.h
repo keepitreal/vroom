@@ -92,6 +92,28 @@ struct VroomChart {
     // is_animating_now keeps the host's redraw loop alive (see tip_pulse.h).
     float tip_pulse_elapsed_s = 0.f;
 
+    // --- loading skeleton ---------------------------------------------------
+    // Authoritative, not inferred: the host tells us it's loading *and* that it
+    // has no data, because an empty `candles` alone can't be trusted here. The
+    // hosts' data effects skip pushing an empty array (it would read as "hold
+    // the last frame"), so a chart mid-asset-switch can be loading while still
+    // holding the previous asset's bars — inferring from emptiness would show
+    // that stale series as if it were the new one's.
+    bool loading = false;
+    // Whether the wave runs. Cleared for reduced motion, which both freezes the
+    // skeleton at phase 0 and keeps is_animating_now from pinning a host loop.
+    bool loading_animate = true;
+    // Phase of the wave, in seconds, advanced by begin_frame like the tip pulse
+    // above and wrapped for the same reason.
+    float loading_elapsed_s = 0.f;
+    // Fades the skeleton in on arrival, so a chart that resolves instantly from
+    // cache doesn't flash a placeholder.
+    float loading_fade_in = 0.f;
+    // The placeholder walk. Built once on the first loading frame and then
+    // windowed per frame — regenerating would reshuffle the bars on every
+    // resize (see loading_series.h).
+    std::vector<::VroomCandle> loading_candles;
+
     // Interval morph: the outgoing candle geometry captured when a timeframe
     // switch begins, indexed from the right of the visible slice (slot 0 =
     // newest). `interval_morph_fade` is the host's choice at capture time:
@@ -508,6 +530,20 @@ struct VroomChart {
     // draw_chart.
     void begin_frame();
 
+    // Enters or leaves the loading skeleton. `animate` false pins it still for
+    // reduced motion. Entering builds the placeholder walk and restarts the
+    // fade-in; leaving is left to begin_loading_morph so the skeleton's last
+    // frame is still available to capture.
+    void set_loading(bool on, bool animate);
+
+    // Hands the skeleton over to real data: captures the skeleton's *waved*
+    // geometry into `morph_from` and clears the loading state, so the existing
+    // interval-morph machinery lerps the placeholder bars into the real ones.
+    // Capturing the waved geometry rather than the resting shape is what makes
+    // the hand-off seamless — a resting capture would snap every bar to a
+    // different size on the morph's first frame.
+    void begin_loading_morph();
+
     // True when the line tip's pulse ring is on screen and looping. Gated on
     // line mode and on having data, so a chart that isn't showing the ring can
     // still go idle.
@@ -517,7 +553,8 @@ struct VroomChart {
     // SkPictureRecorder.
     void rebuild_chart_picture();
 
-    // True if any axis label is mid-fade, or the tip pulse is running. Used by
-    // the JS-side animation loop to know when to keep ticking.
+    // True if any axis label is mid-fade, the tip pulse is running, or the
+    // loading skeleton is waving. Used by the JS-side animation loop to know
+    // when to keep ticking.
     bool is_animating_now() const;
 };

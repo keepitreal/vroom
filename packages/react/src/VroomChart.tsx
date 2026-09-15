@@ -91,6 +91,9 @@ export function VroomChart(props: VroomChartProps) {
 
   useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, {
     crosshairOffset,
+    // Same condition useChartCore draws the skeleton on: a refresh that still
+    // has data keeps the chart interactive.
+    loading: props.loading === true && props.candles.length === 0,
     crosshairOverride,
     mode,
     tool,

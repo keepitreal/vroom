@@ -63,6 +63,10 @@ const INTERVALS = [
 // 1 is as round as the monotone limiter allows.
 const LINE_TENSIONS: readonly number[] = [0, 0.25, 0.5, 0.75, 1];
 
+// Hoisted so the loading state doesn't hand the chart a fresh [] each render,
+// which its data effect would read as a new series every time.
+const EMPTY_CANDLES: Candle[] = [];
+
 type Interval = (typeof INTERVALS)[number];
 
 // Spot prices every interval converges on at its right edge. The five sit in
@@ -458,6 +462,7 @@ export default function App() {
   }, []);
 
   const [chartType, setChartType] = useState<ChartType>('candles');
+  const [loading, setLoading] = useState(false);
   const [intervalTransition, setIntervalTransition] =
     useState<IntervalTransition>('transform');
   const toggleIntervalTransition = useCallback(() => {
@@ -732,8 +737,13 @@ export default function App() {
           <View style={styles.chartWrap}>
           {/* Not keyed on the interval: the chart detects the switch itself and
               animates into the new data, which a remount would prevent. */}
+
+          {/* `candles` is withheld while loading, as a real fetch would: the
+              skeleton is for a chart that has no data, and passing both would
+              (correctly) leave the real series up instead. */}
           <VroomChart
-            candles={candles}
+            candles={loading ? EMPTY_CANDLES : candles}
+            loading={loading}
             chartType={chartType}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
@@ -912,6 +922,20 @@ export default function App() {
                   ]}
                 >
                   Anim
+                </Text>
+              </Pressable>
+
+              {/* Loading skeleton. A press holds it up so the wave can be
+                  watched; a second press delivers the data, which is the half
+                  that exercises the hand-off morph. */}
+              <Pressable
+                style={[styles.fnBtn, loading && styles.fnBtnActive]}
+                onPress={() => setLoading((v) => !v)}
+              >
+                <Text
+                  style={[styles.fnSymbol, loading && styles.fnSymbolActive]}
+                >
+                  ⋯
                 </Text>
               </Pressable>
 

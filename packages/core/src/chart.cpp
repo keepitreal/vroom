@@ -32,6 +32,9 @@
 #include "ichimoku.h"
 #include "labels.h"
 #include "liquidity.h"
+#include "loading_series.h"
+#include "loading_skeleton.h"
+#include "loading_wave.h"
 #include "ma.h"
 #include "ma_overlay.h"
 #include "macd.h"
@@ -544,6 +547,22 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(SkRect::MakeWH(width_px, height_px), bg);
 
+    // 1b. Loading skeleton, in place of the scene. Above the `candles.empty()`
+    //     return because `loading` is authoritative: the host may still be
+    //     holding the previous asset's bars while the new one loads, and the
+    //     skeleton has to win over them. Returning here is also what suppresses
+    //     the axis text, price badge, crosshair and indicator panes.
+    if (loading) {
+        if (loading_fade_in < 1.f) {
+            canvas->saveLayerAlphaf(nullptr, loading_fade_in);
+            vroom::loading_skeleton::draw(canvas, *this, lay);
+            canvas->restore();
+        } else {
+            vroom::loading_skeleton::draw(canvas, *this, lay);
+        }
+        return;
+    }
+
     if (candles.empty()) return;
 
     // 2. Visible slice + bounds + window_ms + geometry
@@ -882,6 +901,107 @@ void VroomChart::begin_frame() {
     // and a chart left open for hours would otherwise lose float precision on it.
     tip_pulse_elapsed_s =
         std::fmod(tip_pulse_elapsed_s + dt, vroom::tip_pulse::kPeriodSeconds);
+
+    if (loading) {
+        if (loading_animate) {
+            loading_elapsed_s = std::fmod(loading_elapsed_s + dt,
+                                          vroom::loading_wave::kPeriodSeconds);
+        }
+        // Ramps regardless of `loading_animate`: reduced motion suppresses the
+        // wave's movement, not the appearance of the skeleton itself, which
+        // would otherwise pop in at full strength.
+        constexpr float kFadeInSeconds = 0.3f;
+        loading_fade_in = std::min(1.f, loading_fade_in + dt / kFadeInSeconds);
+    }
+}
+
+void VroomChart::set_loading(bool on, bool animate) {
+    loading_animate = animate;
+    if (on == loading) return;  // a re-push of the same state isn't a restart
+    loading = on;
+    if (!on) return;
+
+    loading_elapsed_s = 0.f;
+    loading_fade_in = 0.f;
+    if (loading_candles.empty()) {
+        // Anchored to a fixed timestamp, not `now`: the walk's only job is to
+        // supply a silhouette, and the axis labels that would expose the dates
+        // are suppressed while it's up. A wall-clock anchor would make the
+        // series differ between runs for no visible gain.
+        loading_candles = vroom::loading_series::generate(0);
+    }
+    mark_dirty();
+}
+
+void VroomChart::begin_loading_morph() {
+    if (!loading) return;
+    loading = false;
+
+    const auto lay = layout();
+    const float area_w = vroom::candle_area_width(lay);
+    const std::size_t n = vroom::loading_skeleton::bar_count(*this, lay);
+    const ::VroomCandle* bars = vroom::loading_series::tail(loading_candles, n);
+    if (!bars || n == 0 || area_w <= 0.f) return;
+
+    const auto bounds = vroom::auto_price_bounds(bars, n);
+    const float step = area_w / static_cast<float>(n);
+    const float elapsed = loading_animate ? loading_elapsed_s : 0.f;
+
+    // Right-to-left, matching how the morph machinery indexes slots (slot 0 =
+    // newest bar at the right edge).
+    morph_from.clear();
+    morph_from.reserve(n);
+    for (std::size_t slot = 0; slot < n; ++slot) {
+        const std::size_t i = n - 1 - slot;
+        const ::VroomCandle& c = bars[i];
+        const auto w = vroom::loading_wave::at(elapsed, static_cast<int>(i));
+
+        // Scale in price-fraction space about each bar's own midpoint, the same
+        // transform loading_skeleton::draw applies in pixels — so the captured
+        // geometry is exactly the bars the user is looking at.
+        const auto scaled = [&](double lo, double hi) {
+            const double mid = (vroom::price_fraction(bounds, lo) +
+                                vroom::price_fraction(bounds, hi)) * 0.5;
+            const double half = (vroom::price_fraction(bounds, hi) -
+                                 vroom::price_fraction(bounds, lo)) *
+                                0.5 * static_cast<double>(w.scale);
+            return std::pair<float, float>{static_cast<float>(mid - half),
+                                           static_cast<float>(mid + half)};
+        };
+        const auto [low_f, high_f] = scaled(c.low, c.high);
+        const auto [body_lo, body_hi] =
+            scaled(std::min(c.open, c.close), std::max(c.open, c.close));
+
+        vroom::CandleSnapshot s{};
+        s.x = ((static_cast<float>(i) + 0.5f) * step) / area_w;
+        s.high = high_f;
+        s.low = low_f;
+        s.bull = c.close >= c.open;
+        s.open = s.bull ? body_lo : body_hi;
+        s.close = s.bull ? body_hi : body_lo;
+        // Tells candles::draw to blend this column's color out of the skeleton
+        // grey rather than out of its own bull/bear, which is what carries the
+        // grey→colored hand-off.
+        s.skeleton = true;
+        s.skeleton_alpha = w.alpha;
+        morph_from.push_back(s);
+    }
+
+    morph_from_bounds = bounds;
+    interval_morph_t = 0.f;
+    // Slot-lerp, not crossfade: the two shapes are in the same family, so
+    // morphing column into column is what makes the placeholder *become* the
+    // data instead of one scene dissolving into another.
+    interval_morph_fade = false;
+    // Keeps the axes out of the interval envelope (see labels::interval_phase),
+    // which is what the flag actually selects. A timeframe switch runs the
+    // outgoing ticks out and the new ones in; here there are no outgoing ticks
+    // — the skeleton draws none — so that envelope would instead fade *in* the
+    // placeholder walk's arbitrary prices and then swap them for the real ones,
+    // briefly showing invented numbers on the axis. Per-label fades bring the
+    // real ticks up from nothing, which is the honest version.
+    morph_is_stream = true;
+    mark_dirty();
 }
 
 bool VroomChart::tip_pulse_active() const {
@@ -902,6 +1022,9 @@ bool VroomChart::is_animating_now() const {
     // The pulse never finishes on its own, so this is what keeps the host loops
     // requeueing frames for it.
     if (tip_pulse_active()) return true;
+    // Same deal for the loading wave, except a still skeleton (reduced motion,
+    // once faded in) has nothing left to redraw and is allowed to go idle.
+    if (loading && (loading_animate || loading_fade_in < 1.f)) return true;
     for (const auto& f : y_fades) {
         if (f.opacity != f.target) return true;
     }

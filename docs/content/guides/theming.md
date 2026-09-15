@@ -56,6 +56,7 @@ A color ([`VroomColor`](../reference/index.md)) is either:
 | `axisText` | Price + time axis label text |
 | `crosshair` | Crosshair dashed lines |
 | `crosshairTarget` | The hollow ring/dot at the crosshair intersection |
+| `skeleton` | Placeholder bars and axis pills while [`loading`](./loading.md). Give it an opaque color — the skeleton's wave owns the alpha channel |
 
 ## Shape & size
 

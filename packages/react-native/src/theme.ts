@@ -20,6 +20,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   accentBull: 14, // VROOM_COLOR_ACCENT_BULL
   accentBear: 15, // VROOM_COLOR_ACCENT_BEAR
   lineColor: 16, // VROOM_COLOR_LINE
+  skeleton: 17, // VROOM_COLOR_SKELETON
 };
 
 // Maps each numeric VroomTheme field to its VroomFloatKey index.
