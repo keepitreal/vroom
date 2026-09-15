@@ -1,7 +1,7 @@
 # Loading state
 
-Pass `loading` while you're fetching a series and the chart draws a single grey
-line across the plot, drifting in a slow sine wave.
+Pass `loading` while you're fetching a series and the chart draws a single line
+across the plot, undulating slowly and breathing in and out of view.
 
 ```tsx
 const { candles, isLoading } = useCandles(symbol);
@@ -52,15 +52,22 @@ drawing), no axis text, no current-price badge, and no indicator panes, even for
 indicators you have enabled. All of it comes back with the data, arriving with
 the candles in the second step of the hand-off.
 
-This is deliberate rather than incidental. The line is a sine wave with no
+This is deliberate rather than incidental. The curve is generated and has no
 relationship to the asset, so anything that would let a user read a number off
-it — a price label, a crosshair readout — would be inventing data.
+it — a price label, a crosshair readout — would be inventing data. That is also
+why the line is drawn dim and never at the contrast of a real series.
 
 ## Styling
 
-`theme.skeleton` sets the line's colour. It defaults to a neutral grey that sits
-between `grid` and `axisText` in value. Any alpha you pass is honoured, then
-scaled by the fade-in and the fade-out, so an opaque colour is the usual choice.
+`theme.skeleton` sets the line's colour, and defaults to inheriting
+`lineColor` — the chart's own line-mode colour. The loading line is meant to
+read as the chart's series before it has anything to draw, and a neutral grey
+reads instead as a foreign placeholder laid over the chart.
+
+The line supplies its own faint, slowly breathing opacity, which is what keeps
+an accent colour from being mistaken for data. Any alpha you pass multiplies
+into that, so an opaque colour is the usual choice. For the more conventional
+skeleton look, set a grey explicitly:
 
 ```tsx
 <VroomChart candles={candles} loading={isLoading} theme={{ skeleton: '#3d444d' }} />
@@ -80,5 +87,18 @@ reshapes over 150ms and the candles emerge over the next 150ms — so the whole
 hand-off costs what any other transition costs. `transitionMs={0}` snaps it.
 
 Under an OS reduced-motion preference the line still draws, but held still: no
-drift, and no hand-off — the data just appears. On the web this is detected
-automatically; on React Native, pass it through `reduceMotion`.
+drift, no breathing, and no hand-off — the data just appears. On the web this is
+detected automatically; on React Native, pass it through `reduceMotion`.
+
+## Why it looks the way it does
+
+The curve is four sine waves summed, at frequencies that aren't multiples of one
+another and each drifting at its own rate. A single sine reads as a test
+pattern — the repeat is too easy to find — while the sum keeps rearranging
+itself.
+
+Its frequency content is tuned to sit next to candlesticks rather than to look
+decorative: roughly the texture of real price action at minute resolution, and
+drawn through the same monotone spline the line chart uses. That is what makes
+the first step of the hand-off read as the same curve coming into focus instead
+of one shape being replaced by another.

@@ -4,6 +4,6 @@
 type MASource = "close" | "open" | "high" | "low" | "hl2" | "hlc3" | "ohlc4";
 ```
 
-Source: [types/src/index.ts:469](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L469)
+Source: [types/src/index.ts:474](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L474)
 
 Price source for a moving average.

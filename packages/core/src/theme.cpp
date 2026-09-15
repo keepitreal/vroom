@@ -23,10 +23,12 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     0xff26a69a,  // ACCENT_BULL — classic teal-green (price indicator, volume, MACD)
     0xffef5350,  // ACCENT_BEAR — classic red
     0xff8957e5,  // LINE — line-chart close polyline; violet, matching the RSI line
-    // SKELETON — neutral grey, opaque: the loading wave supplies the alpha.
-    // Sits between GRID and AXIS_TEXT in value so the bars read as placeholders
-    // above the gridlines without competing with real data's contrast.
-    0xff3d444d,
+    // SKELETON — transparent sentinel: inherit LINE, the way BORDER_BULL and
+    // the wick colors inherit their fills. The loading line is the chart's own
+    // series before it has data to draw, so the series' color is what it should
+    // look like; the wave's faint breathing alpha is what keeps it from reading
+    // as real data (see loading_wave.h).
+    0x00000000,
 };
 
 constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {

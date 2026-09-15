@@ -1016,10 +1016,10 @@ void VroomChart::begin_loading_morph() {
 
     // Spans the data doesn't reach — a short series in a wider window — are
     // sampled at the idle curve's own resolution and flattened to the nearest
-    // candle's level. So the line still begins as the sine across the *whole*
+    // candle's level. So the line still begins as the curve across the *whole*
     // plot and eases into a level run leading into the series; leaving those
     // spans out instead would snap the line's length on the first frame.
-    const int across = std::clamp(static_cast<int>(area_w / 3.f), 1, 512);
+    const int across = vroom::loading_wave::sample_count(area_w);
     const float step = 1.f / static_cast<float>(across);
     const float first_xf = center_x_frac(target.visible[0]);
     const float last_xf = center_x_frac(target.visible[target.n - 1]);
