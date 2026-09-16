@@ -92,6 +92,48 @@ export interface ChartHandle {
    * the capture. Driven per-frame by the host animation loop.
    */
   setIntervalMorph(t: number): void;
+  /**
+   * Shows or hides the loading line: a single stroke drawn across the plot in a
+   * slow travelling sine, for a chart that is laid out but has no data yet.
+   * Suppresses the axis text, price badge, crosshair and indicator panes while
+   * it's up.
+   *
+   * `on` must mean "loading *and* holding no data" — the core takes it at face
+   * value rather than checking its candle buffer, since a host mid-asset-switch
+   * can still be holding the previous asset's bars. Pass `animate: false` for
+   * reduced motion: the line draws still and the chart may go idle.
+   *
+   * Passing `false` abandons any hand-off in flight, which is what a failed or
+   * superseded fetch wants. To hand off to data instead, use the two stages
+   * below.
+   */
+  setLoading(on: boolean, animate?: boolean): void;
+  /**
+   * Hand-off stage one: reshapes the loading line into the series. Freezes the
+   * sine where it is and aims each vertex at the vertical centre of the candle
+   * that will occupy its column, so the line resolves into the silhouette of
+   * the data.
+   *
+   * Call *after* setCandles — it reads them to know where to aim — then drive
+   * {@link setLoadingMorph} from 0 to 1. The axes and the candles stay
+   * suppressed throughout; stage two brings them in.
+   */
+  beginLoadingMorph(): void;
+  /**
+   * Advances stage one. `t` (clamped to 0..1) is the eased progress: 0 renders
+   * the frozen sine, 1 the polyline through the candle centres.
+   */
+  setLoadingMorph(t: number): void;
+  /**
+   * Hand-off stage two: the candles take over. Captures each one collapsed onto
+   * its own vertical centre at zero alpha and leaves the loading state, so the
+   * bars grow outward from the line and their color fades up as it fades out.
+   *
+   * Call once stage one has reached 1, then drive {@link setIntervalMorph} from
+   * 0 to 1 — the line's fade-out rides that same clock, so the two finish
+   * together.
+   */
+  beginLoadingReveal(): void;
   /** Shifts the visible range by `dx`/`dy` pixels and returns a fresh picture. */
   pan(dx: number, dy: number): ChartFrame | null;
   /**

@@ -223,6 +223,9 @@ export type SidebarProps = {
     setGaps: (v: boolean) => void;
     sparse: boolean;
     setSparse: (v: boolean) => void;
+    loading: boolean;
+    setLoading: (v: boolean) => void;
+    onSimulateLoad: () => void;
   };
   streaming: {
     onAddCandle: () => void;
@@ -426,6 +429,15 @@ export function Sidebar({
           onChange={data.setSparse}
           title="Keep only the last 9 candles — a window longer than the data. Bars should stay defaultCandleWidth on the right (empty past on the left); a pan must not snap them to the left edge or lock."
         />
+        <ToggleRow
+          label="Loading"
+          checked={data.loading}
+          onChange={data.setLoading}
+          title="Hold the chart in its loading state: one grey line drifting in a sine wave, with no axis text, price badge, crosshair or gestures. Unchecking delivers the data — the line should reshape into the series' silhouette, then fade out as the candles grow outward from it."
+        />
+        <button onClick={data.onSimulateLoad} style={{ ...btn, width: '100%' }}>
+          Simulate load (1.5s)
+        </button>
       </Section>
 
       <Section title="Streaming">
