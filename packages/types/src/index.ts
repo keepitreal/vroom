@@ -112,6 +112,19 @@ export type VroomTheme = {
   crosshairTarget?: VroomColor;
   /** Line-chart-mode close polyline color. Defaults to violet, matching the RSI line. */
   lineColor?: VroomColor;
+  /**
+   * The line drawn across the plot while loading (see the `loading` prop).
+   * Defaults to inheriting `grid`: the gridlines are already the chart's tone
+   * for structure rather than data, which is what the line is, so matching
+   * them keeps it from being read as a series.
+   *
+   * The line breathes between roughly 60% and 100% of whatever color it ends
+   * up with — a pulse, not a dimmer, so a recessive color stays legible. Any
+   * alpha given here multiplies into that, so an opaque color is the usual
+   * choice. Pass `lineColor` to make the line read as the chart's own series
+   * warming up instead.
+   */
+  skeleton?: VroomColor;
   /** Line-chart-mode polyline stroke width in px. Defaults to 1.5. */
   lineWidth?: number;
   /**
@@ -1149,6 +1162,23 @@ export type ATRConfig = {
 export type VroomChartCoreProps = {
   /** OHLCV bars to render. The only required prop. */
   candles: Candle[];
+  /**
+   * Whether the series is still being fetched. While this is true *and*
+   * `candles` is empty, the chart draws a single grey line across the plot,
+   * drifting in a slow sine wave, in place of the scene. Gestures, the
+   * crosshair, the price badge, the axis labels and any indicator panes are all
+   * suppressed for the duration.
+   *
+   * When the data arrives the line doesn't cut away — it becomes the chart, in
+   * two steps that split `transitionMs`: it reshapes to pass through the
+   * vertical centre of every candle about to be drawn, then fades out while
+   * those candles grow outward from it and their color fades up.
+   *
+   * Passing `candles` alongside `loading` leaves the real chart up, so a
+   * background refresh of an already-loaded series won't blank out. Default
+   * false.
+   */
+  loading?: boolean;
   /**
    * Identity of the data series (e.g. "BTC-USD"). When it changes between
    * renders the chart resets to the default view (most recent candles + price

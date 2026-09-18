@@ -19,6 +19,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, ColorKey>> = {
   accentBull: ColorKey.AccentBull,
   accentBear: ColorKey.AccentBear,
   lineColor: ColorKey.Line,
+  skeleton: ColorKey.Skeleton,
 };
 
 // Maps each numeric VroomTheme field to its FloatKey.

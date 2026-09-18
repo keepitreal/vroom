@@ -90,6 +90,7 @@ void draw(SkCanvas* canvas,
 
     const uint32_t fill_bull = theme.colors[VROOM_COLOR_BULL];
     const uint32_t fill_bear = theme.colors[VROOM_COLOR_BEAR];
+    const uint32_t skeleton_color = theme.colors[VROOM_COLOR_SKELETON];
 
     const float body_r = theme.floats[VROOM_FLOAT_CANDLE_RADIUS_PX];
     const bool wick_round = theme.floats[VROOM_FLOAT_WICK_ROUND_CAP] > 0.5f;
@@ -207,10 +208,21 @@ void draw(SkCanvas* canvas,
         bool draw_border = bull ? draw_border_bull : draw_border_bear;
 
         const bool flip = frm && to && frm->bull != bull;
-        if (flip || alpha < 0.999f) {
+        // A slot handed over from the loading skeleton starts grey, whatever its
+        // direction — so it takes the per-slot path from a different origin
+        // color than a flip does, and overrides it when both apply.
+        const bool from_skeleton = frm && to && frm->skeleton;
+        if (flip || from_skeleton || alpha < 0.999f) {
             const auto blend = [&](uint32_t c_bull, uint32_t c_bear) {
                 uint32_t c = bull ? c_bull : c_bear;
-                if (flip) c = lerp_argb(bull ? c_bear : c_bull, c, morph_t);
+                if (from_skeleton) {
+                    // lerp_argb covers the alpha channel too, so the bar's
+                    // opacity rides in on the same blend as its color.
+                    c = lerp_argb(scale_alpha(skeleton_color, frm->skeleton_alpha),
+                                  c, morph_t);
+                } else if (flip) {
+                    c = lerp_argb(bull ? c_bear : c_bull, c, morph_t);
+                }
                 return scale_alpha(c, alpha);
             };
             slot_wick = *wick_p;

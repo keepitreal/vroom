@@ -53,16 +53,18 @@ export const DEFAULT_THEME: ThemeState = {
   crosshair: '#303741',
   crosshairTarget: '#3e4855',
   lineColor: '#8957e5',
+  skeleton: INHERIT,
 };
 
-// Fields whose default is "inherit the candle body fill". Each gets an
-// "Inherit fill" checkbox alongside its color picker.
-const INHERIT_FIELDS = new Set<keyof VroomTheme>([
-  'borderBull',
-  'borderBear',
-  'wickBull',
-  'wickBear',
-]);
+// Fields that default to inheriting another color, mapped to what they inherit
+// from. Each gets an "Inherit <source>" checkbox alongside its color picker.
+const INHERIT_FIELDS: Partial<Record<keyof VroomTheme, string>> = {
+  borderBull: 'fill',
+  borderBear: 'fill',
+  wickBull: 'fill',
+  wickBear: 'fill',
+  skeleton: 'grid',
+};
 
 // The opaque color a freshly-unchecked inherit field falls back to, so the
 // picker shows something sensible rather than black.
@@ -71,6 +73,7 @@ const INHERIT_FALLBACK: Partial<Record<keyof VroomTheme, string>> = {
   borderBear: '#c0392b',
   wickBull: '#26a69a',
   wickBear: '#ef5350',
+  skeleton: '#1a1e24',
 };
 
 const SECTIONS: { title: string; fields: ColorField[] }[] = [
@@ -79,7 +82,10 @@ const SECTIONS: { title: string; fields: ColorField[] }[] = [
     fields: ['bull', 'bear', 'borderBull', 'borderBear', 'wickBull', 'wickBear'],
   },
   { title: 'Price & volume', fields: ['accentBull', 'accentBear'] },
-  { title: 'Chart', fields: ['background', 'grid', 'axisText', 'badgeText', 'lineColor'] },
+  {
+    title: 'Chart',
+    fields: ['background', 'grid', 'axisText', 'badgeText', 'lineColor', 'skeleton'],
+  },
   { title: 'Crosshair', fields: ['crosshair', 'crosshairTarget'] },
 ];
 
@@ -99,6 +105,7 @@ const LABELS: Record<ColorField, string> = {
   crosshair: 'Crosshair',
   crosshairTarget: 'Crosshair target',
   lineColor: 'Line',
+  skeleton: 'Loading line',
 };
 
 const overlay: React.CSSProperties = {
@@ -152,7 +159,7 @@ function normalizeHex(input: string): string | null {
 function ColorRow({
   label,
   value,
-  canInherit,
+  inheritFrom,
   inheriting,
   fallback,
   onChange,
@@ -160,7 +167,7 @@ function ColorRow({
 }: {
   label: string;
   value: string;
-  canInherit: boolean;
+  inheritFrom: string | undefined;
   inheriting: boolean;
   fallback: string;
   onChange: (hex: string) => void;
@@ -189,7 +196,7 @@ function ColorRow({
       }}
     >
       <span style={{ flex: 1 }}>{label}</span>
-      {canInherit && (
+      {inheritFrom && (
         <label
           style={{
             display: 'flex',
@@ -205,7 +212,7 @@ function ColorRow({
             checked={inheriting}
             onChange={(e) => onToggleInherit(e.target.checked)}
           />
-          Inherit fill
+          Inherit {inheritFrom}
         </label>
       )}
       <input
@@ -437,15 +444,15 @@ export function SettingsModal({
                 </>
               )}
               {section.fields.map((field) => {
-                const canInherit = INHERIT_FIELDS.has(field);
-                const inheriting = canInherit && theme[field] === INHERIT;
+                const inheritFrom = INHERIT_FIELDS[field];
+                const inheriting = !!inheritFrom && theme[field] === INHERIT;
                 const fallback = INHERIT_FALLBACK[field] ?? '#000000';
                 return (
                   <ColorRow
                     key={field}
                     label={LABELS[field]}
                     value={theme[field]}
-                    canInherit={canInherit}
+                    inheritFrom={inheritFrom}
                     inheriting={inheriting}
                     fallback={fallback}
                     onChange={(hex) => setField(field, hex)}

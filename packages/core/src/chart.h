@@ -92,6 +92,42 @@ struct VroomChart {
     // is_animating_now keeps the host's redraw loop alive (see tip_pulse.h).
     float tip_pulse_elapsed_s = 0.f;
 
+    // --- loading line -------------------------------------------------------
+    // See loading_line.h for the three stages this state drives.
+    //
+    // Authoritative, not inferred: the host tells us it's loading *and* that it
+    // has no data, because an empty `candles` alone can't be trusted here. The
+    // hosts' data effects skip pushing an empty array (it would read as "hold
+    // the last frame"), so a chart mid-asset-switch can be loading while still
+    // holding the previous asset's bars — inferring from emptiness would show
+    // that stale series as if it were the new one's.
+    //
+    // True for stages 1 and 2 both: the line stands in for the chart until the
+    // candles actually take over in stage 3.
+    bool loading = false;
+    // Whether the wave travels. Cleared for reduced motion, which both freezes
+    // the line at phase 0 and keeps is_animating_now from pinning a host loop.
+    bool loading_animate = true;
+    // Phase of the wave, in seconds, advanced by begin_frame like the tip pulse
+    // above and wrapped for the same reason.
+    float loading_elapsed_s = 0.f;
+    // Fades the line in on arrival, so a chart that resolves instantly from
+    // cache doesn't flash a placeholder.
+    float loading_fade_in = 0.f;
+
+    // The line's morph vertices, left to right, captured when the data lands.
+    // Empty means stage 1 — nothing to morph toward yet — which is what
+    // loading_line::draw switches on.
+    std::vector<vroom::LinePoint> loading_line;
+    // Stage 2's progress, 0 = the frozen sine, 1 = through the candle centres.
+    // Parked at 1 when no morph is running.
+    float loading_line_t = 1.f;
+    // Set for stage 3, where the line rides `interval_morph_t` out on the same
+    // clock as the candles growing out of it. A flag rather than its own float
+    // because the two have to finish together to avoid a line left hanging over
+    // a settled chart.
+    bool loading_line_revealing = false;
+
     // Interval morph: the outgoing candle geometry captured when a timeframe
     // switch begins, indexed from the right of the visible slice (slot 0 =
     // newest). `interval_morph_fade` is the host's choice at capture time:
@@ -508,6 +544,38 @@ struct VroomChart {
     // draw_chart.
     void begin_frame();
 
+    // Enters or leaves the loading line. `animate` false pins it still for
+    // reduced motion. Entering restarts the phase and the fade-in; leaving
+    // outright (rather than through the two calls below) drops the line with no
+    // hand-off, which is what an error or a cancelled fetch wants.
+    void set_loading(bool on, bool animate);
+
+    // Stage 2. Call *after* pushing the real candles: it needs them to know
+    // where the line is heading. Freezes the sine at its current phase and
+    // pairs each vertex with the vertical centre of the candle that will occupy
+    // that column, then hands `loading_line_t` to the host to drive 0 → 1.
+    //
+    // Freezing rather than letting the wave run underneath is deliberate — a
+    // moving source makes the morph read as two animations fighting instead of
+    // one shape resolving.
+    void begin_loading_morph();
+
+    // The visible slice and price bounds the hand-off aims at, as draw_chart
+    // would resolve them. `n == 0` when there is nothing to hand off to.
+    struct LoadingTarget {
+        const ::VroomCandle* visible = nullptr;
+        std::size_t n = 0;
+        vroom::PriceBounds bounds{};
+    };
+    LoadingTarget loading_target() const;
+
+    // Stage 3. Captures every candle collapsed onto its own vertical centre at
+    // zero alpha and hands it to the interval-morph machinery, so the existing
+    // slot lerp grows each bar outward from the line while candles::draw blends
+    // its colour up out of nothing. Also releases `loading`, letting the axes,
+    // price badge and panes come back.
+    void begin_loading_reveal();
+
     // True when the line tip's pulse ring is on screen and looping. Gated on
     // line mode and on having data, so a chart that isn't showing the ring can
     // still go idle.
@@ -517,7 +585,8 @@ struct VroomChart {
     // SkPictureRecorder.
     void rebuild_chart_picture();
 
-    // True if any axis label is mid-fade, or the tip pulse is running. Used by
-    // the JS-side animation loop to know when to keep ticking.
+    // True if any axis label is mid-fade, the tip pulse is running, or the
+    // loading skeleton is waving. Used by the JS-side animation loop to know
+    // when to keep ticking.
     bool is_animating_now() const;
 };

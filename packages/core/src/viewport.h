@@ -92,6 +92,30 @@ struct CandleSnapshot {
     float x;
     float open, high, low, close;
     bool  bull;  // close >= open; selects the fill / wick / border color
+    // Set when the capture came from the loading skeleton. Such a slot starts
+    // out grey and semi-transparent rather than in its own bull/bear color, so
+    // the draw path has to blend from `skeleton_alpha`-scaled grey instead —
+    // that color blend is what makes the hand-off read as the placeholder
+    // *becoming* the data (see candles::draw).
+    bool  skeleton = false;
+    // The wave's alpha for this bar at capture time. Carried so the morph's
+    // first frame matches the skeleton frame it replaced; without it every bar
+    // would jump to full opacity the instant data landed.
+    float skeleton_alpha = 1.f;
+};
+
+// One vertex of the loading line's morph, holding both ends of the animation
+// so a frame is a plain lerp between them.
+//
+// The two y's are in different spaces on purpose. The sine knows nothing about
+// prices, so it's a fraction of the pane; the candle centre is a fraction of
+// the price band, the same space CandleSnapshot uses — which is what keeps the
+// line sitting exactly where the bars emerge from, since both resolve through
+// y_at_fraction.
+struct LinePoint {
+    float x;       // fraction of the candle-area width
+    float from_y;  // fraction of the pane height — the sine, frozen at capture
+    float to_y;    // fraction of the price band — the candle's vertical centre
 };
 
 // How many captured slots still contribute to a frame — 0 once the morph is
@@ -140,6 +164,15 @@ inline void blend_candle_snapshots(CandleSnapshot* dst, std::size_t dst_n,
         // `bull` stays the fresh one: the draw path colors a paired slot from
         // the live candle and only reads the capture's flag for a slot the next
         // update drops, where the newer direction is the better answer.
+        //
+        // The skeleton state, by contrast, carries over from the interrupted
+        // capture: a tick landing mid-hand-off must not abandon the grey blend
+        // partway, or the bar would snap to full color while its geometry is
+        // still moving. Its alpha follows the same lerp as the geometry.
+        if (from.skeleton) {
+            to.skeleton = true;
+            to.skeleton_alpha = mix(from.skeleton_alpha, 1.f);
+        }
     }
 }
 

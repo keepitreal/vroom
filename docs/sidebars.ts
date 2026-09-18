@@ -20,6 +20,7 @@ const sidebars: SidebarsConfig = {
         'guides/why-vroom',
         'guides/architecture',
         'guides/theming',
+        'guides/loading',
         'guides/indicators',
         'guides/crosshair-and-events',
         'guides/gestures-and-viewport',
