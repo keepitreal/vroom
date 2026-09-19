@@ -19,6 +19,7 @@
 #include "curve.h"
 #include "gradient.h"
 #include "line_morph.h"
+#include "tip_geometry.h"
 #include "tip_pulse.h"
 #include "viewport.h"
 
@@ -128,10 +129,6 @@ inline std::size_t series_slots(std::size_t n, const LineMorph* from,
                                 float morph_t) {
     return std::max(n, vroom::morph_line_count(from, morph_t));
 }
-
-// Width of the background-colored ring that separates the tip dot from the line
-// and from the pulse expanding out behind it.
-constexpr float kTipBorderPx = 2.f;
 
 // One vertex of the close polyline, in screen space. Slot `k` counts back from
 // the right edge (0 = the newest close), the pairing a timeframe switch
@@ -419,6 +416,7 @@ void draw_close_tip(SkCanvas* canvas,
                     int64_t visible_start_ms,
                     int64_t candle_duration_ms,
                     float candle_right,
+                    float clip_right,
                     float candle_area_h,
                     uint32_t line_color,
                     uint32_t bg_color,
@@ -447,14 +445,21 @@ void draw_close_tip(SkCanvas* canvas,
     if (tip.fY < 0.f || tip.fY > candle_area_h) return;
     if (tip.fX < 0.f || tip.fX > candle_right) return;
 
-    // Scaling off the stroke keeps the marker proportionate at any line width;
-    // the floor stops a hairline chart from getting an invisible dot.
-    const float w = line_width > 0.f ? line_width : 1.5f;
-    const float dot_r = std::max(2.f, w * 1.5f);
-    const float border_r = dot_r + kTipBorderPx;
+    const auto geo = vroom::tip_geometry::of(line_width);
+    const float dot_r = geo.dot_r;
+    const float border_r = geo.border_r;
 
     canvas->save();
-    canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, candle_right, candle_area_h));
+    // Wider than the on-pane test above: the dot is anchored at the newest
+    // candle's center, which on a view pinned to the latest bar is closer to
+    // candle_right than the dot's own radius, so it has to reach into the gutter
+    // to draw in full. `clip_right` is the gutter's far side — the y-axis
+    // strip's edge — which the layout keeps wide enough for the dot (see
+    // tip_geometry::gutter_px). The pulse ring is much wider still and clips
+    // there; that is intended.
+    canvas->clipRect(
+        SkRect::MakeLTRB(0.f, 0.f, std::max(candle_right, clip_right),
+                         candle_area_h));
 
     // Ring first: the border paints over its inner edge, so it reads as
     // expanding out from underneath the dot rather than around it.
