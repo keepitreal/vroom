@@ -9,6 +9,7 @@
 
 #include <algorithm>
 
+#include "color_lerp.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -19,18 +20,6 @@ namespace {
 // "inherit the body fill color". Resolve to `fill` in that case.
 inline uint32_t resolve_color(uint32_t color, uint32_t fill) {
     return (color >> 24) == 0 ? fill : color;
-}
-
-// Channel-wise ARGB blend, for a candle that changes direction mid-morph.
-inline uint32_t lerp_argb(uint32_t a, uint32_t b, float t) {
-    uint32_t out = 0;
-    for (int shift = 0; shift < 32; shift += 8) {
-        const float ca = static_cast<float>((a >> shift) & 0xFFu);
-        const float cb = static_cast<float>((b >> shift) & 0xFFu);
-        const auto v = static_cast<uint32_t>(ca + (cb - ca) * t + 0.5f);
-        out |= v << shift;
-    }
-    return out;
 }
 
 inline uint32_t scale_alpha(uint32_t argb, float a) {

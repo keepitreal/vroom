@@ -883,8 +883,19 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      Hidden during a fade's outgoing half: the close is already the new
     //      series and there is no snapshot to fade.
     if (!fade_out) {
-        vroom::price_indicator::draw(canvas, *this, lay, bounds,
-                                     candle_right, candle_area_h);
+        // Eased off the same capture the candles reshape through, so the badge
+        // rides the bar's close edge instead of landing on the new price a
+        // whole animation early. The pairing rule is the tip marker's: the
+        // capture only stands for the newest candle while that candle is the
+        // one at the right edge.
+        const auto price_anchor = vroom::tip_anchor::at(
+            range.start, range.end, candles.size(), reshape);
+        const vroom::CandleSnapshot* price_from =
+            (price_anchor.use_morph && morph_src && morph_n_draw > 0)
+                ? morph_src
+                : nullptr;
+        vroom::price_indicator::draw(canvas, *this, lay, bounds, candle_right,
+                                     candle_area_h, price_from, morph_t);
 
         // 7.54. Fair Value Gap labels — the boxes themselves are back behind
         //       the candles, but their text has to clear the bars it sits over.

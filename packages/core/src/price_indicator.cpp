@@ -17,8 +17,10 @@
 #include <cstring>
 
 #include "chart.h"
+#include "color_lerp.h"
 #include "fonts.h"
 #include "price_format.h"
+#include "price_indicator_anim.h"
 #include "theme.h"
 #include "ticks.h"
 #include "viewport.h"
@@ -37,17 +39,29 @@ void draw(SkCanvas* canvas,
           const Layout& lay,
           const PriceBounds& bounds,
           float candle_right,
-          float candle_area_h) {
+          float candle_area_h,
+          const vroom::CandleSnapshot* morph_from,
+          float morph_t) {
     if (!canvas || chart.candles.empty()) return;
 
     // The "current price" is the latest period's close, regardless of whether
-    // that candle is horizontally in view.
+    // that candle is horizontally in view. Mid-morph it is wherever that close
+    // has eased to, so the badge stays on the candle's close edge.
     const ::VroomCandle& last = chart.candles.back();
     const bool bull = last.close >= last.open;
-    const SkColor color =
-        chart.theme.colors[bull ? VROOM_COLOR_ACCENT_BULL : VROOM_COLOR_ACCENT_BEAR];
+    const auto level = vroom::price_indicator_anim::level_at(
+        lay, bounds, last.close, bull, morph_from, chart.morph_from_bounds,
+        morph_t);
 
-    const float y = vroom::price_to_y(lay, bounds, last.close);
+    // Blended rather than switched, so a candle that changes direction under a
+    // tick carries the indicator's color with it instead of snapping — the same
+    // cross-fade the body itself does.
+    const SkColor color = static_cast<SkColor>(vroom::lerp_argb(
+        chart.theme.colors[bull ? VROOM_COLOR_ACCENT_BEAR : VROOM_COLOR_ACCENT_BULL],
+        chart.theme.colors[bull ? VROOM_COLOR_ACCENT_BULL : VROOM_COLOR_ACCENT_BEAR],
+        level.bull_t));
+
+    const float y = level.y;
     if (y < 0.f || y > candle_area_h) return;  // price scrolled off-range
 
     // Dotted line from the left edge to the y-axis separator.
@@ -73,7 +87,7 @@ void draw(SkCanvas* canvas,
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
         chart.price_fmt,
         vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
-    vroom::format_price(buf, sizeof(buf), last.close, fmt);
+    vroom::format_price(buf, sizeof(buf), level.price, fmt);
     const size_t len = std::strlen(buf);
 
     // Measure the tight glyph bounds (origin at the baseline) so we can center
