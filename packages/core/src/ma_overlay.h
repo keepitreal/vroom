@@ -131,6 +131,12 @@ void draw_close_gradient(SkCanvas* canvas,
 //
 // `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
 // divided by tip_pulse::kPeriodSeconds. Ignored unless `pulse`.
+//
+// `candle_right` bounds where the marked candle may be for the marker to draw at
+// all; `clip_right` bounds the paint, and is wider — the dot overhangs the plot
+// when the newest candle is at the right edge, so it paints into the gutter the
+// layout reserves for it. Callers must therefore draw the tip *after* the axis
+// backgrounds, which mask that gutter.
 void draw_close_tip(SkCanvas* canvas,
                     const Layout& lay,
                     const PriceBounds& bounds,
@@ -140,6 +146,7 @@ void draw_close_tip(SkCanvas* canvas,
                     int64_t visible_start_ms,
                     int64_t candle_duration_ms,
                     float candle_right,
+                    float clip_right,
                     float candle_area_h,
                     uint32_t line_color,
                     uint32_t bg_color,
