@@ -1,5 +1,77 @@
 # @vroomchart/core-wasm
 
+## 0.18.0
+
+### Minor Changes
+
+- 99c0903: Add a `loading` prop that draws a single line across the plot while a series is
+  being fetched, undulating slowly and breathing in and out of view. When the data
+  lands the line becomes the chart in two steps: it firms up and reshapes to pass
+  through the vertical centre of every candle about to be drawn, then fades out
+  while those candles grow outward from it and their colour fades up — so the
+  chart resolves into place rather than cutting between scenes.
+
+  The curve is four summed sines at frequencies that aren't multiples of one
+  another, each drifting at its own rate, drawn through the same monotone spline
+  the line chart uses. Its frequency content is tuned to the texture of real price
+  action, so the reshape reads as the same curve coming into focus rather than one
+  shape being swapped for another.
+
+  The line shows only when `loading` is true and `candles` is empty, so a
+  background refresh leaves the chart the user is reading up and interactive.
+  While it's up, gestures, axis text, the price badge, the crosshair and indicator
+  panes are all suppressed — the line is unrelated to the asset, so nothing is
+  allowed to report a number off it. Style it with the new `theme.skeleton` color,
+  which defaults to inheriting `grid` so the line sits in the chart's existing
+  tone for structure rather than data; the hand-off shares `transitionMs` /
+  `transitionEasing` with the interval switch, and reduced motion holds the line
+  still and skips the hand-off.
+
+### Patch Changes
+
+- 58a8d91: Animate the current-price indicator with the candles. The dashed line and its
+  price badge mark the latest close, so every tick moved them — but they were read
+  straight off the final close while the candle they belong to was still easing
+  into place. For the length of the transition the badge sat at a price the chart
+  was not yet showing, which read as the indicator coming loose from the series.
+
+  The indicator now rides the same capture and the same clock the candles reshape
+  through, so it tracks the newest bar's close edge on every frame instead of only
+  at the two ends. Its y is the expression the line chart's tip already uses, which
+  glues the badge to the tip by construction rather than by giving the two a
+  matching duration. The badge text interpolates alongside the movement, so the
+  number always agrees with where the box is sitting, and the accent cross-fades
+  when a tick flips the candle's direction instead of snapping from one to the
+  other.
+
+  This covers live ticks under `streamTransition: 'transform'` and timeframe
+  switches under `intervalTransition: 'transform'`, since both drive the same
+  capture. A fade swap is unchanged — there is no geometry to interpolate through
+  a cross-dissolve, so the indicator still lands directly. Panned back into
+  history the newest candle is off-screen and the capture does not pair with it,
+  so the indicator places directly there too, matching the tip marker.
+
+  No API change: the transition and its duration are the existing
+  `streamTransition` / `streamTransitionMs` and `intervalTransition` props.
+
+- 3ccff80: Fix the line chart's tip dot being sliced in half by the price axis when the
+  view sits on the newest bar. The dot marks the newest close, which a view pinned
+  to the latest bar parks within a few pixels of the plot's right edge — closer
+  than the dot's own radius — so it was clipped against that edge and read as a
+  rendering fault next to the price badge.
+
+  The marker now paints after the axis backgrounds instead of before them, so it
+  can use the gutter between the plot and the y-axis strip, and in line mode that
+  gutter widens to the dot's radius plus a few pixels of clearance. The dot is
+  therefore drawn in full, clear of the axis, in any framing — including a host
+  supplied `visibleRange` that ends flush at the newest candle's slot, which
+  bypasses the chart's own default framing. The extra gutter eases in with the
+  candles-to-line crossfade rather than stepping when the mode changes.
+
+  The pulse ring is deliberately not covered by this. At its widest it is several
+  times the dot's radius, and reserving that much gutter would cost the plot real
+  estate, so the ring still clips against the axis in tight framings.
+
 ## 0.17.0
 
 ### Minor Changes
