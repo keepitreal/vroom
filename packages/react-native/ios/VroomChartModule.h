@@ -3,7 +3,9 @@
 
 #ifdef RCT_NEW_ARCH_ENABLED
 #import <VroomChartSpec/VroomChartSpec.h>
-@interface VroomChartModule : NSObject <NativeVroomChartSpec>
+#import <ReactCommon/RCTTurboModuleWithJSIBindings.h>
+
+@interface VroomChartModule : NSObject <NativeVroomChartSpec, RCTTurboModuleWithJSIBindings>
 #else
 @interface VroomChartModule : NSObject <RCTBridgeModule>
 #endif

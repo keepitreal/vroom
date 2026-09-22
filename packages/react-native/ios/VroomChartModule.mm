@@ -8,16 +8,53 @@
 
 using namespace facebook;
 
-@implementation VroomChartModule
+@implementation VroomChartModule {
+  BOOL _installed;
+}
 
 RCT_EXPORT_MODULE(VroomChartModule)
 
-// Called from JS via NativeVroomChart.install(). Grabs the JSI runtime from the
-// bridge and asks the C++ installer to expose global.VroomChartJSI.
-//
-// The TurboModule version (new arch) and the legacy version both end up here.
+#ifdef RCT_NEW_ARCH_ENABLED
+
+#pragma mark - RCTTurboModuleWithJSIBindings
+
+// Called automatically by the TurboModule infrastructure in both bridge and
+// bridgeless modes. The runtime is passed directly, avoiding the need to access
+// [RCTBridge currentBridge] which returns nil in bridgeless mode.
+- (void)installJSIBindingsWithRuntime:(jsi::Runtime &)runtime
+                          callInvoker:(const std::shared_ptr<react::CallInvoker> &)callInvoker
+{
+  if (_installed) return;
+  vroom::installJsi(runtime);
+  _installed = YES;
+}
+
+#pragma mark - TurboModule
+
+- (std::shared_ptr<react::TurboModule>)getTurboModule:
+    (const react::ObjCTurboModule::InitParams &)params
+{
+  return std::make_shared<react::NativeVroomChartSpecJSI>(params);
+}
+
+#endif
+
+#pragma mark - JS Interface
+
+// Called from JS via NativeVroomChart.install(). In new arch, JSI bindings are
+// already installed via installJSIBindingsWithRuntime:callInvoker:, so this
+// just returns the installation status. In old arch, it falls back to the
+// bridge-based installation.
 - (NSNumber *)install
 {
+#ifdef RCT_NEW_ARCH_ENABLED
+  // In new arch, installation happens via installJSIBindingsWithRuntime.
+  // This method is called from JS after bindings are already installed.
+  return @(_installed);
+#else
+  // Legacy bridge fallback for old architecture
+  if (_installed) return @YES;
+
   RCTBridge *bridge = [RCTBridge currentBridge];
   RCTCxxBridge *cxxBridge = (RCTCxxBridge *)bridge;
   if (cxxBridge == nil) {
@@ -30,15 +67,9 @@ RCT_EXPORT_MODULE(VroomChartModule)
   }
 
   vroom::installJsi(*runtime);
+  _installed = YES;
   return @YES;
-}
-
-#ifdef RCT_NEW_ARCH_ENABLED
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
-    (const facebook::react::ObjCTurboModule::InitParams &)params
-{
-  return std::make_shared<facebook::react::NativeVroomChartSpecJSI>(params);
-}
 #endif
+}
 
 @end

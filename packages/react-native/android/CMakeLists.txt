@@ -27,6 +27,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(ReactAndroid REQUIRED CONFIG)
+find_package(fbjni REQUIRED CONFIG)
 # Prefab package name matches the Gradle project name AGP autolinking assigns
 # RN-Skia (":shopify_react-native-skia"), not the "rnskia" module name inside
 # its own `prefab { rnskia { ... } }` block — that block key becomes the
@@ -135,6 +136,8 @@ target_link_options(vroomchart PRIVATE
 target_link_libraries(vroomchart
   ${VROOM_LOG_LIB}
   ReactAndroid::jsi
+  ReactAndroid::reactnative
+  fbjni::fbjni
   shopify_react-native-skia::rnskia
   vroom_skia_prebuilt
 )
