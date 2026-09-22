@@ -23,7 +23,7 @@
     "@changesets/cli": "^2.31.1"
   },
   "pnpm": {
-    "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check).",
+    "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check). The scoped @expo/plist override is a floor too, not an exemption: @expo/plist@0.8.1 declares ^0.8.8 and calls parseFromString() without a mimeType, which 0.9.x rejects (it breaks `expo prebuild`), so it gets 0.8.15 — the patched release of the 0.8 line, which fixes every advisory 0.9.12 does. Drop it once @expo/plist moves to 0.9.x.",
     "onlyBuiltDependencies": ["esbuild"],
     "auditConfig": {
       "//": "image-size has no fixed release — every version through 2.0.2 (the latest) is affected, so there is nothing to pin. Both advisories are parser denial-of-service reached only at build time, via docusaurus's mdx-loader and expo's metro, on images from this repo; neither path ships in a published package. Drop these once docusaurus/expo pick up a fixed image-size.",
@@ -44,6 +44,7 @@
       "undici": ">=6.27.0 <7",
       "svgo": ">=3.3.5 <4",
       "@xmldom/xmldom": ">=0.9.12",
+      "@expo/plist>@xmldom/xmldom": "0.8.15",
       "serialize-javascript": ">=7.0.5",
       "linkify-it": ">=5.0.2 <6",
       "http-proxy-middleware@2": ">=2.0.10 <3",

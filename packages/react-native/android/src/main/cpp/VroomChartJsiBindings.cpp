@@ -14,8 +14,9 @@ using facebook::react::BindingsInstallerHolder;
 using facebook::react::CallInvoker;
 
 void VroomChartJsiBindings::registerNatives() {
+  // makeNativeMethod is a macro, so it cannot be namespace-qualified.
   javaClassLocal()->registerNatives({
-      jni::makeNativeMethod(
+      makeNativeMethod(
           "getBindingsInstaller",
           VroomChartJsiBindings::getBindingsInstaller),
   });
