@@ -2,7 +2,8 @@
 #
 # Builds libvroomchart.so from the same platform-agnostic JSI glue and chart
 # core the iOS podspec compiles (see ../react-native-vroom-chart.podspec),
-# plus this directory's small JNI entry point (src/main/cpp/VroomChartJni.cpp).
+# plus this directory's fbjni entry points (src/main/cpp/OnLoad.cpp and
+# src/main/cpp/VroomChartJsiBindings.cpp).
 #
 # RN-Skia's headers (JsiSkNativeObjects.h, JsiSkPicture.h, and the
 # RNSkPlatformContext.h they pull in) aren't consumed via CMake's prefab
@@ -27,6 +28,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(ReactAndroid REQUIRED CONFIG)
+find_package(fbjni REQUIRED CONFIG)
 # Prefab package name matches the Gradle project name AGP autolinking assigns
 # RN-Skia (":shopify_react-native-skia"), not the "rnskia" module name inside
 # its own `prefab { rnskia { ... } }` block — that block key becomes the
@@ -70,7 +72,8 @@ add_library(vroomchart SHARED
   "${CMAKE_CURRENT_SOURCE_DIR}/../cpp/VroomChartHostObject.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/../cpp/VroomFontMgr.cpp"
   ${VROOM_CORE_SOURCES}
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/VroomChartJni.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/VroomChartJsiBindings.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/main/cpp/OnLoad.cpp"
 )
 
 target_include_directories(vroomchart PRIVATE
@@ -132,9 +135,16 @@ target_link_options(vroomchart PRIVATE
     "-Wl,-z,common-page-size=16384"
 )
 
+# BindingsInstallerHolder's constructors are compiled into libreactnative.so
+# (RN folds the turbomodulejsijni object library into it), so linking
+# ReactAndroid::reactnative is what resolves the newObjectCxxArgs instantiation
+# in src/main/cpp/VroomChartJsiBindings.cpp. fbjni supplies the JavaClass /
+# registerNatives machinery that wraps it.
 target_link_libraries(vroomchart
   ${VROOM_LOG_LIB}
   ReactAndroid::jsi
+  ReactAndroid::reactnative
+  fbjni::fbjni
   shopify_react-native-skia::rnskia
   vroom_skia_prebuilt
 )

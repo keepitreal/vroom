@@ -354,10 +354,17 @@ const EMPTY_FOOTPRINTS = footprintsToSpec({ prints: [] });
 let installed = false;
 function ensureInstalled(): void {
   if (installed) return;
-  const ok = NativeVroomChart.install();
-  if (!ok) throw new Error('VroomChartModule.install() returned false');
+  // The bindings are installed by the TurboModule itself, when the runtime
+  // hands it over (installJSIBindingsWithRuntime:callInvoker: on iOS,
+  // getBindingsInstaller() on Android). Touching the module is what forces
+  // that to have happened; the global is the thing worth checking.
+  NativeVroomChart.install();
   if (typeof globalThis.VroomChartJSI === 'undefined') {
-    throw new Error('global.VroomChartJSI undefined after install()');
+    throw new Error(
+      'global.VroomChartJSI is undefined — VroomChartModule did not install ' +
+        'its JSI bindings. This requires react-native >= 0.78 with the New ' +
+        'Architecture enabled.',
+    );
   }
   installed = true;
 }

@@ -5,7 +5,7 @@
   "description": "Mobile-first Skia candlestick chart library — monorepo root",
   "packageManager": "pnpm@10.34.5",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "scripts": {
     "start": "pnpm --filter test-bench start",

@@ -1,7 +1,19 @@
-# iOS shim (placeholder)
+# iOS bridge
 
-When native is wired up, this directory will hold the Objective-C++ view
-and module that host the chart and forward gestures into the C++ core.
+A single TurboModule, [`VroomChartModule`](VroomChartModule.mm), conforming to
+`RCTTurboModuleWithJSIBindings`. `RCTTurboModuleManager` calls
+`-installJSIBindingsWithRuntime:callInvoker:` as soon as it instantiates the
+module — before the module object reaches JS — and that installs
+`global.VroomChartJSI` via the platform-agnostic
+[`../cpp/VroomJsiInstaller.cpp`](../cpp/VroomJsiInstaller.cpp) Android also
+uses. There is no native view: the chart renders into an `SkPicture` that
+`<Canvas>` from `@shopify/react-native-skia` paints.
 
-The accompanying `react-native-vroom-chart.podspec` at the package root will
-build `cpp/` + `ios/` + the linked `@vroomchart/core` static library.
+This replaced a `[RCTBridge currentBridge]` → `RCTCxxBridge.runtime` lookup,
+which stopped working in React Native 0.85. That release enables
+`RCT_REMOVE_LEGACY_ARCH` by default, under which `RCTBridge` compiles down to
+a stub whose `+currentBridge` returns `nil`.
+
+[`../react-native-vroom-chart.podspec`](../react-native-vroom-chart.podspec)
+builds `cpp/` + `ios/` plus the core sources mirrored in from
+`packages/core/`.

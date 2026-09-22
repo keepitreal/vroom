@@ -15,7 +15,7 @@ import { VroomChart } from 'react-native-vroom-chart';
 
 ## Peer dependencies
 
-- `react-native` ≥ 0.76
+- `react-native` ≥ 0.78, New Architecture enabled — the chart installs its JSI bindings through the TurboModule JSI-bindings hooks, which have no legacy-bridge equivalent
 - `@shopify/react-native-skia` ≥ 2.11.0 — provides the Skia runtime we draw into. vroom links RN-Skia's native internals (`cpp/api`) and tracks that package closely; those headers have no semver guarantee.
 
 - `react-native-gesture-handler` ≥ 2.16 — long-press / pan / pinch recognition

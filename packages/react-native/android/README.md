@@ -1,12 +1,22 @@
 # Android bridge
 
 Android equivalent of `../ios/`: a small TurboModule
-([`VroomChartModule.kt`](src/main/java/com/vroom/chart/VroomChartModule.kt)) whose
-`install()` hands the JSI runtime pointer to a native `vroomchart` library
-(built by [`CMakeLists.txt`](CMakeLists.txt)) that installs
-`global.VroomChartJSI` via the same platform-agnostic
-[`../cpp/VroomJsiInstaller.cpp`](../cpp/VroomJsiInstaller.cpp) the iOS bridge
-uses.
+([`VroomChartModule.kt`](src/main/java/com/vroom/chart/VroomChartModule.kt))
+implementing `TurboModuleWithJSIBindings`. `TurboModuleManager` calls its
+`getBindingsInstaller()` when it instantiates the module and runs the returned
+holder against the JSI runtime, which installs `global.VroomChartJSI` via the
+same platform-agnostic
+[`../cpp/VroomJsiInstaller.cpp`](../cpp/VroomJsiInstaller.cpp) the iOS module
+uses. The native `vroomchart` library (built by
+[`CMakeLists.txt`](CMakeLists.txt)) binds that method in
+[`src/main/cpp/VroomChartJsiBindings.cpp`](src/main/cpp/VroomChartJsiBindings.cpp),
+registered from [`src/main/cpp/OnLoad.cpp`](src/main/cpp/OnLoad.cpp).
+
+This replaced an earlier `install()`-driven path that read the runtime pointer
+out of `ReactContext.javaScriptContextHolder`. That still works on current
+React Native, but the bindings hook is the supported entry point and matches
+what iOS now has to do — `[RCTBridge currentBridge]` returns `nil` once
+`RCT_REMOVE_LEGACY_ARCH` is on, which is the default from React Native 0.85.
 
 The chart core (`../cpp/_core_src`) and the platform font-manager helper
 (`../cpp/VroomFontMgr.*`) are unmodified and shared across iOS and Android —

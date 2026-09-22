@@ -1,11 +1,8 @@
 #import <Foundation/Foundation.h>
 #import <React/RCTBridgeModule.h>
-
-#ifdef RCT_NEW_ARCH_ENABLED
+#import <ReactCommon/RCTTurboModuleWithJSIBindings.h>
 #import <VroomChartSpec/VroomChartSpec.h>
-@interface VroomChartModule : NSObject <NativeVroomChartSpec>
-#else
-@interface VroomChartModule : NSObject <RCTBridgeModule>
-#endif
+
+@interface VroomChartModule : NSObject <NativeVroomChartSpec, RCTTurboModuleWithJSIBindings>
 
 @end
