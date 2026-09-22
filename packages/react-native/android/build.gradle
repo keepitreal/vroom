@@ -108,6 +108,16 @@ android {
     }
   }
 
+  // prefab copies every consumed module's .so into our intermediates. RN and
+  // RN-Skia already ship these in their own AARs, so packaging a second copy
+  // here makes app assembly fail on duplicate libraries.
+  packagingOptions {
+    exclude "**/libc++_shared.so"
+    exclude "**/libfbjni.so"
+    exclude "**/libjsi.so"
+    exclude "**/libreactnative.so"
+  }
+
   lintOptions {
     abortOnError false
   }

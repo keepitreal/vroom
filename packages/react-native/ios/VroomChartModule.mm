@@ -1,6 +1,5 @@
 #import "VroomChartModule.h"
 
-#import <React/RCTBridge+Private.h>
 #import <ReactCommon/CallInvoker.h>
 #import <jsi/jsi.h>
 
@@ -8,37 +7,32 @@
 
 using namespace facebook;
 
-@implementation VroomChartModule
+@implementation VroomChartModule {
+  BOOL _didInstall;
+}
 
 RCT_EXPORT_MODULE(VroomChartModule)
 
-// Called from JS via NativeVroomChart.install(). Grabs the JSI runtime from the
-// bridge and asks the C++ installer to expose global.VroomChartJSI.
+// RCTTurboModuleManager calls this as soon as it instantiates the module —
+// before the module object reaches JS — so global.VroomChartJSI always exists
+// by the time anything imports NativeVroomChart.
 //
-// The TurboModule version (new arch) and the legacy version both end up here.
+// callInvoker is unused: every chart call is synchronous on the JS thread.
+- (void)installJSIBindingsWithRuntime:(jsi::Runtime &)runtime
+                          callInvoker:(const std::shared_ptr<react::CallInvoker> &)callInvoker
+{
+  vroom::installJsi(runtime);
+  _didInstall = YES;
+}
+
 - (NSNumber *)install
 {
-  RCTBridge *bridge = [RCTBridge currentBridge];
-  RCTCxxBridge *cxxBridge = (RCTCxxBridge *)bridge;
-  if (cxxBridge == nil) {
-    return @NO;
-  }
-
-  jsi::Runtime *runtime = (jsi::Runtime *)cxxBridge.runtime;
-  if (runtime == nullptr) {
-    return @NO;
-  }
-
-  vroom::installJsi(*runtime);
-  return @YES;
+  return @(_didInstall);
 }
 
-#ifdef RCT_NEW_ARCH_ENABLED
-- (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
-    (const facebook::react::ObjCTurboModule::InitParams &)params
+- (std::shared_ptr<react::TurboModule>)getTurboModule:(const react::ObjCTurboModule::InitParams &)params
 {
-  return std::make_shared<facebook::react::NativeVroomChartSpecJSI>(params);
+  return std::make_shared<react::NativeVroomChartSpecJSI>(params);
 }
-#endif
 
 @end

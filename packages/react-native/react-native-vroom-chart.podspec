@@ -37,7 +37,7 @@ Pod::Spec.new do |s|
   s.homepage     = "https://github.com/keepitreal/vroom"
   s.license      = { :type => "MIT" }
   s.authors      = { "vroom" => "noreply@example.com" }
-  s.platforms    = { :ios => "14.0" }
+  s.platforms    = { :ios => "15.1" }
   s.source       = { :git => "" }
 
   s.requires_arc = true

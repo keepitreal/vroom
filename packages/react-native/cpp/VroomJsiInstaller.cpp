@@ -75,6 +75,12 @@ static void ensureAxisTypeface() {
 }
 
 void installJsi(jsi::Runtime& runtime) {
+  // Honor the idempotence the header promises: re-running this would replace
+  // the global with a fresh `create`, orphaning handles JS already holds.
+  if (runtime.global().hasProperty(runtime, "VroomChartJSI")) {
+    return;
+  }
+
   ensureAxisTypeface();
 
   auto create = jsi::Function::createFromHostFunction(
