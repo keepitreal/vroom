@@ -74,9 +74,8 @@ double render_price(const VroomChart& chart, size_t i) {
     return chart.price_lines[i].price;
 }
 
-// The label font: the axis typeface, emboldened (these labels are chrome that
-// must stay legible over candles). Returns false when no typeface is loaded yet,
-// in which case callers fall back to lines without labels.
+// The label font: the axis typeface at its normal weight. Returns false when no
+// typeface is loaded yet, in which case callers fall back to lines without labels.
 bool label_font(const VroomChart& chart, SkFont* out) {
     auto tf = vroom::axis_typeface();
     if (!tf) return false;
@@ -85,7 +84,6 @@ bool label_font(const VroomChart& chart, SkFont* out) {
                            : chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
     *out = SkFont(tf, size);
     out->setSubpixel(true);
-    out->setEmbolden(true);
     out->setEdging(SkFont::Edging::kSubpixelAntiAlias);
     return true;
 }
