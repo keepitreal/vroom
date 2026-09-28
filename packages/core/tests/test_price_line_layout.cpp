@@ -270,3 +270,19 @@ TEST_CASE("y-axis strip fits the widest price badge") {
     CHECK(kChartW - badge_right == doctest::Approx(kAxisInset));
     CHECK(content + 2.f * kAxisInset == doctest::Approx(strip));
 }
+
+TEST_CASE("axis badge left sits inset past the plot edge") {
+    using vroom::labels::axis_badge_left;
+    using vroom::labels::axis_content_width;
+    using vroom::labels::axis_strip_width;
+    using vroom::labels::kAxisInset;
+
+    // This badge is the widest in the column, so the strip is sized to it.
+    constexpr float kChartW = 1000.f;
+    constexpr float kRightPad = 6.f;
+    const float text_w = 60.f;
+    const float strip = axis_strip_width(axis_content_width(text_w, text_w));
+    const float candle_right = kChartW - strip - kRightPad;
+    const float left = axis_badge_left(kChartW, strip, text_w);
+    CHECK(left == doctest::Approx(candle_right + kRightPad + kAxisInset));
+}

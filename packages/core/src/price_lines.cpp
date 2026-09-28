@@ -21,6 +21,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "labels.h"
 #include "price_format.h"
 #include "price_line_layout.h"
 #include "theme.h"
@@ -314,18 +315,32 @@ void draw(SkCanvas* canvas,
         if (has_font) metrics = metrics_for(font, pl);
         const GroupLayout group = layout_group(metrics, y, candle_right, style);
 
+        // An axis badge pulls its stroke out to the pill. A line with no badge
+        // still stops at the plot edge, and so does the drag ghost above.
+        float line_right = candle_right;
+        if (has_font && (pl.flags & VROOM_PRICE_LINE_AXIS_LABEL) != 0 &&
+            lay.y_axis_width_px > 0.f && lay.y_axis_opacity > 0.f) {
+            char axis_buf[48];
+            vroom::format_price(axis_buf, sizeof(axis_buf), render_price(chart, i),
+                                fmt);
+            const float axis_text_w = font.measureText(
+                axis_buf, std::strlen(axis_buf), SkTextEncoding::kUTF8);
+            line_right = vroom::labels::axis_badge_left(
+                lay.width_px, lay.y_axis_width_px, axis_text_w);
+        }
+
         if (group.empty()) {
             // Nothing to anchor a partial span to, so a bare line always spans
-            // the pane.
-            canvas->drawLine(0.f, y, candle_right, y, line);
+            // the pane (and meets its badge when it has one).
+            canvas->drawLine(0.f, y, line_right, y, line);
         } else {
             // Two segments with the label group punched out between them, so the
             // dashes don't show through the translucent pills.
             if (extend_left && group.left > 0.f) {
                 canvas->drawLine(0.f, y, group.left, y, line);
             }
-            if (group.right < candle_right) {
-                canvas->drawLine(group.right, y, candle_right, y, line);
+            if (group.right < line_right) {
+                canvas->drawLine(group.right, y, line_right, y, line);
             }
         }
 

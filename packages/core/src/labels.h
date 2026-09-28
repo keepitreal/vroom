@@ -132,6 +132,16 @@ inline float axis_strip_width(float content_w) {
     return content_w + 2.f * kAxisInset;
 }
 
+// Left edge of a price badge centered on the y-axis column. `text_w` is the
+// formatted price's advance at the font that badge draws with. A stroke that
+// belongs to the badge ends here so it meets the pill; the plot still stops
+// at the candle area's right edge.
+inline float axis_badge_left(float width_px, float y_axis_width_px, float text_w) {
+    const float cx = width_px - y_axis_width_px * 0.5f;
+    const float box_w = text_w + 2.f * kAxisBadgePadH;
+    return cx - box_w * 0.5f;
+}
+
 // Recomputes `chart.axis_width_px` to fit the widest price badge at the scale
 // the labels will draw against (visible auto-fit, or the manual scale). No-op
 // width (0) if the typeface isn't loaded yet — the layout then falls back to

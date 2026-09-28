@@ -17,9 +17,10 @@ struct PriceBounds;
 
 namespace vroom::price_indicator {
 
-// Draws the line across [0, candle_right] at the latest close's y, plus the
-// price box in the y-axis strip. `candle_area_h` is the y of the x-axis
-// separator; the indicator is skipped if the close maps outside [0, candle_area_h].
+// Draws the line at the latest close's y, from the left edge to the price
+// badge when that badge is drawn, otherwise to `candle_right`. `candle_area_h`
+// is the y of the x-axis separator; the indicator is skipped if the close maps
+// outside [0, candle_area_h].
 //
 // `morph_from` is the newest candle's outgoing capture (slot 0 of
 // VroomChart::morph_from), or null to draw the settled close. When present the
