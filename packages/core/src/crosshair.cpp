@@ -20,6 +20,7 @@
 
 #include "chart.h"
 #include "fonts.h"
+#include "labels.h"
 #include "price_format.h"
 #include "theme.h"
 #include "ticks.h"
@@ -32,6 +33,8 @@ constexpr SkScalar kDash[2] = {2.f, 2.f};
 constexpr float kPadV = 4.f;     // badge padding above/below the text
 constexpr float kPadH = 8.f;     // badge padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-badge corner radius
+static_assert(kPadH == vroom::labels::kAxisBadgePadH,
+              "the stroke ends on the pad this badge actually draws");
 
 // Draws a filled rounded-rect badge with `text` centered on (`cx`, `cy`).
 // Matches the current-price indicator's geometry (glyph-bounds centering so the
@@ -87,17 +90,42 @@ void draw(SkCanvas* canvas,
 
     const SkColor color = chart.theme.colors[VROOM_COLOR_CROSSHAIR];
 
+    // The horizontal dash meets the price badge. Measure that badge first so
+    // the stroke and the pill share one left edge; the vertical line still
+    // stops at the plot edge.
+    auto tf = vroom::axis_typeface();
+    SkFont font;
+    char price_buf[48];
+    price_buf[0] = '\0';
+    float h_right = candle_right;
+    if (tf) {
+        font = SkFont(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+        font.setSubpixel(true);
+        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+        if (lay.y_axis_width_px > 0.f && lay.y_axis_opacity > 0.f) {
+            const double price = vroom::y_to_price(lay, bounds, cy);
+            const vroom::PriceFormat fmt = vroom::with_tick_guard(
+                chart.price_fmt,
+                vroom::pick_price_interval(bounds.max - bounds.min,
+                                           vroom::price_pane_bottom(lay)));
+            vroom::format_price(price_buf, sizeof(price_buf), price, fmt);
+            const float text_w = font.measureText(
+                price_buf, std::strlen(price_buf), SkTextEncoding::kUTF8);
+            h_right = vroom::labels::axis_badge_left(
+                lay.width_px, lay.y_axis_width_px, text_w);
+        }
+    }
+
     // Dashed perpendicular lines. The vertical line runs the full height of the
     // candle + indicator region (down to vline_bottom) so it stays visible over
-    // any below-chart panes; the horizontal line spans from the left edge to the
-    // y-axis strip at candle_right.
+    // any below-chart panes.
     SkPaint dash;
     dash.setAntiAlias(true);
     dash.setColor(color);
     dash.setStrokeWidth(1.f);
     dash.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
     canvas->drawLine(cx, 0.f, cx, vline_bottom, dash);
-    canvas->drawLine(0.f, cy, candle_right, cy, dash);
+    canvas->drawLine(0.f, cy, h_right, cy, dash);
 
     // Punch the dashes out from under the ring so its center reads as hollow.
     SkPaint hole;
@@ -115,12 +143,7 @@ void draw(SkCanvas* canvas,
     // Axis badges sit on top of the axis labels and the current-price indicator
     // since the crosshair is the last draw step.
     // They need the axis typeface; if it isn't loaded the lines alone suffice.
-    auto tf = vroom::axis_typeface();
     if (!tf) return;
-
-    SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
-    font.setSubpixel(true);
-    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
 
     const SkColor badge_fill = chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET];
     const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
@@ -149,17 +172,11 @@ void draw(SkCanvas* canvas,
     }
 
     // Price badge over the y-axis strip, centered on the horizontal line and
-    // sharing the y-axis labels' column.
-    if (lay.y_axis_width_px > 0.f) {
-        const double price = vroom::y_to_price(lay, bounds, cy);
-        char buf[48];
-        const vroom::PriceFormat fmt = vroom::with_tick_guard(
-            chart.price_fmt,
-            vroom::pick_price_interval(bounds.max - bounds.min,
-                                       vroom::price_pane_bottom(lay)));
-        vroom::format_price(buf, sizeof(buf), price, fmt);
+    // sharing the y-axis labels' column. `price_buf` was filled with the same
+    // string the stroke was measured against.
+    if (price_buf[0] != '\0') {
         const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
-        draw_badge(canvas, font, buf, axis_center_x, cy, badge_fill,
+        draw_badge(canvas, font, price_buf, axis_center_x, cy, badge_fill,
                    badge_text, lay.y_axis_opacity);
     }
 }

@@ -15,6 +15,7 @@
 #include "drawings.h"
 #include "footprints.h"
 #include "labels.h"
+#include "price_line_layout.h"
 #include "price_lines.h"
 #include "viewport.h"
 
@@ -1757,6 +1758,11 @@ extern "C" void vroom_chart_set_color(VroomChart* chart, VroomColorKey key, uint
 
 extern "C" void vroom_chart_set_float(VroomChart* chart, VroomFloatKey key, float value) {
     if (!chart || key < 0 || key >= VROOM_FLOAT_COUNT_) return;
+    // Same integer range as price-line labels. Clamp before the equality check
+    // so 12.4 and 12 are one size, and 0 / 20 land on the floor and ceiling.
+    if (key == VROOM_FLOAT_AXIS_FONT_SIZE_PX) {
+        value = vroom::price_lines::clamp_label_font_px(value);
+    }
     if (chart->theme.floats[key] == value) return;
     chart->theme.floats[key] = value;
     if (key == VROOM_FLOAT_AXIS_FONT_SIZE_PX) {

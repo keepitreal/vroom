@@ -1323,7 +1323,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setPriceLines") {
     // setPriceLines({ lines: [{ price, color, width, lineStyle, text, quantity,
-    // flags }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost }) —
+    // flags }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
+    // cornerRadiusPx }) —
     // replaces the full set of price status lines. No render; the next render()
     // picks it up.
     return jsi::Function::createFromHostFunction(
@@ -1374,6 +1375,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
               cfg.getProperty(rt2, "align").asNumber());
           style.hover_boost = static_cast<float>(
               cfg.getProperty(rt2, "hoverBoost").asNumber());
+          style.corner_radius_px = static_cast<float>(
+              cfg.getProperty(rt2, "cornerRadiusPx").asNumber());
           vroom_chart_set_price_lines(chart_, lines.data(), lines.size(), &style);
           return jsi::Value::undefined();
         });

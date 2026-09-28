@@ -13,6 +13,17 @@ float pill_width(float text_w) {
 }
 }  // namespace
 
+float clamp_label_font_px(float size) {
+    const float rounded = std::round(size);
+    return std::clamp(rounded, kMinFontPx, kMaxFontPx);
+}
+
+float resolve_corner_radius_px(float radius) {
+    // NaN and negatives are the unset sentinel: keep today's pill radius.
+    if (!(radius >= 0.f)) return kCorner;
+    return std::min(radius, kCorner);
+}
+
 bool contains(const Rect& r, float x, float y) {
     if (r.empty()) return false;
     return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
@@ -57,7 +68,10 @@ GroupLayout layout_group(const LabelMetrics& metrics,
     left = std::min(left, pane_right - group_w);
     left = std::max(left, 0.f);
 
-    const float top = y - metrics.label_h * 0.5f;
+    // top_extra is already inside label_h. Shifting up by half of it puts that
+    // whole strip above the line and leaves the bottom edge where centering
+    // the rest of the height would.
+    const float top = y - metrics.label_h * 0.5f - metrics.top_extra * 0.5f;
     const float bottom = top + metrics.label_h;
 
     float x = left;

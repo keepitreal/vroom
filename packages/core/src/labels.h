@@ -106,9 +106,46 @@ void gc_x_fades(VroomChart& chart);
 
 // Y-axis width sizing ------------------------------------------------------
 
-// Recomputes `chart.axis_width_px` to fit the widest formatted price label
-// at the current bounds. No-op if the typeface isn't loaded yet — the layout
-// then falls back to `VROOM_FLOAT_Y_AXIS_WIDTH_RATIO`.
+// Gap between the widest y-axis badge and each edge of the strip. Equal on
+// both sides so the shared column (`width - axis_width / 2`) leaves this much
+// inside the canvas on the right, where the viewport clips.
+inline constexpr float kAxisInset = 8.f;
+
+// Horizontal padding inside a price badge (current price, crosshair, and the
+// price-line axis pill). Matches `price_lines::kPadH`; the strip is sized to
+// the badge, not the bare text, so this has to stay in step with it.
+inline constexpr float kAxisBadgePadH = 8.f;
+
+// Widest badge that shares the column. `axis_text_w` is the widest price
+// string at the axis font; `price_line_text_w` is the widest at the price-line
+// font. Each side adds the badge pad. Bare tick text is the string alone, so
+// it is always narrower than the axis-font badge of the same string.
+inline float axis_content_width(float axis_text_w, float price_line_text_w) {
+    const float pad = 2.f * kAxisBadgePadH;
+    const float axis_badge = axis_text_w + pad;
+    const float line_badge = price_line_text_w + pad;
+    return axis_badge > line_badge ? axis_badge : line_badge;
+}
+
+// Strip that holds `content_w` with `kAxisInset` on both sides.
+inline float axis_strip_width(float content_w) {
+    return content_w + 2.f * kAxisInset;
+}
+
+// Left edge of a price badge centered on the y-axis column. `text_w` is the
+// formatted price's advance at the font that badge draws with. A stroke that
+// belongs to the badge ends here so it meets the pill; the plot still stops
+// at the candle area's right edge.
+inline float axis_badge_left(float width_px, float y_axis_width_px, float text_w) {
+    const float cx = width_px - y_axis_width_px * 0.5f;
+    const float box_w = text_w + 2.f * kAxisBadgePadH;
+    return cx - box_w * 0.5f;
+}
+
+// Recomputes `chart.axis_width_px` to fit the widest price badge at the scale
+// the labels will draw against (visible auto-fit, or the manual scale). No-op
+// width (0) if the typeface isn't loaded yet — the layout then falls back to
+// `VROOM_FLOAT_Y_AXIS_WIDTH_RATIO`.
 void recompute_axis_width(VroomChart& chart);
 
 }  // namespace vroom::labels

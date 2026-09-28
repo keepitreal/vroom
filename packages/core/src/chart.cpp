@@ -558,6 +558,10 @@ void VroomChart::capture_morph_lines(const vroom::Layout& lay,
 
 void VroomChart::draw_chart(SkCanvas* canvas) {
     begin_frame();
+    // Fit the strip to the labels this frame will draw before layout reads the
+    // width. The price scale does not depend on the strip, so this cannot
+    // feedback, and a pan, y-zoom, or price-line font change refits immediately.
+    vroom::labels::recompute_axis_width(*this);
     const auto lay = layout();
 
     // 1. Background

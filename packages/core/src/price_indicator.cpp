@@ -19,6 +19,7 @@
 #include "chart.h"
 #include "color_lerp.h"
 #include "fonts.h"
+#include "labels.h"
 #include "price_format.h"
 #include "price_indicator_anim.h"
 #include "theme.h"
@@ -32,6 +33,8 @@ constexpr SkScalar kDash[2] = {2.f, 2.f};
 constexpr float kPadV = 4.f;     // box padding above/below the text
 constexpr float kPadH = 8.f;     // box padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-box corner radius
+static_assert(kPadH == vroom::labels::kAxisBadgePadH,
+              "the stroke ends on the pad this badge actually draws");
 }  // namespace
 
 void draw(SkCanvas* canvas,
@@ -64,37 +67,45 @@ void draw(SkCanvas* canvas,
     const float y = level.y;
     if (y < 0.f || y > candle_area_h) return;  // price scrolled off-range
 
-    // Dotted line from the left edge to the y-axis separator.
+    // Price box in the y-axis strip. Needs the axis typeface; if it isn't
+    // loaded yet, the line alone still conveys the level. Same when the y-axis
+    // is hidden — the level stays readable, it just loses its badge.
+    auto tf = vroom::axis_typeface();
+    const bool show_badge = tf && lay.y_axis_opacity > 0.f;
+    const bool join_badge = show_badge && lay.y_axis_width_px > 0.f;
+
+    SkFont font;
+    char buf[48];
+    size_t len = 0;
+    SkRect tb = SkRect::MakeEmpty();
+    float text_w = 0.f;
+    if (show_badge) {
+        font = SkFont(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+        font.setSubpixel(true);
+        font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+
+        const vroom::PriceFormat fmt = vroom::with_tick_guard(
+            chart.price_fmt,
+            vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
+        vroom::format_price(buf, sizeof(buf), level.price, fmt);
+        len = std::strlen(buf);
+        // Tight glyph bounds (origin at the baseline) so the digits center on
+        // `y` even when the font's cap-height metric misses the digit extent.
+        text_w = font.measureText(buf, len, SkTextEncoding::kUTF8, &tb);
+    }
+
+    // Meet the badge when it will draw. Otherwise stop at the plot edge.
+    const float line_right = join_badge
+        ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
+        : candle_right;
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(color);
     line.setStrokeWidth(1.f);
     line.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
-    canvas->drawLine(0.f, y, candle_right, y, line);
+    canvas->drawLine(0.f, y, line_right, y, line);
+    if (!show_badge) return;
 
-    // Price box in the y-axis strip. Needs the axis typeface; if it isn't
-    // loaded yet, the line alone still conveys the level. Same when the y-axis
-    // is hidden — the level stays readable, it just loses its badge.
-    auto tf = vroom::axis_typeface();
-    if (!tf) return;
-    if (lay.y_axis_opacity <= 0.f) return;
-
-    SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
-    font.setSubpixel(true);
-    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
-
-    char buf[48];
-    const vroom::PriceFormat fmt = vroom::with_tick_guard(
-        chart.price_fmt,
-        vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
-    vroom::format_price(buf, sizeof(buf), level.price, fmt);
-    const size_t len = std::strlen(buf);
-
-    // Measure the tight glyph bounds (origin at the baseline) so we can center
-    // the actual rendered digits on `y` — robust to fonts whose cap-height
-    // metric doesn't match the digit extent.
-    SkRect tb;
-    const float text_w = font.measureText(buf, len, SkTextEncoding::kUTF8, &tb);
     const float glyph_h = tb.height();
 
     // Box wraps the digits (width follows the text), centered on the y-axis

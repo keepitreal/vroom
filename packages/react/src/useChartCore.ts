@@ -375,6 +375,8 @@ function priceLinesToSpec(
     lineLengthFrac: style?.inset ?? 0,
     align: style?.align === 'left' ? 0 : style?.align === 'center' ? 1 : 2,
     hoverBoost: style?.hoverBoost ?? DEFAULT_PRICE_LINE_HOVER_BOOST,
+    // Negative asks the core for the built-in 6px radius. 0 is square.
+    cornerRadiusPx: style?.cornerRadius ?? -1,
   };
 }
 
@@ -387,6 +389,7 @@ const EMPTY_PRICE_LINES: PriceLinesSpec = {
   lineLengthFrac: 0,
   align: 2,
   hoverBoost: DEFAULT_PRICE_LINE_HOVER_BOOST,
+  cornerRadiusPx: -1,
 };
 
 // Footprints share the price lines' hover weight so the two widgets light up

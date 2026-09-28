@@ -346,10 +346,11 @@ typedef struct VroomPriceLine {
 // Layout/style shared by every price line, so the per-line struct stays small.
 typedef struct VroomPriceLineStyle {
     uint32_t body_bg;           // translucent body/close-button pill fill (0xAARRGGBB)
-    float    font_size_px;      // 0 = inherit VROOM_FLOAT_AXIS_FONT_SIZE_PX
+    float    font_size_px;      // 0 = inherit the axis size; otherwise rounded and clamped to 10–14 px
     float    line_length_frac;  // 0..1 of pane width: the label group's right-edge inset
     int32_t  align;             // 0 = left, 1 = center, 2 = right
     float    hover_boost;       // brightness multiplier for the hovered segment (1 = flat)
+    float    corner_radius_px;  // < 0 = default 6px; otherwise clamped to 0–6
 } VroomPriceLineStyle;
 
 // ---- Footprints (executed-trade badges) -----------------------------------

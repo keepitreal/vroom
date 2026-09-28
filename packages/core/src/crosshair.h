@@ -20,11 +20,11 @@ namespace vroom::crosshair {
 
 // Draws the crosshair. `candle_right` is the x of the y-axis strip. The
 // horizontal line and ring live in the price pane: the ring's y is clamped to
-// `candle_area_h` (the price-pane bottom) and the horizontal line stops at
-// `candle_right`. The vertical line spans from the top down to `vline_bottom`
-// (the bottom of the indicator region, so it stays visible over any RSI/MACD
-// panes); pass `candle_area_h` for both when there are no panes. `snap_x` is the
-// candle-snapped x for the vertical line and ring.
+// `candle_area_h` (the price-pane bottom). The horizontal line runs to the
+// price badge. The vertical line's x stays inside the plot and spans from the
+// top down to `vline_bottom` (the bottom of the indicator region, so it stays
+// visible over any RSI/MACD panes); pass `candle_area_h` for both when there
+// are no panes. `snap_x` is the candle-snapped x for the vertical line and ring.
 //
 // Two axis badges are drawn over the strips: a date/time badge (formatted from
 // `snap_time_ms`) centered on the vertical line in the x-axis strip, and a

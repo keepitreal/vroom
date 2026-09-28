@@ -100,6 +100,14 @@ export type VroomTheme = {
   /** Axis label text (price + time). */
   axisText?: VroomColor;
   /**
+   * Axis label size in integer CSS px, clamped to 10–14. Omit for 11.
+   *
+   * Shared by the price ticks, the time labels, the current-price badge, the
+   * crosshair badges, and the labels in indicator panes (RSI, MACD, ATR).
+   * Price-line pills follow this size when `priceLinesStyle.fontSize` is omitted.
+   */
+  axisFontSize?: number;
+  /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes
@@ -921,7 +929,10 @@ export type PriceLinesStyle = {
    * over candles without hiding them. Defaults to a dark translucent grey.
    */
   bodyBackground?: VroomColor;
-  /** Label font size in px. Defaults to the axis font size. */
+  /**
+   * Label font size in integer CSS px, clamped to 10–14. Omit to follow
+   * `theme.axisFontSize` (11px by default, also clamped into that range).
+   */
   fontSize?: number;
   /**
    * How far in from the price axis the label group sits, as a fraction of pane
@@ -937,6 +948,11 @@ export type PriceLinesStyle = {
    * platforms have no hover state.
    */
   hoverBoost?: number;
+  /**
+   * Corner radius of the label pills in CSS px, clamped to 0–6. Omit for the
+   * current 6px radius. 0 draws square corners.
+   */
+  cornerRadius?: number;
 };
 
 /** Which side of a position a footprint marks. */

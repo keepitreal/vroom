@@ -442,6 +442,8 @@ export interface ChartHandle {
     lineLengthFrac: number;
     align: number;
     hoverBoost: number;
+    /** < 0 = the default 6px pill radius; otherwise clamped to 0–6. */
+    cornerRadiusPx: number;
   }): void;
   /**
    * Hit-tests pixel (x, y) against the price lines. `part` is 0 for the line or
