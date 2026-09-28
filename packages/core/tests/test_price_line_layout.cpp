@@ -1,5 +1,6 @@
 #include "doctest.h"
 
+#include "labels.h"
 #include "price_line_layout.h"
 
 using vroom::price_lines::GroupLayout;
@@ -242,4 +243,30 @@ TEST_CASE("layout_group padding is symmetric around the text") {
         vroom::price_lines::layout_group(m, 100.f, 1000.f, make_style());
     // Text is inset by kPadH on each side of the pill.
     CHECK(g.body.width() - m.text_w == doctest::Approx(2.f * kPadH));
+}
+
+TEST_CASE("y-axis strip fits the widest price badge") {
+    using vroom::labels::axis_content_width;
+    using vroom::labels::axis_strip_width;
+    using vroom::labels::kAxisBadgePadH;
+    using vroom::labels::kAxisInset;
+
+    // The badge pad the strip budgets has to be the one the pills actually draw.
+    CHECK(kAxisBadgePadH == doctest::Approx(kPadH));
+
+    // Same glyphs, wider at 14px than at the 11px axis size.
+    const float at_11 = 60.f;
+    const float at_14 = 60.f * 14.f / 11.f;
+    const float narrow = axis_strip_width(axis_content_width(at_11, at_11));
+    const float wide = axis_strip_width(axis_content_width(at_11, at_14));
+    CHECK(wide > narrow);
+
+    // Centering the strip leaves the inset between the badge and the canvas edge.
+    const float content = axis_content_width(at_11, at_14);
+    const float strip = axis_strip_width(content);
+    constexpr float kChartW = 1000.f;
+    const float center = kChartW - strip * 0.5f;
+    const float badge_right = center + content * 0.5f;
+    CHECK(kChartW - badge_right == doctest::Approx(kAxisInset));
+    CHECK(content + 2.f * kAxisInset == doctest::Approx(strip));
 }

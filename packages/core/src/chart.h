@@ -159,8 +159,8 @@ struct VroomChart {
     int64_t morph_from_start_ms = 0;
     int64_t morph_from_end_ms = 0;
 
-    // Cached y-axis width in pixels, sized to fit the widest formatted price
-    // label. 0 = uncomputed; layout() falls back to a width ratio.
+    // Cached y-axis width in pixels, sized to the widest price badge plus an
+    // inset on each side. 0 = uncomputed; layout() falls back to a width ratio.
     float axis_width_px = 0.f;
 
     // How prices render, derived from the asset's own scale. Cached beside the

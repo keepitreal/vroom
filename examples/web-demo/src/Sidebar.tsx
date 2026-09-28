@@ -195,6 +195,8 @@ export type SidebarProps = {
     setTwoPane: (v: boolean) => void;
     candleWidth: number;
     setCandleWidth: (v: number) => void;
+    axisFontSize: number;
+    setAxisFontSize: (v: number) => void;
     chartType: ChartType;
     setChartType: (v: ChartType) => void;
   };
@@ -338,6 +340,22 @@ export function Sidebar({
             value={layout.candleWidth}
             onChange={(e) => layout.setCandleWidth(Number(e.target.value))}
             style={numInput}
+          />
+        </Row>
+        <Row label="Axis px">
+          <input
+            type="number"
+            min={10}
+            max={14}
+            step={1}
+            value={layout.axisFontSize}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n)) return;
+              layout.setAxisFontSize(Math.min(14, Math.max(10, Math.round(n))));
+            }}
+            style={numInput}
+            title="Axis label size in px. 11 is the default; the chart clamps anything outside 10–14. Price-line pills follow this unless Font px is set."
           />
         </Row>
       </Section>

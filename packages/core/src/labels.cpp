@@ -20,6 +20,7 @@
 #include "chart.h"
 #include "fonts.h"
 #include "price_format.h"
+#include "price_line_layout.h"
 #include "ticks.h"
 #include "viewport.h"
 
@@ -369,6 +370,41 @@ void gc_x_fades(VroomChart& chart) {
 
 // ----- Axis-width sizing ----------------------------------------------------
 
+namespace {
+
+// The scale the y labels will actually draw against: the pre-switch scale while
+// an interval morph is still showing the old ticks, otherwise the manual scale
+// or the visible candles' auto-fit. False when there is nothing to lay out.
+bool label_scale(const VroomChart& chart, vroom::PriceBounds* out) {
+    if (interval_phase(chart).outgoing) {
+        *out = chart.morph_from_bounds;
+        return out->max > out->min;
+    }
+    if (chart.price_bounds_manual) {
+        *out = chart.price_bounds;
+        return out->max > out->min;
+    }
+    if (chart.candles.empty()) return false;
+    const auto idx = vroom::visible_indices(
+        chart.candles.data(), chart.candles.size(),
+        chart.visible_start_ms, chart.visible_end_ms);
+    if (idx.end <= idx.start) return false;
+    *out = vroom::auto_price_bounds(
+        chart.candles.data() + idx.start, idx.end - idx.start);
+    return out->max > out->min;
+}
+
+float measure_price(const SkFont& font, double price, const vroom::PriceFormat& fmt) {
+    char buf[48];
+    vroom::format_price(buf, sizeof(buf), price, fmt);
+    return font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
+}
+
+}  // namespace
+
+static_assert(kAxisBadgePadH == vroom::price_lines::kPadH,
+              "the y-axis strip budgets the badge pad the pills actually draw");
+
 void recompute_axis_width(VroomChart& chart) {
     // Precision first, and unconditionally: the label sites read it whether or
     // not a typeface has loaded, and it's what the measurement below sizes for.
@@ -379,43 +415,67 @@ void recompute_axis_width(VroomChart& chart) {
         chart.axis_width_px = 0.f;
         return;
     }
-    double hi, lo;
-    if (chart.price_bounds_manual) {
-        hi = chart.price_bounds.max;
-        lo = chart.price_bounds.min;
-    } else if (!chart.candles.empty()) {
-        hi = chart.candles.front().high;
-        lo = chart.candles.front().low;
-        for (const auto& c : chart.candles) {
-            if (c.high > hi) hi = c.high;
-            if (c.low < lo) lo = c.low;
+
+    vroom::PriceBounds bounds{};
+    const bool have_scale = label_scale(chart, &bounds);
+    if (!have_scale) {
+        // Still size for a badge that draws without a scale (the latest close,
+        // or a price line parked on an empty chart).
+        if (!chart.candles.empty()) {
+            const double p = chart.candles.back().close;
+            bounds = {p, p};
+        } else if (!chart.price_lines.empty()) {
+            const double p = chart.price_lines.front().price;
+            bounds = {p, p};
+        } else {
+            chart.axis_width_px = 0.f;
+            return;
         }
-    } else {
-        chart.axis_width_px = 0.f;
-        return;
     }
 
-    SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
     const auto lay = chart.layout();
+    const double range = bounds.max - bounds.min;
     // Same guard the label sites apply, against the bounds this is sizing for,
     // so a zoom deep enough to add decimals widens the strip to hold them.
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
         chart.price_fmt,
-        vroom::pick_price_interval(hi - lo, vroom::price_pane_bottom(lay)));
-    // At the same decimals the longest label is whichever bound has the most
-    // integer digits, separators included.
-    char buf_hi[48], buf_lo[48];
-    vroom::format_price(buf_hi, sizeof(buf_hi), hi, fmt);
-    vroom::format_price(buf_lo, sizeof(buf_lo), lo, fmt);
-    const float w_hi = font.measureText(
-        buf_hi, std::strlen(buf_hi), SkTextEncoding::kUTF8);
-    const float w_lo = font.measureText(
-        buf_lo, std::strlen(buf_lo), SkTextEncoding::kUTF8);
-    const float text_w = std::max(w_hi, w_lo);
+        vroom::pick_price_interval(range, vroom::price_pane_bottom(lay)));
 
-    constexpr float kPaddingLeft = 8.f;   // separator ↔ text
-    constexpr float kPaddingRight = 6.f;  // text ↔ screen edge
-    chart.axis_width_px = text_w + kPaddingLeft + kPaddingRight;
+    const float axis_px = chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
+    const float requested = chart.price_line_style.font_size_px > 0.f
+                                ? chart.price_line_style.font_size_px
+                                : axis_px;
+    SkFont axis_font(tf, axis_px);
+    SkFont line_font(tf, vroom::price_lines::clamp_label_font_px(requested));
+
+    float axis_w = 0.f;
+    float line_w = 0.f;
+    const auto consider = [&](double price) {
+        if (!std::isfinite(price)) return;
+        axis_w = std::max(axis_w, measure_price(axis_font, price, fmt));
+        line_w = std::max(line_w, measure_price(line_font, price, fmt));
+    };
+
+    consider(bounds.min);
+    consider(bounds.max);
+    if (!chart.candles.empty()) consider(chart.candles.back().close);
+    for (const auto& pl : chart.price_lines) consider(pl.price);
+    if (chart.dragged_price_line >= 0) consider(chart.dragged_price_line_price);
+
+    // A nice tick can be wider than either endpoint ("100,000.00" above a
+    // 99,950 high). Same walk update_y_fades uses, capped the same way.
+    const double interval = vroom::pick_price_interval(range, vroom::price_pane_bottom(lay));
+    if (range > 0.0 && interval > 0.0) {
+        const double first = std::ceil(bounds.min / interval) * interval;
+        constexpr int kMaxLabels = 64;
+        int n = 0;
+        for (double price = first; price <= bounds.max && n < kMaxLabels;
+             price += interval, ++n) {
+            consider(price);
+        }
+    }
+
+    chart.axis_width_px = axis_strip_width(axis_content_width(axis_w, line_w));
 }
 
 }  // namespace vroom::labels

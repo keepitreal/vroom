@@ -589,6 +589,8 @@ export function App() {
   // Default candle body width (px) driving the demo chart's initial zoom,
   // persisted to localStorage so it applies on first load.
   const [candleWidth, setCandleWidth] = useState(loadCandleWidth);
+  // 11px is the size the axis labels already render at when axisFontSize is omitted.
+  const [axisFontSize, setAxisFontSize] = useState(11);
   // Price-series render style (candles vs line), persisted.
   const [chartType, setChartType] = useState<ChartType>(() =>
     typeof window !== 'undefined' && window.localStorage.getItem(CHART_TYPE_KEY) === 'line'
@@ -935,6 +937,7 @@ export function App() {
     () => ({
       ...theme,
       wickWidth,
+      axisFontSize,
       candleRadius,
       wickRoundCap,
       lineTension,
@@ -946,6 +949,7 @@ export function App() {
     [
       theme,
       wickWidth,
+      axisFontSize,
       candleRadius,
       wickRoundCap,
       lineTension,
@@ -1187,7 +1191,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, axisFontSize, setAxisFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,

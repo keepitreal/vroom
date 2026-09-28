@@ -23,6 +23,7 @@ boolean knobs for wick width and rounded candle/volume shapes.
     crosshair: '#c9d1d9',
     crosshairTarget: '#ffffff',
     // shape & size
+    axisFontSize: 11,
     wickWidth: 1,
     wickRoundCap: true,
     candleRadius: 2,
@@ -60,11 +61,13 @@ A color ([`VroomColor`](../reference/index.md)) is either:
 
 ## Shape & size
 
-These control candle geometry. All default to off (square bodies/bars, 1px butt-cap
-wicks), so charts are unchanged until you set them.
+`axisFontSize` sizes every axis label. The rest control candle geometry and
+default to off (square bodies/bars, 1px butt-cap wicks), so those stay unchanged
+until you set them.
 
 | Field | Type | Effect |
 | --- | --- | --- |
+| `axisFontSize` | integer (px) | Size of the price ticks, time labels, current-price badge, crosshair badges, and indicator-pane labels (RSI, MACD, ATR). Clamped to 10–14. Default `11`. Price-line pills follow this when `priceLinesStyle.fontSize` is omitted. |
 | `wickWidth` | number (px) | Wick stroke width, for both up and down wicks. Default `1`. |
 | `wickRoundCap` | boolean | Round the wick end caps. Default `false`. |
 | `candleRadius` | number (px) | Corner radius of candle bodies (all four corners). Default `0` (square). |

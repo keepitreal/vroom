@@ -128,7 +128,7 @@ close icon), `width`, and `lineStyle` (`'solid'`, `'dotted'` — the default —
     inset: 0.25,
     // The translucent fill behind the body and close-button pills.
     bodyBackground: "rgba(28, 33, 40, 0.85)",
-    // Integer CSS px, clamped to 10–14. Omit to inherit the axis size (11px).
+    // Integer CSS px, clamped to 10–14. Omit to follow theme.axisFontSize (11px).
     fontSize: 11,
     // Label-pill corner radius in px, clamped to 0–6. Omit for the default 6.
     cornerRadius: 6,
