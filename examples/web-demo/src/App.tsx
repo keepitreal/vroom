@@ -651,6 +651,10 @@ export function App() {
   // rather than to the state above, so switching styles mid-drag doesn't
   // overwrite the price being dragged.
   const [priceLineStyle, setPriceLineStyle] = useState<PriceLineStyleChoice>('mixed');
+  // 11px is the axis size the labels already render at when fontSize is omitted.
+  const [priceLineFontSize, setPriceLineFontSize] = useState(11);
+  // 6px is the pill radius the labels already render with when cornerRadius is omitted.
+  const [priceLineCornerRadius, setPriceLineCornerRadius] = useState(6);
   const styledPriceLines = useMemo(
     () =>
       priceLineStyle === 'mixed'
@@ -661,6 +665,10 @@ export function App() {
   const priceLineProps = showPriceLines
     ? {
         priceLines: styledPriceLines,
+        priceLinesStyle: {
+          fontSize: priceLineFontSize,
+          cornerRadius: priceLineCornerRadius,
+        },
         onPriceLineDrag,
         onPriceLineDragEnd,
         onPriceLineClose,
@@ -1220,7 +1228,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, showFootprints, setShowFootprints, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, priceLineFontSize, setPriceLineFontSize, priceLineCornerRadius, setPriceLineCornerRadius, showFootprints, setShowFootprints, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

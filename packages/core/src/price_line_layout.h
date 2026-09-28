@@ -14,7 +14,7 @@ namespace vroom::price_lines {
 // line and the price badge read as the same family of chrome.
 constexpr float kPadH = 8.f;    // left/right of the text
 constexpr float kPadV = 4.f;    // above/below the text
-constexpr float kCorner = 6.f;  // rounded-pill corner radius
+constexpr float kCorner = 6.f;  // default label-pill corner radius, and the maximum
 
 // Extra grab band above and below the stroke, so a 1px line is still an easy
 // target. Matches the tolerance mainstream chart libraries settled on.
@@ -24,6 +24,18 @@ constexpr float kLineHitTolerance = 7.f;
 // that the line still shows through it — a couple of dashes reading as "this
 // continues to the badge" rather than one orphaned dot.
 constexpr float kAxisGutter = 12.f;
+
+// Label type size, in CSS px. Callers resolve "inherit the axis size" first;
+// this then snaps the result to an integer inside the range consumers may set.
+constexpr float kMinFontPx = 10.f;
+constexpr float kMaxFontPx = 14.f;
+
+// Nearest integer pixel, held inside [kMinFontPx, kMaxFontPx].
+float clamp_label_font_px(float size);
+
+// Label-pill corner radius in CSS px. A negative value (the unset sentinel)
+// resolves to kCorner. Otherwise the value is clamped to [0, kCorner].
+float resolve_corner_radius_px(float radius);
 
 struct Rect {
     float left = 0.f;
@@ -46,6 +58,9 @@ struct LabelMetrics {
     float text_w = 0.f;      // body text width; 0 hides the body pill
     float quantity_w = 0.f;  // quantity text width; 0 hides the quantity pill
     float label_h = 0.f;
+    // Pixels of `label_h` that sit above the centered box, so extra top padding
+    // does not also lower the bottom edge. 0 keeps the group centered on `y`.
+    float top_extra = 0.f;
     bool  closable = false;  // reserve the trailing square close-button cell
 };
 

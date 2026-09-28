@@ -921,7 +921,10 @@ export type PriceLinesStyle = {
    * over candles without hiding them. Defaults to a dark translucent grey.
    */
   bodyBackground?: VroomColor;
-  /** Label font size in px. Defaults to the axis font size. */
+  /**
+   * Label font size in integer CSS px, clamped to 10–14. Omit to inherit the
+   * axis font size (11px by default, also clamped into that range).
+   */
   fontSize?: number;
   /**
    * How far in from the price axis the label group sits, as a fraction of pane
@@ -937,6 +940,11 @@ export type PriceLinesStyle = {
    * platforms have no hover state.
    */
   hoverBoost?: number;
+  /**
+   * Corner radius of the label pills in CSS px, clamped to 0–6. Omit for the
+   * current 6px radius. 0 draws square corners.
+   */
+  cornerRadius?: number;
 };
 
 /** Which side of a position a footprint marks. */

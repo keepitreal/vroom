@@ -38,6 +38,11 @@ constexpr float kGhostAlpha = 0.35f;  // pre-drag position marker
 constexpr float kCloseInset = 6.f;    // X glyph inset within its square cell
 constexpr float kCloseStroke = 1.5f;
 constexpr float kDividerAlpha = 0.5f;
+// Extra space above and below the glyphs, on top of kPadV. The pill grows by
+// this much on each side; the text stays centered on the line.
+constexpr float kTextPad = 1.f;
+// One more pixel above the glyphs only. The bottom edge stays put.
+constexpr float kTextTopExtra = 1.f;
 
 // The reference glyph whose tight bounds set every pill's height, so a group's
 // segments stay the same height whether or not their text has descenders — and
@@ -79,9 +84,12 @@ double render_price(const VroomChart& chart, size_t i) {
 bool label_font(const VroomChart& chart, SkFont* out) {
     auto tf = vroom::axis_typeface();
     if (!tf) return false;
-    const float size = chart.price_line_style.font_size_px > 0.f
-                           ? chart.price_line_style.font_size_px
-                           : chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
+    // <= 0 inherits the axis size (11px by default). Either way the label is an
+    // integer in [kMinFontPx, kMaxFontPx].
+    const float requested = chart.price_line_style.font_size_px > 0.f
+                                ? chart.price_line_style.font_size_px
+                                : chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
+    const float size = clamp_label_font_px(requested);
     *out = SkFont(tf, size);
     out->setSubpixel(true);
     out->setEdging(SkFont::Edging::kSubpixelAntiAlias);
@@ -103,17 +111,18 @@ LabelMetrics metrics_for(const SkFont& font,
     LabelMetrics m;
     m.text_w = text_width(font, pl.text);
     m.quantity_w = text_width(font, pl.quantity);
-    m.label_h = ref.height() + 2.f * kPadV;
+    m.label_h = ref.height() + 2.f * (kPadV + kTextPad) + kTextTopExtra;
+    m.top_extra = kTextTopExtra;
     m.closable = (pl.flags & VROOM_PRICE_LINE_CLOSABLE) != 0;
     return m;
 }
 
 // Rounds only the corners on the group's outer edges, so butted segments read as
 // one continuous pill with dividers rather than a row of separate lozenges.
-SkRRect segment_rrect(const Rect& r, bool round_left, bool round_right) {
+SkRRect segment_rrect(const Rect& r, bool round_left, bool round_right, float radius) {
     const SkRect rect = SkRect::MakeLTRB(r.left, r.top, r.right, r.bottom);
-    const float l = round_left ? kCorner : 0.f;
-    const float rr = round_right ? kCorner : 0.f;
+    const float l = round_left ? radius : 0.f;
+    const float rr = round_right ? radius : 0.f;
     // setRectRadii takes corners in UL, UR, LR, LL order.
     const SkVector radii[4] = {{l, l}, {rr, rr}, {rr, rr}, {l, l}};
     SkRRect out;
@@ -147,9 +156,10 @@ void draw_pill(SkCanvas* canvas,
                const Rect& r,
                bool round_left,
                bool round_right,
+               float radius,
                SkColor fill,
                SkColor border) {
-    const SkRRect rr = segment_rrect(r, round_left, round_right);
+    const SkRRect rr = segment_rrect(r, round_left, round_right, radius);
 
     SkPaint bg;
     bg.setAntiAlias(true);
@@ -169,7 +179,7 @@ void draw_pill(SkCanvas* canvas,
                                r.top + kBorderWidth * 0.5f,
                                r.right - kBorderWidth * 0.5f,
                                r.bottom - kBorderWidth * 0.5f},
-                          round_left, round_right),
+                          round_left, round_right, radius),
                       outline);
 }
 
@@ -256,6 +266,7 @@ void draw(SkCanvas* canvas,
     if (chart.price_lines.empty()) return;
 
     const VroomPriceLineStyle& style = chart.price_line_style;
+    const float corner = resolve_corner_radius_px(style.corner_radius_px);
     const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
     SkFont font;
     const bool has_font = label_font(chart, &font);
@@ -334,7 +345,7 @@ void draw(SkCanvas* canvas,
 
             if (!group.body.empty()) {
                 draw_pill(canvas, group.body, first == &group.body,
-                          last == &group.body, body_bg, line_color);
+                          last == &group.body, corner, body_bg, line_color);
                 draw_centered_text(canvas, font, pl.text, group.body, y,
                                    line_color);
             }
@@ -342,7 +353,8 @@ void draw(SkCanvas* canvas,
                 // Solid fill + badge text, so size reads at a glance against the
                 // translucent body.
                 draw_pill(canvas, group.quantity, first == &group.quantity,
-                          last == &group.quantity, line_color, SK_ColorTRANSPARENT);
+                          last == &group.quantity, corner, line_color,
+                          SK_ColorTRANSPARENT);
                 draw_centered_text(canvas, font, pl.quantity, group.quantity, y,
                                    badge_text);
             }
@@ -350,7 +362,7 @@ void draw(SkCanvas* canvas,
                 const SkColor close_color =
                     close_hot ? boost(color, style.hover_boost) : line_color;
                 draw_pill(canvas, group.close, first == &group.close,
-                          last == &group.close, body_bg, close_color);
+                          last == &group.close, corner, body_bg, close_color);
                 if (!group.quantity.empty()) {
                     draw_divider(canvas, group.close, close_color);
                 }

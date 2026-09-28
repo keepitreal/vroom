@@ -33,6 +33,23 @@ LabelMetrics make_metrics() {
 
 }  // namespace
 
+TEST_CASE("clamp_label_font_px") {
+    // Below the floor, on it, a fraction that rounds down, the ceiling, above it.
+    CHECK(vroom::price_lines::clamp_label_font_px(9.f) == doctest::Approx(10.f));
+    CHECK(vroom::price_lines::clamp_label_font_px(10.f) == doctest::Approx(10.f));
+    CHECK(vroom::price_lines::clamp_label_font_px(12.4f) == doctest::Approx(12.f));
+    CHECK(vroom::price_lines::clamp_label_font_px(14.f) == doctest::Approx(14.f));
+    CHECK(vroom::price_lines::clamp_label_font_px(20.f) == doctest::Approx(14.f));
+}
+
+TEST_CASE("resolve_corner_radius_px") {
+    // A negative value is unset and keeps the current 6px radius. 0 is square.
+    CHECK(vroom::price_lines::resolve_corner_radius_px(-1.f) == doctest::Approx(6.f));
+    CHECK(vroom::price_lines::resolve_corner_radius_px(0.f) == doctest::Approx(0.f));
+    CHECK(vroom::price_lines::resolve_corner_radius_px(6.f) == doctest::Approx(6.f));
+    CHECK(vroom::price_lines::resolve_corner_radius_px(8.f) == doctest::Approx(6.f));
+}
+
 TEST_CASE("contains") {
     const Rect r{10.f, 20.f, 50.f, 40.f};
     CHECK(vroom::price_lines::contains(r, 30.f, 30.f));
@@ -91,6 +108,20 @@ TEST_CASE("layout_group segment order and widths") {
         CHECK(g.body.bottom == doctest::Approx(210.f));
         CHECK(g.quantity.top == doctest::Approx(g.body.top));
         CHECK(g.close.bottom == doctest::Approx(g.body.bottom));
+    }
+
+    SUBCASE("top_extra lifts only the top edge") {
+        LabelMetrics m = make_metrics();
+        m.closable = true;
+        m.label_h = 21.f;
+        m.top_extra = 1.f;
+        const GroupLayout lifted =
+            vroom::price_lines::layout_group(m, 200.f, 1000.f, make_style());
+        // A 20px box centered on 200 spans 190–210. The extra pixel is above
+        // that, so the bottom stays at 210 and the top moves to 189.
+        CHECK(lifted.body.top == doctest::Approx(189.f));
+        CHECK(lifted.body.bottom == doctest::Approx(210.f));
+        CHECK(lifted.close.top == doctest::Approx(lifted.body.top));
     }
 }
 

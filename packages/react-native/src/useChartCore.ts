@@ -305,6 +305,8 @@ function priceLinesToSpec(cfg: PriceLinesProp) {
     lineLengthFrac: cfg.style?.inset ?? 0,
     align: cfg.style?.align === 'left' ? 0 : cfg.style?.align === 'center' ? 1 : 2,
     hoverBoost: cfg.style?.hoverBoost ?? DEFAULT_PRICE_LINE_HOVER_BOOST,
+    // Negative asks the core for the built-in 6px radius. 0 is square.
+    cornerRadiusPx: cfg.style?.cornerRadius ?? -1,
   };
 }
 

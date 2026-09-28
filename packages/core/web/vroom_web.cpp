@@ -451,7 +451,7 @@ class WebChart {
   }
   // `cfg` is a JS object { lines: [{price, color, width, lineStyle, text,
   // quantity, flags}, ...], bodyBg, fontSizePx, lineLengthFrac, align,
-  // hoverBoost }.
+  // hoverBoost, cornerRadiusPx }.
   void setPriceLines(const em::val& cfg) {
     em::val lines = cfg["lines"];
     const size_t n = lines["length"].as<size_t>();
@@ -477,6 +477,7 @@ class WebChart {
     style.line_length_frac = cfg["lineLengthFrac"].as<float>();
     style.align = cfg["align"].as<int32_t>();
     style.hover_boost = cfg["hoverBoost"].as<float>();
+    style.corner_radius_px = cfg["cornerRadiusPx"].as<float>();
     vroom_chart_set_price_lines(chart_, out.data(), n, &style);
   }
   // Returns {index, part} of the price line hit at pixel (x, y), or null.

@@ -433,6 +433,8 @@ export type PriceLinesSpec = {
   align: number;
   /** Brightness multiplier for the hovered segment; 1 = no highlight. */
   hoverBoost: number;
+  /** < 0 = the default 6px pill radius; otherwise clamped to 0–6. */
+  cornerRadiusPx: number;
 };
 
 /** `FootprintSpec.side` values. */

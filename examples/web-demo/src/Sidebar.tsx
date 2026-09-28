@@ -247,6 +247,10 @@ export type SidebarProps = {
     setShowPriceLines: (v: boolean) => void;
     priceLineStyle: PriceLineStyleChoice;
     setPriceLineStyle: (v: PriceLineStyleChoice) => void;
+    priceLineFontSize: number;
+    setPriceLineFontSize: (v: number) => void;
+    priceLineCornerRadius: number;
+    setPriceLineCornerRadius: (v: number) => void;
     showFootprints: boolean;
     setShowFootprints: (v: boolean) => void;
     drawMode: ChartMode;
@@ -525,6 +529,42 @@ export function Sidebar({
                 </option>
               ))}
             </select>
+          </Row>
+        )}
+        {overlays.showPriceLines && (
+          <Row label="Font px">
+            <input
+              type="number"
+              min={10}
+              max={14}
+              step={1}
+              value={overlays.priceLineFontSize}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
+                overlays.setPriceLineFontSize(Math.min(14, Math.max(10, Math.round(n))));
+              }}
+              style={numInput}
+              title="Price-line label size in px. 11 matches the axis labels; the chart clamps anything outside 10–14."
+            />
+          </Row>
+        )}
+        {overlays.showPriceLines && (
+          <Row label="Corner">
+            <input
+              type="number"
+              min={0}
+              max={6}
+              step={1}
+              value={overlays.priceLineCornerRadius}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
+                overlays.setPriceLineCornerRadius(Math.min(6, Math.max(0, n)));
+              }}
+              style={numInput}
+              title="Label-pill corner radius in px. 6 is the default; 0 is square. The chart clamps anything above 6."
+            />
           </Row>
         )}
         <ToggleRow

@@ -4,6 +4,7 @@
 type PriceLinesStyle = {
   align?: "left" | "center" | "right";
   bodyBackground?: VroomColor;
+  cornerRadius?: number;
   fontSize?: number;
   hoverBoost?: number;
   inset?: number;
@@ -22,7 +23,7 @@ Shared layout/style for every price line, passed via `priceLinesStyle`.
 optional align?: "left" | "center" | "right";
 ```
 
-Source: [types/src/index.ts:933](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L933)
+Source: [types/src/index.ts:936](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L936)
 
 Where the label group sits horizontally. Default `'right'`.
 
@@ -41,15 +42,29 @@ over candles without hiding them. Defaults to a dark translucent grey.
 
 ---
 
+### cornerRadius?
+
+```ts
+optional cornerRadius?: number;
+```
+
+Source: [types/src/index.ts:947](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L947)
+
+Corner radius of the label pills in CSS px, clamped to 0–6. Omit for the
+current 6px radius. 0 draws square corners.
+
+---
+
 ### fontSize?
 
 ```ts
 optional fontSize?: number;
 ```
 
-Source: [types/src/index.ts:925](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L925)
+Source: [types/src/index.ts:928](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L928)
 
-Label font size in px. Defaults to the axis font size.
+Label font size in integer CSS px, clamped to 10–14. Omit to inherit the
+axis font size (11px by default, also clamped into that range).
 
 ---
 
@@ -59,7 +74,7 @@ Label font size in px. Defaults to the axis font size.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:939](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L939)
+Source: [types/src/index.ts:942](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L942)
 
 How much the hovered line or close button brightens, as a channel
 multiplier. 1 disables the highlight. Default 1.25. Web only — touch
@@ -73,7 +88,7 @@ platforms have no hover state.
 optional inset?: number;
 ```
 
-Source: [types/src/index.ts:931](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L931)
+Source: [types/src/index.ts:934](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L934)
 
 How far in from the price axis the label group sits, as a fraction of pane
 width (0 = flush against the axis, 0.5 = at the pane's midpoint). Only
