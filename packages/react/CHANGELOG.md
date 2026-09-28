@@ -1,5 +1,13 @@
 # @vroomchart/react
 
+## 0.18.1
+
+### Patch Changes
+
+- Updated dependencies [8f13549]
+- Updated dependencies [8f13549]
+  - @vroomchart/core-wasm@0.18.1
+
 ## 0.18.0
 
 ### Minor Changes
