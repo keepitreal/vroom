@@ -16,7 +16,8 @@ overrides:
   shell-quote: '>=1.9.0 <2'
   fast-uri: '>=3.1.6 <4'
   tmp: '>=0.2.6 <0.3'
-  undici: '>=6.27.0 <7'
+  undici: '>=6.28.1 <7'
+  joi: '>=17.13.7 <18'
   svgo: '>=3.3.5 <4'
   '@xmldom/xmldom': '>=0.9.12'
   '@expo/plist>@xmldom/xmldom': 0.8.15
@@ -5140,8 +5141,8 @@ packages:
     resolution: {integrity: sha512-/imKNG4EbWNrVjoNC/1H5/9GFy+tqjGBHCaSsN+P2RnPqjsLmv6UD3Ej+Kj8nBWaRAwyk7kK5ZUc+OEatnTR3A==}
     hasBin: true
 
-  joi@17.13.4:
-    resolution: {integrity: sha512-1RuuER6kmt8K8I3nIWvPZKi5RQCb568ZPyY4Pwjlua+yo+63ZTmIwxLZH0heBmiKN4uxjvCiarDrjaeH84xicQ==}
+  joi@17.13.8:
+    resolution: {integrity: sha512-iPKOGmiRw1jxf/JOPwxmCcUQAOdF359mdzYiP2DJ+TMX0YK2zjK3D+zYOaGjpumWxOFF/l2xVWjRVK5bGSLdEw==}
 
   joycon@3.1.1:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
@@ -7632,8 +7633,8 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
-  undici@6.28.0:
-    resolution: {integrity: sha512-LIY910g9TI13YS95lrMFrs8Rm/u/irgHeTWoKCoteeJ04CUJ92eEfj0rVn+7VKMPBpUPiUoBKfhNyLI23EE/KA==}
+  undici@6.29.0:
+    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
     engines: {node: '>=18.17'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
@@ -10688,7 +10689,7 @@ snapshots:
       '@types/mdast': 4.0.4
       '@types/react': 19.2.18
       commander: 5.1.0
-      joi: 17.13.4
+      joi: 17.13.8
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       react-helmet-async: '@slorber/react-helmet-async@1.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)'
@@ -10718,7 +10719,7 @@ snapshots:
       '@types/mdast': 4.0.4
       '@types/react': 19.2.18
       commander: 5.1.0
-      joi: 17.13.4
+      joi: 17.13.8
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       react-helmet-async: '@slorber/react-helmet-async@1.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)'
@@ -10748,7 +10749,7 @@ snapshots:
       '@types/mdast': 4.0.4
       '@types/react': 19.1.17
       commander: 5.1.0
-      joi: 17.13.4
+      joi: 17.13.8
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       react-helmet-async: '@slorber/react-helmet-async@1.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)'
@@ -10778,7 +10779,7 @@ snapshots:
       '@types/mdast': 4.0.4
       '@types/react': 19.1.17
       commander: 5.1.0
-      joi: 17.13.4
+      joi: 17.13.8
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       react-helmet-async: '@slorber/react-helmet-async@1.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)'
@@ -10895,7 +10896,7 @@ snapshots:
       '@docusaurus/utils': 3.10.1(postcss@8.5.25)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@docusaurus/utils-common': 3.10.1(postcss@8.5.25)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       fs-extra: 11.3.5
-      joi: 17.13.4
+      joi: 17.13.8
       js-yaml: 4.3.2
       lodash: 4.18.1
       tslib: 2.8.1
@@ -10923,7 +10924,7 @@ snapshots:
       '@docusaurus/utils': 3.10.2(postcss@8.5.25)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@docusaurus/utils-common': 3.10.2(postcss@8.5.25)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       fs-extra: 11.4.0
-      joi: 17.13.4
+      joi: 17.13.8
       js-yaml: 4.3.2
       lodash: 4.18.1
       tslib: 2.8.1
@@ -12244,9 +12245,7 @@ snapshots:
       metro-runtime: 0.84.5
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.86.3': {}
 
@@ -13426,7 +13425,7 @@ snapshots:
       parse5: 7.3.0
       parse5-htmlparser2-tree-adapter: 7.1.0
       parse5-parser-stream: 7.1.2
-      undici: 6.28.0
+      undici: 6.29.0
       whatwg-mimetype: 4.0.0
 
   chokidar@3.6.0:
@@ -15150,7 +15149,7 @@ snapshots:
 
   jiti@1.21.7: {}
 
-  joi@17.13.4:
+  joi@17.13.8:
     dependencies:
       '@hapi/hoek': 9.3.0
       '@hapi/topo': 5.1.0
@@ -18281,7 +18280,7 @@ snapshots:
 
   undici-types@8.3.0: {}
 
-  undici@6.28.0: {}
+  undici@6.29.0: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
