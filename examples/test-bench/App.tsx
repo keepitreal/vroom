@@ -85,6 +85,38 @@ const PRICE_SCALES = [
 
 type PriceScale = (typeof PRICE_SCALES)[number];
 
+// Recently-launched-token repro: only the newest `count` bars are real. 0 keeps
+// the full mock series.
+const LISTING_COUNTS = [
+  { label: 'All bars', count: 0 },
+  { label: '3 bars', count: 3 },
+  { label: '10 bars', count: 10 },
+  { label: '20 bars', count: 20 },
+  { label: '50 bars', count: 50 },
+] as const;
+
+type ListingCount = (typeof LISTING_COUNTS)[number];
+
+// With `backfill`, the rest of the series is padded with zero-price bars on the
+// same grid, the way apps fill the pre-launch window so the chart frames like a
+// mature one.
+function newListing(series: Candle[], count: number, backfill: boolean, stepMs: number): Candle[] {
+  if (count <= 0 || series.length <= count) return series;
+  const real = series.slice(-count);
+  if (!backfill) return real;
+  const pad = series.length - count;
+  const firstMs = real[0].timeMs;
+  const zeros: Candle[] = Array.from({ length: pad }, (_, k) => ({
+    timeMs: firstMs - (pad - k) * stepMs,
+    open: 0,
+    high: 0,
+    low: 0,
+    close: 0,
+    volume: 0,
+  }));
+  return [...zeros, ...real];
+}
+
 // Each interval has to look like the same asset re-bucketed, the way real data
 // does. Walking *backwards* from a fixed spot is what buys that: the newest
 // candle closes at the same price whatever the step, so a switch reads as a
@@ -417,15 +449,28 @@ function Select<T extends { label: string }>({
 export default function App() {
   const [selected, setSelected] = useState<Interval>(INTERVALS[0]);
   const [scale, setScale] = useState<PriceScale>(PRICE_SCALES[0]);
+  const [listing, setListing] = useState<ListingCount>(LISTING_COUNTS[0]);
+  const [backfill, setBackfill] = useState(false);
   // State rather than a memo so the streaming controls below can push new bars
-  // into it. Re-seeded whenever the interval or asset changes, which is what the
-  // memo used to do.
+  // into it. Re-seeded whenever the interval, asset or listing shape changes,
+  // which is what the memo used to do.
   const [candles, setCandles] = useState<Candle[]>(() =>
     mockCandles(1000, INTERVALS[0].ms, PRICE_SCALES[0].spot),
   );
   useEffect(() => {
-    setCandles(mockCandles(1000, selected.ms, scale.spot));
-  }, [selected, scale]);
+    setCandles(
+      newListing(
+        mockCandles(1000, selected.ms, scale.spot),
+        listing.count,
+        backfill,
+        selected.ms,
+      ),
+    );
+  }, [selected, scale, listing, backfill]);
+  const toggleBackfill = useCallback(() => {
+    setBackfill((v) => !v);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
 
   const [streamTransition, setStreamTransition] =
     useState<StreamTransition>('transform');
@@ -744,6 +789,9 @@ export default function App() {
           <VroomChart
             candles={loading ? EMPTY_CANDLES : candles}
             loading={loading}
+            // Changes only with the listing shape, so a switch there resets
+            // the view while interval / scale switches still animate.
+            seriesKey={`listing-${listing.count}-${backfill ? 'zeros' : 'bare'}`}
             chartType={chartType}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
@@ -841,6 +889,31 @@ export default function App() {
               {/* Jumps the mock series between price magnitudes so the axis
                   precision and its width can be checked against each. */}
               <Select value={scale} options={PRICE_SCALES} onChange={setScale} />
+
+              {/* New-listing repro: keep only the newest bars, optionally with
+                  the pre-launch window zero-filled the way apps backfill it. */}
+              <Select
+                value={listing}
+                options={LISTING_COUNTS}
+                onChange={setListing}
+              />
+              {listing.count > 0 && (
+                <Pressable
+                  style={[styles.fnBtn, backfill && styles.fnBtnActive]}
+                  onPress={toggleBackfill}
+                  accessibilityLabel="Backfill the pre-launch history with zero-price candles."
+                >
+                  <Text
+                    style={[
+                      styles.fnSymbol,
+                      styles.fnNumber,
+                      backfill && styles.fnSymbolActive,
+                    ]}
+                  >
+                    0-fill
+                  </Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={[

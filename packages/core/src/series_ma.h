@@ -5,6 +5,10 @@
 // difference, an RSI line), so they skip that run and start counting from the
 // first finite value. Both smoothers therefore produce their first value at the
 // same index, which is what lets the MA kind be a config toggle.
+//
+// A series can also have NaN gaps further in (RSI across missing candles). Each
+// run of finite values is smoothed on its own: NaN through the gap, then a
+// fresh seed once `period` values follow it.
 
 #pragma once
 
@@ -18,7 +22,7 @@ namespace vroom::series_ma {
 void ema_seeded(const std::vector<double>& src, int period,
                 std::vector<double>& out);
 
-// Rolling SMA over `src`, skipping the same leading NaN run as ema_seeded.
+// Rolling SMA over `src`, with the same NaN-run handling as ema_seeded.
 void sma_seeded(const std::vector<double>& src, int period,
                 std::vector<double>& out);
 

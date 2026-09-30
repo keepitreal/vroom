@@ -200,6 +200,35 @@ function maybeSparse(series: Candle[], sparse: boolean): Candle[] {
   return series.slice(-SPARSE_COUNT);
 }
 
+// Recently-launched-token repro: only the newest `count` bars are real. With
+// `backfill`, the rest of the series is padded with zero-price bars on the same
+// grid, the way apps fill the pre-launch window so the chart frames like a
+// mature one. 0 = off.
+const LISTING_COUNTS = [0, 3, 10, 20, 50] as const;
+
+function newListing(series: Candle[], count: number, backfill: boolean, stepMs: number): Candle[] {
+  if (count <= 0 || series.length <= count) return series;
+  const real = series.slice(-count);
+  if (!backfill) return real;
+  const pad = series.length - count;
+  const firstMs = real[0].timeMs;
+  const zeros: Candle[] = Array.from({ length: pad }, (_, k) => ({
+    timeMs: firstMs - (pad - k) * stepMs,
+    open: 0,
+    high: 0,
+    low: 0,
+    close: 0,
+    volume: 0,
+  }));
+  return [...zeros, ...real];
+}
+
+function initialListingCount(): number {
+  if (typeof window === 'undefined') return 0;
+  const n = Number(new URLSearchParams(window.location.search).get('listing'));
+  return LISTING_COUNTS.includes(n as (typeof LISTING_COUNTS)[number]) ? n : 0;
+}
+
 // Hoisted so the loading state doesn't hand the chart a fresh [] each render,
 // which its data effect would read as a new series every time.
 const EMPTY_CANDLES: Candle[] = [];
@@ -545,6 +574,12 @@ export function App() {
   const [sparse, setSparse] = useState(
     () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('sparse'),
   );
+  // New-listing repro. `?listing=10&backfill=1` deep-links it; when on it takes
+  // precedence over Sparse.
+  const [listingCount, setListingCount] = useState(initialListingCount);
+  const [backfill, setBackfill] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('backfill'),
+  );
   // Loading line. `?loading=1` turns it on at load so the verify flow can
   // deep-link straight into the placeholder state.
   const [loading, setLoading] = useState(
@@ -572,12 +607,15 @@ export function App() {
   const [showPriceLines, setShowPriceLines] = useState(false);
   const [showFootprints, setShowFootprints] = useState(false);
   // Demo candles are stateful so the Add/Update tools can stream into them; they
-  // reset to the base series whenever the asset/timeframe (or Gaps/Sparse) changes.
+  // reset to the base series whenever the asset/timeframe (or Gaps/Sparse/
+  // New listing) changes.
   const demoBase = useMemo(() => {
     const base = aggregate(baseSeries(asset), tf);
     const series = gaps ? punchGaps(base) : base;
-    return maybeSparse(series, sparse);
-  }, [asset, tf, gaps, sparse]);
+    return listingCount > 0
+      ? newListing(series, listingCount, backfill, tf)
+      : maybeSparse(series, sparse);
+  }, [asset, tf, gaps, sparse, listingCount, backfill]);
   const [candles, setCandles] = useState<Candle[]>(demoBase);
   useEffect(() => {
     setCandles(demoBase);
@@ -737,14 +775,23 @@ export function App() {
     const higher = TIMEFRAMES[Math.min(idx + 1, TIMEFRAMES.length - 1)];
     return higher.stepMs === tf ? tf * 4 : higher.stepMs;
   }, [tf]);
-  const secondCandles = useMemo(
-    () => maybeSparse(aggregate(baseSeries(asset), secondTf), sparse),
-    [asset, secondTf, sparse],
-  );
-  const seriesKey = useSeriesKey ? (sparse ? `${asset}-sparse` : asset) : undefined;
-  // Remount when sparsity flips so defaultCandleWidth re-frames (same reason
-  // the width input remounts). A suffix on seriesKey also marks it a new series.
-  const chartKey = `${candleWidth}-${sparse ? 'sparse' : 'full'}`;
+  const secondCandles = useMemo(() => {
+    const series = aggregate(baseSeries(asset), secondTf);
+    return listingCount > 0
+      ? newListing(series, listingCount, backfill, secondTf)
+      : maybeSparse(series, sparse);
+  }, [asset, secondTf, sparse, listingCount, backfill]);
+  const dataShape =
+    listingCount > 0
+      ? `listing-${listingCount}-${backfill ? 'zeros' : 'bare'}`
+      : sparse
+        ? 'sparse'
+        : 'full';
+  const seriesKey = useSeriesKey ? (dataShape === 'full' ? asset : `${asset}-${dataShape}`) : undefined;
+  // Remount when the data shape flips so defaultCandleWidth re-frames (same
+  // reason the width input remounts). A suffix on seriesKey also marks it a new
+  // series.
+  const chartKey = `${candleWidth}-${dataShape}`;
   const [xhair, setXhair] = useState<{ timeMs: number; price: number } | null>(null);
   const onSecondaryCrosshair = useCallback((e: CrosshairEvent) => {
     setXhair(e.active && e.timeMs != null && e.price != null ? { timeMs: e.timeMs, price: e.price } : null);
@@ -1142,7 +1189,7 @@ export function App() {
                 <VroomChart
                   key={`second-${chartKey}`}
                   candles={secondCandles}
-                  seriesKey={sparse ? `${asset}-2-sparse` : `${asset}-2`}
+                  seriesKey={`${asset}-2-${dataShape}`}
                   theme={chartTheme}
                   chartType={chartType}
                   transitionMs={transitionMs}
@@ -1159,7 +1206,7 @@ export function App() {
           ) : (
             <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
               <VroomChart
-                // Remount on width / sparse change so the new default framing
+                // Remount on width / data-shape change so the new default framing
                 // applies (it only takes effect on a fresh handle — mirrors a
                 // real "first load").
                 key={chartKey}
@@ -1217,6 +1264,11 @@ export function App() {
               setGaps,
               sparse,
               setSparse,
+              listingCounts: LISTING_COUNTS,
+              listingCount,
+              setListingCount,
+              backfill,
+              setBackfill,
               loading,
               setLoading,
               onSimulateLoad,

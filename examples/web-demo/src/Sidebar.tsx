@@ -225,6 +225,11 @@ export type SidebarProps = {
     setGaps: (v: boolean) => void;
     sparse: boolean;
     setSparse: (v: boolean) => void;
+    listingCounts: readonly number[];
+    listingCount: number;
+    setListingCount: (n: number) => void;
+    backfill: boolean;
+    setBackfill: (v: boolean) => void;
     loading: boolean;
     setLoading: (v: boolean) => void;
     onSimulateLoad: () => void;
@@ -450,6 +455,19 @@ export function Sidebar({
           checked={data.sparse}
           onChange={data.setSparse}
           title="Keep only the last 9 candles — a window longer than the data. Bars should stay defaultCandleWidth on the right (empty past on the left); a pan must not snap them to the left edge or lock."
+        />
+        <Field label="New listing (bars)">
+          <Segmented
+            options={data.listingCounts.map((n) => ({ label: n === 0 ? 'Off' : String(n), value: n }))}
+            value={data.listingCount}
+            onChange={data.setListingCount}
+          />
+        </Field>
+        <ToggleRow
+          label="Backfill with zeros"
+          checked={data.backfill}
+          onChange={data.setBackfill}
+          title="With New listing on: pad the pre-launch history with zero-price candles (as apps do so a new token frames like a mature chart) instead of passing only the real bars. Overrides Sparse."
         />
         <ToggleRow
           label="Loading"

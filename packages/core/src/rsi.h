@@ -14,10 +14,14 @@
 
 namespace vroom::rsi {
 
-// Computes RSI over the closes of [candles, candles+n). `period` is clamped to
-// >= 2. Fills `out` (resized to n): out[i] is RSI in [0,100] at candle i, or
-// NaN for i < period and for every index when n <= period (insufficient data).
-// The first defined value is at index == period (the (period+1)-th candle).
+// Computes RSI over the closes of [candles, candles+n). `period` must be >= 2
+// (otherwise every value is NaN). Fills `out` (resized to n): out[i] is RSI in
+// [0,100] at candle i, or NaN where it's undefined:
+//   - a candle whose close is <= 0 or non-finite (a backfilled placeholder);
+//   - the first `period` candles of each run of priced candles — a run seeds
+//     on its own, so the first value lands `period` candles after the run
+//     starts (index == period when the series opens priced);
+//   - a window whose closes never moved (average gain and loss both zero).
 void compute(const ::VroomCandle* candles, std::size_t n, int period,
              std::vector<double>& out);
 
@@ -25,7 +29,8 @@ void compute(const ::VroomCandle* candles, std::size_t n, int period,
 // indicators overlay; crossovers of RSI vs. this line are the common signal).
 // `kind` is a vroom::ma KIND_* value. `ma_period` is clamped to >= 1. Fills
 // `out` (resized to rsi.size()), NaN until `ma_period` valid RSI values exist —
-// either kind produces its first value at the same index.
+// either kind produces its first value at the same index. A gap in the RSI
+// series leaves the trendline undefined through it; it re-seeds after.
 void compute_ma(const std::vector<double>& rsi, int ma_period, int kind,
                 std::vector<double>& out);
 

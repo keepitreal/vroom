@@ -1,6 +1,7 @@
 #include "doctest.h"
 
 #include <cmath>
+#include <limits>
 #include <vector>
 
 #include "ma.h"
@@ -68,6 +69,57 @@ TEST_CASE("rsi::compute") {
         REQUIRE(out.size() == 3);
         for (double v : out) CHECK(std::isnan(v));
     }
+
+    SUBCASE("a window that never moved is undefined, not 100") {
+        auto c = closes({5, 5, 5, 5, 5});
+        vroom::rsi::compute(c.data(), c.size(), 2, out);
+        REQUIRE(out.size() == 5);
+        for (double v : out) CHECK(std::isnan(v));
+    }
+
+    SUBCASE("a flat stretch becomes defined once a close moves") {
+        // seed@2: deltas 0,0 → undefined. @3: avgGain=(0+1)/2 avgLoss=0 → 100.
+        auto c = closes({5, 5, 5, 6});
+        vroom::rsi::compute(c.data(), c.size(), 2, out);
+        CHECK(std::isnan(out[2]));
+        CHECK(out[3] == doctest::Approx(100.0));
+    }
+
+    SUBCASE("leading zero-price placeholders are skipped, not rallied from") {
+        // The priced run starts at index 3 and matches the hand-computed case
+        // shifted by 3: seed 50 at 3 + period, then 75.
+        auto c = closes({0, 0, 0, 10, 11, 10, 11});
+        vroom::rsi::compute(c.data(), c.size(), 2, out);
+        REQUIRE(out.size() == 7);
+        for (std::size_t i = 0; i < 5; ++i) CHECK(std::isnan(out[i]));
+        CHECK(out[5] == doctest::Approx(50.0));
+        CHECK(out[6] == doctest::Approx(75.0));
+    }
+
+    SUBCASE("a placeholder mid-series ends the run and the next one re-seeds") {
+        auto c = closes({10, 11, 10, 0, 10, 11, 10, 11});
+        vroom::rsi::compute(c.data(), c.size(), 2, out);
+        REQUIRE(out.size() == 8);
+        CHECK(out[2] == doctest::Approx(50.0));
+        CHECK(std::isnan(out[3]));  // the placeholder itself
+        CHECK(std::isnan(out[4]));  // warmup of the new run
+        CHECK(std::isnan(out[5]));
+        CHECK(out[6] == doctest::Approx(50.0));
+        CHECK(out[7] == doctest::Approx(75.0));
+    }
+
+    SUBCASE("negative and non-finite closes count as missing") {
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        const double inf = std::numeric_limits<double>::infinity();
+        for (double bad : {-1.0, nan, inf}) {
+            auto c = closes({10, bad, 10, 11, 10, 11});
+            vroom::rsi::compute(c.data(), c.size(), 2, out);
+            REQUIRE(out.size() == 6);
+            for (std::size_t i = 0; i < 4; ++i) CHECK(std::isnan(out[i]));
+            CHECK(out[4] == doctest::Approx(50.0));
+            CHECK(out[5] == doctest::Approx(75.0));
+        }
+    }
 }
 
 TEST_CASE("rsi::compute_ma") {
@@ -106,6 +158,34 @@ TEST_CASE("rsi::compute_ma") {
         CHECK(std::isnan(ma[2]));
         CHECK(ma[3] == doctest::Approx(62.5));
         CHECK(ma[4] == doctest::Approx(45.8333333));
+    }
+}
+
+TEST_CASE("rsi::compute_ma re-seeds after a gap in the RSI series") {
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const std::vector<double> rsi = {nan, 50, 70, nan, 40, 60, 90};
+    std::vector<double> ma;
+
+    SUBCASE("SMA") {
+        vroom::rsi::compute_ma(rsi, 2, vroom::ma::KIND_SMA, ma);
+        REQUIRE(ma.size() == 7);
+        CHECK(ma[2] == doctest::Approx(60.0));  // mean(50,70)
+        CHECK(std::isnan(ma[3]));               // the gap
+        CHECK(std::isnan(ma[4]));               // window straddles the gap
+        CHECK(ma[5] == doctest::Approx(50.0));  // mean(40,60)
+        CHECK(ma[6] == doctest::Approx(75.0));  // mean(60,90)
+    }
+
+    SUBCASE("EMA") {
+        // Run two seeds at 5 = mean(40,60) = 50, then
+        // @6 = (2/3)*90 + (1/3)*50 = 76.666…, where the SMA gives 75.
+        vroom::rsi::compute_ma(rsi, 2, vroom::ma::KIND_EMA, ma);
+        REQUIRE(ma.size() == 7);
+        CHECK(ma[2] == doctest::Approx(60.0));
+        CHECK(std::isnan(ma[3]));
+        CHECK(std::isnan(ma[4]));
+        CHECK(ma[5] == doctest::Approx(50.0));
+        CHECK(ma[6] == doctest::Approx(76.6666667));
     }
 }
 

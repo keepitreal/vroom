@@ -7,49 +7,60 @@
 
 namespace vroom::series_ma {
 
+namespace {
+// Calls fn(begin, end) for each maximal run [begin, end) of finite values.
+template <typename Fn>
+void for_each_run(const std::vector<double>& src, Fn&& fn) {
+    const std::size_t n = src.size();
+    std::size_t i = 0;
+    while (i < n) {
+        while (i < n && !std::isfinite(src[i])) ++i;
+        const std::size_t begin = i;
+        while (i < n && std::isfinite(src[i])) ++i;
+        if (begin < i) fn(begin, i);
+    }
+}
+}  // namespace
+
 void ema_seeded(const std::vector<double>& src, int period,
                 std::vector<double>& out) {
-    const std::size_t n = src.size();
-    out.assign(n, std::nan(""));
+    out.assign(src.size(), std::nan(""));
     if (period < 1) return;
     const std::size_t P = static_cast<std::size_t>(period);
-
-    std::size_t f = 0;
-    while (f < n && !std::isfinite(src[f])) ++f;
-    if (f >= n || f + P > n) return;  // not enough finite values to seed
-
-    const std::size_t seed = f + P - 1;
-    double sum = 0.0;
-    for (std::size_t k = f; k <= seed; ++k) sum += src[k];
-    double prev = sum / static_cast<double>(P);
-    out[seed] = prev;
-
     const double alpha = 2.0 / (static_cast<double>(P) + 1.0);
-    for (std::size_t i = seed + 1; i < n; ++i) {
-        if (!std::isfinite(src[i])) break;  // series are contiguous after f
-        prev = alpha * src[i] + (1.0 - alpha) * prev;
-        out[i] = prev;
-    }
+
+    for_each_run(src, [&](std::size_t f, std::size_t end) {
+        if (f + P > end) return;  // not enough finite values to seed
+
+        const std::size_t seed = f + P - 1;
+        double sum = 0.0;
+        for (std::size_t k = f; k <= seed; ++k) sum += src[k];
+        double prev = sum / static_cast<double>(P);
+        out[seed] = prev;
+
+        for (std::size_t i = seed + 1; i < end; ++i) {
+            prev = alpha * src[i] + (1.0 - alpha) * prev;
+            out[i] = prev;
+        }
+    });
 }
 
 void sma_seeded(const std::vector<double>& src, int period,
                 std::vector<double>& out) {
-    const std::size_t n = src.size();
-    out.assign(n, std::nan(""));
+    out.assign(src.size(), std::nan(""));
     if (period < 1) return;
     const std::size_t P = static_cast<std::size_t>(period);
 
-    std::size_t f = 0;
-    while (f < n && !std::isfinite(src[f])) ++f;
-    if (f >= n || f + P > n) return;
+    for_each_run(src, [&](std::size_t f, std::size_t end) {
+        if (f + P > end) return;
 
-    double sum = 0.0;
-    for (std::size_t i = f; i < n; ++i) {
-        if (!std::isfinite(src[i])) break;  // series are contiguous after f
-        sum += src[i];
-        if (i >= f + P) sum -= src[i - P];
-        if (i >= f + P - 1) out[i] = sum / static_cast<double>(P);
-    }
+        double sum = 0.0;
+        for (std::size_t i = f; i < end; ++i) {
+            sum += src[i];
+            if (i >= f + P) sum -= src[i - P];
+            if (i >= f + P - 1) out[i] = sum / static_cast<double>(P);
+        }
+    });
 }
 
 void smooth(const std::vector<double>& src, int kind, int period,
