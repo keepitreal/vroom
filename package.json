@@ -28,11 +28,12 @@
       "esbuild"
     ],
     "auditConfig": {
-      "//": "image-size has no fixed release — every version through 2.0.2 (the latest) is affected, so there is nothing to pin. Both advisories are parser denial-of-service reached only at build time, via docusaurus's mdx-loader and expo's metro, on images from this repo; neither path ships in a published package. Drop these once docusaurus/expo pick up a fixed image-size. node-forge (GHSA-86w9-cpqp-85rv) has no fixed release either — 1.4.0 (the latest) is affected, and the newest @expo/cli still depends on it. It is reached only via @expo/cli in examples/test-bench and ships in no published package. Drop it once node-forge publishes a fix.",
+      "//": "image-size has no fixed release — every version through 2.0.2 (the latest) is affected, so there is nothing to pin. Both advisories are parser denial-of-service reached only at build time, via docusaurus's mdx-loader and expo's metro, on images from this repo; neither path ships in a published package. Drop these once docusaurus/expo pick up a fixed image-size. node-forge (GHSA-86w9-cpqp-85rv) has no fixed release either — 1.4.0 (the latest) is affected, and the newest @expo/cli still depends on it. It is reached only via @expo/cli in examples/test-bench and ships in no published package. Drop it once node-forge publishes a fix. braces (GHSA-vfj7-8cjw-p6xm) has no fixed release — 3.0.3 (the latest) is affected, and micromatch 4.0.8 (the latest) still requires it. It is reached only through build/dev tooling (changesets, docusaurus, metro) and ships in no published package. Drop it once braces publishes a fix.",
       "ignoreGhsas": [
         "GHSA-w3rx-r6r6-pgpr",
         "GHSA-5p2g-fcmc-qvqq",
-        "GHSA-86w9-cpqp-85rv"
+        "GHSA-86w9-cpqp-85rv",
+        "GHSA-vfj7-8cjw-p6xm"
       ]
     },
     "overrides": {
