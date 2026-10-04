@@ -32,13 +32,6 @@ struct Level {
 
 namespace detail {
 inline float lerp(float a, float b, float t) { return a + (b - a) * t; }
-
-// The price a captured band fraction stood for. The capture stores fractions so
-// it survives a resize or a rescale, so recovering the price it came from needs
-// the band it was measured against — which is why morph_from_bounds is kept.
-inline double price_at_fraction(const PriceBounds& b, double frac) {
-    return b.min + frac * (b.max - b.min);
-}
 }  // namespace detail
 
 // `from` is the newest candle's capture, or null when nothing is morphing or
@@ -71,8 +64,11 @@ inline Level level_at(const Layout& lay,
     // affine, so a fraction lerp and a price lerp are then the same function.
     const float y =
         detail::lerp(vroom::y_at_fraction(lay, from->close), to_y, t);
+    // The capture stores fractions so it survives a resize or a rescale, so
+    // recovering the price it came from needs the band it was measured against
+    // — which is why morph_from_bounds is kept.
     const double close_old =
-        detail::price_at_fraction(from_bounds, from->close);
+        vroom::price_at_fraction(from_bounds, from->close);
 
     return Level{y, close_old + (close_new - close_old) * static_cast<double>(t),
                  from->bull == bull_new ? 1.f : t};

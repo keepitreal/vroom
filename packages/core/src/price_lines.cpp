@@ -25,7 +25,6 @@
 #include "price_format.h"
 #include "price_line_layout.h"
 #include "theme.h"
-#include "ticks.h"
 #include "viewport.h"
 
 namespace vroom::price_lines {
@@ -273,7 +272,7 @@ void draw(SkCanvas* canvas,
     const bool has_font = label_font(chart, &font);
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
         chart.price_fmt,
-        vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
+        vroom::price_label_interval(bounds, candle_area_h));
 
     for (size_t i = 0; i < chart.price_lines.size(); ++i) {
         const VroomChart::StoredPriceLine& pl = chart.price_lines[i];

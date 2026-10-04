@@ -29,6 +29,8 @@ export interface ChartHandle {
   setDefaultCandleWidth(px: number): void;
   /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
   setChartType(mode: number): void;
+  /** Price-axis scale: 0 = linear (default), 1 = logarithmic. */
+  setPriceScaleMode(mode: number): void;
   /** Candle↔line morph blend: collapse folds candles to close, fade crossfades. */
   setMorph(collapse: number, fade: number): void;
   /** The current visible time window. {startMs: 0, endMs: 0} = uninitialized. */

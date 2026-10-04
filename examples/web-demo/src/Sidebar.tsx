@@ -3,6 +3,7 @@ import type {
   ChartMode,
   ChartType,
   DrawTool,
+  PriceScaleMode,
   TransitionEasing,
   IntervalTransition,
   StreamTransition,
@@ -199,6 +200,8 @@ export type SidebarProps = {
     setAxisFontSize: (v: number) => void;
     chartType: ChartType;
     setChartType: (v: ChartType) => void;
+    priceScaleMode: PriceScaleMode;
+    setPriceScaleMode: (v: PriceScaleMode) => void;
   };
   animation: {
     transitionMs: number;
@@ -328,6 +331,16 @@ export function Sidebar({
             ]}
             value={layout.chartType}
             onChange={layout.setChartType}
+          />
+        </Field>
+        <Field label="Price scale">
+          <Segmented
+            options={[
+              { label: 'Linear', value: 'linear' as PriceScaleMode },
+              { label: 'Log', value: 'log' as PriceScaleMode },
+            ]}
+            value={layout.priceScaleMode}
+            onChange={layout.setPriceScaleMode}
           />
         </Field>
         <ToggleRow

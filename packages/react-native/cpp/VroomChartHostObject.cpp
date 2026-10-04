@@ -50,6 +50,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setPriceScaleMode"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
@@ -382,6 +383,23 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                size_t count) -> jsi::Value {
           if (count < 1) return jsi::Value::undefined();
           vroom_chart_set_chart_type(
+              chart_, static_cast<int32_t>(args[0].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setPriceScaleMode") {
+    // setPriceScaleMode(mode) — 0 = linear (default), 1 = logarithmic.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setPriceScaleMode"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_set_price_scale_mode(
               chart_, static_cast<int32_t>(args[0].asNumber()));
           return jsi::Value::undefined();
         });

@@ -214,6 +214,15 @@ export type ChartMode = 'pan' | 'draw';
 export type ChartType = 'candles' | 'line';
 
 /**
+ * How prices map onto the y-axis.
+ *   'linear' — default: equal price differences take equal vertical distance.
+ *   'log'    — logarithmic: equal price *ratios* take equal vertical distance
+ *              (a move from 10 to 20 is as tall as 100 to 200). Suits long
+ *              lookbacks and assets that have moved by orders of magnitude.
+ */
+export type PriceScaleMode = 'linear' | 'log';
+
+/**
  * Easing curve for animated transitions (candle↔line and interval switches).
  * Defaults to `'ease-in-out'`.
  */
@@ -1227,6 +1236,18 @@ export type VroomChartCoreProps = {
    * `theme.lineColor` / `theme.lineWidth`). All other layers are unaffected.
    */
   chartType?: ChartType;
+  /**
+   * Price-axis scale. `'linear'` (default) or `'log'`. Controlled by the host
+   * app — the chart never switches it on its own. Every price-pane layer
+   * (candles, line, overlays, price lines, drawings, crosshair) follows the
+   * scale; volume and indicator panes keep their own linear axes.
+   *
+   * Switching snaps. A price range the user has panned or zoomed is kept,
+   * unless it reaches zero or below when entering `'log'`, in which case the
+   * axis returns to auto-fit. In `'log'` mode, prices at or below zero are
+   * clamped to the bottom of the axis.
+   */
+  priceScaleMode?: PriceScaleMode;
   /**
    * Duration (ms) of the animated transitions: the candle↔line switch when
    * `chartType` changes, and the interval switch when the `candles` array is

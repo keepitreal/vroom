@@ -4,7 +4,18 @@
 #include <cmath>
 #include <limits>
 
+#include "ticks.h"
+
 namespace vroom {
+
+double to_scale(bool log, double price) {
+    if (!log) return price;
+    return std::log10(std::max(price, kMinLogPrice));
+}
+
+double from_scale(bool log, double v) {
+    return log ? std::pow(10.0, v) : v;
+}
 
 float candle_body_width(const Layout& layout,
                         int64_t window_ms,
@@ -213,38 +224,127 @@ PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {
     return b;
 }
 
-PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count) {
+PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
+                              bool log) {
     PriceBounds b = price_bounds(candles, count);
+    b.log = log;
     if (count == 0) return b;
-    const double mid = (b.min + b.max) * 0.5;
-    const double half = (b.max - b.min) * 0.5 * kAutoYZoom;
-    return {mid - half, mid + half};
+    const double lo = to_scale(log, b.min);
+    const double hi = to_scale(log, b.max);
+    const double mid = (lo + hi) * 0.5;
+    const double half = (hi - lo) * 0.5 * kAutoYZoom;
+    return {from_scale(log, mid - half), from_scale(log, mid + half), log};
 }
 
 PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
                                      const PriceBounds& old_env,
                                      const PriceBounds& new_env) {
-    const double axis_range = old_axis.max - old_axis.min;
-    const double old_span = old_env.max - old_env.min;
-    const double new_span = new_env.max - new_env.min;
+    const bool log = old_axis.log;
+    const double axis_lo = to_scale(log, old_axis.min);
+    const double axis_range = to_scale(log, old_axis.max) - axis_lo;
+    const double old_lo = to_scale(log, old_env.min);
+    const double old_hi = to_scale(log, old_env.max);
+    const double new_lo = to_scale(log, new_env.min);
+    const double new_hi = to_scale(log, new_env.max);
+    const double old_span = old_hi - old_lo;
+    const double new_span = new_hi - new_lo;
     if (axis_range <= 0.0 || old_span <= 0.0 || new_span <= 0.0) return old_axis;
 
     // Same span/range ratio => same pixel height for the envelope.
     const double new_range = axis_range * (new_span / old_span);
     // Fraction of the axis (from the bottom) where the old envelope's midpoint
     // sat; putting the new midpoint at the same fraction pins the envelope box.
-    const double t =
-        ((old_env.min + old_env.max) * 0.5 - old_axis.min) / axis_range;
-    const double new_mid = (new_env.min + new_env.max) * 0.5;
-    return {new_mid - t * new_range, new_mid + (1.0 - t) * new_range};
+    const double t = ((old_lo + old_hi) * 0.5 - axis_lo) / axis_range;
+    const double new_mid = (new_lo + new_hi) * 0.5;
+    return {from_scale(log, new_mid - t * new_range),
+            from_scale(log, new_mid + (1.0 - t) * new_range), log};
 }
 
 double price_fraction(const PriceBounds& bounds, double price) {
-    const double range = bounds.max - bounds.min;
+    const double lo = to_scale(bounds.log, bounds.min);
+    const double range = to_scale(bounds.log, bounds.max) - lo;
     // Degenerate range: everything sits at the band midpoint, which keeps
     // price_to_y's flat-series fallback intact.
     if (range <= 0.0) return 0.5;
-    return (price - bounds.min) / range;  // 0 at min, 1 at max
+    return (to_scale(bounds.log, price) - lo) / range;  // 0 at min, 1 at max
+}
+
+double price_at_fraction(const PriceBounds& bounds, double frac) {
+    const double lo = to_scale(bounds.log, bounds.min);
+    const double hi = to_scale(bounds.log, bounds.max);
+    return from_scale(bounds.log, lo + frac * (hi - lo));
+}
+
+PriceBounds shift_scaled(const PriceBounds& b, double frac) {
+    const double lo = to_scale(b.log, b.min);
+    const double hi = to_scale(b.log, b.max);
+    const double d = frac * (hi - lo);
+    return {from_scale(b.log, lo + d), from_scale(b.log, hi + d), b.log};
+}
+
+PriceBounds rescale_scaled(const PriceBounds& b, double scale, double anchor) {
+    const double lo = to_scale(b.log, b.min);
+    const double hi = to_scale(b.log, b.max);
+    const double pivot = lo + anchor * (hi - lo);
+    return {from_scale(b.log, pivot - anchor * (hi - lo) * scale),
+            from_scale(b.log, pivot + (1.0 - anchor) * (hi - lo) * scale),
+            b.log};
+}
+
+void price_ticks(const PriceBounds& bounds, float pane_h, int max_count,
+                 std::vector<double>& out) {
+    out.clear();
+    if (!(bounds.max > bounds.min) || pane_h <= 0.f || max_count <= 0) return;
+
+    if (!bounds.log) {
+        const double interval =
+            pick_price_interval(bounds.max - bounds.min, pane_h);
+        if (interval <= 0.0) return;
+        const double first = std::ceil(bounds.min / interval) * interval;
+        int n = 0;
+        for (double price = first; price <= bounds.max && n < max_count;
+             price += interval, ++n) {
+            out.push_back(price);
+        }
+        return;
+    }
+
+    const double lo = std::max(bounds.min, kMinLogPrice);
+    const double hi = bounds.max;
+    if (!(hi > lo)) return;
+    // d(price)/d(band fraction) at price p is p × ln(hi/lo); feeding that to
+    // the linear picker gives the interval a linear band of the same local
+    // density would use.
+    const double ln_span = std::log(hi / lo);
+    const double px_per_ln = static_cast<double>(pane_h) / ln_span;
+    const auto local_interval = [&](double p) {
+        return pick_price_interval(p * ln_span, pane_h);
+    };
+
+    double interval = local_interval(hi);
+    double price = std::floor(hi / interval) * interval;
+    double prev_px = std::numeric_limits<double>::infinity();
+    while (price >= lo && price > 0.0 &&
+           static_cast<int>(out.size()) < max_count) {
+        const double px = std::log(price / lo) * px_per_ln;
+        if (prev_px - px >= kLogTickMinGapPx) {
+            out.push_back(price);
+            prev_px = px;
+        }
+        interval = local_interval(price);
+        if (!(interval > 0.0)) break;
+        // Largest multiple of the (possibly finer) interval strictly below.
+        double k = std::floor(price / interval + 1e-9);
+        if (k * interval >= price - interval * 1e-9) k -= 1.0;
+        price = k * interval;
+    }
+}
+
+double price_label_interval(const PriceBounds& bounds, float pane_h) {
+    if (!bounds.log) return pick_price_interval(bounds.max - bounds.min, pane_h);
+    const double lo = std::max(bounds.min, kMinLogPrice);
+    if (!(bounds.max > lo)) return pick_price_interval(0.0, pane_h);
+    return pick_price_interval(lo * std::log(bounds.max / lo), pane_h);
 }
 
 float y_at_fraction(const Layout& layout, double frac) {
@@ -269,10 +369,9 @@ double y_to_price(const Layout& layout,
     const float top = candle_area_h * layout.top_padding_frac;
     const float bot = candle_area_h * (1.f - layout.bottom_padding_frac);
     const float draw_h = bot - top;
-    const double range = bounds.max - bounds.min;
-    if (draw_h <= 0.f || range <= 0.0) return bounds.min;
+    if (draw_h <= 0.f || !(bounds.max > bounds.min)) return bounds.min;
     const double t = (bot - y) / draw_h;  // 0 at min (bottom), 1 at top
-    return bounds.min + t * range;
+    return price_at_fraction(bounds, t);
 }
 
 TimeWindow clamp_shifted_time_window(int64_t start_ms, int64_t end_ms,

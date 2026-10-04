@@ -67,6 +67,7 @@ export function VroomChart(props: VroomChartProps) {
     visibleRange,
     defaultCandleWidth,
     chartType,
+    priceScaleMode,
     transitionMs,
     transitionEasing,
     intervalTransition,
@@ -367,6 +368,13 @@ export function VroomChart(props: VroomChartProps) {
     // [handle, applyFrame], both already deps here — so it adds no new restarts
     // of this clock.
   }, [handle, chartType, transitionMs, reduceMotion, applyFrame, maybeStartAnim]);
+
+  useEffect(() => {
+    if (!handle) return;
+    handle.setPriceScaleMode(priceScaleMode === 'log' ? 1 : 0);
+    const p = handle.render();
+    if (p) applyFrame(p);
+  }, [handle, priceScaleMode, applyFrame]);
 
   // Volume-bar collapse. The core staggers the bars itself — tallest falling
   // first, all landing together — so unlike the loop above this one hands it

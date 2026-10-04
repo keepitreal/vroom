@@ -5,6 +5,7 @@ import {
   type CrosshairEvent,
   type ChartMode,
   type ChartType,
+  type PriceScaleMode,
   type DrawTool,
   type DrawingSelection,
   type DrawingStore,
@@ -62,6 +63,7 @@ const LINE_TIP_PULSE_KEY = 'vroom-line-tip-pulse';
 const SHOW_Y_AXIS_KEY = 'vroom-show-y-axis';
 const SHOW_X_AXIS_KEY = 'vroom-show-x-axis';
 const CHART_TYPE_KEY = 'vroom-chart-type';
+const PRICE_SCALE_KEY = 'vroom-price-scale';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
 const TRANSITION_EASING_KEY = 'vroom-transition-easing';
 const SIDEBAR_KEY = 'vroom-sidebar';
@@ -635,6 +637,12 @@ export function App() {
       ? 'line'
       : 'candles',
   );
+  // Price-axis scale (linear vs log), persisted.
+  const [priceScaleMode, setPriceScaleMode] = useState<PriceScaleMode>(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem(PRICE_SCALE_KEY) === 'log'
+      ? 'log'
+      : 'linear',
+  );
   // Duration (ms) of the candle↔line and interval-switch animations. 0 = snap.
   const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
   const [easing, setEasing] = useState<TransitionEasing>(() => {
@@ -934,6 +942,14 @@ export function App() {
 
   useEffect(() => {
     try {
+      window.localStorage.setItem(PRICE_SCALE_KEY, priceScaleMode);
+    } catch {
+      // best-effort
+    }
+  }, [priceScaleMode]);
+
+  useEffect(() => {
+    try {
       window.localStorage.setItem(TRANSITION_MS_KEY, String(transitionMs));
     } catch {
       // best-effort
@@ -1171,6 +1187,7 @@ export function App() {
                   seriesKey={seriesKey}
                   theme={chartTheme}
                   chartType={chartType}
+                  priceScaleMode={priceScaleMode}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1192,6 +1209,7 @@ export function App() {
                   seriesKey={`${asset}-2-${dataShape}`}
                   theme={chartTheme}
                   chartType={chartType}
+                  priceScaleMode={priceScaleMode}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1218,6 +1236,7 @@ export function App() {
                 seriesKey={seriesKey}
                 theme={chartTheme}
                 chartType={chartType}
+                priceScaleMode={priceScaleMode}
                 transitionMs={transitionMs}
                 transitionEasing={easing}
                 intervalTransition={intervalTransition}
@@ -1238,7 +1257,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, axisFontSize, setAxisFontSize }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, axisFontSize, setAxisFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,
