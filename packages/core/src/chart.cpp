@@ -598,7 +598,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     const auto bounds = price_bounds_manual
         ? price_bounds
-        : vroom::auto_price_bounds(visible, n);
+        : vroom::auto_price_bounds(visible, n, price_bounds.log);
     const int64_t window_ms = visible_end_ms - visible_start_ms;
 
     const float candle_area_h = vroom::price_pane_bottom(lay);
@@ -1026,7 +1026,7 @@ VroomChart::LoadingTarget VroomChart::loading_target() const {
     t.n = n;
     t.bounds = price_bounds_manual
         ? price_bounds
-        : vroom::auto_price_bounds(t.visible, n);
+        : vroom::auto_price_bounds(t.visible, n, price_bounds.log);
     return t;
 }
 

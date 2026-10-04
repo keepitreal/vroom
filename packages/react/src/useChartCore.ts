@@ -457,6 +457,7 @@ export function useChartCore(
     visibleRange,
     defaultCandleWidth,
     chartType,
+    priceScaleMode,
     transitionMs,
     transitionEasing,
     intervalTransition,
@@ -1097,6 +1098,14 @@ export function useChartCore(
       }
     };
   }, [ready, chartType, transitionMs, scheduleRender]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    h.setPriceScaleMode(priceScaleMode === 'log' ? 1 : 0);
+    scheduleRender();
+  }, [ready, priceScaleMode, scheduleRender]);
 
   // Animate the volume bars in and out when `volume.enabled` flips. The core
   // staggers the bars itself — tallest falling first, all landing together — so

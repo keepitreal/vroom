@@ -126,6 +126,9 @@ class WebChart {
     vroom_chart_set_default_candle_width(chart_, static_cast<float>(px));
   }
   void setChartType(int mode) { vroom_chart_set_chart_type(chart_, mode); }
+  void setPriceScaleMode(int mode) {
+    vroom_chart_set_price_scale_mode(chart_, mode);
+  }
   void setMorph(double collapse, double fade) {
     vroom_chart_set_morph(chart_, static_cast<float>(collapse),
                           static_cast<float>(fade));
@@ -794,6 +797,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setVisibleRange", &WebChart::setVisibleRange)
       .function("setDefaultCandleWidth", &WebChart::setDefaultCandleWidth)
       .function("setChartType", &WebChart::setChartType)
+      .function("setPriceScaleMode", &WebChart::setPriceScaleMode)
       .function("setMorph", &WebChart::setMorph)
       .function("getVisibleRange", &WebChart::getVisibleRange)
       .function("resetView", &WebChart::resetView)

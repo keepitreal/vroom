@@ -5,6 +5,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "vroom/vroom_chart.h"
 
@@ -72,10 +73,23 @@ inline float candle_area_width(const Layout& l) {
     return l.width_px - l.y_axis_width_px - l.right_padding_px;
 }
 
+// Always in price units, whatever the scale mode. `log` only changes how a
+// price maps onto the band: linearly, or linearly in log10(price) (TradingView's
+// logarithmic price scale). Anything that reshapes the bounds — pan, zoom,
+// auto-fit — does its math in scale space (to_scale / from_scale) so it behaves
+// the same in both modes.
 struct PriceBounds {
     double min;
     double max;
+    bool log = false;
 };
+
+// Smallest price a log scale will map; anything at or below it is clamped.
+inline constexpr double kMinLogPrice = 1e-12;
+
+// Price -> the space the band is linear in, and back.
+double to_scale(bool log, double price);
+double from_scale(bool log, double v);
 
 // Half-open [start, end) range of candle indices.
 struct IndexRange {
@@ -298,8 +312,10 @@ constexpr double kAutoYZoom = 1.5;
 
 // price_bounds() widened about its midpoint by kAutoYZoom. This is the y-range
 // used whenever the price scale is in auto (follow-the-data) mode. Returns the
-// {0, 1} sentinel when count == 0 (callers keep their previous bounds).
-PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count);
+// {0, 1} sentinel when count == 0 (callers keep their previous bounds). With
+// `log` the widening is symmetric in log space, so the bounds stay positive.
+PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
+                              bool log);
 
 // Rescales an axis range so a data envelope keeps the pixel height *and* the
 // pixel position it had before a data swap — the "scale lock" applied on a
@@ -330,5 +346,33 @@ float y_at_fraction(const Layout& layout, double frac);
 // Inverse of price_to_y: map a pixel y in the price pane back to a price.
 // Returns bounds.min for a degenerate range or draw band.
 double y_to_price(const Layout& layout, const PriceBounds& bounds, float y);
+
+// Inverse of price_fraction.
+double price_at_fraction(const PriceBounds& bounds, double frac);
+
+// Bounds moved by `frac` of their own scale-space range (+ = up in price). The
+// same pixel distance in either mode.
+PriceBounds shift_scaled(const PriceBounds& b, double frac);
+
+// Bounds re-spanned to `scale` × their scale-space range, keeping the scale
+// value at band fraction `anchor` (0 = min, 1 = max) where it was.
+PriceBounds rescale_scaled(const PriceBounds& b, double scale, double anchor);
+
+// Minimum on-screen gap between adjacent log-scale ticks. A log band packs
+// low prices tighter, so ticks closer than this are skipped.
+inline constexpr float kLogTickMinGapPx = 30.f;
+
+// The y-axis tick prices for `bounds` over a pane `pane_h` px tall, capped at
+// `max_count`. Linear: evenly spaced nice multiples, ascending. Log: the
+// Lightweight Charts walk — top down, re-picking the nice interval at each tick
+// from the local price density and skipping ticks closer than
+// kLogTickMinGapPx — so labels read 10k / 20k / 50k / 100k rather than one
+// fixed step.
+void price_ticks(const PriceBounds& bounds, float pane_h, int max_count,
+                 std::vector<double>& out);
+
+// The finest tick interval on screen, which sets how many decimals the labels
+// need (price_format.h's with_tick_guard). For log that's the bottom of the band.
+double price_label_interval(const PriceBounds& bounds, float pane_h);
 
 }  // namespace vroom

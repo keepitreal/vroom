@@ -89,21 +89,17 @@ IntervalPhase interval_phase(const VroomChart& chart) {
 void update_y_fades(VroomChart& chart,
                     const Layout& lay,
                     const PriceBounds& bounds) {
-    const double range = bounds.max - bounds.min;
-    if (range <= 0.0) return;
+    if (!(bounds.max > bounds.min)) return;
 
     const float candle_area_h = vroom::price_pane_bottom(lay);
-    const double interval = vroom::pick_price_interval(range, candle_area_h);
-    if (interval <= 0.0) return;
+    constexpr int kMaxLabels = 64;
+    std::vector<double> ticks;
+    vroom::price_ticks(bounds, candle_area_h, kMaxLabels, ticks);
+    if (ticks.empty()) return;
 
     for (auto& f : chart.y_fades) f.target = 0.f;
 
-    const double first = std::ceil(bounds.min / interval) * interval;
-    constexpr int kMaxLabels = 64;
-    int promoted = 0;
-    for (double price = first;
-         price <= bounds.max && promoted < kMaxLabels;
-         price += interval, ++promoted) {
+    for (const double price : ticks) {
         bool found = false;
         for (auto& f : chart.y_fades) {
             if (price_matches(f.price, price)) {
@@ -175,8 +171,7 @@ void draw_y_labels(SkCanvas* canvas,
     // Labels (and the price box) center on this so their text shares a column.
     const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
-        chart.price_fmt,
-        vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
+        chart.price_fmt, vroom::price_label_interval(bounds, candle_area_h));
 
     for (const auto& f : chart.y_fades) {
         if (f.opacity <= 1e-3f) continue;
@@ -390,7 +385,8 @@ bool label_scale(const VroomChart& chart, vroom::PriceBounds* out) {
         chart.visible_start_ms, chart.visible_end_ms);
     if (idx.end <= idx.start) return false;
     *out = vroom::auto_price_bounds(
-        chart.candles.data() + idx.start, idx.end - idx.start);
+        chart.candles.data() + idx.start, idx.end - idx.start,
+        chart.price_bounds.log);
     return out->max > out->min;
 }
 
@@ -434,12 +430,11 @@ void recompute_axis_width(VroomChart& chart) {
     }
 
     const auto lay = chart.layout();
-    const double range = bounds.max - bounds.min;
     // Same guard the label sites apply, against the bounds this is sizing for,
     // so a zoom deep enough to add decimals widens the strip to hold them.
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
         chart.price_fmt,
-        vroom::pick_price_interval(range, vroom::price_pane_bottom(lay)));
+        vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
 
     const float axis_px = chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
     const float requested = chart.price_line_style.font_size_px > 0.f
@@ -464,16 +459,10 @@ void recompute_axis_width(VroomChart& chart) {
 
     // A nice tick can be wider than either endpoint ("100,000.00" above a
     // 99,950 high). Same walk update_y_fades uses, capped the same way.
-    const double interval = vroom::pick_price_interval(range, vroom::price_pane_bottom(lay));
-    if (range > 0.0 && interval > 0.0) {
-        const double first = std::ceil(bounds.min / interval) * interval;
-        constexpr int kMaxLabels = 64;
-        int n = 0;
-        for (double price = first; price <= bounds.max && n < kMaxLabels;
-             price += interval, ++n) {
-            consider(price);
-        }
-    }
+    constexpr int kMaxLabels = 64;
+    std::vector<double> ticks;
+    vroom::price_ticks(bounds, vroom::price_pane_bottom(lay), kMaxLabels, ticks);
+    for (const double price : ticks) consider(price);
 
     chart.axis_width_px = axis_strip_width(axis_content_width(axis_w, line_w));
 }

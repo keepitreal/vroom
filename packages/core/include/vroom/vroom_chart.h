@@ -519,6 +519,12 @@ void vroom_chart_set_default_candle_width(VroomChart* chart, float px);
 // crosshair, drawings) are unaffected.
 void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode);
 
+// Price-axis scale: 0 = linear (default), 1 = logarithmic (equal price ratios
+// take equal vertical distance). Snaps. A manual price range is kept as-is,
+// unless it reaches zero or below on entering log, in which case the chart
+// returns to auto-fit. Prices at or below zero are clamped in log mode.
+void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
+
 // Candle↔line morph blend for animated transitions. `collapse` folds candles
 // toward their close price; `fade` crossfades candles→line. Both 0 = candles,
 // both 1 = line. Driven per-frame by the host animation loop; set_chart_type

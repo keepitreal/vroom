@@ -1,7 +1,9 @@
 #include "doctest.h"
 
 #include "viewport.h"
+#include <cmath>
 #include <initializer_list>
+#include <vector>
 
 using vroom::Layout;
 using vroom::PriceBounds;
@@ -464,7 +466,7 @@ TEST_CASE("price_bounds") {
 
 TEST_CASE("auto_price_bounds") {
     SUBCASE("empty keeps the {0,1} sentinel unwidened") {
-        PriceBounds b = vroom::auto_price_bounds(nullptr, 0);
+        PriceBounds b = vroom::auto_price_bounds(nullptr, 0, false);
         CHECK(b.min == 0.0);
         CHECK(b.max == 1.0);
     }
@@ -475,14 +477,14 @@ TEST_CASE("auto_price_bounds") {
             ohlc(1, 12.0, 30.0),
         };
         // raw bounds {10,30}: mid 20, half 10 -> widened half 15 -> {5,35}
-        PriceBounds b = vroom::auto_price_bounds(candles, 2);
+        PriceBounds b = vroom::auto_price_bounds(candles, 2, false);
         CHECK(b.min == doctest::Approx(5.0));
         CHECK(b.max == doctest::Approx(35.0));
     }
 
     SUBCASE("flat candle collapses to a zero-height range at its price") {
         VroomCandle candles[1] = {ohlc(0, 50.0, 50.0)};
-        PriceBounds b = vroom::auto_price_bounds(candles, 1);
+        PriceBounds b = vroom::auto_price_bounds(candles, 1, false);
         CHECK(b.min == doctest::Approx(50.0));
         CHECK(b.max == doctest::Approx(50.0));
     }
@@ -647,6 +649,155 @@ TEST_CASE("y_to_price") {
         l.bottom_padding_frac = 0.1f;  // draw band 100..900
         CHECK(vroom::y_to_price(l, b, 100.f) == doctest::Approx(100.0));
         CHECK(vroom::y_to_price(l, b, 900.f) == doctest::Approx(0.0));
+    }
+}
+
+TEST_CASE("log price scale mapping") {
+    Layout l = make_layout();  // 1000px band, no padding
+    const PriceBounds b{10.0, 1000.0, true};
+
+    SUBCASE("equal ratios take equal vertical distance") {
+        CHECK(vroom::price_to_y(l, b, 10.0) == doctest::Approx(1000.f));
+        CHECK(vroom::price_to_y(l, b, 100.0) == doctest::Approx(500.f));
+        CHECK(vroom::price_to_y(l, b, 1000.0) == doctest::Approx(0.f));
+        const float d1 = vroom::price_to_y(l, b, 20.0) - vroom::price_to_y(l, b, 40.0);
+        const float d2 = vroom::price_to_y(l, b, 200.0) - vroom::price_to_y(l, b, 400.0);
+        CHECK(d1 == doctest::Approx(d2));
+    }
+
+    SUBCASE("y_to_price inverts price_to_y") {
+        for (double price : {10.0, 13.7, 100.0, 512.0, 1000.0}) {
+            const float y = vroom::price_to_y(l, b, price);
+            CHECK(vroom::y_to_price(l, b, y) == doctest::Approx(price).epsilon(1e-5));
+        }
+    }
+
+    SUBCASE("price_at_fraction inverts price_fraction") {
+        CHECK(vroom::price_fraction(b, 100.0) == doctest::Approx(0.5));
+        CHECK(vroom::price_at_fraction(b, 0.5) == doctest::Approx(100.0));
+    }
+
+    SUBCASE("non-positive prices clamp instead of producing NaN") {
+        const double f = vroom::price_fraction(b, 0.0);
+        CHECK(std::isfinite(f));
+        CHECK(f < 0.0);
+    }
+
+    SUBCASE("linear bounds are unaffected by the helpers") {
+        const PriceBounds lin{0.0, 100.0};
+        CHECK(vroom::price_at_fraction(lin, 0.25) == doctest::Approx(25.0));
+        const PriceBounds s = vroom::shift_scaled(lin, 0.1);
+        CHECK(s.min == doctest::Approx(10.0));
+        CHECK(s.max == doctest::Approx(110.0));
+    }
+}
+
+TEST_CASE("log price scale bounds") {
+    SUBCASE("auto_price_bounds widens symmetrically in log space") {
+        VroomCandle candles[2] = {ohlc(0, 100.0, 100.0), ohlc(1, 400.0, 400.0)};
+        const PriceBounds b = vroom::auto_price_bounds(candles, 2, true);
+        CHECK(b.log);
+        CHECK(b.min > 0.0);
+        // Geometric midpoint stays at 200; each side widens by the same ratio.
+        CHECK(std::sqrt(b.min * b.max) == doctest::Approx(200.0));
+        CHECK(b.max / 400.0 == doctest::Approx(100.0 / b.min));
+    }
+
+    SUBCASE("auto bounds stay positive for a range reaching near zero") {
+        VroomCandle candles[1] = {ohlc(0, 0.01, 50.0)};
+        const PriceBounds b = vroom::auto_price_bounds(candles, 1, true);
+        CHECK(b.min > 0.0);
+        CHECK(b.min < 0.01);
+    }
+
+    SUBCASE("shift_scaled pans by a constant ratio") {
+        const PriceBounds b{10.0, 1000.0, true};
+        const PriceBounds s = vroom::shift_scaled(b, 0.5);  // +1 decade
+        CHECK(s.min == doctest::Approx(100.0));
+        CHECK(s.max == doctest::Approx(10000.0));
+        CHECK(s.log);
+    }
+
+    SUBCASE("rescale_scaled keeps the anchor price fixed") {
+        const PriceBounds b{10.0, 1000.0, true};
+        const PriceBounds top = vroom::rescale_scaled(b, 0.5, 1.0);
+        CHECK(top.max == doctest::Approx(1000.0));
+        CHECK(top.min == doctest::Approx(100.0));
+        const PriceBounds mid = vroom::rescale_scaled(b, 2.0, 0.5);
+        CHECK(std::sqrt(mid.min * mid.max) == doctest::Approx(100.0));
+        CHECK(mid.max == doctest::Approx(10000.0));
+    }
+
+    SUBCASE("preserve_envelope_bounds works in log space") {
+        const PriceBounds axis{10.0, 1000.0, true};
+        const PriceBounds out = vroom::preserve_envelope_bounds(
+            axis, {50.0, 200.0}, {50.0, 200.0});
+        CHECK(out.min == doctest::Approx(10.0));
+        CHECK(out.max == doctest::Approx(1000.0));
+        CHECK(out.log);
+    }
+}
+
+TEST_CASE("price_ticks") {
+    std::vector<double> ticks;
+
+    SUBCASE("linear: evenly spaced nice multiples, ascending") {
+        vroom::price_ticks({0.0, 100.0}, 550.f, 64, ticks);
+        REQUIRE(ticks.size() >= 2);
+        const double step = ticks[1] - ticks[0];
+        for (size_t i = 1; i < ticks.size(); ++i) {
+            CHECK(ticks[i] - ticks[i - 1] == doctest::Approx(step));
+        }
+        CHECK(ticks.front() >= 0.0);
+        CHECK(ticks.back() <= 100.0);
+    }
+
+    SUBCASE("log: in range, descending, with a minimum pixel gap") {
+        const PriceBounds b{1'000.0, 100'000.0, true};
+        const float h = 600.f;
+        vroom::price_ticks(b, h, 64, ticks);
+        REQUIRE(ticks.size() >= 3);
+        Layout l = make_layout();
+        l.height_px = h;
+        for (size_t i = 0; i < ticks.size(); ++i) {
+            CHECK(ticks[i] >= b.min);
+            CHECK(ticks[i] <= b.max);
+            if (i > 0) {
+                CHECK(ticks[i] < ticks[i - 1]);
+                const float gap = vroom::price_to_y(l, b, ticks[i]) -
+                                  vroom::price_to_y(l, b, ticks[i - 1]);
+                CHECK(gap >= vroom::kLogTickMinGapPx - 0.5f);
+            }
+        }
+    }
+
+    SUBCASE("log: the interval shrinks toward the bottom of the band") {
+        vroom::price_ticks({1'000.0, 100'000.0, true}, 600.f, 64, ticks);
+        REQUIRE(ticks.size() >= 4);
+        const double top_step = ticks[0] - ticks[1];
+        const double bottom_step = ticks[ticks.size() - 2] - ticks.back();
+        CHECK(bottom_step < top_step);
+    }
+
+    SUBCASE("respects max_count and degenerate inputs") {
+        vroom::price_ticks({1.0, 1'000'000.0, true}, 600.f, 3, ticks);
+        CHECK(ticks.size() <= 3);
+        vroom::price_ticks({5.0, 5.0, true}, 600.f, 64, ticks);
+        CHECK(ticks.empty());
+        vroom::price_ticks({1.0, 10.0, true}, 0.f, 64, ticks);
+        CHECK(ticks.empty());
+    }
+}
+
+TEST_CASE("price_label_interval") {
+    SUBCASE("linear matches the range-based pick") {
+        CHECK(vroom::price_label_interval({0.0, 100.0}, 550.f) ==
+              doctest::Approx(vroom::price_label_interval({200.0, 300.0}, 550.f)));
+    }
+    SUBCASE("log uses the finest (bottom-of-band) density") {
+        const double low = vroom::price_label_interval({1.0, 1000.0, true}, 550.f);
+        const double high = vroom::price_label_interval({100.0, 100'000.0, true}, 550.f);
+        CHECK(low < high);
     }
 }
 

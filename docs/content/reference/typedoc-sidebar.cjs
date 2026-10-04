@@ -118,6 +118,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/PriceScaleMode",
+          label: "PriceScaleMode"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/RSIConfig",
           label: "RSIConfig"
         },

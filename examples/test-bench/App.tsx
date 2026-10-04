@@ -21,6 +21,7 @@ import {
   type MovingAverageOverlay,
   type PlotRect,
   type PriceLine,
+  type PriceScaleMode,
 } from 'react-native-vroom-chart';
 
 import {
@@ -518,6 +519,11 @@ export default function App() {
     setChartType((t) => (t === 'candles' ? 'line' : 'candles'));
     Haptics.selectionAsync().catch(() => {});
   }, []);
+  const [priceScaleMode, setPriceScaleMode] = useState<PriceScaleMode>('linear');
+  const togglePriceScaleMode = useCallback(() => {
+    setPriceScaleMode((m) => (m === 'linear' ? 'log' : 'linear'));
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
 
   // Line-chart corner smoothing, stepped rather than continuous so the render at
   // each value is easy to compare against the last.
@@ -793,6 +799,7 @@ export default function App() {
             // the view while interval / scale switches still animate.
             seriesKey={`listing-${listing.count}-${backfill ? 'zeros' : 'bare'}`}
             chartType={chartType}
+            priceScaleMode={priceScaleMode}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
             theme={theme}
@@ -1028,6 +1035,24 @@ export default function App() {
                   ]}
                 >
                   {chartType === 'line' ? '∿' : '▮'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.fnBtn,
+                  priceScaleMode === 'log' && styles.fnBtnActive,
+                ]}
+                onPress={togglePriceScaleMode}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    priceScaleMode === 'log' && styles.fnSymbolActive,
+                  ]}
+                >
+                  {priceScaleMode === 'log' ? 'LOG' : 'LIN'}
                 </Text>
               </Pressable>
 

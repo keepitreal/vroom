@@ -23,6 +23,7 @@ export type {
   ATRConfig,
   ATRSmoothing,
   ChartType,
+  PriceScaleMode,
   TransitionEasing,
   IntervalTransition,
   StreamTransition,

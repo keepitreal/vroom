@@ -23,7 +23,6 @@
 #include "price_format.h"
 #include "price_indicator_anim.h"
 #include "theme.h"
-#include "ticks.h"
 #include "viewport.h"
 
 namespace vroom::price_indicator {
@@ -86,7 +85,7 @@ void draw(SkCanvas* canvas,
 
         const vroom::PriceFormat fmt = vroom::with_tick_guard(
             chart.price_fmt,
-            vroom::pick_price_interval(bounds.max - bounds.min, candle_area_h));
+            vroom::price_label_interval(bounds, candle_area_h));
         vroom::format_price(buf, sizeof(buf), level.price, fmt);
         len = std::strlen(buf);
         // Tight glyph bounds (origin at the baseline) so the digits center on

@@ -522,6 +522,11 @@ export interface VroomChartHandle {
   /** Render mode: 0 = candlesticks (default), 1 = line chart (close polyline). */
   setChartType(mode: number): void;
   /**
+   * Price-axis scale: 0 = linear (default), 1 = logarithmic. Snaps; a manual
+   * price range is kept unless it reaches zero or below on entering log.
+   */
+  setPriceScaleMode(mode: number): void;
+  /**
    * Candle↔line morph blend for animated transitions. `collapse` folds candles
    * toward their close; `fade` crossfades candles→line. Both 0 = candles,
    * 1 = line. Driven per-frame by the host; setChartType snaps both.

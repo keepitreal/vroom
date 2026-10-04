@@ -186,7 +186,8 @@ void ensure_manual_price_bounds(VroomChart* chart) {
         chart->visible_start_ms, chart->visible_end_ms);
     if (idx.end > idx.start) {
         chart->price_bounds = vroom::auto_price_bounds(
-            chart->candles.data() + idx.start, idx.end - idx.start);
+            chart->candles.data() + idx.start, idx.end - idx.start,
+            chart->price_bounds.log);
     }  // else: no visible candles — keep whatever bounds we had
     chart->price_bounds_manual = true;
     vroom::labels::recompute_axis_width(*chart);
@@ -315,6 +316,22 @@ extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
     chart->mark_dirty();
 }
 
+extern "C" void vroom_chart_set_price_scale_mode(VroomChart* chart,
+                                                 int32_t mode) {
+    if (!chart) return;
+    const bool log = mode == 1;
+    if (chart->price_bounds.log == log) return;
+    chart->price_bounds.log = log;
+    if (log && chart->price_bounds_manual && chart->price_bounds.min <= 0.0) {
+        chart->price_bounds_manual = false;
+    }
+    // The old ticks sit at the wrong spacing for the new scale; let the new set
+    // come in fresh rather than cross-fading against them.
+    chart->y_fades.clear();
+    vroom::labels::recompute_axis_width(*chart);
+    chart->mark_dirty();
+}
+
 extern "C" void vroom_chart_set_morph(VroomChart* chart, float collapse,
                                       float fade) {
     if (!chart) return;
@@ -421,7 +438,7 @@ static void capture_morph(VroomChart* chart) {
 
     const auto bounds = chart->price_bounds_manual
         ? chart->price_bounds
-        : vroom::auto_price_bounds(visible, n);
+        : vroom::auto_price_bounds(visible, n, chart->price_bounds.log);
 
     // Normalized so the capture is independent of both the price bounds (which
     // the swap is about to replace) and the surface size (which may change
@@ -632,12 +649,8 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
         const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         const double draw_h = static_cast<double>(candle_area_h) * 0.9;
         if (draw_h > 0.0) {
-            const double range =
-                chart->price_bounds.max - chart->price_bounds.min;
-            const double dprice =
-                (static_cast<double>(dy_px) / draw_h) * range;
-            chart->price_bounds.min += dprice;
-            chart->price_bounds.max += dprice;
+            chart->price_bounds = vroom::shift_scaled(
+                chart->price_bounds, static_cast<double>(dy_px) / draw_h);
             vroom::labels::recompute_axis_width(*chart);
             changed = true;
         }
@@ -657,17 +670,13 @@ extern "C" void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px) {
     if (!chart || dy_px == 0.f) return;
     ensure_manual_price_bounds(chart);
 
-    const double range = chart->price_bounds.max - chart->price_bounds.min;
-    if (range <= 0.0) return;
+    if (!(chart->price_bounds.max > chart->price_bounds.min)) return;
 
     // Drag down (dy > 0) → scale > 1 → wider price range → candles shrink.
     double scale = 1.0 + static_cast<double>(dy_px) / kAxisDragSensitivity;
     if (scale < 0.05) scale = 0.05;  // never collapse or flip
 
-    const double center = (chart->price_bounds.max + chart->price_bounds.min) * 0.5;
-    const double new_range = range * scale;
-    chart->price_bounds.max = center + new_range * 0.5;
-    chart->price_bounds.min = center - new_range * 0.5;
+    chart->price_bounds = vroom::rescale_scaled(chart->price_bounds, scale, 0.5);
     vroom::labels::recompute_axis_width(*chart);
 
     chart->mark_dirty();
@@ -782,10 +791,9 @@ extern "C" void vroom_chart_resize_indicator_pane(VroomChart* chart, float dy_px
         const float new_pane_bottom = content_h - new_band;
         const double scale = static_cast<double>(new_pane_bottom) /
                              static_cast<double>(old_pane_bottom);
-        const double range = chart->price_bounds.max - chart->price_bounds.min;
-        if (range > 0.0 && scale > 0.0) {
-            chart->price_bounds.min =
-                chart->price_bounds.max - range * scale;
+        if (chart->price_bounds.max > chart->price_bounds.min && scale > 0.0) {
+            chart->price_bounds =
+                vroom::rescale_scaled(chart->price_bounds, scale, 1.0);
             vroom::labels::recompute_axis_width(*chart);
         }
     }
@@ -865,13 +873,13 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
     if (scale_y > 0.f && scale_y != 1.f && !chart->candles.empty()) {
         ensure_manual_price_bounds(chart);
         const float candle_area_h = vroom::price_pane_bottom(chart->layout());
-        const double range = chart->price_bounds.max - chart->price_bounds.min;
-        if (candle_area_h > 0.f && range > 0.0) {
+        if (candle_area_h > 0.f &&
+            chart->price_bounds.max > chart->price_bounds.min) {
+            // frac is measured from the top; the anchor is from the bottom.
             const float frac = std::clamp(fy / candle_area_h, 0.f, 1.f);
-            const double focal_price = chart->price_bounds.max - frac * range;
-            const double new_range = range / static_cast<double>(scale_y);
-            chart->price_bounds.max = focal_price + frac * new_range;
-            chart->price_bounds.min = chart->price_bounds.max - new_range;
+            chart->price_bounds = vroom::rescale_scaled(
+                chart->price_bounds, 1.0 / static_cast<double>(scale_y),
+                1.0 - static_cast<double>(frac));
             price_changed = true;
         }
     }
@@ -965,7 +973,8 @@ extern "C" void vroom_chart_set_crosshair_data(VroomChart* chart,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
     chart->crosshair_active = true;
     chart->crosshair_x_px =
         vroom::x_at_time(lay, chart->visible_start_ms, window_ms, time_ms);
@@ -1027,7 +1036,7 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(visible, n);
+            : vroom::auto_price_bounds(visible, n, chart->price_bounds.log);
     out->price = vroom::y_to_price(lay, bounds, chart->crosshair_y_px);
     out->has_candle = snap.has_candle;
     if (snap.has_candle) out->candle = visible[snap.index];
@@ -1184,7 +1193,8 @@ extern "C" bool vroom_chart_hit_test_footprint(VroomChart* chart, float x_px,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
 
     const auto hit = vroom::footprints::hit_test(*chart, lay, bounds, x_px, y_px);
     if (hit.side < 0) return false;
@@ -1333,7 +1343,8 @@ extern "C" bool vroom_chart_coord_at(VroomChart* chart, float x_px, float y_px,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
     out->time_ms =
         vroom::time_at_x(lay, chart->visible_start_ms, window_ms, x_px);
     out->price = vroom::y_to_price(lay, bounds, y_px);
@@ -1354,7 +1365,8 @@ extern "C" bool vroom_chart_project(VroomChart* chart, int64_t time_ms,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
     if (out_x)
         *out_x = vroom::x_at_time(lay, chart->visible_start_ms, window_ms, time_ms);
     if (out_y) *out_y = vroom::price_to_y(lay, bounds, price);
@@ -1376,7 +1388,8 @@ extern "C" bool vroom_chart_hit_test_drawing(VroomChart* chart, float x_px,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
     const auto hit = vroom::drawings::hit_test(*chart, lay, bounds, window_ms, x_px, y_px);
     if (hit.index < 0) return false;
     if (out_index) *out_index = hit.index;
@@ -1399,7 +1412,8 @@ extern "C" bool vroom_chart_drawing_bounds(VroomChart* chart, int32_t index,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
     vroom::drawing_bounds::RectPx r{};
     if (!vroom::drawings::bounds_of(*chart, lay, bounds, window_ms, index, &r))
         return false;
@@ -1424,7 +1438,8 @@ extern "C" bool vroom_chart_hit_test_price_line(VroomChart* chart, float x_px,
     const auto bounds =
         chart->price_bounds_manual
             ? chart->price_bounds
-            : vroom::auto_price_bounds(chart->candles.data() + range.start, n);
+            : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
+                                       chart->price_bounds.log);
     const float candle_area_h = vroom::price_pane_bottom(lay);
     const float candle_right =
         chart->width_px - lay.y_axis_width_px - lay.right_padding_px;

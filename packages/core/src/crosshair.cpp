@@ -23,7 +23,7 @@
 #include "labels.h"
 #include "price_format.h"
 #include "theme.h"
-#include "ticks.h"
+#include "viewport.h"
 
 namespace vroom::crosshair {
 
@@ -106,8 +106,8 @@ void draw(SkCanvas* canvas,
             const double price = vroom::y_to_price(lay, bounds, cy);
             const vroom::PriceFormat fmt = vroom::with_tick_guard(
                 chart.price_fmt,
-                vroom::pick_price_interval(bounds.max - bounds.min,
-                                           vroom::price_pane_bottom(lay)));
+                vroom::price_label_interval(bounds,
+                                            vroom::price_pane_bottom(lay)));
             vroom::format_price(price_buf, sizeof(price_buf), price, fmt);
             const float text_w = font.measureText(
                 price_buf, std::strlen(price_buf), SkTextEncoding::kUTF8);
