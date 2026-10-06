@@ -1,5 +1,12 @@
 # react-native-vroom-chart
 
+## 0.19.0
+
+### Minor Changes
+
+- 87b8833: Add an opt-in crosshair plus button for placing orders from the chart. With `crosshairButton={{ enabled: true }}` a small `+` sits on the crosshair's horizontal line, directly left of the price badge. Clicking or tapping it locks the crosshair and fires `onCrosshairButton` with the price, the time and the button's rect, so the host can render its own order menu beside it. The event fires again with `'move'` whenever the locked button shifts, and with `'close'` when it's dismissed. Size, corner radius, colors, the ring around the plus, the gap and the hover highlight are all configurable.
+- 96d0ec4: Add a `priceScaleMode` prop (`'linear' | 'log'`) for a logarithmic price axis. In `'log'` mode equal price ratios take equal vertical distance, and pan, zoom, axis drag and auto-fit all work in log space. The y-axis labels follow TradingView's log tick spacing (e.g. 10k / 20k / 50k / 100k). The host app controls the mode; switching snaps.
+
 ## 0.18.2
 
 ### Patch Changes
