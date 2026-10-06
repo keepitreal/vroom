@@ -1886,12 +1886,18 @@ extern "C" void vroom_chart_set_float(VroomChart* chart, VroomFloatKey key, floa
     if (!chart || key < 0 || key >= VROOM_FLOAT_COUNT_) return;
     // Same integer range as price-line labels. Clamp before the equality check
     // so 12.4 and 12 are one size, and 0 / 20 land on the floor and ceiling.
-    if (key == VROOM_FLOAT_AXIS_FONT_SIZE_PX) {
+    // A badge size of 0 (or less) stays as the "follow the axis" sentinel.
+    const bool font_key = key == VROOM_FLOAT_AXIS_FONT_SIZE_PX ||
+                          key == VROOM_FLOAT_BADGE_FONT_SIZE_PX;
+    if (key == VROOM_FLOAT_AXIS_FONT_SIZE_PX ||
+        (key == VROOM_FLOAT_BADGE_FONT_SIZE_PX && value > 0.f)) {
         value = vroom::price_lines::clamp_label_font_px(value);
+    } else if (key == VROOM_FLOAT_BADGE_FONT_SIZE_PX) {
+        value = 0.f;
     }
     if (chart->theme.floats[key] == value) return;
     chart->theme.floats[key] = value;
-    if (key == VROOM_FLOAT_AXIS_FONT_SIZE_PX) {
+    if (font_key) {
         vroom::labels::recompute_axis_width(*chart);
     }
     chart->mark_dirty();

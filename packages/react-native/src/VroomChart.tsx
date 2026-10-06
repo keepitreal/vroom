@@ -36,7 +36,6 @@ import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
 import type { ChartFrame, ChartHandle, CrosshairButtonHit } from './jsi.d';
-import { parseColor } from './theme';
 import type {
   CrosshairButtonConfig,
   CrosshairButtonEvent,
@@ -48,21 +47,11 @@ import './jsi.d';
 // Mirrors VroomFootprintSide in packages/core/include/vroom/vroom_chart.h.
 const FOOTPRINT_SELL = 1;
 
-const inheritColor = (v: string | number | undefined): number =>
-  (v != null ? parseColor(v) : null) ?? 0;
-
 // Unset fields go down as the core's sentinels so it owns the defaults.
 function crosshairButtonToSpec(cfg: CrosshairButtonConfig | undefined) {
   return {
     enabled: cfg?.enabled ?? false,
-    sizePx: cfg?.size ?? 0,
     cornerRadiusPx: cfg?.cornerRadius ?? -1,
-    bg: inheritColor(cfg?.background),
-    icon: inheritColor(cfg?.iconColor),
-    iconStrokePx: cfg?.iconStrokeWidth ?? 0,
-    ring: cfg?.ring ?? true,
-    ringColor: inheritColor(cfg?.ringColor),
-    gapPx: cfg?.gap ?? -1,
     hoverBoost: cfg?.hoverBoost ?? 0,
   };
 }

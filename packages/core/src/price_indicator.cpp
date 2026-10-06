@@ -79,7 +79,7 @@ void draw(SkCanvas* canvas,
     SkRect tb = SkRect::MakeEmpty();
     float text_w = 0.f;
     if (show_badge) {
-        font = SkFont(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+        font = SkFont(tf, vroom::badge_font_px(chart.theme));
         font.setSubpixel(true);
         font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
 

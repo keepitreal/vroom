@@ -47,6 +47,7 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     0.f,    // LINE_TENSION — straight segments by default
     1.f,    // LINE_TIP_DOT — the line's leading end is marked by default
     0.f,    // LINE_TIP_PULSE — the ring is opt-in; it never lets the chart idle
+    0.f,    // BADGE_FONT_SIZE_PX — follow AXIS_FONT_SIZE_PX
 };
 
 }  // namespace

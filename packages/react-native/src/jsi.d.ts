@@ -507,20 +507,12 @@ export interface ChartHandle {
    */
   setFootprintHover(candleTimeMs: number, side: number): void;
   /**
-   * Replaces the crosshair plus button's style. Colors are 0xAARRGGBB, 0 =
-   * theme; numeric sentinels (<= 0 size/stroke/boost, < 0 radius/gap) take the
-   * core's defaults. `enabled: false` hides it.
+   * Replaces the crosshair plus button's style. Sentinels (< 0 radius, <= 0
+   * boost) take the core's defaults. `enabled: false` hides it.
    */
   setCrosshairButton(spec: {
     enabled: boolean;
-    sizePx: number;
     cornerRadiusPx: number;
-    bg: number;
-    icon: number;
-    iconStrokePx: number;
-    ring: boolean;
-    ringColor: number;
-    gapPx: number;
     hoverBoost: number;
   }): void;
   /**

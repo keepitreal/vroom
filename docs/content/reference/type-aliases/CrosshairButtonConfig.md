@@ -2,42 +2,25 @@
 
 ```ts
 type CrosshairButtonConfig = {
-  background?: VroomColor;
   cornerRadius?: number;
   enabled?: boolean;
-  gap?: number;
   hoverBoost?: number;
-  iconColor?: VroomColor;
-  iconStrokeWidth?: number;
-  ring?: boolean;
-  ringColor?: VroomColor;
-  size?: number;
 };
 ```
 
-Source: [types/src/index.ts:1094](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1094)
+Source: [types/src/index.ts:1103](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1103)
 
-The crosshair plus button: a small button on the crosshair's horizontal line,
-directly left of the price badge — TradingView's order-entry affordance.
+The crosshair plus button: a "+" drawn inside the crosshair's price badge,
+turning the whole badge into a button — the order-entry affordance.
 
-Opt-in: nothing renders unless `enabled` is true. Clicking (or tapping) it
-locks the crosshair at that price and fires `onCrosshairButton`, which is
-where your own UI (e.g. "Buy limit" / "Sell limit") comes in. Every style
-field is optional.
+Opt-in: nothing renders unless `enabled` is true. The badge takes its fill
+and text color from the theme (`theme.crosshairTarget` / `theme.badgeText`)
+and grows leftward to fit the plus, so the price stays in the y-axis column.
+Clicking (or tapping) anywhere on it locks the crosshair at that price and
+fires `onCrosshairButton`, which is where your own UI (e.g. "Buy limit" /
+"Sell limit") comes in.
 
 ## Properties
-
-### background?
-
-```ts
-optional background?: VroomColor;
-```
-
-Source: [types/src/index.ts:1105](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1105)
-
-Container fill. Defaults to the price badge's fill (`theme.crosshairTarget`).
-
----
 
 ### cornerRadius?
 
@@ -45,10 +28,11 @@ Container fill. Defaults to the price badge's fill (`theme.crosshairTarget`).
 optional cornerRadius?: number;
 ```
 
-Source: [types/src/index.ts:1103](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1103)
+Source: [types/src/index.ts:1111](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1111)
 
-Container corner radius in px, clamped to 0..size/2. Default 4. `size / 2`
-draws a circle; 0 draws square corners.
+Badge corner radius in px, clamped to 0..height/2. Default 6 (the plain
+badge's radius). Any value at or above half the height draws a fully
+rounded pill.
 
 ---
 
@@ -58,21 +42,9 @@ draws a circle; 0 draws square corners.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:1096](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1096)
+Source: [types/src/index.ts:1105](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1105)
 
-Show the button. Default false.
-
----
-
-### gap?
-
-```ts
-optional gap?: number;
-```
-
-Source: [types/src/index.ts:1115](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1115)
-
-Gap between the button and the price badge in px. Default 4.
+Show the plus inside the crosshair price badge. Default false.
 
 ---
 
@@ -82,67 +54,8 @@ Gap between the button and the price badge in px. Default 4.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:1120](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1120)
+Source: [types/src/index.ts:1117](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1117)
 
-How much the hovered button brightens, as a channel multiplier. 1 disables
-the highlight. Default 1.25. Web only — touch platforms have no hover state.
-
----
-
-### iconColor?
-
-```ts
-optional iconColor?: VroomColor;
-```
-
-Source: [types/src/index.ts:1107](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1107)
-
-Plus glyph color. Defaults to the badge text color (`theme.badgeText`).
-
----
-
-### iconStrokeWidth?
-
-```ts
-optional iconStrokeWidth?: number;
-```
-
-Source: [types/src/index.ts:1109](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1109)
-
-Plus glyph stroke width in px. Default 1.5.
-
----
-
-### ring?
-
-```ts
-optional ring?: boolean;
-```
-
-Source: [types/src/index.ts:1111](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1111)
-
-Draw a circle around the plus, TradingView style. Default true.
-
----
-
-### ringColor?
-
-```ts
-optional ringColor?: VroomColor;
-```
-
-Source: [types/src/index.ts:1113](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1113)
-
-Ring color. Defaults to `iconColor`.
-
----
-
-### size?
-
-```ts
-optional size?: number;
-```
-
-Source: [types/src/index.ts:1098](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1098)
-
-Side of the square container in px. Default 20.
+How much the hovered (or open) badge brightens, as a channel multiplier.
+1 disables the highlight. Default 1.25. Hover is web only — touch platforms
+only see the open state.

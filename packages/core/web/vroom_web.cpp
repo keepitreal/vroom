@@ -558,19 +558,11 @@ class WebChart {
                                     side);
   }
 
-  // `cfg` is { enabled, sizePx, cornerRadiusPx, bg, icon, iconStrokePx, ring,
-  // ringColor, gapPx, hoverBoost }; colors are 0xAARRGGBB, 0 = theme.
+  // `cfg` is { enabled, cornerRadiusPx, hoverBoost }.
   void setCrosshairButton(const em::val& cfg) {
     VroomCrosshairButtonStyle s{};
     s.enabled = cfg["enabled"].as<bool>() ? 1 : 0;
-    s.size_px = cfg["sizePx"].as<float>();
     s.corner_radius_px = cfg["cornerRadiusPx"].as<float>();
-    s.bg = cfg["bg"].as<uint32_t>();
-    s.icon = cfg["icon"].as<uint32_t>();
-    s.icon_stroke_px = cfg["iconStrokePx"].as<float>();
-    s.ring = cfg["ring"].as<bool>() ? 1 : 0;
-    s.ring_color = cfg["ringColor"].as<uint32_t>();
-    s.gap_px = cfg["gapPx"].as<float>();
     s.hover_boost = cfg["hoverBoost"].as<float>();
     vroom_chart_set_crosshair_button(chart_, &s);
   }

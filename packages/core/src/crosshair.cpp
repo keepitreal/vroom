@@ -73,36 +73,76 @@ void draw_badge(SkCanvas* canvas,
 bool axis_font(const VroomChart& chart, SkFont* out) {
     auto tf = vroom::axis_typeface();
     if (!tf) return false;
-    *out = SkFont(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+    *out = SkFont(tf, vroom::badge_font_px(chart.theme));
     out->setSubpixel(true);
     out->setEdging(SkFont::Edging::kSubpixelAntiAlias);
     return true;
 }
 
-// Formats the price at `cy` into `buf` and returns the price badge's left
-// edge. When the badge isn't drawn (no font, hidden y-axis) `buf` is left
-// empty and the plot's right edge is returned instead.
-float price_badge_left(const VroomChart& chart,
-                       const Layout& lay,
-                       const PriceBounds& bounds,
-                       float cy,
-                       float candle_right,
-                       const SkFont* font,
-                       char* buf,
-                       size_t buf_len) {
-    buf[0] = '\0';
-    if (!font || lay.y_axis_width_px <= 0.f || lay.y_axis_opacity <= 0.f) {
-        return candle_right;
+// Without the axis font the plus-only pill still needs a size.
+constexpr float kFallbackGlyph = 10.f;
+
+// The crosshair's price badge at the horizontal line — the plain badge, or the
+// merged plus-and-price pill when the plus button is on. One measurement feeds
+// both the draw and the hit test, so the two can't drift apart.
+struct PriceBadge {
+    bool shown = false;      // false: no badge and no button
+    char text[48] = {};      // empty when only the plus draws (hidden y-axis)
+    float text_x = 0.f;      // baseline origin
+    float text_y = 0.f;
+    float glyph = 0.f;       // plus side; 0 when the button is off
+    float opacity = 1.f;
+    crosshair_button::Rect rect{};
+};
+
+PriceBadge measure_price_badge(const VroomChart& chart,
+                               const Layout& lay,
+                               const PriceBounds& bounds,
+                               float cy,
+                               float candle_right,
+                               const SkFont* font) {
+    PriceBadge b;
+    const bool button = chart.crosshair_button_style.enabled != 0;
+    const bool axis =
+        font && lay.y_axis_width_px > 0.f && lay.y_axis_opacity > 0.f;
+    if (!axis && !button) return b;
+
+    // The plus matches the digits' height, so it reads at the price's size.
+    float glyph = kFallbackGlyph;
+    if (font) {
+        SkRect digit;
+        font->measureText("0", 1, SkTextEncoding::kUTF8, &digit);
+        glyph = digit.height();
     }
-    const double price = vroom::y_to_price(lay, bounds, cy);
-    const vroom::PriceFormat fmt = vroom::with_tick_guard(
-        chart.price_fmt,
-        vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
-    vroom::format_price(buf, buf_len, price, fmt);
-    const float text_w =
-        font->measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
-    return vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px,
-                                          text_w);
+
+    float text_left = candle_right - kPadH;
+    float text_right = text_left;
+    float box_h = glyph + 2.f * kPadV;
+    if (axis) {
+        const double price = vroom::y_to_price(lay, bounds, cy);
+        const vroom::PriceFormat fmt = vroom::with_tick_guard(
+            chart.price_fmt,
+            vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
+        vroom::format_price(b.text, sizeof(b.text), price, fmt);
+        SkRect tb;
+        const float text_w = font->measureText(b.text, std::strlen(b.text),
+                                               SkTextEncoding::kUTF8, &tb);
+        text_left = vroom::labels::axis_badge_left(
+                        lay.width_px, lay.y_axis_width_px, text_w) +
+                    kPadH;
+        text_right = text_left + text_w;
+        box_h = tb.height() + 2.f * kPadV;
+        b.text_x = text_left;
+        b.text_y = cy - (tb.fTop + tb.fBottom) * 0.5f;
+        b.opacity = lay.y_axis_opacity;
+    }
+
+    b.shown = true;
+    b.glyph = button ? glyph : 0.f;
+    const float gap = button && axis ? crosshair_button::kPlusGap : 0.f;
+    b.rect = crosshair_button::pill_rect(text_left, text_right, cy, box_h,
+                                         b.glyph, kPadH, gap);
+    return b;
 }
 
 SkColor brighten(SkColor c, float k) {
@@ -113,44 +153,53 @@ SkColor brighten(SkColor c, float k) {
                           ch(SkColorGetG(c)), ch(SkColorGetB(c)));
 }
 
-void draw_button(SkCanvas* canvas,
-                 const VroomChart& chart,
-                 const crosshair_button::Rect& r) {
-    const VroomCrosshairButtonStyle& s = chart.crosshair_button_style;
+void draw_price_badge(SkCanvas* canvas,
+                      const VroomChart& chart,
+                      const SkFont* font,
+                      const PriceBadge& b) {
+    if (!b.shown || b.opacity <= 0.f) return;
     const auto& colors = chart.theme.colors;
-    SkColor bg = s.bg ? s.bg : colors[VROOM_COLOR_CROSSHAIR_TARGET];
-    const SkColor icon = s.icon ? s.icon : colors[VROOM_COLOR_BADGE_TEXT];
-    const SkColor ring_color = s.ring_color ? s.ring_color : icon;
-    if (chart.crosshair_button_hovered || chart.crosshair_pinned) {
-        bg = brighten(bg, s.hover_boost);
+    const VroomCrosshairButtonStyle& s = chart.crosshair_button_style;
+    const SkColor text_color = colors[VROOM_COLOR_BADGE_TEXT];
+    SkColor fill = colors[VROOM_COLOR_CROSSHAIR_TARGET];
+    const SkRect rect =
+        SkRect::MakeLTRB(b.rect.left, b.rect.top, b.rect.right, b.rect.bottom);
+    float radius = kCorner;
+    if (b.glyph > 0.f) {
+        if (chart.crosshair_button_hovered || chart.crosshair_pinned) {
+            fill = brighten(fill, s.hover_boost);
+        }
+        radius = crosshair_button::corner_radius(s, rect.height());
     }
 
-    const SkRect rect = SkRect::MakeLTRB(r.left, r.top, r.right, r.bottom);
     SkPaint box;
     box.setAntiAlias(true);
-    box.setColor(bg);
-    canvas->drawRRect(
-        SkRRect::MakeRectXY(rect, s.corner_radius_px, s.corner_radius_px), box);
+    box.setColor(fill);
+    box.setAlphaf(box.getAlphaf() * b.opacity);
+    canvas->drawRRect(SkRRect::MakeRectXY(rect, radius, radius), box);
 
-    const float cx = rect.centerX();
-    const float cy = rect.centerY();
-    const float size = rect.width();
-    float arm = size * 0.28f;
-
-    SkPaint stroke;
-    stroke.setAntiAlias(true);
-    stroke.setStyle(SkPaint::kStroke_Style);
-    stroke.setStrokeWidth(s.icon_stroke_px);
-    stroke.setStrokeCap(SkPaint::kRound_Cap);
-    if (s.ring) {
-        const float ring_r = size * 0.34f;
-        stroke.setColor(ring_color);
-        canvas->drawCircle(cx, cy, ring_r, stroke);
-        arm = ring_r * 0.55f;
+    if (b.glyph > 0.f) {
+        const float px = crosshair_button::plus_center_x(b.rect, b.glyph, kPadH);
+        const float py = rect.centerY();
+        const float arm = b.glyph * 0.5f;
+        SkPaint plus;
+        plus.setAntiAlias(true);
+        plus.setStyle(SkPaint::kStroke_Style);
+        plus.setStrokeWidth(std::clamp(b.glyph * 0.18f, 1.5f, 3.f));
+        plus.setStrokeCap(SkPaint::kRound_Cap);
+        plus.setColor(text_color);
+        plus.setAlphaf(plus.getAlphaf() * b.opacity);
+        canvas->drawLine(px - arm, py, px + arm, py, plus);
+        canvas->drawLine(px, py - arm, px, py + arm, plus);
     }
-    stroke.setColor(icon);
-    canvas->drawLine(cx - arm, cy, cx + arm, cy, stroke);
-    canvas->drawLine(cx, cy - arm, cx, cy + arm, stroke);
+
+    if (font && b.text[0] != '\0') {
+        SkPaint text_paint;
+        text_paint.setAntiAlias(true);
+        text_paint.setColor(text_color);
+        text_paint.setAlphaf(text_paint.getAlphaf() * b.opacity);
+        canvas->drawString(b.text, b.text_x, b.text_y, *font, text_paint);
+    }
 }
 }  // namespace
 
@@ -178,14 +227,9 @@ bool button_rect(const VroomChart& chart,
     const float cy = line_y(chart, lay, bounds, candle_area_h);
     SkFont font;
     const bool has_font = axis_font(chart, &font);
-    char buf[48];
-    const float anchor = price_badge_left(chart, lay, bounds, cy, candle_right,
-                                          has_font ? &font : nullptr, buf,
-                                          sizeof(buf));
-    if (out) {
-        *out = crosshair_button::button_rect(anchor, cy, 0.f, candle_area_h,
-                                             chart.crosshair_button_style);
-    }
+    const PriceBadge b = measure_price_badge(chart, lay, bounds, cy, candle_right,
+                                             has_font ? &font : nullptr);
+    if (out) *out = b.rect;
     if (price) *price = vroom::y_to_price(lay, bounds, cy);
     return true;
 }
@@ -209,22 +253,14 @@ void draw(SkCanvas* canvas,
 
     const SkColor color = chart.theme.colors[VROOM_COLOR_CROSSHAIR];
 
-    // The horizontal dash meets the price badge (or the plus button left of
-    // it). Measure that badge first so the stroke and the pill share one left
-    // edge; the vertical line still stops at the plot edge.
+    // The horizontal dash meets the price badge (merged with the plus button
+    // when it's on). Measure that badge first so the stroke and the pill share
+    // one left edge; the vertical line still stops at the plot edge.
     SkFont font;
     const bool tf = axis_font(chart, &font);
-    char price_buf[48];
-    float h_right = price_badge_left(chart, lay, bounds, cy, candle_right,
-                                     tf ? &font : nullptr, price_buf,
-                                     sizeof(price_buf));
-    const bool show_button = chart.crosshair_button_style.enabled != 0;
-    crosshair_button::Rect btn{};
-    if (show_button) {
-        btn = crosshair_button::button_rect(h_right, cy, 0.f, candle_area_h,
-                                            chart.crosshair_button_style);
-        h_right = btn.left;
-    }
+    const PriceBadge price_badge = measure_price_badge(
+        chart, lay, bounds, cy, candle_right, tf ? &font : nullptr);
+    const float h_right = price_badge.shown ? price_badge.rect.left : candle_right;
 
     // Dashed perpendicular lines. The vertical line runs the full height of the
     // candle + indicator region (down to vline_bottom) so it stays visible over
@@ -250,12 +286,13 @@ void draw(SkCanvas* canvas,
     ring.setStrokeWidth(2.f);  // thicker border so the dot reads clearly
     canvas->drawCircle(cx, cy, kRingRadius, ring);
 
-    if (show_button) draw_button(canvas, chart, btn);
-
     // Axis badges sit on top of the axis labels and the current-price indicator
-    // since the crosshair is the last draw step.
-    // They need the axis typeface; if it isn't loaded the lines alone suffice.
-    if (!tf) return;
+    // since the crosshair is the last draw step. Text needs the axis typeface;
+    // without it only a plus-only pill (when the button is on) draws.
+    if (!tf) {
+        draw_price_badge(canvas, chart, nullptr, price_badge);
+        return;
+    }
 
     const SkColor badge_fill = chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET];
     const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
@@ -283,14 +320,10 @@ void draw(SkCanvas* canvas,
                    badge_text, lay.x_axis_opacity);
     }
 
-    // Price badge over the y-axis strip, centered on the horizontal line and
-    // sharing the y-axis labels' column. `price_buf` was filled with the same
-    // string the stroke was measured against.
-    if (price_buf[0] != '\0') {
-        const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
-        draw_badge(canvas, font, price_buf, axis_center_x, cy, badge_fill,
-                   badge_text, lay.y_axis_opacity);
-    }
+    // Price badge over the y-axis strip, centered on the horizontal line with
+    // its text in the y-axis labels' column. It was measured against the same
+    // string the stroke was.
+    draw_price_badge(canvas, chart, &font, price_badge);
 }
 
 }  // namespace vroom::crosshair

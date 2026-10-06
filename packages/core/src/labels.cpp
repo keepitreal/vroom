@@ -437,17 +437,22 @@ void recompute_axis_width(VroomChart& chart) {
         vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
 
     const float axis_px = chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
+    const float badge_px = vroom::badge_font_px(chart.theme);
     const float requested = chart.price_line_style.font_size_px > 0.f
                                 ? chart.price_line_style.font_size_px
-                                : axis_px;
+                                : badge_px;
     SkFont axis_font(tf, axis_px);
+    SkFont badge_font(tf, badge_px);
     SkFont line_font(tf, vroom::price_lines::clamp_label_font_px(requested));
 
+    // Tick text and the crosshair / current-price badges share the column, so
+    // budget the wider of the two at the badge pad.
     float axis_w = 0.f;
     float line_w = 0.f;
     const auto consider = [&](double price) {
         if (!std::isfinite(price)) return;
-        axis_w = std::max(axis_w, measure_price(axis_font, price, fmt));
+        axis_w = std::max({axis_w, measure_price(axis_font, price, fmt),
+                           measure_price(badge_font, price, fmt)});
         line_w = std::max(line_w, measure_price(line_font, price, fmt));
     };
 

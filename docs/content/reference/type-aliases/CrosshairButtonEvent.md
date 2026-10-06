@@ -17,7 +17,7 @@ type CrosshairButtonEvent = {
 };
 ```
 
-Source: [types/src/index.ts:1143](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1143)
+Source: [types/src/index.ts:1140](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1140)
 
 Fired when the crosshair plus button is activated and the crosshair locks
 (`'open'`), when the locked button moves on screen (`'move'`), and when it
@@ -53,9 +53,9 @@ button:
   | null;
 ```
 
-Source: [types/src/index.ts:1162](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1162)
+Source: [types/src/index.ts:1159](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1159)
 
-The button's rect. Null on close.
+The price badge's rect, plus included — the whole clickable area. Null on close.
 
 ---
 
@@ -65,7 +65,7 @@ The button's rect. Null on close.
 close: () => void;
 ```
 
-Source: [types/src/index.ts:1166](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1166)
+Source: [types/src/index.ts:1163](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1163)
 
 Close the button and unlock the crosshair. Safe to call more than once.
 
@@ -81,7 +81,7 @@ Close the button and unlock the crosshair. Safe to call more than once.
 open: boolean;
 ```
 
-Source: [types/src/index.ts:1145](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1145)
+Source: [types/src/index.ts:1142](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1142)
 
 True while the button is open (crosshair locked); false once it closes.
 
@@ -93,7 +93,7 @@ True while the button is open (crosshair locked); false once it closes.
 pane: PlotRect | null;
 ```
 
-Source: [types/src/index.ts:1164](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1164)
+Source: [types/src/index.ts:1161](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1161)
 
 The plot area, for checking your UI fits. Null on close.
 
@@ -105,7 +105,7 @@ The plot area, for checking your UI fits. Null on close.
 price: number | null;
 ```
 
-Source: [types/src/index.ts:1155](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1155)
+Source: [types/src/index.ts:1152](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1152)
 
 Price at the crosshair's horizontal line, unformatted. Null on close.
 
@@ -117,7 +117,7 @@ Price at the crosshair's horizontal line, unformatted. Null on close.
 reason: "open" | "move" | "close";
 ```
 
-Source: [types/src/index.ts:1153](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1153)
+Source: [types/src/index.ts:1150](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1150)
 
 Why this event fired:
 'open' — the button was activated
@@ -133,7 +133,7 @@ re-fit the price axis, or the chart resized); re-anchor to it
 timeMs: number | null;
 ```
 
-Source: [types/src/index.ts:1160](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1160)
+Source: [types/src/index.ts:1157](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1157)
 
 Bar-open time (epoch ms) of the slot under the vertical line — a real
 candle, or an empty future slot. Null on close.

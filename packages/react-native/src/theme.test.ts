@@ -68,13 +68,15 @@ describe('applyTheme', () => {
         floats.push([key, value]);
       }),
     } as unknown as ChartHandle;
-    applyTheme(handle, { lineWidth: 2.5, lineTension: 0.5, axisFontSize: 14 });
+    applyTheme(handle, { lineWidth: 2.5, lineTension: 0.5, axisFontSize: 14, badgeFontSize: 12 });
     expect(FLOAT_KEYS.lineTension).toBe(13);
     expect(FLOAT_KEYS.axisFontSize).toBe(3);
+    expect(FLOAT_KEYS.badgeFontSize).toBe(16);
     expect(floats).toContainEqual([11, 2.5]);
     expect(floats).toContainEqual([13, 0.5]);
     expect(floats).toContainEqual([3, 14]);
-    expect(floats).toHaveLength(3);
+    expect(floats).toContainEqual([16, 12]);
+    expect(floats).toHaveLength(4);
   });
 
   it('does nothing for an empty theme', () => {

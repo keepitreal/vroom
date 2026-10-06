@@ -84,11 +84,11 @@ double render_price(const VroomChart& chart, size_t i) {
 bool label_font(const VroomChart& chart, SkFont* out) {
     auto tf = vroom::axis_typeface();
     if (!tf) return false;
-    // <= 0 inherits the axis size (11px by default). Either way the label is an
-    // integer in [kMinFontPx, kMaxFontPx].
+    // <= 0 inherits the badge size (the axis size, 11px, by default). Either way
+    // the label is an integer in [kMinFontPx, kMaxFontPx].
     const float requested = chart.price_line_style.font_size_px > 0.f
                                 ? chart.price_line_style.font_size_px
-                                : chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
+                                : vroom::badge_font_px(chart.theme);
     const float size = clamp_label_font_px(requested);
     *out = SkFont(tf, size);
     out->setSubpixel(true);

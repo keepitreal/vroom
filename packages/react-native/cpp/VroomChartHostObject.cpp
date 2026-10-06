@@ -102,6 +102,27 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   return out;
 }
 
+namespace {
+jsi::Value crosshairButtonHit(jsi::Runtime& rt,
+                              const VroomCrosshairButtonHit& hit) {
+  jsi::Object pane(rt);
+  pane.setProperty(rt, "left", hit.pane_left);
+  pane.setProperty(rt, "top", hit.pane_top);
+  pane.setProperty(rt, "right", hit.pane_right);
+  pane.setProperty(rt, "bottom", hit.pane_bottom);
+
+  jsi::Object obj(rt);
+  obj.setProperty(rt, "left", hit.left);
+  obj.setProperty(rt, "top", hit.top);
+  obj.setProperty(rt, "right", hit.right);
+  obj.setProperty(rt, "bottom", hit.bottom);
+  obj.setProperty(rt, "price", hit.price);
+  obj.setProperty(rt, "timeMs", static_cast<double>(hit.time_ms));
+  obj.setProperty(rt, "pane", std::move(pane));
+  return obj;
+}
+}  // namespace
+
 #if defined(__ANDROID__)
 // Android only: RN-Skia lives in librnskia.so, vroom in libvroomchart.so, and
 // each statically links its own libskia.a. A JsiSkPicture constructed here has
@@ -131,25 +152,6 @@ class SkDataMutableBuffer : public facebook::jsi::MutableBuffer {
  private:
   sk_sp<SkData> data_;
 };
-
-jsi::Value crosshairButtonHit(jsi::Runtime& rt,
-                              const VroomCrosshairButtonHit& hit) {
-  jsi::Object pane(rt);
-  pane.setProperty(rt, "left", hit.pane_left);
-  pane.setProperty(rt, "top", hit.pane_top);
-  pane.setProperty(rt, "right", hit.pane_right);
-  pane.setProperty(rt, "bottom", hit.pane_bottom);
-
-  jsi::Object obj(rt);
-  obj.setProperty(rt, "left", hit.left);
-  obj.setProperty(rt, "top", hit.top);
-  obj.setProperty(rt, "right", hit.right);
-  obj.setProperty(rt, "bottom", hit.bottom);
-  obj.setProperty(rt, "price", hit.price);
-  obj.setProperty(rt, "timeMs", static_cast<double>(hit.time_ms));
-  obj.setProperty(rt, "pane", std::move(pane));
-  return obj;
-}
 
 jsi::Value skiaApiObject(jsi::Runtime& rt, const char* name) {
   auto skiaApi = rt.global().getProperty(rt, "SkiaApi");
@@ -1602,9 +1604,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "setCrosshairButton") {
-    // setCrosshairButton({ enabled, sizePx, cornerRadiusPx, bg, icon,
-    // iconStrokePx, ring, ringColor, gapPx, hoverBoost }) — colors 0xAARRGGBB,
-    // 0 = theme. No render; the next render() picks it up.
+    // setCrosshairButton({ enabled, cornerRadiusPx, hoverBoost }). No render;
+    // the next render() picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
         jsi::PropNameID::forAscii(rt, "setCrosshairButton"),
@@ -1618,19 +1619,9 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           auto num = [&](const char* key) {
             return cfg.getProperty(rt2, key).asNumber();
           };
-          auto flag = [&](const char* key) {
-            return cfg.getProperty(rt2, key).getBool() ? 1 : 0;
-          };
           VroomCrosshairButtonStyle s{};
-          s.enabled = flag("enabled");
-          s.size_px = static_cast<float>(num("sizePx"));
+          s.enabled = cfg.getProperty(rt2, "enabled").getBool() ? 1 : 0;
           s.corner_radius_px = static_cast<float>(num("cornerRadiusPx"));
-          s.bg = static_cast<uint32_t>(num("bg"));
-          s.icon = static_cast<uint32_t>(num("icon"));
-          s.icon_stroke_px = static_cast<float>(num("iconStrokePx"));
-          s.ring = flag("ring");
-          s.ring_color = static_cast<uint32_t>(num("ringColor"));
-          s.gap_px = static_cast<float>(num("gapPx"));
           s.hover_boost = static_cast<float>(num("hoverBoost"));
           vroom_chart_set_crosshair_button(chart_, &s);
           return jsi::Value::undefined();
