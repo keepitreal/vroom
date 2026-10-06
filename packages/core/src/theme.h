@@ -20,4 +20,11 @@ struct Theme {
 // layout defaults. Used by `VroomChart`'s constructor.
 Theme default_theme();
 
+// Text size on filled badges: the crosshair badges, the current-price badge,
+// and (unless the price-line style sets its own) price-line pills.
+inline float badge_font_px(const Theme& t) {
+    const float badge = t.floats[VROOM_FLOAT_BADGE_FONT_SIZE_PX];
+    return badge > 0.f ? badge : t.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
+}
+
 }  // namespace vroom

@@ -355,19 +355,13 @@ typedef struct VroomPriceLineStyle {
 
 // ---- Crosshair plus button (order entry) ----------------------------------
 
-// The button on the crosshair's horizontal line, directly left of the price
-// badge. Off unless `enabled`. Colors are 0xAARRGGBB; 0 inherits from the theme.
+// A "+" drawn inside the crosshair's price badge, left of the price; the whole
+// badge becomes the button. Off unless `enabled`. Colors come from the theme
+// (crosshair target fill, badge text).
 typedef struct VroomCrosshairButtonStyle {
-    int32_t  enabled;           // 0 = hidden (default), 1 = shown with the crosshair
-    float    size_px;           // square container side; <= 0 => 20, clamped to 12–48
-    float    corner_radius_px;  // < 0 => 4; clamped to 0..size/2 (size/2 = circle)
-    uint32_t bg;                // container fill; 0 => crosshair target color
-    uint32_t icon;              // plus glyph color; 0 => badge text color
-    float    icon_stroke_px;    // plus glyph stroke; <= 0 => 1.5
-    int32_t  ring;              // 1 = circle around the plus, 0 = bare plus
-    uint32_t ring_color;        // 0 => the icon color
-    float    gap_px;            // gap to the price badge; < 0 => 4
-    float    hover_boost;       // brightness multiplier when hovered; <= 0 => 1.25
+    int32_t enabled;           // 0 = hidden (default), 1 = shown with the crosshair
+    float   corner_radius_px;  // < 0 => 6; clamped to 0..height/2 (fully rounded)
+    float   hover_boost;       // brightness multiplier when hovered/open; <= 0 => 1.25
 } VroomCrosshairButtonStyle;
 
 // The button's on-screen geometry, as reported by
@@ -496,6 +490,7 @@ typedef enum {
     VROOM_FLOAT_LINE_TENSION,            // 0..1 line-chart corner smoothing (0 = straight)
     VROOM_FLOAT_LINE_TIP_DOT,            // 0/1: dot at the line's newest end (default on)
     VROOM_FLOAT_LINE_TIP_PULSE,          // 0/1: expanding ring around that dot
+    VROOM_FLOAT_BADGE_FONT_SIZE_PX,      // filled-badge text; <= 0 follows AXIS_FONT_SIZE_PX
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 

@@ -62,21 +62,8 @@ const PRICE_LINE_STYLES: readonly PriceLineStyleChoice[] = [
 /** Demo settings for the crosshair plus button (order entry). */
 export type CrosshairButtonChoice = {
   enabled: boolean;
-  ring: boolean;
   cornerRadius: number;
-  size: number;
-  background: CrosshairButtonBackground;
 };
-
-/** Background presets; 'theme' leaves the color to the chart. */
-export type CrosshairButtonBackground = 'theme' | 'blue' | 'green' | 'slate';
-
-const CROSSHAIR_BUTTON_BACKGROUNDS: readonly CrosshairButtonBackground[] = [
-  'theme',
-  'blue',
-  'green',
-  'slate',
-];
 
 const badge: CSSProperties = {
   background: '#238636',
@@ -217,6 +204,8 @@ export type SidebarProps = {
     setCandleWidth: (v: number) => void;
     axisFontSize: number;
     setAxisFontSize: (v: number) => void;
+    badgeFontSize: number;
+    setBadgeFontSize: (v: number) => void;
     chartType: ChartType;
     setChartType: (v: ChartType) => void;
     priceScaleMode: PriceScaleMode;
@@ -276,8 +265,6 @@ export type SidebarProps = {
     setShowPriceLines: (v: boolean) => void;
     priceLineStyle: PriceLineStyleChoice;
     setPriceLineStyle: (v: PriceLineStyleChoice) => void;
-    priceLineFontSize: number;
-    setPriceLineFontSize: (v: number) => void;
     priceLineCornerRadius: number;
     setPriceLineCornerRadius: (v: number) => void;
     showFootprints: boolean;
@@ -394,7 +381,23 @@ export function Sidebar({
               layout.setAxisFontSize(Math.min(14, Math.max(10, Math.round(n))));
             }}
             style={numInput}
-            title="Axis label size in px. 11 is the default; the chart clamps anything outside 10–14. Price-line pills follow this unless Font px is set."
+            title="Axis label size in px. 11 is the default; the chart clamps anything outside 10–14."
+          />
+        </Row>
+        <Row label="Badge px">
+          <input
+            type="number"
+            min={10}
+            max={14}
+            step={1}
+            value={layout.badgeFontSize}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              if (!Number.isFinite(n)) return;
+              layout.setBadgeFontSize(Math.min(14, Math.max(10, Math.round(n))));
+            }}
+            style={numInput}
+            title="Text size on every badge: crosshair price and time, current price, and price-line pills. The chart clamps anything outside 10–14."
           />
         </Row>
       </Section>
@@ -602,24 +605,6 @@ export function Sidebar({
           </Row>
         )}
         {overlays.showPriceLines && (
-          <Row label="Font px">
-            <input
-              type="number"
-              min={10}
-              max={14}
-              step={1}
-              value={overlays.priceLineFontSize}
-              onChange={(e) => {
-                const n = Number(e.target.value);
-                if (!Number.isFinite(n)) return;
-                overlays.setPriceLineFontSize(Math.min(14, Math.max(10, Math.round(n))));
-              }}
-              style={numInput}
-              title="Price-line label size in px. 11 matches the axis labels; the chart clamps anything outside 10–14."
-            />
-          </Row>
-        )}
-        {overlays.showPriceLines && (
           <Row label="Corner">
             <input
               type="number"
@@ -647,73 +632,28 @@ export function Sidebar({
           label="Crosshair +"
           checked={overlays.crosshairButton.enabled}
           onChange={(enabled) => overlays.setCrosshairButton({ ...overlays.crosshairButton, enabled })}
-          title="Show a plus button on the crosshair, left of the price badge. Click it to pin the crosshair and open a buy/sell limit menu at that price."
+          title="Put a plus inside the crosshair's price badge. Click the badge to pin the crosshair and open a buy/sell limit menu at that price."
         />
         {overlays.crosshairButton.enabled && (
-          <>
-            <ToggleRow
-              label="Ring"
-              checked={overlays.crosshairButton.ring}
-              onChange={(ring) => overlays.setCrosshairButton({ ...overlays.crosshairButton, ring })}
-              title="Draw a circle around the plus glyph."
+          <Row label="Corner">
+            <input
+              type="number"
+              min={0}
+              max={20}
+              step={1}
+              value={overlays.crosshairButton.cornerRadius}
+              onChange={(e) => {
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n)) return;
+                overlays.setCrosshairButton({
+                  ...overlays.crosshairButton,
+                  cornerRadius: Math.min(20, Math.max(0, n)),
+                });
+              }}
+              style={numInput}
+              title="Badge corner radius in px. The chart clamps it to half the badge height, so large values draw a fully rounded pill."
             />
-            <Row label="Corner">
-              <input
-                type="number"
-                min={0}
-                max={10}
-                step={1}
-                value={overlays.crosshairButton.cornerRadius}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (!Number.isFinite(n)) return;
-                  overlays.setCrosshairButton({
-                    ...overlays.crosshairButton,
-                    cornerRadius: Math.min(10, Math.max(0, n)),
-                  });
-                }}
-                style={numInput}
-                title="Container corner radius in px. The chart clamps it to half the size (a circle)."
-              />
-            </Row>
-            <Row label="Size">
-              <input
-                type="number"
-                min={16}
-                max={28}
-                step={1}
-                value={overlays.crosshairButton.size}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (!Number.isFinite(n)) return;
-                  overlays.setCrosshairButton({
-                    ...overlays.crosshairButton,
-                    size: Math.min(28, Math.max(16, Math.round(n))),
-                  });
-                }}
-                style={numInput}
-                title="Square container side in px."
-              />
-            </Row>
-            <Row label="Background">
-              <select
-                value={overlays.crosshairButton.background}
-                onChange={(e) =>
-                  overlays.setCrosshairButton({
-                    ...overlays.crosshairButton,
-                    background: e.target.value as CrosshairButtonBackground,
-                  })
-                }
-                style={select}
-              >
-                {CROSSHAIR_BUTTON_BACKGROUNDS.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </Row>
-          </>
+          </Row>
         )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button

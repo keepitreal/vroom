@@ -102,11 +102,17 @@ export type VroomTheme = {
   /**
    * Axis label size in integer CSS px, clamped to 10–14. Omit for 11.
    *
-   * Shared by the price ticks, the time labels, the current-price badge, the
-   * crosshair badges, and the labels in indicator panes (RSI, MACD, ATR).
-   * Price-line pills follow this size when `priceLinesStyle.fontSize` is omitted.
+   * Shared by the price ticks, the time labels and the labels in indicator
+   * panes (RSI, MACD, ATR). Badges follow it too unless `badgeFontSize` is set.
    */
   axisFontSize?: number;
+  /**
+   * Text size on filled badges in integer CSS px, clamped to 10–14: the
+   * current-price badge, the crosshair's price and time badges, and price-line
+   * pills (unless `priceLinesStyle.fontSize` sets their own). Omit or pass 0 to
+   * follow `axisFontSize`.
+   */
+  badgeFontSize?: number;
   /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads
@@ -940,7 +946,8 @@ export type PriceLinesStyle = {
   bodyBackground?: VroomColor;
   /**
    * Label font size in integer CSS px, clamped to 10–14. Omit to follow
-   * `theme.axisFontSize` (11px by default, also clamped into that range).
+   * `theme.badgeFontSize`, which itself defaults to `theme.axisFontSize` (11px
+   * by default, also clamped into that range).
    */
   fontSize?: number;
   /**
@@ -1083,39 +1090,29 @@ export type FootprintEvent = {
 };
 
 /**
- * The crosshair plus button: a small button on the crosshair's horizontal line,
- * directly left of the price badge — TradingView's order-entry affordance.
+ * The crosshair plus button: a "+" drawn inside the crosshair's price badge,
+ * turning the whole badge into a button — the order-entry affordance.
  *
- * Opt-in: nothing renders unless `enabled` is true. Clicking (or tapping) it
- * locks the crosshair at that price and fires `onCrosshairButton`, which is
- * where your own UI (e.g. "Buy limit" / "Sell limit") comes in. Every style
- * field is optional.
+ * Opt-in: nothing renders unless `enabled` is true. The badge takes its fill
+ * and text color from the theme (`theme.crosshairTarget` / `theme.badgeText`)
+ * and grows leftward to fit the plus, so the price stays in the y-axis column.
+ * Clicking (or tapping) anywhere on it locks the crosshair at that price and
+ * fires `onCrosshairButton`, which is where your own UI (e.g. "Buy limit" /
+ * "Sell limit") comes in.
  */
 export type CrosshairButtonConfig = {
-  /** Show the button. Default false. */
+  /** Show the plus inside the crosshair price badge. Default false. */
   enabled?: boolean;
-  /** Side of the square container in px. Default 20. */
-  size?: number;
   /**
-   * Container corner radius in px, clamped to 0..size/2. Default 4. `size / 2`
-   * draws a circle; 0 draws square corners.
+   * Badge corner radius in px, clamped to 0..height/2. Default 6 (the plain
+   * badge's radius). Any value at or above half the height draws a fully
+   * rounded pill.
    */
   cornerRadius?: number;
-  /** Container fill. Defaults to the price badge's fill (`theme.crosshairTarget`). */
-  background?: VroomColor;
-  /** Plus glyph color. Defaults to the badge text color (`theme.badgeText`). */
-  iconColor?: VroomColor;
-  /** Plus glyph stroke width in px. Default 1.5. */
-  iconStrokeWidth?: number;
-  /** Draw a circle around the plus, TradingView style. Default true. */
-  ring?: boolean;
-  /** Ring color. Defaults to `iconColor`. */
-  ringColor?: VroomColor;
-  /** Gap between the button and the price badge in px. Default 4. */
-  gap?: number;
   /**
-   * How much the hovered button brightens, as a channel multiplier. 1 disables
-   * the highlight. Default 1.25. Web only — touch platforms have no hover state.
+   * How much the hovered (or open) badge brightens, as a channel multiplier.
+   * 1 disables the highlight. Default 1.25. Hover is web only — touch platforms
+   * only see the open state.
    */
   hoverBoost?: number;
 };
@@ -1158,7 +1155,7 @@ export type CrosshairButtonEvent = {
    * candle, or an empty future slot. Null on close.
    */
   timeMs: number | null;
-  /** The button's rect. Null on close. */
+  /** The price badge's rect, plus included — the whole clickable area. Null on close. */
   button: { left: number; top: number; right: number; bottom: number } | null;
   /** The plot area, for checking your UI fits. Null on close. */
   pane: PlotRect | null;
@@ -1420,7 +1417,8 @@ export type VroomChartCoreProps = {
    */
   onFootprint?: (e: FootprintEvent) => void;
   /**
-   * The crosshair plus button for placing orders from the chart. Off unless
+   * The crosshair plus button (a "+" inside the crosshair price badge) for
+   * placing orders from the chart. Off unless
    * `enabled` is true. See {@link CrosshairButtonConfig}.
    */
   crosshairButton?: CrosshairButtonConfig;

@@ -5,59 +5,72 @@
 using vroom::crosshair_button::Rect;
 
 namespace {
-VroomCrosshairButtonStyle style_with(float size, float radius) {
+VroomCrosshairButtonStyle style_with(float radius) {
     VroomCrosshairButtonStyle s{};
     s.enabled = 1;
-    s.size_px = size;
     s.corner_radius_px = radius;
-    s.gap_px = -1.f;
     return vroom::crosshair_button::resolve(s);
 }
 }  // namespace
 
 TEST_CASE("crosshair_button::resolve") {
     SUBCASE("sentinels fall back to defaults") {
-        VroomCrosshairButtonStyle in{};
-        in.corner_radius_px = -1.f;
-        in.gap_px = -1.f;
-        const auto s = vroom::crosshair_button::resolve(in);
-        CHECK(s.size_px == doctest::Approx(20.f));
-        CHECK(s.corner_radius_px == doctest::Approx(4.f));
-        CHECK(s.icon_stroke_px == doctest::Approx(1.5f));
-        CHECK(s.gap_px == doctest::Approx(4.f));
+        const auto s = style_with(-1.f);
+        CHECK(s.corner_radius_px == doctest::Approx(6.f));
         CHECK(s.hover_boost == doctest::Approx(1.25f));
     }
 
-    SUBCASE("size is clamped and the radius never exceeds a circle") {
-        CHECK(style_with(4.f, 0.f).size_px == doctest::Approx(12.f));
-        CHECK(style_with(100.f, 0.f).size_px == doctest::Approx(48.f));
-        CHECK(style_with(20.f, 50.f).corner_radius_px == doctest::Approx(10.f));
-        CHECK(style_with(20.f, 0.f).corner_radius_px == doctest::Approx(0.f));
+    SUBCASE("explicit values are kept") {
+        VroomCrosshairButtonStyle in{};
+        in.corner_radius_px = 0.f;
+        in.hover_boost = 1.f;
+        const auto s = vroom::crosshair_button::resolve(in);
+        CHECK(s.corner_radius_px == doctest::Approx(0.f));
+        CHECK(s.hover_boost == doctest::Approx(1.f));
     }
 }
 
-TEST_CASE("crosshair_button::button_rect") {
-    const auto s = style_with(20.f, 4.f);  // gap 4
+TEST_CASE("crosshair_button::corner_radius") {
+    CHECK(vroom::crosshair_button::corner_radius(style_with(-1.f), 20.f) ==
+          doctest::Approx(6.f));
+    CHECK(vroom::crosshair_button::corner_radius(style_with(999.f), 20.f) ==
+          doctest::Approx(10.f));
+    CHECK(vroom::crosshair_button::corner_radius(style_with(0.f), 20.f) ==
+          doctest::Approx(0.f));
+}
 
-    SUBCASE("sits left of the anchor, centered on the line") {
-        const Rect r = vroom::crosshair_button::button_rect(500.f, 200.f, 0.f, 400.f, s);
-        CHECK(r.right == doctest::Approx(496.f));
+TEST_CASE("crosshair_button::pill_rect") {
+    // Text spans 500..560; 10px plus, 8px pad, 6px gap, 20px tall.
+    const Rect r =
+        vroom::crosshair_button::pill_rect(500.f, 560.f, 200.f, 20.f, 10.f, 8.f, 6.f);
+
+    SUBCASE("keeps the text in place and grows leftward for the plus") {
+        CHECK(r.right == doctest::Approx(568.f));
         CHECK(r.left == doctest::Approx(476.f));
         CHECK(r.top == doctest::Approx(190.f));
         CHECK(r.bottom == doctest::Approx(210.f));
+        CHECK(vroom::crosshair_button::plus_center_x(r, 10.f, 8.f) ==
+              doctest::Approx(489.f));
     }
 
-    SUBCASE("stays inside the pane near its edges") {
-        const Rect top = vroom::crosshair_button::button_rect(500.f, 3.f, 0.f, 400.f, s);
-        CHECK(top.top == doctest::Approx(0.f));
-        const Rect bot = vroom::crosshair_button::button_rect(500.f, 399.f, 0.f, 400.f, s);
-        CHECK(bot.bottom == doctest::Approx(400.f));
+    SUBCASE("no glyph and no gap is the plain badge") {
+        const Rect plain = vroom::crosshair_button::pill_rect(500.f, 560.f, 200.f,
+                                                              20.f, 0.f, 8.f, 0.f);
+        CHECK(plain.left == doctest::Approx(492.f));
+        CHECK(plain.right == doctest::Approx(568.f));
     }
 
-    SUBCASE("contains") {
-        const Rect r = vroom::crosshair_button::button_rect(500.f, 200.f, 0.f, 400.f, s);
-        CHECK(vroom::crosshair_button::contains(r, 486.f, 200.f));
+    SUBCASE("plus-only pill ends at the anchor") {
+        const Rect only = vroom::crosshair_button::pill_rect(592.f, 592.f, 200.f,
+                                                             20.f, 10.f, 8.f, 0.f);
+        CHECK(only.right == doctest::Approx(600.f));
+        CHECK(only.left == doctest::Approx(574.f));
+    }
+
+    SUBCASE("contains covers the plus and the price") {
+        CHECK(vroom::crosshair_button::contains(r, 489.f, 200.f));
+        CHECK(vroom::crosshair_button::contains(r, 540.f, 200.f));
         CHECK_FALSE(vroom::crosshair_button::contains(r, 470.f, 200.f));
-        CHECK_FALSE(vroom::crosshair_button::contains(r, 486.f, 215.f));
+        CHECK_FALSE(vroom::crosshair_button::contains(r, 540.f, 215.f));
     }
 }

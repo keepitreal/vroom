@@ -436,14 +436,7 @@ function crosshairButtonToSpec(
 ): CrosshairButtonSpec {
   return {
     enabled: cfg?.enabled ?? false,
-    sizePx: cfg?.size ?? 0,
     cornerRadiusPx: cfg?.cornerRadius ?? -1,
-    bg: inheritColor(cfg?.background),
-    icon: inheritColor(cfg?.iconColor),
-    iconStrokePx: cfg?.iconStrokeWidth ?? 0,
-    ring: cfg?.ring ?? true,
-    ringColor: inheritColor(cfg?.ringColor),
-    gapPx: cfg?.gap ?? -1,
     hoverBoost: cfg?.hoverBoost ?? 0,
   };
 }

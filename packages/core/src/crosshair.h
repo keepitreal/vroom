@@ -49,9 +49,9 @@ float line_y(const VroomChart& chart,
              const vroom::PriceBounds& bounds,
              float candle_area_h);
 
-// Where the plus button draws, from the same measurements as `draw`. False when
-// the button is disabled or the crosshair is down. `price` (optional) gets the
-// price at the line.
+// The plus button's rect — the whole merged price badge — from the same
+// measurements as `draw`. False when the button is disabled or the crosshair is
+// down. `price` (optional) gets the price at the line.
 bool button_rect(const VroomChart& chart,
                  const vroom::Layout& lay,
                  const vroom::PriceBounds& bounds,

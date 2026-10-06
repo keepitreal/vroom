@@ -25,7 +25,6 @@ import {
 } from '@vroomchart/react';
 import {
   Sidebar,
-  type CrosshairButtonBackground,
   type CrosshairButtonChoice,
   type PriceLineStyleChoice,
 } from './Sidebar';
@@ -74,14 +73,11 @@ const PRICE_SCALE_KEY = 'vroom-price-scale';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
 const TRANSITION_EASING_KEY = 'vroom-transition-easing';
 const SIDEBAR_KEY = 'vroom-sidebar';
-const CROSSHAIR_BUTTON_KEY = 'vroom-crosshair-button';
+const CROSSHAIR_BUTTON_KEY = 'vroom-crosshair-button-v2';
 
 const DEFAULT_CROSSHAIR_BUTTON: CrosshairButtonChoice = {
   enabled: false,
-  ring: true,
-  cornerRadius: 4,
-  size: 20,
-  background: 'theme',
+  cornerRadius: 6,
 };
 
 function loadCrosshairButton(): CrosshairButtonChoice {
@@ -93,14 +89,6 @@ function loadCrosshairButton(): CrosshairButtonChoice {
     return DEFAULT_CROSSHAIR_BUTTON;
   }
 }
-
-// 'theme' is left unset so the chart's crosshair color shows through.
-const CROSSHAIR_BUTTON_BG: Record<CrosshairButtonBackground, string | undefined> = {
-  theme: undefined,
-  blue: '#2962ff',
-  green: '#26a69a',
-  slate: '#363c4e',
-};
 
 const EASINGS: readonly TransitionEasing[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
@@ -717,6 +705,8 @@ export function App() {
   const [candleWidth, setCandleWidth] = useState(loadCandleWidth);
   // 11px is the size the axis labels already render at when axisFontSize is omitted.
   const [axisFontSize, setAxisFontSize] = useState(11);
+  // Every badge's text (crosshair, current price, price-line pills); 11 matches the axis default.
+  const [badgeFontSize, setBadgeFontSize] = useState(11);
   // Price-series render style (candles vs line), persisted.
   const [chartType, setChartType] = useState<ChartType>(() =>
     typeof window !== 'undefined' && window.localStorage.getItem(CHART_TYPE_KEY) === 'line'
@@ -790,8 +780,6 @@ export function App() {
   // rather than to the state above, so switching styles mid-drag doesn't
   // overwrite the price being dragged.
   const [priceLineStyle, setPriceLineStyle] = useState<PriceLineStyleChoice>('mixed');
-  // 11px is the axis size the labels already render at when fontSize is omitted.
-  const [priceLineFontSize, setPriceLineFontSize] = useState(11);
   // 6px is the pill radius the labels already render with when cornerRadius is omitted.
   const [priceLineCornerRadius, setPriceLineCornerRadius] = useState(6);
   const styledPriceLines = useMemo(
@@ -809,7 +797,6 @@ export function App() {
     ? {
         priceLines: allPriceLines,
         priceLinesStyle: {
-          fontSize: priceLineFontSize,
           cornerRadius: priceLineCornerRadius,
         },
         onPriceLineDrag,
@@ -864,10 +851,7 @@ export function App() {
   const crosshairButtonConfig = useMemo<CrosshairButtonConfig>(
     () => ({
       enabled: crosshairButton.enabled,
-      ring: crosshairButton.ring,
       cornerRadius: crosshairButton.cornerRadius,
-      size: crosshairButton.size,
-      background: CROSSHAIR_BUTTON_BG[crosshairButton.background],
     }),
     [crosshairButton],
   );
@@ -1152,6 +1136,7 @@ export function App() {
       ...theme,
       wickWidth,
       axisFontSize,
+      badgeFontSize,
       candleRadius,
       wickRoundCap,
       lineTension,
@@ -1164,6 +1149,7 @@ export function App() {
       theme,
       wickWidth,
       axisFontSize,
+      badgeFontSize,
       candleRadius,
       wickRoundCap,
       lineTension,
@@ -1411,7 +1397,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, axisFontSize, setAxisFontSize }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,
@@ -1457,7 +1443,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, priceLineFontSize, setPriceLineFontSize, priceLineCornerRadius, setPriceLineCornerRadius, showFootprints, setShowFootprints, crosshairButton, setCrosshairButton, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, priceLineCornerRadius, setPriceLineCornerRadius, showFootprints, setShowFootprints, crosshairButton, setCrosshairButton, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

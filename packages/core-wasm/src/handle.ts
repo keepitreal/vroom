@@ -49,6 +49,7 @@ export enum FloatKey {
   LineTension = 13,
   LineTipDot = 14,
   LineTipPulse = 15,
+  BadgeFontSize = 16,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
@@ -487,21 +488,8 @@ export type FootprintHit = {
 /** The crosshair plus button's style, in the core's numeric encoding. */
 export type CrosshairButtonSpec = {
   enabled: boolean;
-  /** Container side in px; <= 0 = default 20, clamped to 12–48. */
-  sizePx: number;
-  /** < 0 = default 4; clamped to 0..size/2. */
+  /** Badge corner radius; < 0 = default 6, clamped to 0..height/2. */
   cornerRadiusPx: number;
-  /** Container fill, 0xAARRGGBB; 0 = the theme's crosshair target color. */
-  bg: number;
-  /** Plus glyph color; 0 = the theme's badge text color. */
-  icon: number;
-  /** Plus stroke width; <= 0 = 1.5. */
-  iconStrokePx: number;
-  ring: boolean;
-  /** 0 = the icon color. */
-  ringColor: number;
-  /** Gap to the price badge; < 0 = 4. */
-  gapPx: number;
   /** Brightness multiplier while hovered or open; <= 0 = 1.25. */
   hoverBoost: number;
 };

@@ -25,6 +25,7 @@ export const COLOR_KEYS: Partial<Record<keyof VroomTheme, ColorKey>> = {
 // Maps each numeric VroomTheme field to its FloatKey.
 export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   axisFontSize: FloatKey.AxisFontSize,
+  badgeFontSize: FloatKey.BadgeFontSize,
   wickWidth: FloatKey.WickWidth,
   candleRadius: FloatKey.CandleRadius,
   volumeRadius: FloatKey.VolumeRadius,
