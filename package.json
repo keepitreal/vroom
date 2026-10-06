@@ -23,7 +23,7 @@
     "@changesets/cli": "^2.31.1"
   },
   "pnpm": {
-    "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check). The scoped @expo/plist override is a floor too, not an exemption: @expo/plist@0.8.1 declares ^0.8.8 and calls parseFromString() without a mimeType, which 0.9.x rejects (it breaks `expo prebuild`), so it gets 0.8.15 — the patched release of the 0.8 line, which fixes every advisory 0.9.12 does. Drop it once @expo/plist moves to 0.9.x.",
+    "//": "Security floors for transitives stuck behind docusaurus/expo/tsup parents. Each override is temporary — delete it once the parent ships a fixed range (pnpm why <pkg> to check). The scoped @expo/plist override is a floor too, not an exemption: @expo/plist@0.8.1 declares ^0.8.8 and calls parseFromString() without a mimeType, which 0.9.x rejects (it breaks `expo prebuild`), so it gets 0.8.15 — the patched release of the 0.8 line, which fixes every advisory 0.9.12 does. Drop it once @expo/plist moves to 0.9.x. The scoped @docusaurus/core>tinypool override crosses a major: @docusaurus/core (through 3.10.2) declares ^1.0.2 and no 1.x is patched. Its SSG pool only uses options 2.x still supports and loads it via dynamic import(), so ESM-only 2.x works (verified with DOCUSAURUS_SSG_WORKER_THREADS=2). Drop it once docusaurus moves to tinypool 2.",
     "onlyBuiltDependencies": [
       "esbuild"
     ],
@@ -60,7 +60,11 @@
       "webpack-dev-server": ">=5.2.6 <6",
       "body-parser": ">=1.20.6 <2",
       "uuid": ">=11.1.1",
-      "browserslist": ">=4.28.7"
+      "browserslist": ">=4.28.7",
+      "proxy-addr": ">=2.0.8 <3",
+      "compression": ">=1.8.2 <2",
+      "source-map-js": ">=1.2.2 <2",
+      "@docusaurus/core>tinypool": ">=2.1.2 <3"
     }
   }
 }
