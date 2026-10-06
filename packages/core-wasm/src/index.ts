@@ -53,6 +53,8 @@ export type {
   FootprintSpec,
   FootprintsSpec,
   FootprintHit,
+  CrosshairButtonHit,
+  CrosshairButtonSpec,
   Coord,
   RectPx,
 } from './handle';

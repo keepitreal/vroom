@@ -353,6 +353,40 @@ typedef struct VroomPriceLineStyle {
     float    corner_radius_px;  // < 0 = default 6px; otherwise clamped to 0–6
 } VroomPriceLineStyle;
 
+// ---- Crosshair plus button (order entry) ----------------------------------
+
+// The button on the crosshair's horizontal line, directly left of the price
+// badge. Off unless `enabled`. Colors are 0xAARRGGBB; 0 inherits from the theme.
+typedef struct VroomCrosshairButtonStyle {
+    int32_t  enabled;           // 0 = hidden (default), 1 = shown with the crosshair
+    float    size_px;           // square container side; <= 0 => 20, clamped to 12–48
+    float    corner_radius_px;  // < 0 => 4; clamped to 0..size/2 (size/2 = circle)
+    uint32_t bg;                // container fill; 0 => crosshair target color
+    uint32_t icon;              // plus glyph color; 0 => badge text color
+    float    icon_stroke_px;    // plus glyph stroke; <= 0 => 1.5
+    int32_t  ring;              // 1 = circle around the plus, 0 = bare plus
+    uint32_t ring_color;        // 0 => the icon color
+    float    gap_px;            // gap to the price badge; < 0 => 4
+    float    hover_boost;       // brightness multiplier when hovered; <= 0 => 1.25
+} VroomCrosshairButtonStyle;
+
+// The button's on-screen geometry, as reported by
+// vroom_chart_get_crosshair_button / vroom_chart_hit_test_crosshair_button.
+// Same px space as the hit test.
+typedef struct VroomCrosshairButtonHit {
+    float   left;
+    float   top;
+    float   right;
+    float   bottom;
+    double  price;    // price at the crosshair's horizontal line
+    int64_t time_ms;  // snapped slot under the vertical line (real or future)
+    // The price pane's plot rect, axis strips excluded (see VroomFootprintHit).
+    float   pane_left;
+    float   pane_top;
+    float   pane_right;
+    float   pane_bottom;
+} VroomCrosshairButtonHit;
+
 // ---- Footprints (executed-trade badges) -----------------------------------
 
 typedef enum {
@@ -697,6 +731,31 @@ void vroom_chart_set_crosshair(VroomChart* chart, float x_px, float y_px);
 void vroom_chart_set_crosshair_data(VroomChart* chart, int64_t time_ms, double price);
 
 void vroom_chart_clear_crosshair(VroomChart* chart);
+
+// Replaces the crosshair plus button's style (see VroomCrosshairButtonStyle).
+// A null style hides it.
+void vroom_chart_set_crosshair_button(VroomChart* chart,
+                                      const VroomCrosshairButtonStyle* style);
+
+// Hover highlight and pinned (open) state, both driven by the host's gesture
+// layer. Pinning locks the crosshair to the price under it at that moment: the
+// horizontal line and button then follow that price through re-fits of the
+// price axis until unpinned. Unpinning, set_crosshair and clear_crosshair all
+// release the lock.
+void vroom_chart_set_crosshair_button_state(VroomChart* chart, int32_t hovered,
+                                            int32_t pinned);
+
+// Fills *out with the button's current geometry and returns true. False (out
+// untouched) when the button is disabled, the crosshair is down, or there are no
+// candles to place it against.
+bool vroom_chart_get_crosshair_button(VroomChart* chart,
+                                      VroomCrosshairButtonHit* out);
+
+// Like vroom_chart_get_crosshair_button, but only returns true when pixel
+// (x_px, y_px) falls on the button.
+bool vroom_chart_hit_test_crosshair_button(VroomChart* chart, float x_px,
+                                           float y_px,
+                                           VroomCrosshairButtonHit* out);
 
 // Fills *out with the OHLCV of the candle the crosshair currently snaps to and
 // returns true. Returns false (leaving *out untouched) when the crosshair is

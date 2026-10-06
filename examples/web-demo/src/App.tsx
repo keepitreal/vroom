@@ -3,6 +3,8 @@ import {
   VroomChart,
   type Candle,
   type CrosshairEvent,
+  type CrosshairButtonConfig,
+  type CrosshairButtonEvent,
   type ChartMode,
   type ChartType,
   type PriceScaleMode,
@@ -21,7 +23,12 @@ import {
   type UndoRedoControls,
   type UndoRedoState,
 } from '@vroomchart/react';
-import { Sidebar, type PriceLineStyleChoice } from './Sidebar';
+import {
+  Sidebar,
+  type CrosshairButtonBackground,
+  type CrosshairButtonChoice,
+  type PriceLineStyleChoice,
+} from './Sidebar';
 import { SelectionTray } from './SelectionTray';
 import { SettingsModal, DEFAULT_THEME, type ThemeState, type NumericStyle } from './SettingsModal';
 import {
@@ -67,6 +74,33 @@ const PRICE_SCALE_KEY = 'vroom-price-scale';
 const TRANSITION_MS_KEY = 'vroom-transition-ms';
 const TRANSITION_EASING_KEY = 'vroom-transition-easing';
 const SIDEBAR_KEY = 'vroom-sidebar';
+const CROSSHAIR_BUTTON_KEY = 'vroom-crosshair-button';
+
+const DEFAULT_CROSSHAIR_BUTTON: CrosshairButtonChoice = {
+  enabled: false,
+  ring: true,
+  cornerRadius: 4,
+  size: 20,
+  background: 'theme',
+};
+
+function loadCrosshairButton(): CrosshairButtonChoice {
+  if (typeof window === 'undefined') return DEFAULT_CROSSHAIR_BUTTON;
+  try {
+    const raw = window.localStorage.getItem(CROSSHAIR_BUTTON_KEY);
+    return raw ? { ...DEFAULT_CROSSHAIR_BUTTON, ...JSON.parse(raw) } : DEFAULT_CROSSHAIR_BUTTON;
+  } catch {
+    return DEFAULT_CROSSHAIR_BUTTON;
+  }
+}
+
+// 'theme' is left unset so the chart's crosshair color shows through.
+const CROSSHAIR_BUTTON_BG: Record<CrosshairButtonBackground, string | undefined> = {
+  theme: undefined,
+  blue: '#2962ff',
+  green: '#26a69a',
+  slate: '#363c4e',
+};
 
 const EASINGS: readonly TransitionEasing[] = ['linear', 'ease-in', 'ease-out', 'ease-in-out'];
 
@@ -546,6 +580,58 @@ function FootprintTooltip({
   );
 }
 
+// The order-entry menu the *host* renders when the crosshair's plus button is
+// clicked — vroom only reports the price and where the button sits. Parked
+// directly left of the button, vertically centered on it.
+const ORDER_MENU_GAP = 6;
+
+function OrderMenu({
+  menu,
+  onPick,
+}: {
+  menu: { price: number; button: { left: number; top: number; bottom: number } } | null;
+  onPick: (side: 'buy' | 'sell', price: number) => void;
+}) {
+  if (!menu) return null;
+  const { price, button } = menu;
+  const item = (side: 'buy' | 'sell'): CSSProperties => ({
+    background: 'transparent',
+    color: side === 'buy' ? '#26a69a' : '#ef5350',
+    border: 'none',
+    borderRadius: 4,
+    padding: '5px 10px',
+    font: '12px ui-sans-serif, system-ui, sans-serif',
+    textAlign: 'left',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  });
+  return (
+    <div
+      data-testid="order-menu"
+      style={{
+        position: 'absolute',
+        left: button.left - ORDER_MENU_GAP,
+        top: (button.top + button.bottom) / 2,
+        transform: 'translate(-100%, -50%)',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#161b22f2',
+        border: '1px solid #30363d',
+        borderRadius: 8,
+        padding: 4,
+        boxShadow: '0 6px 20px #0008',
+      }}
+    >
+      <button style={item('buy')} onClick={() => onPick('buy', price)}>
+        Buy limit @ {price.toFixed(2)}
+      </button>
+      <button style={item('sell')} onClick={() => onPick('sell', price)}>
+        Sell limit @ {price.toFixed(2)}
+      </button>
+    </div>
+  );
+}
+
 // Shared toolbar button style.
 const toolBtn: CSSProperties = {
   background: 'transparent',
@@ -682,17 +768,22 @@ export function App() {
   const onPriceLineDrag = useCallback((id: string, price: number) => {
     setReadout(`dragging ${id} → ${price.toFixed(2)}`);
   }, []);
+  // Orders placed from the crosshair's plus button. Kept apart from the sample
+  // lines so they survive toggling those off.
+  const [orders, setOrders] = useState<DemoPriceLine[]>([]);
   const onPriceLineDragEnd = useCallback((id: string, price: number) => {
     setReadout(`moved ${id} to ${price.toFixed(2)}`);
-    setPriceLines((prev) =>
+    const move = (prev: DemoPriceLine[]) =>
       prev.map((l) =>
         l.id === id ? { ...l, price, text: priceLineText(l.label, price) } : l,
-      ),
-    );
+      );
+    setPriceLines(move);
+    setOrders(move);
   }, []);
   const onPriceLineClose = useCallback((id: string) => {
     setReadout(`cancelled ${id}`);
     setPriceLines((prev) => prev.filter((l) => l.id !== id));
+    setOrders((prev) => prev.filter((l) => l.id !== id));
   }, []);
   // Forces one style onto every line so the three can be compared directly;
   // 'mixed' leaves each sample's own lineStyle alone. Applied on the way out
@@ -710,9 +801,13 @@ export function App() {
         : priceLines.map((l) => ({ ...l, lineStyle: priceLineStyle })),
     [priceLines, priceLineStyle],
   );
-  const priceLineProps = showPriceLines
+  const allPriceLines = useMemo(
+    () => [...(showPriceLines ? styledPriceLines : []), ...orders],
+    [showPriceLines, styledPriceLines, orders],
+  );
+  const priceLineProps = allPriceLines.length > 0
     ? {
-        priceLines: styledPriceLines,
+        priceLines: allPriceLines,
         priceLinesStyle: {
           fontSize: priceLineFontSize,
           cornerRadius: priceLineCornerRadius,
@@ -755,6 +850,62 @@ export function App() {
     });
   }, []);
   const footprintProps = showFootprints ? { footprints, onFootprint } : {};
+
+  // Crosshair plus button. The chart draws the button and pins the crosshair on
+  // click; the menu is this demo's. Settings persist across reloads.
+  const [crosshairButton, setCrosshairButton] = useState(loadCrosshairButton);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CROSSHAIR_BUTTON_KEY, JSON.stringify(crosshairButton));
+    } catch {
+      // storage unavailable — the setting just won't persist
+    }
+  }, [crosshairButton]);
+  const crosshairButtonConfig = useMemo<CrosshairButtonConfig>(
+    () => ({
+      enabled: crosshairButton.enabled,
+      ring: crosshairButton.ring,
+      cornerRadius: crosshairButton.cornerRadius,
+      size: crosshairButton.size,
+      background: CROSSHAIR_BUTTON_BG[crosshairButton.background],
+    }),
+    [crosshairButton],
+  );
+  const [orderMenu, setOrderMenu] = useState<{
+    price: number;
+    button: { left: number; top: number; bottom: number };
+    close: () => void;
+  } | null>(null);
+  const onCrosshairButton = useCallback((e: CrosshairButtonEvent) => {
+    if (!e.open || e.price == null || !e.button) {
+      setOrderMenu(null);
+      return;
+    }
+    setOrderMenu({ price: e.price, button: e.button, close: e.close });
+  }, []);
+  const orderSeq = useRef(0);
+  const onPickOrder = useCallback(
+    (side: 'buy' | 'sell', price: number) => {
+      const label = side === 'buy' ? 'Buy Limit' : 'Sell Limit';
+      const id = `order-${++orderSeq.current}`;
+      setOrders((prev) => [
+        ...prev,
+        {
+          id,
+          label,
+          price,
+          text: priceLineText(label, price),
+          quantity: '1.00',
+          color: side === 'buy' ? '#26a69a' : '#ef5350',
+          draggable: true,
+          lineStyle: 'dashed',
+        },
+      ]);
+      setReadout(`placed ${id}: ${label} @ ${price.toFixed(2)}`);
+      orderMenu?.close();
+    },
+    [orderMenu],
+  );
 
   // Layout: single chart, or two stacked crosshair-linked panes (replaces the
   // old Sync view). Sidebar expand/collapse is persisted.
@@ -1248,10 +1399,13 @@ export function App() {
                 {...footprintProps}
                 {...indicatorProps}
                 {...drawProps}
+                crosshairButton={crosshairButtonConfig}
+                onCrosshairButton={onCrosshairButton}
                 onCrosshair={onPrimaryCrosshair}
               />
               <SelectionTray selection={selection} controls={historyRef} />
               <FootprintTooltip hover={footprintHover} />
+              <OrderMenu menu={orderMenu} onPick={onPickOrder} />
             </div>
           )}
         </div>
@@ -1303,7 +1457,7 @@ export function App() {
               setStreamMode,
               count: candles.length,
             }}
-            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, priceLineFontSize, setPriceLineFontSize, priceLineCornerRadius, setPriceLineCornerRadius, showFootprints, setShowFootprints, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
+            overlays={{ showLiquidity, setShowLiquidity, bandHeight, setBandHeight, showPriceLines, setShowPriceLines, priceLineStyle, setPriceLineStyle, priceLineFontSize, setPriceLineFontSize, priceLineCornerRadius, setPriceLineCornerRadius, showFootprints, setShowFootprints, crosshairButton, setCrosshairButton, drawMode, drawTool, toggleLineTool, toggleBoxTool, togglePencilTool, togglePathTool, history, undoDrawing, redoDrawing }}
             panels={{
               activeCount,
               openIndicators: () => setIndicatorsOpen(true),

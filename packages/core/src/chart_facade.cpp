@@ -12,6 +12,7 @@
 #include <limits>
 
 #include "chart.h"
+#include "crosshair.h"
 #include "drawings.h"
 #include "footprints.h"
 #include "labels.h"
@@ -954,6 +955,7 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
 extern "C" void vroom_chart_set_crosshair(VroomChart* chart, float x, float y) {
     if (!chart) return;
     chart->crosshair_active = true;
+    chart->crosshair_pinned = false;
     chart->crosshair_x_px = x;
     chart->crosshair_y_px = y;
     chart->mark_dirty();
@@ -976,6 +978,7 @@ extern "C" void vroom_chart_set_crosshair_data(VroomChart* chart,
             : vroom::auto_price_bounds(chart->candles.data() + range.start, n,
                                        chart->price_bounds.log);
     chart->crosshair_active = true;
+    chart->crosshair_pinned = false;
     chart->crosshair_x_px =
         vroom::x_at_time(lay, chart->visible_start_ms, window_ms, time_ms);
     chart->crosshair_y_px = vroom::price_to_y(lay, bounds, price);
@@ -985,6 +988,8 @@ extern "C" void vroom_chart_set_crosshair_data(VroomChart* chart,
 extern "C" void vroom_chart_clear_crosshair(VroomChart* chart) {
     if (!chart) return;
     chart->crosshair_active = false;
+    chart->crosshair_pinned = false;
+    chart->crosshair_button_hovered = false;
     chart->mark_dirty();
 }
 
@@ -1037,9 +1042,115 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
         chart->price_bounds_manual
             ? chart->price_bounds
             : vroom::auto_price_bounds(visible, n, chart->price_bounds.log);
-    out->price = vroom::y_to_price(lay, bounds, chart->crosshair_y_px);
+    out->price = vroom::y_to_price(
+        lay, bounds,
+        vroom::crosshair::line_y(*chart, lay, bounds,
+                                 vroom::price_pane_bottom(lay)));
     out->has_candle = snap.has_candle;
     if (snap.has_candle) out->candle = visible[snap.index];
+    return true;
+}
+
+// ---- Crosshair plus button ------------------------------------------------
+
+extern "C" void vroom_chart_set_crosshair_button(
+    VroomChart* chart, const VroomCrosshairButtonStyle* style) {
+    if (!chart) return;
+    chart->crosshair_button_style =
+        style ? vroom::crosshair_button::resolve(*style)
+              : VroomCrosshairButtonStyle{};
+    if (!chart->crosshair_button_style.enabled) {
+        chart->crosshair_button_hovered = false;
+        chart->crosshair_pinned = false;
+    }
+    chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_set_crosshair_button_state(VroomChart* chart,
+                                                       int32_t hovered,
+                                                       int32_t pinned) {
+    if (!chart) return;
+    const bool pin = pinned != 0 && chart->crosshair_active;
+    if (pin != chart->crosshair_pinned && !chart->candles.empty()) {
+        // Same bounds as draw_chart, so the line neither jumps when the lock
+        // takes hold nor when it releases.
+        const auto lay = chart->layout();
+        const auto range = vroom::visible_indices(
+            chart->candles.data(), chart->candles.size(),
+            chart->visible_start_ms, chart->visible_end_ms);
+        const auto bounds =
+            chart->price_bounds_manual
+                ? chart->price_bounds
+                : vroom::auto_price_bounds(chart->candles.data() + range.start,
+                                           range.end - range.start,
+                                           chart->price_bounds.log);
+        const float y = vroom::crosshair::line_y(
+            *chart, lay, bounds, vroom::price_pane_bottom(lay));
+        if (pin) {
+            chart->crosshair_pin_price = vroom::y_to_price(lay, bounds, y);
+        } else {
+            chart->crosshair_y_px = y;
+        }
+    }
+    chart->crosshair_pinned = pin;
+    chart->crosshair_button_hovered = hovered != 0;
+    chart->mark_dirty();
+}
+
+extern "C" bool vroom_chart_get_crosshair_button(VroomChart* chart,
+                                                 VroomCrosshairButtonHit* out) {
+    if (!chart || !chart->crosshair_active ||
+        !chart->crosshair_button_style.enabled || chart->candles.empty()) {
+        return false;
+    }
+    const auto lay = chart->layout();
+    const auto range = vroom::visible_indices(
+        chart->candles.data(), chart->candles.size(),
+        chart->visible_start_ms, chart->visible_end_ms);
+    const size_t n = range.end - range.start;
+    const int64_t window_ms = chart->visible_end_ms - chart->visible_start_ms;
+    if (n == 0 || window_ms <= 0) return false;
+
+    const ::VroomCandle* visible = chart->candles.data() + range.start;
+    const auto bounds =
+        chart->price_bounds_manual
+            ? chart->price_bounds
+            : vroom::auto_price_bounds(visible, n, chart->price_bounds.log);
+    const float pane_right = vroom::candle_area_width(lay);
+    const float pane_bottom = vroom::price_pane_bottom(lay);
+
+    vroom::crosshair_button::Rect r{};
+    double price = 0.0;
+    if (!vroom::crosshair::button_rect(*chart, lay, bounds, pane_right,
+                                       pane_bottom, &r, &price)) {
+        return false;
+    }
+    if (out) {
+        const vroom::SnapResult snap = vroom::snap_to_slot(
+            lay, visible, n, chart->candle_duration_ms,
+            chart->visible_start_ms, window_ms, chart->crosshair_x_px);
+        out->left = r.left;
+        out->top = r.top;
+        out->right = r.right;
+        out->bottom = r.bottom;
+        out->price = price;
+        out->time_ms = snap.time_ms;
+        out->pane_left = 0.f;
+        out->pane_top = 0.f;
+        out->pane_right = pane_right;
+        out->pane_bottom = pane_bottom;
+    }
+    return true;
+}
+
+extern "C" bool vroom_chart_hit_test_crosshair_button(
+    VroomChart* chart, float x_px, float y_px, VroomCrosshairButtonHit* out) {
+    VroomCrosshairButtonHit hit{};
+    if (!vroom_chart_get_crosshair_button(chart, &hit)) return false;
+    const vroom::crosshair_button::Rect r{hit.left, hit.top, hit.right,
+                                          hit.bottom};
+    if (!vroom::crosshair_button::contains(r, x_px, y_px)) return false;
+    if (out) *out = hit;
     return true;
 }
 

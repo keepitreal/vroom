@@ -94,6 +94,10 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setFootprints"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestFootprint"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFootprintHover"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairButton"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairButtonState"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairButton"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "hitTestCrosshairButton"));
   out.push_back(jsi::PropNameID::forAscii(rt, "render"));
   return out;
 }
@@ -127,6 +131,25 @@ class SkDataMutableBuffer : public facebook::jsi::MutableBuffer {
  private:
   sk_sp<SkData> data_;
 };
+
+jsi::Value crosshairButtonHit(jsi::Runtime& rt,
+                              const VroomCrosshairButtonHit& hit) {
+  jsi::Object pane(rt);
+  pane.setProperty(rt, "left", hit.pane_left);
+  pane.setProperty(rt, "top", hit.pane_top);
+  pane.setProperty(rt, "right", hit.pane_right);
+  pane.setProperty(rt, "bottom", hit.pane_bottom);
+
+  jsi::Object obj(rt);
+  obj.setProperty(rt, "left", hit.left);
+  obj.setProperty(rt, "top", hit.top);
+  obj.setProperty(rt, "right", hit.right);
+  obj.setProperty(rt, "bottom", hit.bottom);
+  obj.setProperty(rt, "price", hit.price);
+  obj.setProperty(rt, "timeMs", static_cast<double>(hit.time_ms));
+  obj.setProperty(rt, "pane", std::move(pane));
+  return obj;
+}
 
 jsi::Value skiaApiObject(jsi::Runtime& rt, const char* name) {
   auto skiaApi = rt.global().getProperty(rt, "SkiaApi");
@@ -1575,6 +1598,101 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
               chart_, static_cast<int64_t>(args[0].asNumber()),
               static_cast<int32_t>(args[1].asNumber()));
           return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setCrosshairButton") {
+    // setCrosshairButton({ enabled, sizePx, cornerRadiusPx, bg, icon,
+    // iconStrokePx, ring, ringColor, gapPx, hoverBoost }) — colors 0xAARRGGBB,
+    // 0 = theme. No render; the next render() picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setCrosshairButton"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto cfg = args[0].asObject(rt2);
+          auto num = [&](const char* key) {
+            return cfg.getProperty(rt2, key).asNumber();
+          };
+          auto flag = [&](const char* key) {
+            return cfg.getProperty(rt2, key).getBool() ? 1 : 0;
+          };
+          VroomCrosshairButtonStyle s{};
+          s.enabled = flag("enabled");
+          s.size_px = static_cast<float>(num("sizePx"));
+          s.corner_radius_px = static_cast<float>(num("cornerRadiusPx"));
+          s.bg = static_cast<uint32_t>(num("bg"));
+          s.icon = static_cast<uint32_t>(num("icon"));
+          s.icon_stroke_px = static_cast<float>(num("iconStrokePx"));
+          s.ring = flag("ring");
+          s.ring_color = static_cast<uint32_t>(num("ringColor"));
+          s.gap_px = static_cast<float>(num("gapPx"));
+          s.hover_boost = static_cast<float>(num("hoverBoost"));
+          vroom_chart_set_crosshair_button(chart_, &s);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setCrosshairButtonState") {
+    // setCrosshairButtonState(hovered, pinned). Pinning locks the crosshair to
+    // the price under it. No render.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setCrosshairButtonState"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_crosshair_button_state(
+              chart_, args[0].getBool() ? 1 : 0, args[1].getBool() ? 1 : 0);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "getCrosshairButton") {
+    // getCrosshairButton() -> { left, top, right, bottom, price, timeMs, pane }
+    // | null.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "getCrosshairButton"),
+        0,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          VroomCrosshairButtonHit hit{};
+          if (!vroom_chart_get_crosshair_button(chart_, &hit)) {
+            return jsi::Value::null();
+          }
+          return crosshairButtonHit(rt2, hit);
+        });
+  }
+
+  if (name == "hitTestCrosshairButton") {
+    // hitTestCrosshairButton(x, y) -> same shape as getCrosshairButton, or null
+    // on a miss.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "hitTestCrosshairButton"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::null();
+          VroomCrosshairButtonHit hit{};
+          if (!vroom_chart_hit_test_crosshair_button(
+                  chart_, static_cast<float>(args[0].asNumber()),
+                  static_cast<float>(args[1].asNumber()), &hit)) {
+            return jsi::Value::null();
+          }
+          return crosshairButtonHit(rt2, hit);
         });
   }
 

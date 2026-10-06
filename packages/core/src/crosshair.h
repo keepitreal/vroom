@@ -10,6 +10,7 @@
 
 #include <cstdint>
 
+#include "crosshair_button.h"
 #include "viewport.h"
 #include "vroom/vroom_chart.h"
 
@@ -40,5 +41,23 @@ void draw(SkCanvas* canvas,
           float vline_bottom,
           float snap_x,
           int64_t snap_time_ms);
+
+// The horizontal line's y: the pinned price's y while the plus button is
+// pinned, the pointer's otherwise; clamped into the price pane.
+float line_y(const VroomChart& chart,
+             const vroom::Layout& lay,
+             const vroom::PriceBounds& bounds,
+             float candle_area_h);
+
+// Where the plus button draws, from the same measurements as `draw`. False when
+// the button is disabled or the crosshair is down. `price` (optional) gets the
+// price at the line.
+bool button_rect(const VroomChart& chart,
+                 const vroom::Layout& lay,
+                 const vroom::PriceBounds& bounds,
+                 float candle_right,
+                 float candle_area_h,
+                 crosshair_button::Rect* out,
+                 double* price);
 
 }  // namespace vroom::crosshair

@@ -33,6 +33,16 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/CrosshairButtonConfig",
+          label: "CrosshairButtonConfig"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/CrosshairButtonEvent",
+          label: "CrosshairButtonEvent"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/CrosshairEvent",
           label: "CrosshairEvent"
         },

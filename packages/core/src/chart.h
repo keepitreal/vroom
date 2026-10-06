@@ -183,6 +183,14 @@ struct VroomChart {
     float  crosshair_x_px = 0.f;
     float  crosshair_y_px = 0.f;
 
+    // Plus button on the horizontal line (order entry). Style is stored
+    // resolved (see crosshair_button::resolve). While pinned, the line tracks
+    // `crosshair_pin_price` instead of `crosshair_y_px`.
+    VroomCrosshairButtonStyle crosshair_button_style{};
+    bool   crosshair_button_hovered = false;
+    bool   crosshair_pinned = false;
+    double crosshair_pin_price = 0.0;
+
     // --- indicators ---------------------------------------------------------
     // RSI, drawn in a pane below the candles. rsi_cache is aligned to `candles`
     // (one value per candle, NaN where undefined) and recomputed lazily by

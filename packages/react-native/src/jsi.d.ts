@@ -506,10 +506,50 @@ export interface ChartHandle {
    * tracks the badge the user last tapped.
    */
   setFootprintHover(candleTimeMs: number, side: number): void;
+  /**
+   * Replaces the crosshair plus button's style. Colors are 0xAARRGGBB, 0 =
+   * theme; numeric sentinels (<= 0 size/stroke/boost, < 0 radius/gap) take the
+   * core's defaults. `enabled: false` hides it.
+   */
+  setCrosshairButton(spec: {
+    enabled: boolean;
+    sizePx: number;
+    cornerRadiusPx: number;
+    bg: number;
+    icon: number;
+    iconStrokePx: number;
+    ring: boolean;
+    ringColor: number;
+    gapPx: number;
+    hoverBoost: number;
+  }): void;
+  /**
+   * Hover highlight and pinned (open) state. Pinning locks the crosshair to the
+   * price under it; setCrosshair / clearCrosshair release the lock.
+   */
+  setCrosshairButtonState(hovered: boolean, pinned: boolean): void;
+  /** The plus button's current geometry; null when it isn't drawn. */
+  getCrosshairButton(): CrosshairButtonHit | null;
+  /** Like getCrosshairButton, but null unless (x, y) falls on the button. */
+  hitTestCrosshairButton(x: number, y: number): CrosshairButtonHit | null;
   /** True while any axis-label fade is still in progress. Drives a RAF loop. */
   isAnimating(): boolean;
   render(): ChartFrame | null;
 }
+
+/** The crosshair plus button's geometry, in px from the chart's top-left. */
+export type CrosshairButtonHit = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  /** Price at the crosshair's horizontal line. */
+  price: number;
+  /** Snapped slot under the vertical line (real or future). */
+  timeMs: number;
+  /** The price pane's plot rect, axis strips excluded. */
+  pane: { left: number; top: number; right: number; bottom: number };
+};
 
 export interface VroomChartJSI {
   /** Creates a fresh chart instance. Destroyed when the JS reference is GC'd. */

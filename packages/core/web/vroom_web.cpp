@@ -558,6 +558,39 @@ class WebChart {
                                     side);
   }
 
+  // `cfg` is { enabled, sizePx, cornerRadiusPx, bg, icon, iconStrokePx, ring,
+  // ringColor, gapPx, hoverBoost }; colors are 0xAARRGGBB, 0 = theme.
+  void setCrosshairButton(const em::val& cfg) {
+    VroomCrosshairButtonStyle s{};
+    s.enabled = cfg["enabled"].as<bool>() ? 1 : 0;
+    s.size_px = cfg["sizePx"].as<float>();
+    s.corner_radius_px = cfg["cornerRadiusPx"].as<float>();
+    s.bg = cfg["bg"].as<uint32_t>();
+    s.icon = cfg["icon"].as<uint32_t>();
+    s.icon_stroke_px = cfg["iconStrokePx"].as<float>();
+    s.ring = cfg["ring"].as<bool>() ? 1 : 0;
+    s.ring_color = cfg["ringColor"].as<uint32_t>();
+    s.gap_px = cfg["gapPx"].as<float>();
+    s.hover_boost = cfg["hoverBoost"].as<float>();
+    vroom_chart_set_crosshair_button(chart_, &s);
+  }
+  void setCrosshairButtonState(bool hovered, bool pinned) {
+    vroom_chart_set_crosshair_button_state(chart_, hovered ? 1 : 0,
+                                           pinned ? 1 : 0);
+  }
+  // {left, top, right, bottom, price, timeMs, pane} or null.
+  em::val getCrosshairButton() {
+    VroomCrosshairButtonHit hit{};
+    if (!vroom_chart_get_crosshair_button(chart_, &hit)) return em::val::null();
+    return crosshairButtonHit(hit);
+  }
+  em::val hitTestCrosshairButton(float x, float y) {
+    VroomCrosshairButtonHit hit{};
+    if (!vroom_chart_hit_test_crosshair_button(chart_, x, y, &hit))
+      return em::val::null();
+    return crosshairButtonHit(hit);
+  }
+
   void setDraft(double a_time, double a_price, bool has_b, double b_time,
                 double b_price, bool guide, uint32_t color, float width,
                 int kind) {
@@ -733,6 +766,24 @@ class WebChart {
   }
 
  private:
+  static em::val crosshairButtonHit(const VroomCrosshairButtonHit& hit) {
+    em::val pane = em::val::object();
+    pane.set("left", hit.pane_left);
+    pane.set("top", hit.pane_top);
+    pane.set("right", hit.pane_right);
+    pane.set("bottom", hit.pane_bottom);
+
+    em::val o = em::val::object();
+    o.set("left", hit.left);
+    o.set("top", hit.top);
+    o.set("right", hit.right);
+    o.set("bottom", hit.bottom);
+    o.set("price", hit.price);
+    o.set("timeMs", static_cast<double>(hit.time_ms));
+    o.set("pane", pane);
+    return o;
+  }
+
   void initGL() {
     EmscriptenWebGLContextAttributes attrs;
     emscripten_webgl_init_context_attributes(&attrs);
@@ -844,6 +895,10 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setFootprints", &WebChart::setFootprints)
       .function("hitTestFootprint", &WebChart::hitTestFootprint)
       .function("setFootprintHover", &WebChart::setFootprintHover)
+      .function("setCrosshairButton", &WebChart::setCrosshairButton)
+      .function("setCrosshairButtonState", &WebChart::setCrosshairButtonState)
+      .function("getCrosshairButton", &WebChart::getCrosshairButton)
+      .function("hitTestCrosshairButton", &WebChart::hitTestCrosshairButton)
       .function("setDraft", &WebChart::setDraft)
       .function("startDraftStroke", &WebChart::startDraftStroke)
       .function("appendDraftPoint", &WebChart::appendDraftPoint)

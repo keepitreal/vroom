@@ -25,6 +25,7 @@ import {
   type LiquiditySpec,
   type PriceLinesSpec,
   type FootprintsSpec,
+  type CrosshairButtonSpec,
   type VroomChartHandle,
   PRICE_LINE_AXIS_LABEL,
   PRICE_LINE_CLOSABLE,
@@ -429,6 +430,24 @@ const EMPTY_FOOTPRINTS: FootprintsSpec = {
   hoverBoost: DEFAULT_FOOTPRINT_HOVER_BOOST,
 };
 
+// Unset fields go down as the core's sentinels so it owns the defaults.
+function crosshairButtonToSpec(
+  cfg: VroomChartCoreProps['crosshairButton'],
+): CrosshairButtonSpec {
+  return {
+    enabled: cfg?.enabled ?? false,
+    sizePx: cfg?.size ?? 0,
+    cornerRadiusPx: cfg?.cornerRadius ?? -1,
+    bg: inheritColor(cfg?.background),
+    icon: inheritColor(cfg?.iconColor),
+    iconStrokePx: cfg?.iconStrokeWidth ?? 0,
+    ring: cfg?.ring ?? true,
+    ringColor: inheritColor(cfg?.ringColor),
+    gapPx: cfg?.gap ?? -1,
+    hoverBoost: cfg?.hoverBoost ?? 0,
+  };
+}
+
 export type UseChartCore = {
   containerRef: React.RefObject<HTMLDivElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -480,6 +499,7 @@ export function useChartCore(
     onPriceLineClose,
     footprints,
     footprintsStyle,
+    crosshairButton,
   } = props;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -776,6 +796,7 @@ export function useChartCore(
   const footprintsKey = footprints
     ? JSON.stringify([footprints, footprintsStyle ?? null])
     : '';
+  const crosshairButtonKey = crosshairButton ? JSON.stringify(crosshairButton) : '';
   const explicit = visibleRange != null;
   const startMs = visibleRange?.startMs ?? 0;
   const endMs = visibleRange?.endMs ?? 0;
@@ -1106,6 +1127,16 @@ export function useChartCore(
     h.setPriceScaleMode(priceScaleMode === 'log' ? 1 : 0);
     scheduleRender();
   }, [ready, priceScaleMode, scheduleRender]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    h.setCrosshairButton(crosshairButtonToSpec(crosshairButton));
+    scheduleRender();
+    // crosshairButton tracked via crosshairButtonKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, crosshairButtonKey, scheduleRender]);
 
   // Animate the volume bars in and out when `volume.enabled` flips. The core
   // staggers the bars itself — tallest falling first, all landing together — so

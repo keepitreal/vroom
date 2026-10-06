@@ -70,6 +70,7 @@ if(VROOM_BUILD_TESTS)
         tests/test_line_morph.cpp
         tests/test_price_format.cpp
         tests/test_drawing_bounds.cpp
+        tests/test_crosshair_button.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
         src/footprints_layout.cpp

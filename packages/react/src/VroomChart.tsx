@@ -114,6 +114,9 @@ export function VroomChart(props: VroomChartProps) {
     onPriceLineClose,
     footprints,
     onFootprint,
+    crosshairButton: props.crosshairButton,
+    onCrosshairButton: props.onCrosshairButton,
+    seriesKey,
   });
 
   const rootStyle: CSSProperties = {

@@ -35,6 +35,8 @@ export type {
   FootprintSide,
   FootprintsStyle,
   FootprintEvent,
+  CrosshairButtonConfig,
+  CrosshairButtonEvent,
   PlotRect,
   DefaultDrawingStyle,
 } from './types';

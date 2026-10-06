@@ -59,6 +59,25 @@ const PRICE_LINE_STYLES: readonly PriceLineStyleChoice[] = [
   'dashed',
 ];
 
+/** Demo settings for the crosshair plus button (order entry). */
+export type CrosshairButtonChoice = {
+  enabled: boolean;
+  ring: boolean;
+  cornerRadius: number;
+  size: number;
+  background: CrosshairButtonBackground;
+};
+
+/** Background presets; 'theme' leaves the color to the chart. */
+export type CrosshairButtonBackground = 'theme' | 'blue' | 'green' | 'slate';
+
+const CROSSHAIR_BUTTON_BACKGROUNDS: readonly CrosshairButtonBackground[] = [
+  'theme',
+  'blue',
+  'green',
+  'slate',
+];
+
 const badge: CSSProperties = {
   background: '#238636',
   color: '#f0f6fc',
@@ -263,6 +282,8 @@ export type SidebarProps = {
     setPriceLineCornerRadius: (v: number) => void;
     showFootprints: boolean;
     setShowFootprints: (v: boolean) => void;
+    crosshairButton: CrosshairButtonChoice;
+    setCrosshairButton: (v: CrosshairButtonChoice) => void;
     drawMode: ChartMode;
     drawTool: DrawTool;
     toggleLineTool: () => void;
@@ -622,6 +643,78 @@ export function Sidebar({
           onChange={overlays.setShowFootprints}
           title="Mark sample entries (+) and exits (−) above the bar they filled in. Hover a badge for the trade details; switch interval to watch them regroup."
         />
+        <ToggleRow
+          label="Crosshair +"
+          checked={overlays.crosshairButton.enabled}
+          onChange={(enabled) => overlays.setCrosshairButton({ ...overlays.crosshairButton, enabled })}
+          title="Show a plus button on the crosshair, left of the price badge. Click it to pin the crosshair and open a buy/sell limit menu at that price."
+        />
+        {overlays.crosshairButton.enabled && (
+          <>
+            <ToggleRow
+              label="Ring"
+              checked={overlays.crosshairButton.ring}
+              onChange={(ring) => overlays.setCrosshairButton({ ...overlays.crosshairButton, ring })}
+              title="Draw a circle around the plus glyph."
+            />
+            <Row label="Corner">
+              <input
+                type="number"
+                min={0}
+                max={10}
+                step={1}
+                value={overlays.crosshairButton.cornerRadius}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  overlays.setCrosshairButton({
+                    ...overlays.crosshairButton,
+                    cornerRadius: Math.min(10, Math.max(0, n)),
+                  });
+                }}
+                style={numInput}
+                title="Container corner radius in px. The chart clamps it to half the size (a circle)."
+              />
+            </Row>
+            <Row label="Size">
+              <input
+                type="number"
+                min={16}
+                max={28}
+                step={1}
+                value={overlays.crosshairButton.size}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  if (!Number.isFinite(n)) return;
+                  overlays.setCrosshairButton({
+                    ...overlays.crosshairButton,
+                    size: Math.min(28, Math.max(16, Math.round(n))),
+                  });
+                }}
+                style={numInput}
+                title="Square container side in px."
+              />
+            </Row>
+            <Row label="Background">
+              <select
+                value={overlays.crosshairButton.background}
+                onChange={(e) =>
+                  overlays.setCrosshairButton({
+                    ...overlays.crosshairButton,
+                    background: e.target.value as CrosshairButtonBackground,
+                  })
+                }
+                style={select}
+              >
+                {CROSSHAIR_BUTTON_BACKGROUNDS.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </Row>
+          </>
+        )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             onClick={overlays.toggleLineTool}
