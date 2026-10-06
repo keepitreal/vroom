@@ -484,6 +484,42 @@ export type FootprintHit = {
   indices: number[];
 };
 
+/** The crosshair plus button's style, in the core's numeric encoding. */
+export type CrosshairButtonSpec = {
+  enabled: boolean;
+  /** Container side in px; <= 0 = default 20, clamped to 12–48. */
+  sizePx: number;
+  /** < 0 = default 4; clamped to 0..size/2. */
+  cornerRadiusPx: number;
+  /** Container fill, 0xAARRGGBB; 0 = the theme's crosshair target color. */
+  bg: number;
+  /** Plus glyph color; 0 = the theme's badge text color. */
+  icon: number;
+  /** Plus stroke width; <= 0 = 1.5. */
+  iconStrokePx: number;
+  ring: boolean;
+  /** 0 = the icon color. */
+  ringColor: number;
+  /** Gap to the price badge; < 0 = 4. */
+  gapPx: number;
+  /** Brightness multiplier while hovered or open; <= 0 = 1.25. */
+  hoverBoost: number;
+};
+
+/** The crosshair plus button's geometry, in CSS px from the chart's top-left. */
+export type CrosshairButtonHit = {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+  /** Price at the crosshair's horizontal line. */
+  price: number;
+  /** Snapped slot under the vertical line (real or future). */
+  timeMs: number;
+  /** The price pane's plot rect, axis strips excluded. */
+  pane: { left: number; top: number; right: number; bottom: number };
+};
+
 /** A continuous data coordinate at a pixel position (no candle snapping). */
 export type Coord = {
   timeMs: number;
@@ -768,6 +804,17 @@ export interface VroomChartHandle {
    * clear; the arguments otherwise match `hitTestFootprint`.
    */
   setFootprintHover(candleTimeMs: number, side: number): void;
+  /** Replace the crosshair plus button's style. `enabled: false` hides it. */
+  setCrosshairButton(spec: CrosshairButtonSpec): void;
+  /**
+   * Hover highlight and pinned (open) state. Pinning locks the crosshair to the
+   * price under it; `setCrosshair` / `clearCrosshair` release the lock.
+   */
+  setCrosshairButtonState(hovered: boolean, pinned: boolean): void;
+  /** The plus button's current geometry; null when it isn't drawn. */
+  getCrosshairButton(): CrosshairButtonHit | null;
+  /** Like `getCrosshairButton`, but null unless (x, y) falls on the button. */
+  hitTestCrosshairButton(x: number, y: number): CrosshairButtonHit | null;
   /**
    * Set the transient in-progress draft shown while placing a drawing. Node A is
    * always shown; node B is shown when `hasB`. `guide` also draws the live

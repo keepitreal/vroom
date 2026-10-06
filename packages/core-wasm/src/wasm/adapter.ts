@@ -9,6 +9,8 @@ import type {
   AxisMetrics,
   BollingerSpec,
   Coord,
+  CrosshairButtonHit,
+  CrosshairButtonSpec,
   CrosshairCandle,
   CrosshairInfo,
   IchimokuSpec,
@@ -91,6 +93,10 @@ interface WebChartInstance {
   setFootprints(footprints: FootprintsSpec): void;
   hitTestFootprint(x: number, y: number): FootprintHit | null;
   setFootprintHover(candleTimeMs: number, side: number): void;
+  setCrosshairButton(spec: CrosshairButtonSpec): void;
+  setCrosshairButtonState(hovered: boolean, pinned: boolean): void;
+  getCrosshairButton(): CrosshairButtonHit | null;
+  hitTestCrosshairButton(x: number, y: number): CrosshairButtonHit | null;
   setDraft(
     aTime: number,
     aPrice: number,
@@ -347,6 +353,18 @@ class WasmHandle implements VroomChartHandle {
   }
   setFootprintHover(candleTimeMs: number, side: number): void {
     this.wc.setFootprintHover(candleTimeMs, side);
+  }
+  setCrosshairButton(spec: CrosshairButtonSpec): void {
+    this.wc.setCrosshairButton(spec);
+  }
+  setCrosshairButtonState(hovered: boolean, pinned: boolean): void {
+    this.wc.setCrosshairButtonState(hovered, pinned);
+  }
+  getCrosshairButton(): CrosshairButtonHit | null {
+    return this.wc.getCrosshairButton();
+  }
+  hitTestCrosshairButton(x: number, y: number): CrosshairButtonHit | null {
+    return this.wc.hitTestCrosshairButton(x, y);
   }
   setDraft(
     aTime: number,

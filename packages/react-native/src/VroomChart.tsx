@@ -35,12 +35,37 @@ import { useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
-import type { ChartFrame } from './jsi.d';
-import type { Footprint, VroomChartProps } from './types';
+import type { ChartFrame, ChartHandle, CrosshairButtonHit } from './jsi.d';
+import { parseColor } from './theme';
+import type {
+  CrosshairButtonConfig,
+  CrosshairButtonEvent,
+  Footprint,
+  VroomChartProps,
+} from './types';
 import './jsi.d';
 
 // Mirrors VroomFootprintSide in packages/core/include/vroom/vroom_chart.h.
 const FOOTPRINT_SELL = 1;
+
+const inheritColor = (v: string | number | undefined): number =>
+  (v != null ? parseColor(v) : null) ?? 0;
+
+// Unset fields go down as the core's sentinels so it owns the defaults.
+function crosshairButtonToSpec(cfg: CrosshairButtonConfig | undefined) {
+  return {
+    enabled: cfg?.enabled ?? false,
+    sizePx: cfg?.size ?? 0,
+    cornerRadiusPx: cfg?.cornerRadius ?? -1,
+    bg: inheritColor(cfg?.background),
+    icon: inheritColor(cfg?.iconColor),
+    iconStrokePx: cfg?.iconStrokeWidth ?? 0,
+    ring: cfg?.ring ?? true,
+    ringColor: inheritColor(cfg?.ringColor),
+    gapPx: cfg?.gap ?? -1,
+    hoverBoost: cfg?.hoverBoost ?? 0,
+  };
+}
 
 function isSkImage(frame: ChartFrame): frame is SkImage {
   return typeof (frame as SkImage).getImageInfo === 'function';
@@ -94,6 +119,8 @@ export function VroomChart(props: VroomChartProps) {
     footprints,
     footprintsStyle,
     onFootprint,
+    crosshairButton,
+    onCrosshairButton,
   } = props;
 
   // Fill the parent by default: measure via onLayout. Explicit width/height
@@ -156,12 +183,61 @@ export function VroomChart(props: VroomChartProps) {
   }, []);
   const pictureSV = useSharedValue<SkPicture>(emptyPicture);
   const imageSV = useSharedValue<SkImage>(emptyImage);
+
+  // Crosshair plus button. Open = the crosshair is pinned and the host's menu
+  // is up. Refs, so applyFrame (which every gesture calls) can read them
+  // without re-subscribing. `plusLast` is the geometry last reported, so a
+  // frame only fires 'move' on a real change.
+  const plusOpen = useRef(false);
+  const plusLast = useRef<CrosshairButtonHit | null>(null);
+  const plusHandle = useRef<ChartHandle | null>(null);
+  const onCrosshairButtonRef = useRef(onCrosshairButton);
+  onCrosshairButtonRef.current = onCrosshairButton;
+
+  const closePlusRef = useRef<(redraw?: boolean) => void>(() => {});
+  const closePlus = useCallback(() => closePlusRef.current(), []);
+  const plusEvent = useCallback(
+    (reason: CrosshairButtonEvent['reason'], hit: CrosshairButtonHit | null): CrosshairButtonEvent => ({
+      open: reason !== 'close',
+      reason,
+      price: hit?.price ?? null,
+      timeMs: hit?.timeMs ?? null,
+      button: hit
+        ? { left: hit.left, top: hit.top, right: hit.right, bottom: hit.bottom }
+        : null,
+      pane: hit?.pane ?? null,
+      close: closePlus,
+    }),
+    [closePlus],
+  );
+
   const applyFrame = useCallback(
     (frame: ChartFrame) => {
       if (isSkImage(frame)) imageSV.value = frame;
       else pictureSV.value = frame;
+      // Re-anchor the host's menu whenever a frame moved the pinned button (a
+      // live tick re-fitting the price axis, a resize); close it if it's gone.
+      if (!plusOpen.current) return;
+      const hit = plusHandle.current?.getCrosshairButton() ?? null;
+      if (!hit) {
+        closePlusRef.current();
+        return;
+      }
+      const prev = plusLast.current;
+      if (
+        prev &&
+        prev.left === hit.left &&
+        prev.top === hit.top &&
+        prev.right === hit.right &&
+        prev.bottom === hit.bottom &&
+        prev.price === hit.price
+      ) {
+        return;
+      }
+      plusLast.current = hit;
+      onCrosshairButtonRef.current?.(plusEvent('move', hit));
     },
-    [imageSV, pictureSV],
+    [imageSV, pictureSV, plusEvent],
   );
 
   // An OS reduced-motion preference snaps every transition, the way
@@ -214,6 +290,46 @@ export function VroomChart(props: VroomChartProps) {
   // there's nothing to pan, zoom or inspect while the line is up, and a
   // crosshair reading prices off a placeholder walk would be actively wrong.
   const showLoadingLine = loading === true && candles.length === 0;
+
+  // `redraw` is false for callers that render a frame of their own right after.
+  closePlusRef.current = (redraw = true) => {
+    if (!handle || !plusOpen.current) return;
+    plusOpen.current = false;
+    plusLast.current = null;
+    handle.setCrosshairButtonState(false, false);
+    if (redraw) {
+      const frame = handle.render();
+      if (frame) applyFrame(frame);
+    }
+    onCrosshairButtonRef.current?.(plusEvent('close', null));
+  };
+  plusHandle.current = handle;
+
+  const openPlus = () => {
+    if (!handle || plusOpen.current) return;
+    plusOpen.current = true;
+    handle.setCrosshairButtonState(false, true);
+    const hit = handle.getCrosshairButton();
+    plusLast.current = hit;
+    const frame = handle.render();
+    if (frame) applyFrame(frame);
+    onCrosshairButtonRef.current?.(plusEvent('open', hit));
+  };
+
+  const crosshairButtonKey = crosshairButton ? JSON.stringify(crosshairButton) : '';
+  useEffect(() => {
+    if (!handle) return;
+    handle.setCrosshairButton(crosshairButtonToSpec(crosshairButton));
+    if (!crosshairButton?.enabled) closePlusRef.current(false);
+    const frame = handle.render();
+    if (frame) applyFrame(frame);
+    // crosshairButton tracked via crosshairButtonKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle, crosshairButtonKey, applyFrame]);
+
+  useEffect(() => {
+    closePlusRef.current();
+  }, [seriesKey]);
 
   // When the crosshair is showing, pan moves it (instead of scrolling) and
   // pinch is disabled. A ref (not state) so gesture callbacks read it
@@ -621,6 +737,9 @@ export function VroomChart(props: VroomChartProps) {
     .maxPointers(1)  // don't fight Pinch's two-finger gesture
     .onStart((e) => {
       cancelDecay();
+      // Any drag closes the menu: it moves either the viewport or the crosshair
+      // out from under it.
+      closePlusRef.current();
       // Always classify — an axis drag controls the axis even while the
       // crosshair is up. Only a chart-area drag interacts with the crosshair.
       panMode.current = hitAxis(e.x, e.y);
@@ -767,6 +886,7 @@ export function VroomChart(props: VroomChartProps) {
     .onTouchesDown((e) => {
       if (e.numberOfTouches < 2) return;
       dismissFootprint();
+      closePlusRef.current();
       const [a, b] = e.allTouches;
       const spanX = Math.abs(a.x - b.x);
       const spanY = Math.abs(a.y - b.y);
@@ -823,6 +943,8 @@ export function VroomChart(props: VroomChartProps) {
       // close button — so it must not raise the crosshair over the top.
       if (hitPriceLine(e.x, e.y)) return;
       cancelDecay();
+      // setCrosshair below re-places (and so unpins) the crosshair.
+      closePlusRef.current(false);
       // The crosshair takes the pane over, so it can't share it with a tooltip.
       // No redraw: setCrosshair below returns a frame that already has the badge
       // un-highlighted.
@@ -849,6 +971,18 @@ export function VroomChart(props: VroomChartProps) {
     .runOnJS(true)
     .onStart((e) => {
       if (!handle) return;
+
+      // The plus button sits on the crosshair, above everything else: a tap on
+      // it toggles the host's menu. Any other tap while it's open just closes it.
+      if (crosshairActive.current && handle.hitTestCrosshairButton(e.x, e.y)) {
+        if (plusOpen.current) closePlusRef.current();
+        else openPlus();
+        return;
+      }
+      if (plusOpen.current) {
+        closePlusRef.current();
+        return;
+      }
 
       // Badges get first refusal: one is a ~9px circle, while a price line's grab
       // band spans the pane and would otherwise swallow any badge it crosses.

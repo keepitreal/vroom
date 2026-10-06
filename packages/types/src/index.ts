@@ -1083,6 +1083,90 @@ export type FootprintEvent = {
 };
 
 /**
+ * The crosshair plus button: a small button on the crosshair's horizontal line,
+ * directly left of the price badge — TradingView's order-entry affordance.
+ *
+ * Opt-in: nothing renders unless `enabled` is true. Clicking (or tapping) it
+ * locks the crosshair at that price and fires `onCrosshairButton`, which is
+ * where your own UI (e.g. "Buy limit" / "Sell limit") comes in. Every style
+ * field is optional.
+ */
+export type CrosshairButtonConfig = {
+  /** Show the button. Default false. */
+  enabled?: boolean;
+  /** Side of the square container in px. Default 20. */
+  size?: number;
+  /**
+   * Container corner radius in px, clamped to 0..size/2. Default 4. `size / 2`
+   * draws a circle; 0 draws square corners.
+   */
+  cornerRadius?: number;
+  /** Container fill. Defaults to the price badge's fill (`theme.crosshairTarget`). */
+  background?: VroomColor;
+  /** Plus glyph color. Defaults to the badge text color (`theme.badgeText`). */
+  iconColor?: VroomColor;
+  /** Plus glyph stroke width in px. Default 1.5. */
+  iconStrokeWidth?: number;
+  /** Draw a circle around the plus, TradingView style. Default true. */
+  ring?: boolean;
+  /** Ring color. Defaults to `iconColor`. */
+  ringColor?: VroomColor;
+  /** Gap between the button and the price badge in px. Default 4. */
+  gap?: number;
+  /**
+   * How much the hovered button brightens, as a channel multiplier. 1 disables
+   * the highlight. Default 1.25. Web only — touch platforms have no hover state.
+   */
+  hoverBoost?: number;
+};
+
+/**
+ * Fired when the crosshair plus button is activated and the crosshair locks
+ * (`'open'`), when the locked button moves on screen (`'move'`), and when it
+ * unlocks (`'close'`).
+ *
+ * The chart draws no menu of its own — this event is the hook for yours. While
+ * open, the crosshair stays where it was clicked, so the pointer can travel onto
+ * your UI. Position it off `button`, in the same coordinate space as
+ * {@link FootprintEvent} (logical px from the chart element's top-left). To sit
+ * it directly left of the button:
+ *
+ * ```ts
+ * const right = button.left - 6;                    // your UI's right edge
+ * const centerY = (button.top + button.bottom) / 2;  // vertical center
+ * ```
+ *
+ * It closes on another click of the button, a click or tap elsewhere on the
+ * chart, Escape, any pan or zoom, a series reset, `enabled` turning false, or
+ * your own call to `close()` (e.g. once the user has picked an order).
+ */
+export type CrosshairButtonEvent = {
+  /** True while the button is open (crosshair locked); false once it closes. */
+  open: boolean;
+  /**
+   * Why this event fired:
+   *   'open'  — the button was activated
+   *   'move'  — the open button moved on screen without a gesture (a live tick
+   *             re-fit the price axis, or the chart resized); re-anchor to it
+   *   'close' — it was dismissed (see above)
+   */
+  reason: 'open' | 'move' | 'close';
+  /** Price at the crosshair's horizontal line, unformatted. Null on close. */
+  price: number | null;
+  /**
+   * Bar-open time (epoch ms) of the slot under the vertical line — a real
+   * candle, or an empty future slot. Null on close.
+   */
+  timeMs: number | null;
+  /** The button's rect. Null on close. */
+  button: { left: number; top: number; right: number; bottom: number } | null;
+  /** The plot area, for checking your UI fits. Null on close. */
+  pane: PlotRect | null;
+  /** Close the button and unlock the crosshair. Safe to call more than once. */
+  close: () => void;
+};
+
+/**
  * MACD indicator config. Rendered in its own pane below the candles: the gap
  * between a fast and a slow moving average, a signal line smoothing that gap,
  * and a histogram of the distance between the two.
@@ -1335,6 +1419,16 @@ export type VroomChartCoreProps = {
    * anchored to `e.badge`, kept inside `e.pane`, and filled from `e.footprints`.
    */
   onFootprint?: (e: FootprintEvent) => void;
+  /**
+   * The crosshair plus button for placing orders from the chart. Off unless
+   * `enabled` is true. See {@link CrosshairButtonConfig}.
+   */
+  crosshairButton?: CrosshairButtonConfig;
+  /**
+   * Fired when the crosshair plus button opens, moves, or closes. Render your
+   * own order UI from it, anchored to `e.button`.
+   */
+  onCrosshairButton?: (e: CrosshairButtonEvent) => void;
   /**
    * Fired continuously while a draggable price line is being dragged, with the
    * price under the pointer. Use it for a live readout (e.g. an order ticket);

@@ -8,6 +8,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import type {
   BoxDrawing,
   ChartMode,
+  CrosshairButtonConfig,
+  CrosshairButtonEvent,
   CrosshairEvent,
   DefaultDrawingStyle,
   Drawing,
@@ -23,7 +25,11 @@ import {
   PATH_MAX_POINTS,
   FOOTPRINT_SELL,
 } from '@vroomchart/core-wasm';
-import type { FootprintHit, VroomChartHandle } from '@vroomchart/core-wasm';
+import type {
+  CrosshairButtonHit,
+  FootprintHit,
+  VroomChartHandle,
+} from '@vroomchart/core-wasm';
 
 import { newDrawingAttrs, resolveDrawingStyle } from './drawingStyle';
 import { simplifyIndices } from './simplify';
@@ -82,6 +88,12 @@ export type GestureOptions = {
   footprints?: Footprint[];
   /** Fired when a footprint badge is hovered or left. */
   onFootprint?: (e: FootprintEvent) => void;
+  /** Crosshair plus button config. Only `enabled` matters here. */
+  crosshairButton?: CrosshairButtonConfig;
+  /** Fired when the plus button opens, its anchor moves, or it closes. */
+  onCrosshairButton?: (e: CrosshairButtonEvent) => void;
+  /** Identity of the series; a change closes an open plus button. */
+  seriesKey?: string;
 };
 
 const MIN_SPAN = 24; // px — minimum two-finger span for an axis to scale
@@ -365,12 +377,73 @@ export function useGestures(
     cb(next);
   }, [handleRef]);
 
+  // Crosshair plus button. Open = the crosshair is pinned and the host's menu is
+  // up. `plusLast` is the geometry last reported, so post-paint checks only
+  // fire 'move' on a real change. The close itself lives in the gesture effect
+  // (it needs that effect's crosshair state); `closePlus` is the stable entry
+  // point handed to the host.
+  const plusOpenRef = useRef(false);
+  const plusLastRef = useRef<CrosshairButtonHit | null>(null);
+  const plusCloseImplRef = useRef<(() => void) | null>(null);
+  const closePlus = useCallback(() => plusCloseImplRef.current?.(), []);
+
+  const plusEvent = useCallback(
+    (reason: CrosshairButtonEvent['reason'], hit: CrosshairButtonHit | null): CrosshairButtonEvent => ({
+      open: reason !== 'close',
+      reason,
+      price: hit?.price ?? null,
+      timeMs: hit?.timeMs ?? null,
+      button: hit
+        ? { left: hit.left, top: hit.top, right: hit.right, bottom: hit.bottom }
+        : null,
+      pane: hit?.pane ?? null,
+      close: closePlus,
+    }),
+    [closePlus],
+  );
+
+  // Re-anchors the host's menu after any paint that moved the pinned button —
+  // a live tick re-fitting the price axis, a resize. Closes if the button is
+  // gone (series cleared, crosshair taken down).
+  const reportPlus = useCallback(() => {
+    if (!plusOpenRef.current) return;
+    const hit = handleRef.current?.getCrosshairButton() ?? null;
+    if (!hit) {
+      closePlus();
+      return;
+    }
+    const prev = plusLastRef.current;
+    if (
+      prev &&
+      prev.left === hit.left &&
+      prev.top === hit.top &&
+      prev.right === hit.right &&
+      prev.bottom === hit.bottom &&
+      prev.price === hit.price
+    ) {
+      return;
+    }
+    plusLastRef.current = hit;
+    optsRef.current.onCrosshairButton?.(plusEvent('move', hit));
+  }, [handleRef, closePlus, plusEvent]);
+
   useEffect(() => {
-    afterPresentRef.current = reportSelection;
+    afterPresentRef.current = () => {
+      reportSelection();
+      reportPlus();
+    };
     return () => {
       afterPresentRef.current = null;
     };
-  }, [afterPresentRef, reportSelection]);
+  }, [afterPresentRef, reportSelection, reportPlus]);
+
+  const plusEnabled = opts.crosshairButton?.enabled === true;
+  useEffect(() => {
+    if (!plusEnabled) closePlus();
+  }, [plusEnabled, closePlus]);
+  useEffect(() => {
+    closePlus();
+  }, [opts.seriesKey, closePlus]);
 
   // Price precision at which the rounding error stays well under a pixel, so
   // the persisted shape renders identically to the drawn one while shedding
@@ -747,6 +820,12 @@ export function useGestures(
     const priceHover = { index: -1, part: -1 };
     // Likewise for the hovered footprint badge, keyed the way the core reports it.
     const footprintHover: { timeMs: number; side: number } = { timeMs: 0, side: -1 };
+    // Plus button: hovered (highlight), a press that started on it (resolved
+    // on a stationary release), and whether the mouse is over the chart — a
+    // close with the pointer elsewhere also takes the crosshair down.
+    let plusHover = false;
+    let plusPress = false;
+    let pointerInside = false;
 
     const rel = (e: PointerEvent | WheelEvent) => {
       const r = el.getBoundingClientRect();
@@ -921,6 +1000,11 @@ export function useGestures(
     const hideCrosshair = () => {
       const h = handleRef.current;
       if (!h || !crosshairActive) return;
+      if (plusOpenRef.current) {
+        plusOpenRef.current = false;
+        plusLastRef.current = null;
+        optsRef.current.onCrosshairButton?.(plusEvent('close', null));
+      }
       crosshairActive = false;
       localCrosshairActiveRef.current = false;
       crosshairSource = null;
@@ -932,6 +1016,35 @@ export function useGestures(
       scheduleRender();
       reportCrosshair('hide');
     };
+
+    const setPlusHover = (on: boolean) => {
+      if (plusHover === on) return;
+      plusHover = on;
+      handleRef.current?.setCrosshairButtonState(on, plusOpenRef.current);
+      scheduleRender();
+    };
+
+    const openPlus = () => {
+      const h = handleRef.current;
+      if (!h || plusOpenRef.current) return;
+      plusOpenRef.current = true;
+      h.setCrosshairButtonState(plusHover, true);
+      const hit = h.getCrosshairButton();
+      plusLastRef.current = hit;
+      scheduleRender();
+      optsRef.current.onCrosshairButton?.(plusEvent('open', hit));
+    };
+
+    const closePlusNow = () => {
+      if (!plusOpenRef.current) return;
+      plusOpenRef.current = false;
+      plusLastRef.current = null;
+      handleRef.current?.setCrosshairButtonState(plusHover, false);
+      scheduleRender();
+      optsRef.current.onCrosshairButton?.(plusEvent('close', null));
+      if (!pointerInside) hideCrosshair();
+    };
+    plusCloseImplRef.current = closePlusNow;
 
     // True while a drawing tool should own input (suppress pan/zoom/crosshair).
     const drawActive = () =>
@@ -1142,6 +1255,19 @@ export function useGestures(
       el.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x, y });
 
+      // The plus button can overhang the price-axis strip, so it's tested
+      // before the region decides what this press is.
+      plusPress = false;
+      if (pointers.size === 1 && !drawActive() && h.hitTestCrosshairButton(x, y)) {
+        plusPress = true;
+        downX = x;
+        downY = y;
+        moved = false;
+        return;
+      }
+      // Anywhere else closes an open button, and the press carries on as usual.
+      closePlusNow();
+
       if (pointers.size === 2) {
         clearLongPress();
         hideCrosshair();
@@ -1311,11 +1437,25 @@ export function useGestures(
 
       // Hover (mouse, no button) → crosshair follows the cursor on the chart.
       if (!pointers.has(e.pointerId)) {
+        if (e.pointerType === 'mouse') pointerInside = true;
         if (e.pointerType === 'mouse' && pointers.size === 0) {
           // Draw mode: no crosshair; the guideline tracks the cursor instead.
           if (drawActive()) {
             el.style.cursor = 'crosshair';
             updateGuideline(x, y);
+            return;
+          }
+          // Over the plus button the crosshair holds still, so the button stays
+          // put under the cursor. While it's open the crosshair is pinned and
+          // nothing else on the chart reacts to hover.
+          const onPlus = h.hitTestCrosshairButton(x, y) != null;
+          setPlusHover(onPlus);
+          if (onPlus || plusOpenRef.current) {
+            if (onPlus) {
+              setFootprintHover(null);
+              setPriceHover(-1, -1);
+            }
+            el.style.cursor = onPlus ? 'pointer' : '';
             return;
           }
           const region = regionAt(x, y);
@@ -1353,6 +1493,11 @@ export function useGestures(
       const dx = x - prev.x;
       const dy = y - prev.y;
       pointers.set(e.pointerId, { x, y });
+
+      if (plusPress) {
+        if (!moved && Math.hypot(x - downX, y - downY) > MOVE_THRESH) moved = true;
+        return;
+      }
 
       // Freehand stroke in progress: extend it. Deliberately ahead of the
       // MOVE_THRESH gate below — a pencil records from the very first pixel, so
@@ -1484,6 +1629,16 @@ export function useGestures(
       if (pointers.size < 2) pinch.active = false;
       if (!had) return;
 
+      // Plus button release: a stationary click toggles it.
+      if (plusPress && pointers.size === 0) {
+        plusPress = false;
+        if (!moved) {
+          if (plusOpenRef.current) closePlusNow();
+          else openPlus();
+        }
+        return;
+      }
+
       // Pencil release: commit the stroke (simplified + rounded). The tool stays
       // active so the next press starts another stroke.
       if (pencilRef.current && pointers.size === 0) {
@@ -1611,7 +1766,10 @@ export function useGestures(
     };
 
     const onPointerLeave = () => {
-      if (crosshairSource === 'hover') hideCrosshair();
+      pointerInside = false;
+      setPlusHover(false);
+      // A pinned crosshair stays up: the pointer is on its way to the host's menu.
+      if (crosshairSource === 'hover' && !plusOpenRef.current) hideCrosshair();
       setPriceHover(-1, -1);
       setFootprintHover(null);
       el.style.cursor = '';
@@ -1643,6 +1801,7 @@ export function useGestures(
       // Every branch below moves the viewport, and the pointer hasn't moved, so
       // nothing else would re-evaluate the hover.
       setFootprintHover(null);
+      closePlusNow();
       const { x, y } = rel(e);
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.
@@ -1673,6 +1832,10 @@ export function useGestures(
       else if (grabRef.current) moveGrab(lastX, lastY);
     };
 
+    const onEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && plusOpenRef.current) closePlusNow();
+    };
+
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
     el.addEventListener('pointerup', endPointer);
@@ -1683,8 +1846,11 @@ export function useGestures(
     el.addEventListener('wheel', onWheel, { passive: false });
     window.addEventListener('keydown', onShiftKey);
     window.addEventListener('keyup', onShiftKey);
+    window.addEventListener('keydown', onEscape);
 
     return () => {
+      closePlusNow();
+      plusCloseImplRef.current = null;
       clearLongPress();
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
@@ -1696,6 +1862,7 @@ export function useGestures(
       el.removeEventListener('wheel', onWheel);
       window.removeEventListener('keydown', onShiftKey);
       window.removeEventListener('keyup', onShiftKey);
+      window.removeEventListener('keydown', onEscape);
     };
-  }, [containerRef, handleRef, scheduleRender, gesturesOff, commitPath, syncPathDraft, roundPoints, liveDrawStyle, liveDrawAttrs]);
+  }, [containerRef, handleRef, scheduleRender, gesturesOff, commitPath, syncPathDraft, roundPoints, liveDrawStyle, liveDrawAttrs, plusEvent]);
 }

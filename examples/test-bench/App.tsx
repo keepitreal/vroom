@@ -1,7 +1,7 @@
 import { Picker } from '@react-native-picker/picker';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import {
@@ -15,6 +15,7 @@ import {
   type CrosshairEvent,
   type Footprint,
   type FootprintEvent,
+  type CrosshairButtonEvent,
   type FootprintSide,
   type IntervalTransition,
   type StreamTransition,
@@ -366,6 +367,46 @@ function FootprintTooltip({
   );
 }
 
+// The order-entry menu the *host* renders when the crosshair's plus button is
+// tapped — vroom only reports the price and where the button sits. Parked
+// directly left of the button, vertically centered on it.
+const ORDER_MENU_W = 170;
+const ORDER_MENU_H = 72;
+
+function OrderMenu({
+  menu,
+  onPick,
+}: {
+  menu: { price: number; button: { left: number; top: number; bottom: number } } | null;
+  onPick: (side: 'buy' | 'sell', price: number) => void;
+}) {
+  if (!menu) return null;
+  const { price, button } = menu;
+  return (
+    <View
+      style={[
+        styles.fpTooltip,
+        {
+          width: ORDER_MENU_W,
+          left: button.left - 6 - ORDER_MENU_W,
+          top: (button.top + button.bottom) / 2 - ORDER_MENU_H / 2,
+        },
+      ]}
+    >
+      <Pressable onPress={() => onPick('buy', price)} style={{ paddingVertical: 6 }}>
+        <Text style={[styles.fpTooltipBody, { color: '#26a69a' }]}>
+          Buy limit @ {price.toFixed(2)}
+        </Text>
+      </Pressable>
+      <Pressable onPress={() => onPick('sell', price)} style={{ paddingVertical: 6 }}>
+        <Text style={[styles.fpTooltipBody, { color: '#ef5350' }]}>
+          Sell limit @ {price.toFixed(2)}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function fmtVol(v: number): string {
   if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}m`;
   if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
@@ -632,17 +673,64 @@ export default function App() {
     });
   }, []);
 
+  // Crosshair plus button: long-press for the crosshair, tap the + for an
+  // order menu. Orders placed from it are kept apart from the sample lines so
+  // they survive toggling those off.
+  const [showCrosshairButton, setShowCrosshairButton] = useState(false);
+  const [orders, setOrders] = useState<DemoPriceLine[]>([]);
+  const [orderMenu, setOrderMenu] = useState<{
+    price: number;
+    button: { left: number; top: number; bottom: number };
+    close: () => void;
+  } | null>(null);
+  const onCrosshairButton = useCallback((e: CrosshairButtonEvent) => {
+    if (!e.open || e.price == null || !e.button) {
+      setOrderMenu(null);
+      return;
+    }
+    if (e.reason === 'open') Haptics.selectionAsync().catch(() => {});
+    setOrderMenu({ price: e.price, button: e.button, close: e.close });
+  }, []);
+  const orderSeq = useRef(0);
+  const onPickOrder = useCallback(
+    (side: 'buy' | 'sell', price: number) => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      const label = side === 'buy' ? 'Buy Limit' : 'Sell Limit';
+      setOrders((prev) => [
+        ...prev,
+        {
+          id: `order-${++orderSeq.current}`,
+          label,
+          price,
+          text: priceLineText(label, price),
+          quantity: '1.00',
+          color: side === 'buy' ? '#26a69a' : '#ef5350',
+          draggable: true,
+          lineStyle: 'dashed',
+        },
+      ]);
+      orderMenu?.close();
+    },
+    [orderMenu],
+  );
+  const allPriceLines = useMemo(
+    () => [...(showPriceLines ? priceLines : []), ...orders],
+    [showPriceLines, priceLines, orders],
+  );
+
   const onPriceLineDragEnd = useCallback((id: string, price: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setPriceLines((prev) =>
+    const move = (prev: DemoPriceLine[]) =>
       prev.map((l) =>
         l.id === id ? { ...l, price, text: priceLineText(l.label, price) } : l,
-      ),
-    );
+      );
+    setPriceLines(move);
+    setOrders(move);
   }, []);
   const onPriceLineClose = useCallback((id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setPriceLines((prev) => prev.filter((l) => l.id !== id));
+    setOrders((prev) => prev.filter((l) => l.id !== id));
   }, []);
 
   // Indicator enable/config state lives here so it can later drive the chart;
@@ -876,13 +964,16 @@ export default function App() {
               inverseBullishColor: fvgParams.inverseBullishColor,
               inverseBearishColor: fvgParams.inverseBearishColor,
             }}
-            priceLines={showPriceLines ? priceLines : undefined}
+            priceLines={allPriceLines.length > 0 ? allPriceLines : undefined}
             onPriceLineDragEnd={onPriceLineDragEnd}
             onPriceLineClose={onPriceLineClose}
             footprints={showFootprints ? footprints : undefined}
             onFootprint={onFootprint}
+            crosshairButton={{ enabled: showCrosshairButton }}
+            onCrosshairButton={onCrosshairButton}
           />
           <FootprintTooltip hover={footprintHover} />
+          <OrderMenu menu={orderMenu} onPick={onPickOrder} />
           </View>
 
           <View style={styles.footer}>
@@ -1135,6 +1226,18 @@ export default function App() {
                   style={[styles.fnSymbol, showFootprints && styles.fnSymbolActive]}
                 >
                   ⊕
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, showCrosshairButton && styles.fnBtnActive]}
+                onPress={() => setShowCrosshairButton((on) => !on)}
+                accessibilityLabel="Crosshair plus button. Long-press for the crosshair, then tap the + beside the price badge to place a limit order."
+              >
+                <Text
+                  style={[styles.fnSymbol, showCrosshairButton && styles.fnSymbolActive]}
+                >
+                  +
                 </Text>
               </Pressable>
 
