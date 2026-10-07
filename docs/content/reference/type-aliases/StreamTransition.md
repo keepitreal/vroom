@@ -4,7 +4,7 @@
 type StreamTransition = "none" | "transform";
 ```
 
-Source: [types/src/index.ts:252](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L252)
+Source: [types/src/index.ts:265](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L265)
 
 How a live update to the series being displayed animates. `'none'` (default)
 applies it on the next frame with no animation and leaves the viewport where

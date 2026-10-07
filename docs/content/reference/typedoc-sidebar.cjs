@@ -48,6 +48,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/CrosshairIndicatorKind",
+          label: "CrosshairIndicatorKind"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/DataTransition",
           label: "DataTransition"
         },

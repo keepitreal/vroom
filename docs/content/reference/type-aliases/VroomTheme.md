@@ -34,7 +34,7 @@ type VroomTheme = {
 };
 ```
 
-Source: [types/src/index.ts:66](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L66)
+Source: [types/src/index.ts:79](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L79)
 
 Color overrides for the chart, passed via the `theme` prop.
 
@@ -46,7 +46,7 @@ Color overrides for the chart, passed via the `theme` prop.
 optional accentBear?: VroomColor;
 ```
 
-Source: [types/src/index.ts:76](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L76)
+Source: [types/src/index.ts:89](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L89)
 
 Generic down color for the price indicator, volume bars, and MACD histogram. Defaults to red; independent of `bear`.
 
@@ -58,7 +58,7 @@ Generic down color for the price indicator, volume bars, and MACD histogram. Def
 optional accentBull?: VroomColor;
 ```
 
-Source: [types/src/index.ts:74](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L74)
+Source: [types/src/index.ts:87](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L87)
 
 Generic up color for the price indicator, volume bars, and MACD histogram. Defaults to teal-green; independent of `bull`.
 
@@ -70,7 +70,7 @@ Generic up color for the price indicator, volume bars, and MACD histogram. Defau
 optional axisFontSize?: number;
 ```
 
-Source: [types/src/index.ts:108](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L108)
+Source: [types/src/index.ts:121](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L121)
 
 Axis label size in integer CSS px, clamped to 10–14. Omit for 11.
 
@@ -85,7 +85,7 @@ panes (RSI, MACD, ATR). Badges follow it too unless `badgeFontSize` is set.
 optional axisText?: VroomColor;
 ```
 
-Source: [types/src/index.ts:101](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L101)
+Source: [types/src/index.ts:114](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L114)
 
 Axis label text (price + time).
 
@@ -97,7 +97,7 @@ Axis label text (price + time).
 optional background?: VroomColor;
 ```
 
-Source: [types/src/index.ts:68](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L68)
+Source: [types/src/index.ts:81](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L81)
 
 Chart + axis-strip background.
 
@@ -109,7 +109,7 @@ Chart + axis-strip background.
 optional badgeFontSize?: number;
 ```
 
-Source: [types/src/index.ts:115](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L115)
+Source: [types/src/index.ts:128](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L128)
 
 Text size on filled badges in integer CSS px, clamped to 10–14: the
 current-price badge, the crosshair's price and time badges, and price-line
@@ -124,7 +124,7 @@ follow `axisFontSize`.
 optional badgeText?: VroomColor;
 ```
 
-Source: [types/src/index.ts:122](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L122)
+Source: [types/src/index.ts:135](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L135)
 
 Text drawn on a filled badge — the current-price indicator, the crosshair's
 price and time badges, and price-line pills. Defaults to white, which reads
@@ -139,7 +139,7 @@ generally want a dark value here.
 optional bear?: VroomColor;
 ```
 
-Source: [types/src/index.ts:72](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L72)
+Source: [types/src/index.ts:85](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L85)
 
 Down candle body fill. Wick and border default to this unless overridden.
 
@@ -151,7 +151,7 @@ Down candle body fill. Wick and border default to this unless overridden.
 optional borderBear?: VroomColor;
 ```
 
-Source: [types/src/index.ts:80](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L80)
+Source: [types/src/index.ts:93](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L93)
 
 Down candle body border (1px, drawn _inside_ the body so it never changes candle width). Omit or set to the bear fill color to hide it.
 
@@ -163,7 +163,7 @@ Down candle body border (1px, drawn _inside_ the body so it never changes candle
 optional borderBull?: VroomColor;
 ```
 
-Source: [types/src/index.ts:78](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L78)
+Source: [types/src/index.ts:91](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L91)
 
 Up candle body border (1px, drawn _inside_ the body so it never changes candle width). Omit or set to the bull fill color to hide it.
 
@@ -175,7 +175,7 @@ Up candle body border (1px, drawn _inside_ the body so it never changes candle w
 optional bull?: VroomColor;
 ```
 
-Source: [types/src/index.ts:70](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L70)
+Source: [types/src/index.ts:83](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L83)
 
 Up candle body fill. Wick and border default to this unless overridden.
 
@@ -187,7 +187,7 @@ Up candle body fill. Wick and border default to this unless overridden.
 optional candleRadius?: number;
 ```
 
-Source: [types/src/index.ts:88](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L88)
+Source: [types/src/index.ts:101](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L101)
 
 Corner radius (px) of candle bodies. Defaults to 0 (square).
 
@@ -199,7 +199,7 @@ Corner radius (px) of candle bodies. Defaults to 0 (square).
 optional crosshair?: VroomColor;
 ```
 
-Source: [types/src/index.ts:124](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L124)
+Source: [types/src/index.ts:137](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L137)
 
 Crosshair dashed lines.
 
@@ -211,7 +211,7 @@ Crosshair dashed lines.
 optional crosshairTarget?: VroomColor;
 ```
 
-Source: [types/src/index.ts:126](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L126)
+Source: [types/src/index.ts:139](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L139)
 
 Crosshair target — the hollow ring/dot at the intersection.
 
@@ -223,7 +223,7 @@ Crosshair target — the hollow ring/dot at the intersection.
 optional grid?: VroomColor;
 ```
 
-Source: [types/src/index.ts:99](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L99)
+Source: [types/src/index.ts:112](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L112)
 
 Gridlines.
 
@@ -235,7 +235,7 @@ Gridlines.
 optional lineColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:128](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L128)
+Source: [types/src/index.ts:141](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L141)
 
 Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 
@@ -247,7 +247,7 @@ Line-chart-mode close polyline color. Defaults to violet, matching the RSI line.
 optional lineGradientOpacity?: number;
 ```
 
-Source: [types/src/index.ts:149](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L149)
+Source: [types/src/index.ts:162](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L162)
 
 Opacity of the gradient filled beneath the line-chart polyline, at its
 strongest point. The fill uses `lineColor` and ramps to fully transparent at
@@ -261,7 +261,7 @@ the bottom of the price pane. Defaults to 0.28; set to 0 to disable the fill.
 optional lineTension?: number;
 ```
 
-Source: [types/src/index.ts:159](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L159)
+Source: [types/src/index.ts:172](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L172)
 
 How much to round the line chart's corners, from 0 (straight segments
 between closes) to 1 (fully smooth). Defaults to 0.
@@ -279,7 +279,7 @@ gradient fill beneath the line as well, so the two stay flush.
 optional lineTipDot?: boolean;
 ```
 
-Source: [types/src/index.ts:168](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L168)
+Source: [types/src/index.ts:181](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L181)
 
 Mark the line chart's newest end with a dot. Defaults to `true`.
 
@@ -296,7 +296,7 @@ transition.
 optional lineTipPulse?: boolean;
 ```
 
-Source: [types/src/index.ts:176](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L176)
+Source: [types/src/index.ts:189](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L189)
 
 Pulse a ring outward from the tip dot, once every 2.6s. Defaults to `false`.
 
@@ -312,7 +312,7 @@ continuously — leave it off for charts that should be able to go idle.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:143](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L143)
+Source: [types/src/index.ts:156](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L156)
 
 Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 
@@ -324,7 +324,7 @@ Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:196](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L196)
+Source: [types/src/index.ts:209](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L209)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -339,7 +339,7 @@ grows into it, and the time labels and crosshair time badge fade first.
 optional showYAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:189](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L189)
+Source: [types/src/index.ts:202](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L202)
 
 Show the price (y) axis strip down the right edge. Defaults to `true`.
 
@@ -360,7 +360,7 @@ scaled by dragging it.
 optional skeleton?: VroomColor;
 ```
 
-Source: [types/src/index.ts:141](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L141)
+Source: [types/src/index.ts:154](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L154)
 
 The line drawn across the plot while loading (see the `loading` prop).
 Defaults to inheriting `grid`: the gridlines are already the chart's tone
@@ -381,7 +381,7 @@ warming up instead.
 optional volumeRadius?: number;
 ```
 
-Source: [types/src/index.ts:97](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L97)
+Source: [types/src/index.ts:110](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L110)
 
 Corner radius (px) of the _top_ of volume bars. Defaults to 0 (square).
 
@@ -398,7 +398,7 @@ styling. This still applies when `volume.radius` is omitted.
 optional wickBear?: VroomColor;
 ```
 
-Source: [types/src/index.ts:84](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L84)
+Source: [types/src/index.ts:97](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L97)
 
 Down candle wick color. Defaults to the bear fill color.
 
@@ -410,7 +410,7 @@ Down candle wick color. Defaults to the bear fill color.
 optional wickBull?: VroomColor;
 ```
 
-Source: [types/src/index.ts:82](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L82)
+Source: [types/src/index.ts:95](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L95)
 
 Up candle wick color. Defaults to the bull fill color.
 
@@ -422,7 +422,7 @@ Up candle wick color. Defaults to the bull fill color.
 optional wickRoundCap?: boolean;
 ```
 
-Source: [types/src/index.ts:90](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L90)
+Source: [types/src/index.ts:103](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L103)
 
 Round the wick end caps. Defaults to false.
 
@@ -434,6 +434,6 @@ Round the wick end caps. Defaults to false.
 optional wickWidth?: number;
 ```
 
-Source: [types/src/index.ts:86](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L86)
+Source: [types/src/index.ts:99](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L99)
 
 Wick stroke width in px (applies to both up and down wicks). Defaults to 1.

@@ -41,4 +41,8 @@ void compute_ma(const std::vector<double>& rsi, int ma_period, int kind,
 // capture maps its geometry through the same math.
 double band_fraction(double v, double y_scale);
 
+// Inverse of band_fraction: the RSI value at fraction `f` of the band height.
+// Used by the crosshair to read the pane at the pointer.
+double value_at_fraction(double f, double y_scale);
+
 }  // namespace vroom::rsi

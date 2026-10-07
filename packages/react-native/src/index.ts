@@ -9,6 +9,7 @@ export type {
   VroomChartProps,
   Candle,
   CrosshairEvent,
+  CrosshairIndicatorKind,
   VroomTheme,
   VroomColor,
   VisibleRange,

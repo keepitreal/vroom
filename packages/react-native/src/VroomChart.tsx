@@ -39,6 +39,8 @@ import type { ChartFrame, ChartHandle, CrosshairButtonHit } from './jsi.d';
 import type {
   CrosshairButtonConfig,
   CrosshairButtonEvent,
+  CrosshairEvent,
+  CrosshairIndicatorKind,
   Footprint,
   VroomChartProps,
 } from './types';
@@ -46,6 +48,27 @@ import './jsi.d';
 
 // Mirrors VroomFootprintSide in packages/core/include/vroom/vroom_chart.h.
 const FOOTPRINT_SELL = 1;
+
+// Mirrors VroomCrosshairInfo.indicator_kind in packages/core/include/vroom/vroom_chart.h.
+const INDICATOR_KINDS: readonly CrosshairIndicatorKind[] = ['rsi', 'macd', 'atr'];
+
+function crosshairEvent(
+  info: ReturnType<ChartHandle['getCrosshairInfo']>,
+  reason: CrosshairEvent['reason'],
+): CrosshairEvent {
+  if (!info || reason === 'hide') {
+    return { active: reason !== 'hide', candle: null, timeMs: null, price: null, indicator: null, reason };
+  }
+  const kind = INDICATOR_KINDS[info.indicatorKind];
+  return {
+    active: true,
+    candle: info.candle ?? null,
+    timeMs: info.timeMs,
+    price: info.price,
+    indicator: kind && info.indicatorValue != null ? { kind, value: info.indicatorValue } : null,
+    reason,
+  };
+}
 
 // Unset fields go down as the core's sentinels so it owns the defaults.
 function crosshairButtonToSpec(cfg: CrosshairButtonConfig | undefined) {
@@ -330,10 +353,10 @@ export function VroomChart(props: VroomChartProps) {
   // crosshairActive: gesture callbacks read it synchronously.
   const footprintActive = useRef(false);
 
-  // timeMs of the candle last reported through onCrosshair, so a drag fires a
-  // 'move' event only when it crosses into a *different* candle (one per
-  // candle, not per frame). Null while the crosshair is hidden.
-  const lastCrosshairTime = useRef<number | null>(null);
+  // The slot, price and indicator value last reported through onCrosshair, so
+  // a drag fires 'move' only when one of them changes rather than every frame.
+  // Null while the crosshair is hidden.
+  const lastCrosshairKey = useRef<string | null>(null);
 
   // Momentum scroll. After Pan ends with non-trivial velocity, we run a RAF
   // loop that calls handle.pan(dx, 0) each frame with an exponentially
@@ -758,7 +781,7 @@ export function VroomChart(props: VroomChartProps) {
         next = handle.scalePriceAxis(e.changeY);
       } else if (panMode.current === 'time-axis') {
         next = handle.scaleTimeAxis(e.changeX);
-      } else if (panMode.current === 'indicator') {
+      } else if (panMode.current === 'indicator' && !crosshairActive.current) {
         // Drag in an indicator pane scrolls the candles horizontally only —
         // no vertical price slide (the pane's scale is fixed).
         next = handle.pan(e.changeX, 0);
@@ -773,20 +796,21 @@ export function VroomChart(props: VroomChartProps) {
         onPriceLineDrag?.(g.id, c.price);
         next = handle.render();
       } else if (crosshairActive.current) {
-        // Chart area + crosshair up → the drag moves the crosshair instead of
-        // scrolling. Vertical line tracks the finger x; the dot/horizontal line
-        // stay lifted `crosshairOffset` px above the fingertip.
+        // Chart area or an indicator pane + crosshair up → the drag moves the
+        // crosshair instead of scrolling. Vertical line tracks the finger x; the
+        // dot/horizontal line stay lifted `crosshairOffset` px above the
+        // fingertip, and read whichever pane they land in.
         const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
         if (ch) applyFrame(ch);
         // The line follows the finger every frame (above), but only notify the
-        // host when the snapped slot actually changes. The slot has a timeMs
-        // even in the empty space ahead of the last candle, where candle=null.
-        const info = handle.getCrosshairInfo();
-        const t = info?.timeMs ?? null;
-        if (t !== lastCrosshairTime.current) {
-          lastCrosshairTime.current = t;
-          // price is web-only for now (see @vroomchart/react); RN reports null.
-          onCrosshair?.({ active: true, candle: info?.candle ?? null, timeMs: t, price: null, reason: 'move' });
+        // host when what it reports changes: the slot (which has a timeMs even
+        // in the empty space ahead of the last candle), the price, or the
+        // indicator value.
+        const ev = crosshairEvent(handle.getCrosshairInfo(), 'move');
+        const key = `${ev.timeMs}|${ev.price}|${ev.indicator?.value ?? ''}`;
+        if (key !== lastCrosshairKey.current) {
+          lastCrosshairKey.current = key;
+          onCrosshair?.(ev);
         }
         return;
       } else {
@@ -927,7 +951,8 @@ export function VroomChart(props: VroomChartProps) {
     .onStart((e) => {
       if (!handle) return;
       // A long press on an axis strip controls the axis, never the crosshair.
-      if (hitAxis(e.x, e.y) !== 'chart') return;
+      const region = hitAxis(e.x, e.y);
+      if (region !== 'chart' && region !== 'indicator') return;
       // A press on a price line belongs to that line — dragging it or tapping its
       // close button — so it must not raise the crosshair over the top.
       if (hitPriceLine(e.x, e.y)) return;
@@ -941,15 +966,9 @@ export function VroomChart(props: VroomChartProps) {
       crosshairActive.current = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
       if (ch) applyFrame(ch);
-      const info = handle.getCrosshairInfo();
-      lastCrosshairTime.current = info?.timeMs ?? null;
-      onCrosshair?.({
-        active: true,
-        candle: info?.candle ?? null,
-        timeMs: info?.timeMs ?? null,
-        price: null, // web-only for now (see @vroomchart/react)
-        reason: 'show',
-      });
+      const ev = crosshairEvent(handle.getCrosshairInfo(), 'show');
+      lastCrosshairKey.current = `${ev.timeMs}|${ev.price}|${ev.indicator?.value ?? ''}`;
+      onCrosshair?.(ev);
     });
 
   // A tap activates a price line's close button, selects or dismisses a footprint
@@ -1012,12 +1031,13 @@ export function VroomChart(props: VroomChartProps) {
       }
       if (!crosshairActive.current) return;
       // A tap on an axis strip controls the axis, never dismisses the crosshair.
-      if (hitAxis(e.x, e.y) !== 'chart') return;
+      const tapRegion = hitAxis(e.x, e.y);
+      if (tapRegion !== 'chart' && tapRegion !== 'indicator') return;
       crosshairActive.current = false;
       const ch = handle.clearCrosshair();
       if (ch) applyFrame(ch);
-      lastCrosshairTime.current = null;
-      onCrosshair?.({ active: false, candle: null, timeMs: null, price: null, reason: 'hide' });
+      lastCrosshairKey.current = null;
+      onCrosshair?.(crosshairEvent(null, 'hide'));
     });
 
   const gesture = Gesture.Simultaneous(pan, pinch, longPress, tap);

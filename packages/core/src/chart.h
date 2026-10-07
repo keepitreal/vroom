@@ -48,6 +48,18 @@ struct IndicatorPane {
     PaneKind kind;
 };
 
+// The pane under the crosshair and its value at the crosshair's height, read
+// through the pane's own mapping (fixed RSI domain or visible autoscale, plus
+// the user's y-zoom). `active` is false over the price pane. `value` is NaN
+// when the pane has nothing on show yet to scale against.
+struct IndicatorReadout {
+    bool active = false;
+    PaneKind kind = PaneKind::Rsi;
+    double value = 0.0;
+    float pane_top = 0.f;
+    float pane_bottom = 0.f;
+};
+
 }  // namespace vroom
 
 struct VroomChart {
@@ -509,6 +521,20 @@ struct VroomChart {
     // Both the draw pass and the y-axis hit test read this, so the stack they
     // see can't drift apart.
     int indicator_panes(vroom::IndicatorPane out[vroom::kMaxPanes]) const;
+
+    // Height of each stacked pane (they all share one).
+    float indicator_pane_h() const;
+
+    // The pane whose band holds `y_px`, from the same stack and heights the
+    // draw pass uses. False above the band or below its last pane.
+    bool pane_rect_at(const vroom::Layout& lay, float y_px, vroom::PaneKind* kind,
+                      float* top, float* bottom) const;
+
+    // What the crosshair reads at `y_px` (see IndicatorReadout). `first` / `n`
+    // are the visible slice the panes draw, so MACD and ATR autoscale the same.
+    vroom::IndicatorReadout indicator_readout(const vroom::Layout& lay,
+                                              std::size_t first, std::size_t n,
+                                              float y_px);
 
     // Draws the pane stack into the band below the candles, starting at
     // `pane_top`. Shared by the settled draw and the interval-morph fade, which

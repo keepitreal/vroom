@@ -45,4 +45,9 @@ double autoscale(const double* macd, const double* signal, const double* hist,
 // interval-morph capture maps its geometry through the same math.
 double band_fraction(double v, double scale, double y_scale);
 
+// Inverse of band_fraction: the value at fraction `f` of the band height. NaN
+// while nothing is on show (`scale` <= 0), since every value maps to the zero
+// line then.
+double value_at_fraction(double f, double scale, double y_scale);
+
 }  // namespace vroom::macd

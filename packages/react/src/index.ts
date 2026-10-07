@@ -25,6 +25,7 @@ export {
 export type {
   Candle,
   CrosshairEvent,
+  CrosshairIndicatorKind,
   VroomTheme,
   VroomColor,
   VisibleRange,

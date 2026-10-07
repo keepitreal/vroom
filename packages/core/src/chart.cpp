@@ -147,6 +147,71 @@ int VroomChart::indicator_panes(vroom::IndicatorPane out[vroom::kMaxPanes]) cons
     return count;
 }
 
+float VroomChart::indicator_pane_h() const {
+    return height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
+}
+
+bool VroomChart::pane_rect_at(const vroom::Layout& lay, float y_px,
+                              vroom::PaneKind* kind, float* top,
+                              float* bottom) const {
+    if (lay.indicator_area_h <= 0.f) return false;
+    vroom::IndicatorPane panes[vroom::kMaxPanes];
+    const int count = indicator_panes(panes);
+    const float pane_h = indicator_pane_h();
+    if (count == 0 || pane_h <= 0.f) return false;
+
+    float pane_top = vroom::price_pane_bottom(lay);
+    for (int i = 0; i < count; ++i) {
+        const float pane_bottom = pane_top + pane_h;
+        if (y_px >= pane_top && y_px < pane_bottom) {
+            if (kind) *kind = panes[i].kind;
+            if (top) *top = pane_top;
+            if (bottom) *bottom = pane_bottom;
+            return true;
+        }
+        pane_top = pane_bottom;
+    }
+    return false;
+}
+
+vroom::IndicatorReadout VroomChart::indicator_readout(const vroom::Layout& lay,
+                                                      std::size_t first,
+                                                      std::size_t n,
+                                                      float y_px) {
+    vroom::IndicatorReadout r;
+    if (!pane_rect_at(lay, y_px, &r.kind, &r.pane_top, &r.pane_bottom)) return r;
+    const float band_h = r.pane_bottom - r.pane_top;
+    if (band_h <= 0.f) return r;
+    r.active = true;
+
+    // Same slicing as draw_indicator_panes, so the autoscale matches the draw.
+    const auto slice = [&](const std::vector<double>& cache) -> const double* {
+        return cache.size() == candles.size() ? cache.data() + first : nullptr;
+    };
+    const double f = static_cast<double>((r.pane_bottom - y_px) / band_h);
+    switch (r.kind) {
+        case vroom::PaneKind::Rsi:
+            r.value = vroom::rsi::value_at_fraction(f, rsi_y_scale);
+            break;
+        case vroom::PaneKind::Macd: {
+            ensure_macd();
+            const double scale = vroom::macd::autoscale(
+                macd.line_visible ? slice(macd_cache) : nullptr,
+                macd.signal_visible ? slice(macd_signal_cache) : nullptr,
+                macd.hist_visible ? slice(macd_hist_cache) : nullptr, n);
+            r.value = vroom::macd::value_at_fraction(f, scale, macd_y_scale);
+            break;
+        }
+        case vroom::PaneKind::Atr: {
+            ensure_atr();
+            const double scale = vroom::atr::autoscale(slice(atr_cache), n);
+            r.value = vroom::atr::value_at_fraction(f, scale, atr_y_scale);
+            break;
+        }
+    }
+    return r;
+}
+
 void VroomChart::draw_indicator_panes(SkCanvas* canvas,
                                       const vroom::Layout& lay,
                                       const VroomCandle* visible,
@@ -156,8 +221,7 @@ void VroomChart::draw_indicator_panes(SkCanvas* canvas,
                                       float morph_t) {
     vroom::IndicatorPane panes[vroom::kMaxPanes];
     const int count = indicator_panes(panes);
-    const float pane_h =
-        height_px * theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
+    const float pane_h = indicator_pane_h();
 
     // A cache only lines up with the candles once its ensure_* has run against
     // the current series; until then there is nothing to plot.
@@ -934,9 +998,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     // 7.7. Crosshair — drawn last so it sits on top of everything, including the
     //      indicator panes. The vertical line runs down to x_axis_top so it
     //      stays visible across the candle area and all below-chart panes; the
-    //      horizontal line + ring stay in the price pane (clamped to
-    //      candle_area_h).
+    //      horizontal line + ring follow the pointer into an indicator pane
+    //      (reading that pane's value) and otherwise stay in the price pane.
     if (crosshair_active) {
+        const vroom::IndicatorReadout readout =
+            crosshair_pinned
+                ? vroom::IndicatorReadout{}
+                : indicator_readout(lay, range.start, n, crosshair_y_px);
         // Snap once: the slot gives both the vertical line's x (its center) and
         // the time shown in the date badge. (snap_x_to_candle does exactly this
         // internally, so the line position is unchanged.)
@@ -947,7 +1015,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             lay, snap.time_ms, candle_duration_ms, visible_start_ms, window_ms);
         vroom::crosshair::draw(canvas, *this, lay, bounds, candle_right,
                                candle_area_h, vroom::x_axis_top(lay), snap_x,
-                               snap.time_ms);
+                               snap.time_ms, readout);
     }
 
     // 8. GC fades that have fully faded out and aren't coming back.

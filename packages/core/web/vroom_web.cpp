@@ -14,6 +14,8 @@
 // 2.x). If the WASM build uses a different Skia revision, a few symbol names may
 // need adjusting — they are called out inline.
 
+#include <cmath>
+
 #include <emscripten/bind.h>
 #include <emscripten/html5.h>
 #include <emscripten/html5_webgl.h>
@@ -702,15 +704,20 @@ class WebChart {
     return o;
   }
 
-  // Returns { timeMs, candle: {timeMs, open, high, low, close, volume} | null },
-  // or null when the crosshair is inactive. `candle` is null when the crosshair
+  // Returns { timeMs, price, indicatorKind, indicatorValue, candle: {timeMs,
+  // open, high, low, close, volume} | null }, or null when the crosshair is
+  // inactive. Non-finite numbers come back as null. `candle` is null when the crosshair
   // sits on a future candle-aligned slot past the last bar.
   em::val getCrosshairInfo() {
     VroomCrosshairInfo info{};
     if (!vroom_chart_get_crosshair_info(chart_, &info)) return em::val::null();
     em::val o = em::val::object();
     o.set("timeMs", static_cast<double>(info.time_ms));
-    o.set("price", info.price);
+    o.set("price", std::isfinite(info.price) ? em::val(info.price) : em::val::null());
+    o.set("indicatorKind", info.indicator_kind);
+    o.set("indicatorValue", std::isfinite(info.indicator_value)
+                                ? em::val(info.indicator_value)
+                                : em::val::null());
     if (info.has_candle) {
       em::val c = em::val::object();
       c.set("timeMs", static_cast<double>(info.candle.time_ms));

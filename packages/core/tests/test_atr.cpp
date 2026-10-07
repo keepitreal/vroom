@@ -145,3 +145,13 @@ TEST_CASE("atr::band_fraction maps the 0..peak domain off the bottom edge") {
         CHECK(vroom::atr::band_fraction(1.0, 0.0, 1.0) == doctest::Approx(0.0));
     }
 }
+
+TEST_CASE("atr::value_at_fraction inverts band_fraction") {
+    for (const double z : {0.5, 1.0, 3.0}) {
+        for (const double v : {0.0, 0.5, 2.0, 4.0}) {
+            CHECK(vroom::atr::value_at_fraction(vroom::atr::band_fraction(v, 4.0, z), 4.0, z) ==
+                  doctest::Approx(v));
+        }
+    }
+    CHECK(std::isnan(vroom::atr::value_at_fraction(0.7, 0.0, 1.0)));
+}

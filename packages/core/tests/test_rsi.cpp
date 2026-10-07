@@ -204,3 +204,13 @@ TEST_CASE("rsi::band_fraction maps the fixed 0..100 domain about the pane center
         CHECK(vroom::rsi::band_fraction(100.0, 2.0) == doctest::Approx(1.5));
     }
 }
+
+TEST_CASE("rsi::value_at_fraction inverts band_fraction") {
+    for (const double z : {0.5, 1.0, 2.0}) {
+        for (const double v : {0.0, 30.0, 50.0, 70.0, 100.0}) {
+            CHECK(vroom::rsi::value_at_fraction(vroom::rsi::band_fraction(v, z), z) ==
+                  doctest::Approx(v));
+        }
+    }
+    CHECK(std::isnan(vroom::rsi::value_at_fraction(0.5, 0.0)));
+}

@@ -201,6 +201,11 @@ export interface ChartHandle {
    */
   getCrosshairInfo(): {
     timeMs: number;
+    /** Price at the line; the candle close over an indicator pane (null on a future slot). */
+    price: number | null;
+    /** -1 over the price pane; 0 = RSI, 1 = MACD, 2 = ATR. */
+    indicatorKind: number;
+    indicatorValue: number | null;
     candle: {
       timeMs: number;
       open: number;

@@ -7,6 +7,7 @@ import type { VroomChartCoreProps } from '@vroomchart/types';
 export type {
   Candle,
   CrosshairEvent,
+  CrosshairIndicatorKind,
   VroomColor,
   VroomTheme,
   VisibleRange,
