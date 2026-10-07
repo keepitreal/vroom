@@ -177,3 +177,13 @@ TEST_CASE("macd::band_fraction maps the amplitude about the pane center") {
         CHECK(vroom::macd::band_fraction(1.0, 0.0, 1.0) == doctest::Approx(0.5));
     }
 }
+
+TEST_CASE("macd::value_at_fraction inverts band_fraction") {
+    for (const double z : {0.5, 1.0, 3.0}) {
+        for (const double v : {-4.0, -0.25, 0.0, 1.5, 4.0}) {
+            CHECK(vroom::macd::value_at_fraction(vroom::macd::band_fraction(v, 4.0, z), 4.0, z) ==
+                  doctest::Approx(v));
+        }
+    }
+    CHECK(std::isnan(vroom::macd::value_at_fraction(0.7, 0.0, 1.0)));
+}

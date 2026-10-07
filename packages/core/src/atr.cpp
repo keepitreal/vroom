@@ -64,4 +64,9 @@ double band_fraction(double v, double scale, double y_scale) {
     return (v / scale) * kBandPadFraction * y_scale;
 }
 
+double value_at_fraction(double f, double scale, double y_scale) {
+    if (!(scale > 0.0) || !(y_scale > 0.0)) return std::nan("");
+    return f * scale / (kBandPadFraction * y_scale);
+}
+
 }  // namespace vroom::atr

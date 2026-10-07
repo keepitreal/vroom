@@ -81,4 +81,9 @@ double band_fraction(double v, double y_scale) {
     return 0.5 + ((v - 50.0) / 100.0) * y_scale;
 }
 
+double value_at_fraction(double f, double y_scale) {
+    if (!(y_scale > 0.0)) return std::nan("");
+    return 50.0 + (f - 0.5) * 100.0 / y_scale;
+}
+
 }  // namespace vroom::rsi

@@ -41,4 +41,8 @@ double autoscale(const double* visible, std::size_t n);
 // its geometry through the same math the pane draws with.
 double band_fraction(double v, double scale, double y_scale);
 
+// Inverse of band_fraction: the value at fraction `f` of the band height. NaN
+// while nothing is on show (`scale` <= 0).
+double value_at_fraction(double f, double scale, double y_scale);
+
 }  // namespace vroom::atr

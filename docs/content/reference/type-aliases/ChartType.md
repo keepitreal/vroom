@@ -4,7 +4,7 @@
 type ChartType = "candles" | "line";
 ```
 
-Source: [types/src/index.ts:220](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L220)
+Source: [types/src/index.ts:233](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L233)
 
 How the price series is drawn.
 'candles' — default: candlestick bodies + wicks.

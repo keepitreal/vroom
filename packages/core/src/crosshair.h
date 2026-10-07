@@ -10,12 +10,12 @@
 
 #include <cstdint>
 
+#include "chart.h"
 #include "crosshair_button.h"
 #include "viewport.h"
 #include "vroom/vroom_chart.h"
 
 class SkCanvas;
-struct VroomChart;
 
 namespace vroom::crosshair {
 
@@ -32,6 +32,10 @@ namespace vroom::crosshair {
 // price badge (the price at the crosshair y, via `lay`/`bounds`) centered in
 // the y-axis strip. Both render on top of the axis labels and the current-price
 // indicator since the crosshair is the last thing drawn.
+//
+// When `readout` is active the pointer is over an indicator pane: the
+// horizontal line and ring sit at the pointer there, the badge shows the pane's
+// value instead of a price, and the plus button stays hidden.
 void draw(SkCanvas* canvas,
           const VroomChart& chart,
           const vroom::Layout& lay,
@@ -40,7 +44,8 @@ void draw(SkCanvas* canvas,
           float candle_area_h,
           float vline_bottom,
           float snap_x,
-          int64_t snap_time_ms);
+          int64_t snap_time_ms,
+          const vroom::IndicatorReadout& readout);
 
 // The horizontal line's y: the pinned price's y while the plus button is
 // pinned, the pointer's otherwise; clamped into the price pane.

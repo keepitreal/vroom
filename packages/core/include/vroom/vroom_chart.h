@@ -764,14 +764,22 @@ bool vroom_chart_get_crosshair_candle(VroomChart* chart, VroomCandle* out);
 // valid. `has_candle` is true when a real candle sits at that slot, in which
 // case `candle` holds its OHLCV; in the future region `has_candle` is false and
 // `candle` is left untouched.
+//
+// Over a below-chart indicator pane, `indicator_kind` names the pane and
+// `indicator_value` is its value at the horizontal line (the value drawn on
+// that badge; NaN while the pane has nothing to scale against).
 typedef struct VroomCrosshairInfo {
     int64_t     time_ms;
     // Free price under the crosshair's horizontal line — the value drawn on the
     // price badge (not snapped to any candle). Valid whenever the call returns
-    // true, including in the future region where `has_candle` is false.
+    // true, including in the future region where `has_candle` is false. Over an
+    // indicator pane there is no price level at the line, so this is the close
+    // of the candle under the vertical line instead — NaN on a future slot.
     double      price;
     bool        has_candle;
     VroomCandle candle;
+    int32_t     indicator_kind;   // -1 = price pane, 0 = RSI, 1 = MACD, 2 = ATR
+    double      indicator_value;
 } VroomCrosshairInfo;
 
 // Fills *out with the snapped slot the crosshair currently sits on and returns

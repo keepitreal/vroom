@@ -4,13 +4,17 @@
 type CrosshairEvent = {
   active: boolean;
   candle: Candle | null;
+  indicator: {
+    kind: CrosshairIndicatorKind;
+    value: number;
+  } | null;
   price: number | null;
   reason: "show" | "move" | "hide";
   timeMs: number | null;
 };
 ```
 
-Source: [types/src/index.ts:24](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L24)
+Source: [types/src/index.ts:27](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L27)
 
 Payload passed to `onCrosshair` as the crosshair shows, moves, or hides.
 
@@ -22,7 +26,7 @@ Payload passed to `onCrosshair` as the crosshair shows, moves, or hides.
 active: boolean;
 ```
 
-Source: [types/src/index.ts:26](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L26)
+Source: [types/src/index.ts:29](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L29)
 
 True while the crosshair is showing; false when it's dismissed.
 
@@ -34,12 +38,31 @@ True while the crosshair is showing; false when it's dismissed.
 candle: Candle | null;
 ```
 
-Source: [types/src/index.ts:33](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L33)
+Source: [types/src/index.ts:36](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L36)
 
 OHLCV of the candle under the crosshair, or null when inactive. Also null
 when the crosshair is parked on a _future_ candle-aligned slot in the empty
 space ahead of the most recent candle (no candle exists there yet) — use
 `timeMs` to read the slot's time in that case.
+
+---
+
+### indicator
+
+```ts
+indicator:
+  | {
+  kind: CrosshairIndicatorKind;
+  value: number;
+}
+  | null;
+```
+
+Source: [types/src/index.ts:57](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L57)
+
+The indicator pane under the crosshair and its value at the horizontal line
+(what that pane's badge shows), or null over the price pane. `value` is in
+the pane's own units: RSI on its 0–100 scale, MACD and ATR in price units.
 
 ---
 
@@ -49,11 +72,15 @@ space ahead of the most recent candle (no candle exists there yet) — use
 price: number | null;
 ```
 
-Source: [types/src/index.ts:44](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L44)
+Source: [types/src/index.ts:51](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L51)
 
 Free price at the crosshair's horizontal line (what the price badge shows),
 in data space. Null when inactive. Pair with `timeMs` to mirror this
 crosshair onto another chart via its `crosshairOverride` prop.
+
+Over a below-chart indicator pane the line isn't at a price level, so this
+is the close of the candle under the vertical line instead — null on an
+empty future slot.
 
 ---
 
@@ -63,7 +90,7 @@ crosshair onto another chart via its `crosshairOverride` prop.
 reason: "show" | "move" | "hide";
 ```
 
-Source: [types/src/index.ts:55](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L55)
+Source: [types/src/index.ts:68](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L68)
 
 Why this event fired — lets the host react differently (e.g. haptics):
 'show' — long-press activated the crosshair
@@ -82,7 +109,7 @@ The library never plays haptics itself; the host decides.
 timeMs: number | null;
 ```
 
-Source: [types/src/index.ts:38](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L38)
+Source: [types/src/index.ts:41](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L41)
 
 Bar-open time (Unix epoch ms) of the slot the crosshair snaps to, including
 future candle-aligned slots past the last candle. Null when inactive.

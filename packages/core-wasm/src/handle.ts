@@ -70,8 +70,16 @@ export type CrosshairCandle = {
  */
 export type CrosshairInfo = {
   timeMs: number;
-  /** Free price at the crosshair's horizontal line (the price-badge value). */
-  price: number;
+  /**
+   * Free price at the crosshair's horizontal line (the price-badge value). Over
+   * an indicator pane, the close of the candle under the vertical line; null on
+   * a future slot there.
+   */
+  price: number | null;
+  /** -1 over the price pane; 0 = RSI, 1 = MACD, 2 = ATR. */
+  indicatorKind: number;
+  /** The indicator pane's value at the line; null over the price pane or with nothing to scale. */
+  indicatorValue: number | null;
   candle: CrosshairCandle | null;
 };
 

@@ -869,7 +869,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
   }
 
   if (name == "getCrosshairInfo") {
-    // getCrosshairInfo() -> { timeMs, candle: {...} | null } | null. The slot
+    // getCrosshairInfo() -> { timeMs, price, indicatorKind, indicatorValue,
+    // candle: {...} | null } | null. The slot
     // the crosshair snaps to (real candle or a future candle-aligned slot past
     // the last bar); null when the crosshair is inactive. `candle` is null in
     // the empty space ahead of the most recent candle. No rendering.
@@ -887,6 +888,15 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           }
           jsi::Object obj(rt2);
           obj.setProperty(rt2, "timeMs", static_cast<double>(info.time_ms));
+          obj.setProperty(rt2, "price",
+                          std::isfinite(info.price) ? jsi::Value(info.price)
+                                                    : jsi::Value::null());
+          obj.setProperty(rt2, "indicatorKind",
+                          static_cast<double>(info.indicator_kind));
+          obj.setProperty(rt2, "indicatorValue",
+                          std::isfinite(info.indicator_value)
+                              ? jsi::Value(info.indicator_value)
+                              : jsi::Value::null());
           if (info.has_candle) {
             jsi::Object c(rt2);
             c.setProperty(rt2, "timeMs",

@@ -20,6 +20,9 @@ export type Candle = {
   volume: number;
 };
 
+/** A below-chart indicator pane the crosshair can read. */
+export type CrosshairIndicatorKind = 'rsi' | 'macd' | 'atr';
+
 /** Payload passed to `onCrosshair` as the crosshair shows, moves, or hides. */
 export type CrosshairEvent = {
   /** True while the crosshair is showing; false when it's dismissed. */
@@ -40,8 +43,18 @@ export type CrosshairEvent = {
    * Free price at the crosshair's horizontal line (what the price badge shows),
    * in data space. Null when inactive. Pair with `timeMs` to mirror this
    * crosshair onto another chart via its `crosshairOverride` prop.
+   *
+   * Over a below-chart indicator pane the line isn't at a price level, so this
+   * is the close of the candle under the vertical line instead — null on an
+   * empty future slot.
    */
   price: number | null;
+  /**
+   * The indicator pane under the crosshair and its value at the horizontal line
+   * (what that pane's badge shows), or null over the price pane. `value` is in
+   * the pane's own units: RSI on its 0–100 scale, MACD and ATR in price units.
+   */
+  indicator: { kind: CrosshairIndicatorKind; value: number } | null;
   /**
    * Why this event fired — lets the host react differently (e.g. haptics):
    *   'show' — long-press activated the crosshair

@@ -9,7 +9,7 @@ type Footprint = {
 };
 ```
 
-Source: [types/src/index.ts:992](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L992)
+Source: [types/src/index.ts:1005](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1005)
 
 A single filled trade, drawn as a circular badge above the candle it fell in —
 the "footprint" a trader leaves on the chart: `buy` marks an entry (a `+`
@@ -33,7 +33,7 @@ twenty fills still shows one badge and still reports all twenty.
 id: string;
 ```
 
-Source: [types/src/index.ts:994](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L994)
+Source: [types/src/index.ts:1007](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1007)
 
 Stable unique id, echoed back in `onFootprint`.
 
@@ -45,7 +45,7 @@ Stable unique id, echoed back in `onFootprint`.
 optional price?: number;
 ```
 
-Source: [types/src/index.ts:1003](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1003)
+Source: [types/src/index.ts:1016](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1016)
 
 Execution price. Ignored by the renderer (badges sit above the bar, not at
 the fill), and carried through to `onFootprint` for your own UI.
@@ -58,7 +58,7 @@ the fill), and carried through to `onFootprint` for your own UI.
 side: FootprintSide;
 ```
 
-Source: [types/src/index.ts:998](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L998)
+Source: [types/src/index.ts:1011](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1011)
 
 Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 
@@ -70,6 +70,6 @@ Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:996](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L996)
+Source: [types/src/index.ts:1009](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1009)
 
 Execution time as Unix epoch milliseconds, unsnapped.

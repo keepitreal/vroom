@@ -11,6 +11,7 @@ import type {
   CrosshairButtonConfig,
   CrosshairButtonEvent,
   CrosshairEvent,
+  CrosshairIndicatorKind,
   DefaultDrawingStyle,
   Drawing,
   DrawingSelection,
@@ -27,6 +28,7 @@ import {
 } from '@vroomchart/core-wasm';
 import type {
   CrosshairButtonHit,
+  CrosshairInfo,
   FootprintHit,
   VroomChartHandle,
 } from '@vroomchart/core-wasm';
@@ -35,6 +37,15 @@ import { newDrawingAttrs, resolveDrawingStyle } from './drawingStyle';
 import { simplifyIndices } from './simplify';
 
 type Region = 'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'separator' | 'indicator-axis';
+
+// Mirrors VroomCrosshairInfo.indicator_kind in packages/core/include/vroom/vroom_chart.h.
+const INDICATOR_KINDS: readonly CrosshairIndicatorKind[] = ['rsi', 'macd', 'atr'];
+
+function crosshairIndicator(info: CrosshairInfo | null): CrosshairEvent['indicator'] {
+  const kind = info ? INDICATOR_KINDS[info.indicatorKind] : undefined;
+  if (!info || !kind || info.indicatorValue == null) return null;
+  return { kind, value: info.indicatorValue };
+}
 
 export type GestureOptions = {
   crosshairOffset: number;
@@ -562,7 +573,13 @@ export function useGestures(
         timeMs: a.timeMs + t * (b.timeMs - a.timeMs),
         price: a.price + t * (b.price - a.price),
       };
-      const cur = h.getCrosshairInfo();
+      const info = h.getCrosshairInfo();
+      // Only a price-pane reading anchors a paste; over an indicator pane the
+      // price is just the candle's close, not where the cursor is.
+      const cur =
+        info && info.price != null && info.indicatorKind < 0
+          ? { timeMs: info.timeMs, price: info.price }
+          : null;
       const moved =
         cur != null &&
         (clip.crosshair == null ||
@@ -726,7 +743,10 @@ export function useGestures(
           width: d.width,
           ...(d.type === 'box' ? { fill: d.fill } : {}),
           t: selectedTRef.current,
-          crosshair: info ? { timeMs: info.timeMs, price: info.price } : null,
+          crosshair:
+            info && info.price != null && info.indicatorKind < 0
+              ? { timeMs: info.timeMs, price: info.price }
+              : null,
         };
       } else if (key === 'v') {
         const clip = clipboardRef.current;
@@ -805,6 +825,7 @@ export function useGestures(
     let crosshairSource: 'press' | 'hover' | null = null;
     let lastCrosshairTime: number | null = null;
     let lastCrosshairPrice: number | null = null;
+    let lastCrosshairIndicator: number | null = null;
     let longPressTimer: ReturnType<typeof setTimeout> | null = null;
     let downX = 0;
     let downY = 0;
@@ -963,17 +984,29 @@ export function useGestures(
       const info = h.getCrosshairInfo();
       const t = info?.timeMs ?? null;
       const p = info?.price ?? null;
+      const indicator = reason === 'hide' ? null : crosshairIndicator(info);
+      const iv = indicator?.value ?? null;
       // Fire on any positional change — a different candle (time) OR a vertical
-      // move within the same candle (price). Deduping on time alone would freeze
-      // the reported price mid-candle, which breaks cross-chart price sync.
-      if (reason === 'move' && t === lastCrosshairTime && p === lastCrosshairPrice) return;
+      // move within the same candle (price, or the indicator value over a pane,
+      // where `price` is the candle's close). Deduping on time alone would
+      // freeze the reported value mid-candle, which breaks cross-chart sync.
+      if (
+        reason === 'move' &&
+        t === lastCrosshairTime &&
+        p === lastCrosshairPrice &&
+        iv === lastCrosshairIndicator
+      ) {
+        return;
+      }
       lastCrosshairTime = t;
       lastCrosshairPrice = p;
+      lastCrosshairIndicator = iv;
       optsRef.current.onCrosshair?.({
         active: reason !== 'hide',
         candle: info?.candle ?? null,
         timeMs: t,
         price: reason === 'hide' ? null : p,
+        indicator,
         reason,
       });
     };
@@ -1412,7 +1445,11 @@ export function useGestures(
         downHitRef.current = hit; // non-selected body or miss → resolved on release
       }
 
-      if (e.pointerType !== 'mouse' && panMode === 'chart' && !drawActive()) {
+      if (
+        e.pointerType !== 'mouse' &&
+        (panMode === 'chart' || panMode === 'indicator') &&
+        !drawActive()
+      ) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;
           if (!moved) {
@@ -1480,7 +1517,7 @@ export function useGestures(
               : region === 'indicator-axis'
                 ? 'ns-resize'
                 : '';
-          if (region === 'chart') {
+          if (region === 'chart' || region === 'indicator') {
             showCrosshair(x, y, 'hover', crosshairActive ? 'move' : 'show');
           } else {
             hideCrosshair();
@@ -1597,7 +1634,11 @@ export function useGestures(
       }
 
       // Chart-area drag with the (press) crosshair up moves the crosshair.
-      if (crosshairActive && crosshairSource === 'press' && panMode === 'chart') {
+      if (
+        crosshairActive &&
+        crosshairSource === 'press' &&
+        (panMode === 'chart' || panMode === 'indicator')
+      ) {
         showCrosshair(x, y, 'press', 'move');
         return;
       }

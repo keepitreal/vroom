@@ -14,6 +14,7 @@
 #pragma clang diagnostic pop
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
@@ -95,14 +96,18 @@ struct PriceBadge {
     crosshair_button::Rect rect{};
 };
 
+// `text` replaces the price (an indicator pane's value); it also drops the
+// plus, which only belongs to the price pane. An empty `text` draws nothing.
 PriceBadge measure_price_badge(const VroomChart& chart,
                                const Layout& lay,
                                const PriceBounds& bounds,
                                float cy,
                                float candle_right,
-                               const SkFont* font) {
+                               const SkFont* font,
+                               const char* text = nullptr) {
     PriceBadge b;
-    const bool button = chart.crosshair_button_style.enabled != 0;
+    if (text && text[0] == '\0') return b;
+    const bool button = !text && chart.crosshair_button_style.enabled != 0;
     const bool axis =
         font && lay.y_axis_width_px > 0.f && lay.y_axis_opacity > 0.f;
     if (!axis && !button) return b;
@@ -119,11 +124,15 @@ PriceBadge measure_price_badge(const VroomChart& chart,
     float text_right = text_left;
     float box_h = glyph + 2.f * kPadV;
     if (axis) {
-        const double price = vroom::y_to_price(lay, bounds, cy);
-        const vroom::PriceFormat fmt = vroom::with_tick_guard(
-            chart.price_fmt,
-            vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
-        vroom::format_price(b.text, sizeof(b.text), price, fmt);
+        if (text) {
+            std::snprintf(b.text, sizeof(b.text), "%s", text);
+        } else {
+            const double price = vroom::y_to_price(lay, bounds, cy);
+            const vroom::PriceFormat fmt = vroom::with_tick_guard(
+                chart.price_fmt,
+                vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
+            vroom::format_price(b.text, sizeof(b.text), price, fmt);
+        }
         SkRect tb;
         const float text_w = font->measureText(b.text, std::strlen(b.text),
                                                SkTextEncoding::kUTF8, &tb);
@@ -201,6 +210,19 @@ void draw_price_badge(SkCanvas* canvas,
         canvas->drawString(b.text, b.text_x, b.text_y, *font, text_paint);
     }
 }
+
+// RSI reads on its fixed 0..100 scale; MACD and ATR are in price units, so
+// they share the price axis's precision. Empty when there's no value.
+void format_readout(const VroomChart& chart, const IndicatorReadout& r,
+                    char* buf, size_t len) {
+    buf[0] = '\0';
+    if (!std::isfinite(r.value)) return;
+    if (r.kind == PaneKind::Rsi) {
+        std::snprintf(buf, len, "%.2f", r.value);
+    } else {
+        vroom::format_price(buf, len, r.value, chart.price_fmt);
+    }
+}
 }  // namespace
 
 float line_y(const VroomChart& chart,
@@ -224,6 +246,11 @@ bool button_rect(const VroomChart& chart,
         candle_right <= 0.f || candle_area_h <= 0.f) {
         return false;
     }
+    // Over an indicator pane the badge reads that pane, and there's no button.
+    if (!chart.crosshair_pinned &&
+        chart.pane_rect_at(lay, chart.crosshair_y_px, nullptr, nullptr, nullptr)) {
+        return false;
+    }
     const float cy = line_y(chart, lay, bounds, candle_area_h);
     SkFont font;
     const bool has_font = axis_font(chart, &font);
@@ -242,14 +269,19 @@ void draw(SkCanvas* canvas,
           float candle_area_h,
           float vline_bottom,
           float snap_x,
-          int64_t snap_time_ms) {
+          int64_t snap_time_ms,
+          const IndicatorReadout& readout) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
 
     // Vertical line + ring snap to the nearest candle's center x; the horizontal
-    // line and the ring's y follow the (lifted) touch y. Clamp into the candle
-    // area so nothing bleeds into the axis strips.
+    // line and the ring's y follow the (lifted) touch y — into an indicator
+    // pane when the pointer is over one, otherwise clamped to the price pane so
+    // nothing bleeds into the axis strips.
     const float cx = std::clamp(snap_x, 0.f, candle_right);
-    const float cy = line_y(chart, lay, bounds, candle_area_h);
+    const float cy = readout.active ? chart.crosshair_y_px
+                                    : line_y(chart, lay, bounds, candle_area_h);
+    char readout_buf[48];
+    if (readout.active) format_readout(chart, readout, readout_buf, sizeof(readout_buf));
 
     const SkColor color = chart.theme.colors[VROOM_COLOR_CROSSHAIR];
 
@@ -258,8 +290,10 @@ void draw(SkCanvas* canvas,
     // one left edge; the vertical line still stops at the plot edge.
     SkFont font;
     const bool tf = axis_font(chart, &font);
-    const PriceBadge price_badge = measure_price_badge(
-        chart, lay, bounds, cy, candle_right, tf ? &font : nullptr);
+    const PriceBadge price_badge =
+        measure_price_badge(chart, lay, bounds, cy, candle_right,
+                            tf ? &font : nullptr,
+                            readout.active ? readout_buf : nullptr);
     const float h_right = price_badge.shown ? price_badge.rect.left : candle_right;
 
     // Dashed perpendicular lines. The vertical line runs the full height of the

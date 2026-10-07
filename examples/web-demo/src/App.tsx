@@ -1280,7 +1280,8 @@ export function App() {
     } else {
       const c = e.candle;
       const d = new Date(c.timeMs).toISOString().slice(0, 10);
-      setReadout(`${d}  O ${c.open.toFixed(2)}  H ${c.high.toFixed(2)}  L ${c.low.toFixed(2)}  C ${c.close.toFixed(2)}`);
+      const ind = e.indicator ? `  ${e.indicator.kind.toUpperCase()} ${e.indicator.value.toFixed(2)}` : '';
+      setReadout(`${d}  O ${c.open.toFixed(2)}  H ${c.high.toFixed(2)}  L ${c.low.toFixed(2)}  C ${c.close.toFixed(2)}${ind}`);
     }
     // Drive the linked crosshair only when the second pane is showing.
     if (twoPane) {

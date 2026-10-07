@@ -811,25 +811,8 @@ extern "C" void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px,
 
     // The same ordered pane stack the draw pass uses, so the pane under y_px is
     // the one the user sees there.
-    vroom::IndicatorPane panes[vroom::kMaxPanes];
-    const int count = chart->indicator_panes(panes);
-    if (count == 0) return;
-
-    const float pane_h =
-        chart->height_px * chart->theme.floats[VROOM_FLOAT_INDICATOR_HEIGHT_FRAC];
-    if (pane_h <= 0.f) return;
-
-    const vroom::IndicatorPane* target = nullptr;
-    float pane_top = vroom::price_pane_bottom(lay);
-    for (int i = 0; i < count; ++i) {
-        const float pane_bottom = pane_top + pane_h;
-        if (y_px >= pane_top && y_px < pane_bottom) {
-            target = &panes[i];
-            break;
-        }
-        pane_top = pane_bottom;
-    }
-    if (!target) return;  // not over a pane
+    vroom::PaneKind kind{};
+    if (!chart->pane_rect_at(lay, y_px, &kind, nullptr, nullptr)) return;
 
     // Drag down (dy > 0) widens the visible value range (zoom out), matching
     // scale_price_axis's sign. The zoom is the inverse of the range scale.
@@ -837,7 +820,7 @@ extern "C" void vroom_chart_scale_indicator_axis(VroomChart* chart, float y_px,
     if (range_scale < 0.05) range_scale = 0.05;  // never collapse or flip
 
     double* zoom_ptr = nullptr;
-    switch (target->kind) {
+    switch (kind) {
         case vroom::PaneKind::Rsi:  zoom_ptr = &chart->rsi_y_scale;  break;
         case vroom::PaneKind::Macd: zoom_ptr = &chart->macd_y_scale; break;
         case vroom::PaneKind::Atr:  zoom_ptr = &chart->atr_y_scale;  break;
@@ -1048,6 +1031,21 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
                                  vroom::price_pane_bottom(lay)));
     out->has_candle = snap.has_candle;
     if (snap.has_candle) out->candle = visible[snap.index];
+
+    // Same readout the draw pass hands the crosshair, so the reported value is
+    // the one on the badge.
+    out->indicator_kind = -1;
+    out->indicator_value = 0.0;
+    const vroom::IndicatorReadout readout =
+        chart->crosshair_pinned
+            ? vroom::IndicatorReadout{}
+            : chart->indicator_readout(lay, range.start, n, chart->crosshair_y_px);
+    if (readout.active) {
+        out->indicator_kind = static_cast<int32_t>(readout.kind);
+        out->indicator_value = readout.value;
+        out->price = snap.has_candle ? visible[snap.index].close
+                                     : std::numeric_limits<double>::quiet_NaN();
+    }
     return true;
 }
 
