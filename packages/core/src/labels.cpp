@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <utility>
 #include <vector>
 
 #include "chart.h"
@@ -38,14 +39,50 @@ bool price_matches(double a, double b) {
 // Advance a label's opacity toward its target by `step`. On the first render
 // of a chart `chart.last_dt_seconds == 0` (and we'd be stuck at opacity 0
 // forever), so we snap to the target then; subsequent frames fade normally.
+void advance(float& opacity, float target, float step, float dt) {
+    if (dt == 0.f) {
+        opacity = target;
+    } else if (opacity < target) {
+        opacity = std::min(target, opacity + step);
+    } else if (opacity > target) {
+        opacity = std::max(target, opacity - step);
+    }
+}
+
 template <typename Fade>
 void advance(Fade& f, float step, float dt) {
-    if (dt == 0.f) {
-        f.opacity = f.target;
-    } else if (f.opacity < f.target) {
-        f.opacity = std::min(f.target, f.opacity + step);
-    } else if (f.opacity > f.target) {
-        f.opacity = std::max(f.target, f.opacity - step);
+    advance(f.opacity, f.target, step, dt);
+}
+
+SkFont axis_font(const VroomChart& chart, sk_sp<SkTypeface> tf) {
+    SkFont font(std::move(tf), chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
+    font.setSubpixel(true);
+    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+    return font;
+}
+
+// The x-axis text for a tick at `time_ms` under cadence `tick`.
+void format_x_label(char* buf, size_t size, int64_t time_ms,
+                    const vroom::TimeTick& tick) {
+    const time_t time_s = static_cast<time_t>(time_ms / 1000);
+    struct tm tm_buf;
+    localtime_r(&time_s, &tm_buf);
+    if (tick.unit == vroom::TimeUnit::Year) {
+        std::snprintf(buf, size, "%d", tm_buf.tm_year + 1900);
+    } else if (tick.unit == vroom::TimeUnit::Month) {
+        // Show the year at January so month ticks read across years.
+        if (tm_buf.tm_mon == 0) {
+            std::snprintf(buf, size, "%d", tm_buf.tm_year + 1900);
+        } else {
+            std::strftime(buf, size, "%b", &tm_buf);
+        }
+    } else if (tick.unit == vroom::TimeUnit::Fixed &&
+               tick.step_ms >= 24LL * 60 * 60 * 1000) {
+        std::snprintf(buf, size, "%02d/%02d",
+                      tm_buf.tm_mon + 1, tm_buf.tm_mday);
+    } else {
+        std::snprintf(buf, size, "%02d:%02d",
+                      tm_buf.tm_hour, tm_buf.tm_min);
     }
 }
 
@@ -69,6 +106,13 @@ double reference_price(const VroomChart& chart) {
 template <typename Fade>
 void apply_envelope(std::vector<Fade>& fades, float opacity) {
     for (auto& f : fades) f.opacity = f.target > 0.f ? opacity : 0.f;
+}
+
+void apply_envelope(std::vector<XLabelFade>& fades, float opacity) {
+    for (auto& f : fades) {
+        f.opacity = f.target > 0.f ? opacity : 0.f;
+        f.label_opacity = f.label_target > 0.f ? opacity : 0.f;
+    }
 }
 
 }  // namespace
@@ -219,23 +263,45 @@ void update_x_fades(VroomChart& chart,
     const vroom::TimeTick tick =
         vroom::pick_time_tick(window_ms, candle_area_w);
 
-    for (auto& f : chart.x_fades) f.target = 0.f;
+    for (auto& f : chart.x_fades) {
+        f.target = 0.f;
+        f.label_target = 0.f;
+    }
+
+    auto tf = vroom::axis_typeface();
+    const SkFont font = axis_font(chart, tf);
 
     int64_t t = vroom::first_tick_at_or_after(start_ms, tick);
     constexpr int kMaxLabels = 64;
     int promoted = 0;
     for (; t <= end_ms && promoted < kMaxLabels;
          t = vroom::next_tick(t, tick), ++promoted) {
+        // Same placement draw_x_labels uses: the label shows only while its
+        // whole text is inside the plot.
+        bool fits = true;
+        if (tf) {
+            char buf[16];
+            format_x_label(buf, sizeof(buf), t, tick);
+            const float text_w = font.measureText(
+                buf, std::strlen(buf), SkTextEncoding::kUTF8);
+            const float frac = static_cast<float>(t - start_ms) /
+                               static_cast<float>(window_ms);
+            const float text_x = frac * candle_area_w - text_w * 0.5f;
+            fits = text_x >= 0.f && text_x + text_w <= candle_area_w;
+        }
+        const float label_target = fits ? 1.f : 0.f;
+
         bool found = false;
         for (auto& f : chart.x_fades) {
             if (f.time_ms == t) {
                 f.target = 1.f;
+                f.label_target = label_target;
                 found = true;
                 break;
             }
         }
         if (!found) {
-            chart.x_fades.push_back(XLabelFade{t, 0.f, 1.f});
+            chart.x_fades.push_back(XLabelFade{t, 0.f, 1.f, 0.f, label_target});
         }
     }
 
@@ -245,7 +311,10 @@ void update_x_fades(VroomChart& chart,
         return;
     }
     const float step = kFadeRate * chart.last_dt_seconds;
-    for (auto& f : chart.x_fades) advance(f, step, chart.last_dt_seconds);
+    for (auto& f : chart.x_fades) {
+        advance(f, step, chart.last_dt_seconds);
+        advance(f.label_opacity, f.label_target, step, chart.last_dt_seconds);
+    }
 }
 
 void draw_x_gridlines(SkCanvas* canvas,
@@ -296,9 +365,7 @@ void draw_x_labels(SkCanvas* canvas,
     const vroom::TimeTick tick =
         vroom::pick_time_tick(window_ms, candle_area_w);
 
-    SkFont font(tf, chart.theme.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX]);
-    font.setSubpixel(true);
-    font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+    const SkFont font = axis_font(chart, tf);
 
     SkFontMetrics metrics;
     font.getMetrics(&metrics);
@@ -310,55 +377,39 @@ void draw_x_labels(SkCanvas* canvas,
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_AXIS_TEXT]);
     text_paint.setAntiAlias(true);
 
+    // A label fading out keeps sliding with the pan, so it can poke past the
+    // plot edge before it is gone; the clip keeps it out of the y-axis column.
+    canvas->save();
+    canvas->clipRect(SkRect::MakeLTRB(0.f, candle_area_h, candle_area_w,
+                                      candle_area_h + lay.x_axis_height_px));
+
     const float baseline_y =
         candle_area_h + (lay.x_axis_height_px + cap_h) * 0.5f;
-    const bool use_date =
-        tick.unit == vroom::TimeUnit::Fixed &&
-        tick.step_ms >= 24LL * 60 * 60 * 1000;
     for (const auto& f : chart.x_fades) {
-        if (f.opacity <= 1e-3f) continue;
+        if (f.label_opacity <= 1e-3f) continue;
         const float frac = static_cast<float>(f.time_ms - start_ms) /
                            static_cast<float>(window_ms);
         const float x_center = frac * candle_area_w;
 
         char buf[16];
-        const time_t time_s = static_cast<time_t>(f.time_ms / 1000);
-        struct tm tm_buf;
-        localtime_r(&time_s, &tm_buf);
-        if (tick.unit == vroom::TimeUnit::Year) {
-            std::snprintf(buf, sizeof(buf), "%d", tm_buf.tm_year + 1900);
-        } else if (tick.unit == vroom::TimeUnit::Month) {
-            // Show the year at January so month ticks read across years.
-            if (tm_buf.tm_mon == 0) {
-                std::snprintf(buf, sizeof(buf), "%d", tm_buf.tm_year + 1900);
-            } else {
-                std::strftime(buf, sizeof(buf), "%b", &tm_buf);
-            }
-        } else if (use_date) {
-            std::snprintf(buf, sizeof(buf), "%02d/%02d",
-                          tm_buf.tm_mon + 1, tm_buf.tm_mday);
-        } else {
-            std::snprintf(buf, sizeof(buf), "%02d:%02d",
-                          tm_buf.tm_hour, tm_buf.tm_min);
-        }
-
+        format_x_label(buf, sizeof(buf), f.time_ms, tick);
         const size_t len = std::strlen(buf);
         const float text_w = font.measureText(
             buf, len, SkTextEncoding::kUTF8);
         const float text_x = x_center - text_w * 0.5f;
-        if (text_x < 0.f) continue;
-        if (text_x + text_w > candle_area_w) continue;
 
-        text_paint.setAlphaf(f.opacity * lay.x_axis_opacity);
+        text_paint.setAlphaf(f.label_opacity * lay.x_axis_opacity);
         canvas->drawString(buf, text_x, baseline_y, font, text_paint);
     }
+    canvas->restore();
 }
 
 void gc_x_fades(VroomChart& chart) {
     chart.x_fades.erase(
         std::remove_if(chart.x_fades.begin(), chart.x_fades.end(),
                        [](const XLabelFade& f) {
-                           return f.opacity <= 0.f && f.target <= 0.f;
+                           return f.opacity <= 0.f && f.target <= 0.f &&
+                                  f.label_opacity <= 0.f;
                        }),
         chart.x_fades.end());
 }

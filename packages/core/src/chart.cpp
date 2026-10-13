@@ -1248,6 +1248,7 @@ bool VroomChart::is_animating_now() const {
     }
     for (const auto& f : x_fades) {
         if (f.opacity != f.target) return true;
+        if (f.label_opacity != f.label_target) return true;
     }
     return false;
 }

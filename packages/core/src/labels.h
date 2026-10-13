@@ -28,10 +28,16 @@ struct YLabelFade {
     float target = 1.f;
 };
 
+// `opacity`/`target` drive the gridline, which stays up while its tick is in the
+// window. The label text fades on its own channel, which only targets 1 while
+// the text fits inside the plot, so a label sliding off either edge during a
+// pan fades out instead of vanishing the moment its text touches the edge.
 struct XLabelFade {
     int64_t time_ms;
     float opacity = 0.f;
     float target = 1.f;
+    float label_opacity = 0.f;
+    float label_target = 1.f;
 };
 
 // Opacity step per second (1 / 0.2s ≈ 200ms full fade). Paces the incremental
