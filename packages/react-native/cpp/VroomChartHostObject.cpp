@@ -1659,7 +1659,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setCrosshairStyle") {
     // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
-    // simpleHeight, dimAhead, dimOpacity }). No render; the next render()
+    // simpleHeight, dimAhead, dimOpacity, badgeColor }). No render; the next render()
     // picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
@@ -1683,6 +1683,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.simple_height = static_cast<float>(num("simpleHeight"));
           s.dim_ahead = cfg.getProperty(rt2, "dimAhead").getBool() ? 1 : 0;
           s.dim_opacity = static_cast<float>(num("dimOpacity"));
+          s.badge_color = static_cast<uint32_t>(num("badgeColor"));
           vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });

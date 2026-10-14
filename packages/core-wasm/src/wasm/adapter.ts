@@ -364,7 +364,7 @@ class WasmHandle implements VroomChartHandle {
     this.wc.setCrosshairButton(spec);
   }
   setCrosshairStyle(spec: CrosshairStyleSpec): void {
-    this.wc.setCrosshairStyle(spec);
+    this.wc.setCrosshairStyle({ ...spec, badgeColor: spec.badgeColor >>> 0 });
   }
   setCrosshairButtonState(hovered: boolean, pinned: boolean): void {
     this.wc.setCrosshairButtonState(hovered, pinned);

@@ -2,6 +2,7 @@
 
 ```ts
 type CrosshairConfig = {
+  badgeColor?: VroomColor;
   button?: CrosshairButtonConfig;
   hour12?: boolean;
   lineStyle?: CrosshairLineStyle;
@@ -21,9 +22,23 @@ Source: [types/src/index.ts:1220](https://github.com/keepitreal/vroom/blob/main/
 
 Crosshair behavior and look. Every field is optional; colors come from the
 theme (`crosshair` for the lines, `crosshairTarget` for the ring and badge
-fill, `badgeText` for badge text).
+fill, `badgeText` for badge text) unless `badgeColor` sets the badge fill.
 
 ## Properties
+
+### badgeColor?
+
+```ts
+optional badgeColor?: VroomColor;
+```
+
+Source: [types/src/index.ts:1236](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1236)
+
+Fill of the crosshair's time and price badges, the plus button and the
+simple-mode badge. Defaults to `theme.crosshairTarget`, which also colors
+the ring; this leaves the ring alone. Text stays `theme.badgeText`.
+
+---
 
 ### button?
 
@@ -31,7 +46,7 @@ fill, `badgeText` for badge text).
 optional button?: CrosshairButtonConfig;
 ```
 
-Source: [types/src/index.ts:1237](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1237)
+Source: [types/src/index.ts:1243](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1243)
 
 The plus button (advanced mode only). Replaces `crosshairButton`.
 
@@ -91,7 +106,7 @@ Default `'advanced'`. See [CrosshairMode](CrosshairMode.md).
 optional offset?: number;
 ```
 
-Source: [types/src/index.ts:1235](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1235)
+Source: [types/src/index.ts:1241](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1241)
 
 Pixels the touch crosshair's dot and horizontal line sit above the finger
 (advanced mode). Default 40. Replaces `crosshairOffset`.
@@ -108,7 +123,7 @@ optional simple?: {
 };
 ```
 
-Source: [types/src/index.ts:1239](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1239)
+Source: [types/src/index.ts:1245](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1245)
 
 Simple-mode options.
 

@@ -70,6 +70,12 @@ void draw_badge(SkCanvas* canvas,
                        cy - (tb.fTop + tb.fBottom) * 0.5f, font, text_paint);
 }
 
+SkColor badge_fill(const VroomChart& chart) {
+    const uint32_t c = chart.crosshair_style.badge_color;
+    return c != 0 ? static_cast<SkColor>(c)
+                  : chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET];
+}
+
 // Stroke for every crosshair line. Dash and dot spacing scale with the width.
 SkPaint line_paint(const VroomCrosshairStyle& style, SkColor color) {
     const float w = style.line_width_px;
@@ -189,7 +195,7 @@ void draw_price_badge(SkCanvas* canvas,
     const auto& colors = chart.theme.colors;
     const VroomCrosshairButtonStyle& s = chart.crosshair_button_style;
     const SkColor text_color = colors[VROOM_COLOR_BADGE_TEXT];
-    SkColor fill = colors[VROOM_COLOR_CROSSHAIR_TARGET];
+    SkColor fill = badge_fill(chart);
     const SkRect rect =
         SkRect::MakeLTRB(b.rect.left, b.rect.top, b.rect.right, b.rect.bottom);
     float radius = kCorner;
@@ -290,8 +296,7 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     const float badge_cx =
         std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
     draw_badge(canvas, font, buf, badge_cx, g.badge_top + badge_h * 0.5f,
-               colors[VROOM_COLOR_CROSSHAIR_TARGET], colors[VROOM_COLOR_BADGE_TEXT],
-               1.f);
+               badge_fill(chart), colors[VROOM_COLOR_BADGE_TEXT], 1.f);
 }
 }  // namespace
 
@@ -400,7 +405,7 @@ void draw(SkCanvas* canvas,
         return;
     }
 
-    const SkColor badge_fill = chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET];
+    const SkColor fill = badge_fill(chart);
     const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
 
     // Date/time badge over the x-axis strip, centered on the vertical line and
@@ -417,7 +422,7 @@ void draw(SkCanvas* canvas,
         const float half_w = (text_w + 2.f * kPadH) * 0.5f;
         const float badge_cx =
             std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
-        draw_badge(canvas, font, buf, badge_cx, strip_center_y, badge_fill,
+        draw_badge(canvas, font, buf, badge_cx, strip_center_y, fill,
                    badge_text, lay.x_axis_opacity);
     }
 

@@ -541,6 +541,8 @@ export interface ChartHandle {
     simpleHeight: number;
     dimAhead: boolean;
     dimOpacity: number;
+    /** Packed 0xAARRGGBB; 0 inherits the theme's crosshairTarget. */
+    badgeColor: number;
   }): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the

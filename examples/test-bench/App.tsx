@@ -922,6 +922,7 @@ export default function App() {
               mode: spark ? 'simple' : 'advanced',
               lineStyle: crosshairLineStyle,
               hour12: spark,
+              badgeColor: spark ? '#2962ff' : undefined,
               simple: { height: 0.9 },
               button: { enabled: showCrosshairButton },
             }}

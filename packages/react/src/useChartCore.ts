@@ -483,6 +483,7 @@ export function resolveCrosshair(
       simpleHeight: cfg.simple?.height ?? -1,
       dimAhead: cfg.simple?.dimAhead !== false,
       dimOpacity: cfg.simple?.dimOpacity ?? -1,
+      badgeColor: (cfg.badgeColor != null ? parseColor(cfg.badgeColor) : null) ?? 0,
     },
     offset: cfg.offset ?? legacyOffset ?? 40,
     button: mode === 'advanced' ? cfg.button ?? legacyButton : undefined,

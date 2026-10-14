@@ -572,7 +572,7 @@ class WebChart {
     vroom_chart_set_crosshair_button(chart_, &s);
   }
   // `cfg` is { mode, lineStyle, lineWidthPx, timeFormat, hour12, simpleHeight,
-  // dimAhead, dimOpacity }.
+  // dimAhead, dimOpacity, badgeColor }.
   void setCrosshairStyle(const em::val& cfg) {
     VroomCrosshairStyle s{};
     s.mode = cfg["mode"].as<int32_t>();
@@ -583,6 +583,7 @@ class WebChart {
     s.simple_height = cfg["simpleHeight"].as<float>();
     s.dim_ahead = cfg["dimAhead"].as<bool>() ? 1 : 0;
     s.dim_opacity = cfg["dimOpacity"].as<float>();
+    s.badge_color = cfg["badgeColor"].as<uint32_t>();
     vroom_chart_set_crosshair_style(chart_, &s);
   }
   void setCrosshairButtonState(bool hovered, bool pinned) {

@@ -373,7 +373,8 @@ typedef enum {
     VROOM_CROSSHAIR_TIME_DATE     = 2,  // Oct 14
 } VroomCrosshairTimeFormat;
 
-// Colors come from the theme (crosshair lines, crosshair target fill, badge text).
+// Colors come from the theme (crosshair lines, crosshair target fill, badge text)
+// unless badge_color overrides the badge fill.
 // A zero-initialized struct is the advanced crosshair as it has always looked.
 typedef struct VroomCrosshairStyle {
     int32_t mode;           // VroomCrosshairMode
@@ -384,6 +385,7 @@ typedef struct VroomCrosshairStyle {
     float   simple_height;  // simple: badge top as a fraction of chart height (1 = top); < 0 => 1
     int32_t dim_ahead;      // simple: dim the plot right of the line
     float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
+    uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
 } VroomCrosshairStyle;
 
 // Replaces the crosshair style. A null style restores the zero-initialized

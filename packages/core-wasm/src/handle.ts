@@ -521,6 +521,8 @@ export type CrosshairStyleSpec = {
   dimAhead: boolean;
   /** Simple mode: opacity of the dimmed region; < 0 = 0.35. */
   dimOpacity: number;
+  /** Packed 0xAARRGGBB badge fill. 0 inherits the theme's crosshairTarget. */
+  badgeColor: number;
 };
 
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */

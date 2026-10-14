@@ -1215,7 +1215,7 @@ export type CrosshairTimeFormat = 'datetime' | 'time' | 'date';
 /**
  * Crosshair behavior and look. Every field is optional; colors come from the
  * theme (`crosshair` for the lines, `crosshairTarget` for the ring and badge
- * fill, `badgeText` for badge text).
+ * fill, `badgeText` for badge text) unless `badgeColor` sets the badge fill.
  */
 export type CrosshairConfig = {
   /** Default `'advanced'`. See {@link CrosshairMode}. */
@@ -1228,6 +1228,12 @@ export type CrosshairConfig = {
   timeFormat?: CrosshairTimeFormat;
   /** 12-hour clock with AM/PM (`11:30 AM`). Default false. */
   hour12?: boolean;
+  /**
+   * Fill of the crosshair's time and price badges, the plus button and the
+   * simple-mode badge. Defaults to `theme.crosshairTarget`, which also colors
+   * the ring; this leaves the ring alone. Text stays `theme.badgeText`.
+   */
+  badgeColor?: VroomColor;
   /**
    * Pixels the touch crosshair's dot and horizontal line sit above the finger
    * (advanced mode). Default 40. Replaces `crosshairOffset`.
