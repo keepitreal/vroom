@@ -446,6 +446,23 @@ float measure_price(const SkFont& font, double price, const vroom::PriceFormat& 
 
 }  // namespace
 
+BadgeTextMetrics badge_text_metrics(const SkFont& font) {
+    SkRect digit;
+    font.measureText("0", 1, SkTextEncoding::kUTF8, &digit);
+    // Glyph bounds are rounded out to whole units at the font's own size, before
+    // the canvas scale, and padded for antialiasing. At 11px that is top -9 and
+    // bottom 2 for an outline spanning about -8 to 0.3, which centers the digits
+    // a third of a point high. The pill keeps that height, but the digits center
+    // on the outline measured at a size where the rounding is negligible.
+    constexpr float kOutlineSize = 256.f;
+    SkFont outline_font = font;
+    outline_font.setSize(kOutlineSize);
+    SkRect outline;
+    outline_font.measureText("0", 1, SkTextEncoding::kUTF8, &outline);
+    const float scale = font.getSize() / kOutlineSize;
+    return {digit.height(), -(outline.fTop + outline.fBottom) * 0.5f * scale};
+}
+
 static_assert(kAxisBadgePadH == vroom::price_lines::kPadH,
               "the y-axis strip budgets the badge pad the pills actually draw");
 

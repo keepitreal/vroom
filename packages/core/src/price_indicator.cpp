@@ -76,7 +76,6 @@ void draw(SkCanvas* canvas,
     SkFont font;
     char buf[48];
     size_t len = 0;
-    SkRect tb = SkRect::MakeEmpty();
     float text_w = 0.f;
     if (show_badge) {
         font = SkFont(tf, vroom::badge_font_px(chart.theme));
@@ -88,9 +87,7 @@ void draw(SkCanvas* canvas,
             vroom::price_label_interval(bounds, candle_area_h));
         vroom::format_price(buf, sizeof(buf), level.price, fmt);
         len = std::strlen(buf);
-        // Tight glyph bounds (origin at the baseline) so the digits center on
-        // `y` even when the font's cap-height metric misses the digit extent.
-        text_w = font.measureText(buf, len, SkTextEncoding::kUTF8, &tb);
+        text_w = font.measureText(buf, len, SkTextEncoding::kUTF8);
     }
 
     // Meet the badge when it will draw. Otherwise stop at the plot edge.
@@ -105,13 +102,13 @@ void draw(SkCanvas* canvas,
     canvas->drawLine(0.f, y, line_right, y, line);
     if (!show_badge) return;
 
-    const float glyph_h = tb.height();
+    const auto metrics = vroom::labels::badge_text_metrics(font);
 
     // Box wraps the digits (width follows the text), centered on the y-axis
     // container's center so its text shares the same column as the y-axis
     // labels, and vertically centered on the price y.
     const float axis_center_x = lay.width_px - lay.y_axis_width_px * 0.5f;
-    const float box_h = glyph_h + 2.f * kPadV;
+    const float box_h = metrics.height + 2.f * kPadV;
     const float box_w = text_w + 2.f * kPadH;
     const float box_left = axis_center_x - box_w * 0.5f;
     const float top = y - box_h * 0.5f;
@@ -124,15 +121,14 @@ void draw(SkCanvas* canvas,
     box.setAlphaf(box.getAlphaf() * lay.y_axis_opacity);
     canvas->drawRRect(SkRRect::MakeRectXY(rect, kCorner, kCorner), box);
 
-    // Price text horizontally centered on the same axis center, and vertically
-    // centered: shift the baseline so the glyph bounds' midpoint lands on `y`
-    // (= the box center and the dotted line).
+    // Price text horizontally centered on the same axis center, and its digits
+    // vertically centered on `y` (= the box center and the dotted line).
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
     text_paint.setColor(chart.theme.colors[VROOM_COLOR_BADGE_TEXT]);
     text_paint.setAlphaf(text_paint.getAlphaf() * lay.y_axis_opacity);
     const float text_x = axis_center_x - text_w * 0.5f;
-    const float baseline_y = y - (tb.fTop + tb.fBottom) * 0.5f;
+    const float baseline_y = y + metrics.baseline_dy;
     canvas->drawString(buf, text_x, baseline_y, font, text_paint);
 }
 

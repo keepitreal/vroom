@@ -11,6 +11,7 @@
 #include <cstdint>
 
 class SkCanvas;
+class SkFont;
 struct VroomChart;
 
 namespace vroom {
@@ -147,6 +148,15 @@ inline float axis_badge_left(float width_px, float y_axis_width_px, float text_w
     const float box_w = text_w + 2.f * kAxisBadgePadH;
     return cx - box_w * 0.5f;
 }
+
+// Vertical layout for a price badge's text, measured off a digit rather than
+// the string, so a comma's tail can't pull the digits above center and every
+// price gets the same pill height. Draw at baseline `cy + baseline_dy`.
+struct BadgeTextMetrics {
+    float height;
+    float baseline_dy;
+};
+BadgeTextMetrics badge_text_metrics(const SkFont& font);
 
 // Recomputes `chart.axis_width_px` to fit the widest price badge at the scale
 // the labels will draw against (visible auto-fit, or the manual scale). No-op

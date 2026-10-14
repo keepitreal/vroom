@@ -158,16 +158,16 @@ PriceBadge measure_price_badge(const VroomChart& chart,
                 vroom::price_label_interval(bounds, vroom::price_pane_bottom(lay)));
             vroom::format_price(b.text, sizeof(b.text), price, fmt);
         }
-        SkRect tb;
         const float text_w = font->measureText(b.text, std::strlen(b.text),
-                                               SkTextEncoding::kUTF8, &tb);
+                                               SkTextEncoding::kUTF8);
+        const auto metrics = vroom::labels::badge_text_metrics(*font);
         text_left = vroom::labels::axis_badge_left(
                         lay.width_px, lay.y_axis_width_px, text_w) +
                     kPadH;
         text_right = text_left + text_w;
-        box_h = tb.height() + 2.f * kPadV;
+        box_h = metrics.height + 2.f * kPadV;
         b.text_x = text_left;
-        b.text_y = cy - (tb.fTop + tb.fBottom) * 0.5f;
+        b.text_y = cy + metrics.baseline_dy;
         b.opacity = lay.y_axis_opacity;
     }
 
