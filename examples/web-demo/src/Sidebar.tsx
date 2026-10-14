@@ -212,6 +212,8 @@ export type SidebarProps = {
     setPriceScaleMode: (v: PriceScaleMode) => void;
     autoscaleY: boolean;
     setAutoscaleY: (v: boolean) => void;
+    crosshairEnabled: boolean;
+    setCrosshairEnabled: (v: boolean) => void;
   };
   animation: {
     transitionMs: number;
@@ -358,6 +360,12 @@ export function Sidebar({
           checked={layout.autoscaleY}
           onChange={layout.setAutoscaleY}
           title="Ease the price axis to fit the visible candles while panning, until you zoom or scale an axis."
+        />
+        <ToggleRow
+          label="Crosshair"
+          checked={layout.crosshairEnabled}
+          onChange={layout.setCrosshairEnabled}
+          title="Let hover and long-press raise the crosshair."
         />
         <ToggleRow
           label="Two panes"

@@ -122,6 +122,7 @@ export function VroomChart(props: VroomChartProps) {
     fairValueGaps,
     volume,
     crosshairOffset = 40,
+    crosshairEnabled = true,
     onCrosshair,
     onViewportChange,
     priceLines,
@@ -358,6 +359,16 @@ export function VroomChart(props: VroomChartProps) {
   // a drag fires 'move' only when one of them changes rather than every frame.
   // Null while the crosshair is hidden.
   const lastCrosshairKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (crosshairEnabled || !handle || !crosshairActive.current) return;
+    closePlusRef.current(false);
+    crosshairActive.current = false;
+    const ch = handle.clearCrosshair();
+    if (ch) applyFrame(ch);
+    lastCrosshairKey.current = null;
+    onCrosshair?.(crosshairEvent(null, 'hide'));
+  }, [crosshairEnabled, handle, applyFrame, onCrosshair]);
 
   // Momentum scroll. After Pan ends with non-trivial velocity, we run a RAF
   // loop that calls handle.pan(dx, 0) each frame with an exponentially
@@ -954,7 +965,7 @@ export function VroomChart(props: VroomChartProps) {
   // activates `pan` (it needs movement first), so the chart won't scroll under
   // the hold. The dot/horizontal line are lifted above the fingertip.
   const longPress = Gesture.LongPress()
-    .enabled(!showLoadingLine)
+    .enabled(!showLoadingLine && crosshairEnabled)
     .runOnJS(true)
     .onStart((e) => {
       if (!handle) return;

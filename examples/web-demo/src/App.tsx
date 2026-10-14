@@ -720,6 +720,7 @@ export function App() {
       : 'linear',
   );
   const [autoscaleY, setAutoscaleY] = useState(false);
+  const [crosshairEnabled, setCrosshairEnabled] = useState(true);
   // Duration (ms) of the candle↔line and interval-switch animations. 0 = snap.
   const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
   const [easing, setEasing] = useState<TransitionEasing>(() => {
@@ -1328,6 +1329,7 @@ export function App() {
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
                   autoscaleY={autoscaleY}
+                  crosshairEnabled={crosshairEnabled}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1351,6 +1353,7 @@ export function App() {
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
                   autoscaleY={autoscaleY}
+                  crosshairEnabled={crosshairEnabled}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1379,6 +1382,7 @@ export function App() {
                 chartType={chartType}
                 priceScaleMode={priceScaleMode}
                 autoscaleY={autoscaleY}
+                crosshairEnabled={crosshairEnabled}
                 transitionMs={transitionMs}
                 transitionEasing={easing}
                 intervalTransition={intervalTransition}
@@ -1402,7 +1406,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, crosshairEnabled, setCrosshairEnabled, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,

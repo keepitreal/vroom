@@ -600,6 +600,16 @@ export default function App() {
     Haptics.selectionAsync().catch(() => {});
   }, []);
 
+  // Sparkline preset: no crosshair and no axes, toggled together.
+  const [crosshairEnabled, setCrosshairEnabled] = useState(true);
+  const toggleSpark = useCallback(() => {
+    const spark = crosshairEnabled;
+    setCrosshairEnabled(!spark);
+    setShowYAxis(!spark);
+    setShowXAxis(!spark);
+    Haptics.selectionAsync().catch(() => {});
+  }, [crosshairEnabled]);
+
   // A new object each render would re-push the whole theme every frame.
   const theme = useMemo(
     // The 1.5 default stroke reads thin on a phone held at arm's length.
@@ -894,6 +904,7 @@ export default function App() {
             chartType={chartType}
             priceScaleMode={priceScaleMode}
             autoscaleY={autoscaleY}
+            crosshairEnabled={crosshairEnabled}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
             theme={theme}
@@ -1221,6 +1232,21 @@ export default function App() {
                   style={[styles.fnSymbol, !showXAxis && styles.fnSymbolActive]}
                 >
                   ⇩
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, !crosshairEnabled && styles.fnBtnActive]}
+                onPress={toggleSpark}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    !crosshairEnabled && styles.fnSymbolActive,
+                  ]}
+                >
+                  SPARK
                 </Text>
               </Pressable>
 

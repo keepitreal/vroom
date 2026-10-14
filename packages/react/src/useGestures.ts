@@ -49,6 +49,8 @@ function crosshairIndicator(info: CrosshairInfo | null): CrosshairEvent['indicat
 
 export type GestureOptions = {
   crosshairOffset: number;
+  /** False keeps hover / press from raising the crosshair. See VroomChartCoreProps. */
+  crosshairEnabled?: boolean;
   /**
    * Chart is showing the loading line. Suppresses every pointer and wheel
    * gesture: there is no data to pan, zoom, inspect or draw against, and a
@@ -776,6 +778,11 @@ export function useGestures(
   // True while a local pointer (hover/press) owns the crosshair. Lets the
   // crosshair-override effect below know to stand down (local input wins).
   const localCrosshairActiveRef = useRef(false);
+  const hideCrosshairImplRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (opts.crosshairEnabled === false) hideCrosshairImplRef.current?.();
+  }, [opts.crosshairEnabled]);
 
   // Reset the in-progress draft whenever no draw tool is active (e.g. the host
   // toggled the tool off, or switched tools, mid-draw), so re-entering draw mode
@@ -1020,7 +1027,7 @@ export function useGestures(
 
     const showCrosshair = (x: number, y: number, source: 'press' | 'hover', reason: 'show' | 'move') => {
       const h = handleRef.current;
-      if (!h) return;
+      if (!h || optsRef.current.crosshairEnabled === false) return;
       crosshairActive = true;
       localCrosshairActiveRef.current = true;
       crosshairSource = source;
@@ -1078,6 +1085,7 @@ export function useGestures(
       if (!pointerInside) hideCrosshair();
     };
     plusCloseImplRef.current = closePlusNow;
+    hideCrosshairImplRef.current = hideCrosshair;
 
     // True while a drawing tool should own input (suppress pan/zoom/crosshair).
     const drawActive = () =>
@@ -1448,7 +1456,8 @@ export function useGestures(
       if (
         e.pointerType !== 'mouse' &&
         (panMode === 'chart' || panMode === 'indicator') &&
-        !drawActive()
+        !drawActive() &&
+        optsRef.current.crosshairEnabled !== false
       ) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;
@@ -1892,6 +1901,7 @@ export function useGestures(
     return () => {
       closePlusNow();
       plusCloseImplRef.current = null;
+      hideCrosshairImplRef.current = null;
       clearLongPress();
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);

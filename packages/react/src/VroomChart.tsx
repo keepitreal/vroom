@@ -35,6 +35,7 @@ export function VroomChart(props: VroomChartProps) {
     style,
     wasm,
     crosshairOffset = 40,
+    crosshairEnabled = true,
     crosshairOverride,
     mode,
     tool,
@@ -91,6 +92,7 @@ export function VroomChart(props: VroomChartProps) {
 
   useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, {
     crosshairOffset,
+    crosshairEnabled,
     // Same condition useChartCore draws the line on: a refresh that still
     // has data keeps the chart interactive.
     loading: props.loading === true && props.candles.length === 0,

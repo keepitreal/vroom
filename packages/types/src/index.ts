@@ -1495,6 +1495,13 @@ export type VroomChartCoreProps = {
    */
   crosshairOffset?: number;
   /**
+   * Let the user raise the crosshair (hover, long-press, press-drag). Defaults to
+   * `true`. When `false`, those gestures never draw it or fire `onCrosshair`, and
+   * one already up is dismissed (with a `'hide'`). Pan and zoom are unaffected.
+   * A `crosshairOverride` still draws.
+   */
+  crosshairEnabled?: boolean;
+  /**
    * Controlled external crosshair, in data space (epoch ms + price). When
    * non-null the chart shows a crosshair there — typically synced from another
    * chart's `onCrosshair` — *without* emitting its own `onCrosshair`, so two
