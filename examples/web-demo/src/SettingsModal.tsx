@@ -475,13 +475,13 @@ export function SettingsModal({
                   />
                   <StyleToggle
                     label="Line tip dot"
-                    title="Mark the line chart's newest end with a dot, sized off the line width and ringed in the background color."
+                    title="Mark the line chart's newest end with a dot, sized off the line width."
                     checked={numericStyle.lineTipDot}
                     onChange={(v) => onNumericStyleChange({ lineTipDot: v })}
                   />
                   <StyleToggle
                     label="Line tip pulse"
-                    title="Pulse a ring out from the tip dot every 2.6s. Keeps the chart repainting continuously."
+                    title="Pulse a ring out from the tip dot every 1.5s. Keeps the chart repainting continuously."
                     checked={numericStyle.lineTipPulse}
                     onChange={(v) => onNumericStyleChange({ lineTipPulse: v })}
                   />

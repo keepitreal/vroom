@@ -173,20 +173,31 @@ export type VroomTheme = {
   /**
    * Mark the line chart's newest end with a dot. Defaults to `true`.
    *
-   * Takes its color from `line` and its radius from `lineWidth`, wrapped in a 2px
-   * ring of `background` that separates it from the line itself. Only drawn in
-   * line mode, and it crossfades along with the line during a candle↔line
-   * transition.
+   * Takes its color from `line` and its radius from `lineTipDotRadius`.
+   *
+   * Only drawn in line mode, and it crossfades along with the line during a
+   * candle↔line transition.
    */
   lineTipDot?: boolean;
   /**
-   * Pulse a ring outward from the tip dot, once every 2.6s. Defaults to `false`.
+   * Radius of the `lineTipDot` in px. Defaults to 1.5× `lineWidth`, and never
+   * less than 2px. The `lineTipPulse` ring scales with it: five sixths of the
+   * radius wide, reaching 3.5× the radius at its widest.
+   */
+  lineTipDotRadius?: number;
+  /**
+   * Pulse a ring outward from the tip dot, once every 1.5s. Defaults to `false`.
    *
    * Ignored when `lineTipDot` is off, and suppressed when the OS asks for reduced
    * motion. Because the ring never stops, enabling it keeps the chart repainting
    * continuously — leave it off for charts that should be able to go idle.
    */
   lineTipPulse?: boolean;
+  /**
+   * Opacity of the `lineTipPulse` ring as it leaves the dot, from 0 to 1. The
+   * ring fades from here to fully transparent as it grows. Defaults to 0.4.
+   */
+  lineTipPulseOpacity?: number;
   /**
    * Show the price (y) axis strip down the right edge. Defaults to `true`.
    *

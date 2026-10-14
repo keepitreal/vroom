@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "tip_pulse.h"
 #include "vroom/vroom_chart.h"  // ::VroomCandle
 
 class SkCanvas;
@@ -115,9 +116,9 @@ void draw_close_gradient(SkCanvas* canvas,
                          float morph_t = 1.f,
                          float tension = 0.f);
 
-// The marker at the line's newest end: a dot in `line_color` sized off
-// `line_width`, ringed by a 2px disc of `bg_color` that separates it from the
-// line's stroke cap, and optionally a pulse expanding out from behind it.
+// The marker at the line's newest end: a dot in `line_color`, `dot_radius` px
+// or (when <= 0) sized off `line_width`, and optionally a pulse expanding out
+// from behind it.
 //
 // Takes the same geometry and morph arguments as draw_close_line and reads the
 // same vertex, so the dot stays on the line's end pixel through a timeframe
@@ -130,7 +131,8 @@ void draw_close_gradient(SkCanvas* canvas,
 // draws nothing.
 //
 // `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
-// divided by tip_pulse::kPeriodSeconds. Ignored unless `pulse`.
+// divided by tip_pulse::kPeriodSeconds. `pulse_opacity` is the ring's alpha as
+// it leaves the dot. Both are ignored unless `pulse`.
 //
 // `candle_right` bounds where the marked candle may be for the marker to draw at
 // all; `clip_right` bounds the paint, and is wider — the dot overhangs the plot
@@ -149,11 +151,12 @@ void draw_close_tip(SkCanvas* canvas,
                     float clip_right,
                     float candle_area_h,
                     uint32_t line_color,
-                    uint32_t bg_color,
                     float line_width,
+                    float dot_radius,
                     float opacity = 1.f,
                     bool pulse = false,
                     float pulse_phase = 0.f,
+                    float pulse_opacity = tip_pulse::kDefaultStartAlpha,
                     const CandleSnapshot* from = nullptr,
                     std::size_t from_n = 0,
                     float morph_t = 1.f);

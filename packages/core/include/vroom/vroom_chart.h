@@ -491,6 +491,8 @@ typedef enum {
     VROOM_FLOAT_LINE_TIP_DOT,            // 0/1: dot at the line's newest end (default on)
     VROOM_FLOAT_LINE_TIP_PULSE,          // 0/1: expanding ring around that dot
     VROOM_FLOAT_BADGE_FONT_SIZE_PX,      // filled-badge text; <= 0 follows AXIS_FONT_SIZE_PX
+    VROOM_FLOAT_LINE_TIP_PULSE_OPACITY,  // 0..1: the pulse ring's alpha as it leaves the dot
+    VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX,  // tip dot radius px; <= 0 follows LINE_WIDTH_PX
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
