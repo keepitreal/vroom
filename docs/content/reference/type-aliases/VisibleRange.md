@@ -7,7 +7,7 @@ type VisibleRange = {
 };
 ```
 
-Source: [types/src/index.ts:224](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L224)
+Source: [types/src/index.ts:232](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L232)
 
 A time window over the candle data, as Unix epoch milliseconds.
 
@@ -19,7 +19,7 @@ A time window over the candle data, as Unix epoch milliseconds.
 endMs: number;
 ```
 
-Source: [types/src/index.ts:228](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L228)
+Source: [types/src/index.ts:236](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L236)
 
 Window end (inclusive), Unix epoch milliseconds.
 
@@ -31,6 +31,6 @@ Window end (inclusive), Unix epoch milliseconds.
 startMs: number;
 ```
 
-Source: [types/src/index.ts:226](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L226)
+Source: [types/src/index.ts:234](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L234)
 
 Window start (inclusive), Unix epoch milliseconds.

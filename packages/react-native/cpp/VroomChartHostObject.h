@@ -11,6 +11,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 #include <jsi/jsi.h>
 
@@ -31,6 +32,7 @@ class ChartHostObject : public facebook::jsi::HostObject {
 
  private:
   VroomChart* chart_ = nullptr;
+  std::string badge_font_;  // last setBadgeFont request, so repeats skip the lookup
 };
 
 }  // namespace vroom

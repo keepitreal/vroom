@@ -90,6 +90,13 @@ describe('applyTheme', () => {
     expect(floats).toHaveLength(6);
   });
 
+  it('pushes the badge font, defaulting the weight to 400', () => {
+    const setBadgeFont = vi.fn();
+    const handle = { setColor: vi.fn(), setFloat: vi.fn(), setBadgeFont } as unknown as ChartHandle;
+    applyTheme(handle, { badgeFontFamily: 'Coinbase Sans' });
+    expect(setBadgeFont).toHaveBeenCalledWith('Coinbase Sans', 400);
+  });
+
   it('does nothing for an empty theme', () => {
     const { handle, calls } = fakeHandle();
     applyTheme(handle, {});

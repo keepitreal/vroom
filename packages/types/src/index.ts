@@ -127,6 +127,14 @@ export type VroomTheme = {
    */
   badgeFontSize?: number;
   /**
+   * React Native only. Font family on the same badges as `badgeFontSize` (e.g.
+   * `'Coinbase Sans'`); `''` restores the default. iOS finds app-registered
+   * fonts; Android and unknown families fall back to the system font.
+   */
+  badgeFontFamily?: string;
+  /** Weight for `badgeFontFamily`, 1–1000. Defaults to 400. */
+  badgeFontWeight?: number;
+  /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes

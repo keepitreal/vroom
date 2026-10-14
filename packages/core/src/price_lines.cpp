@@ -79,10 +79,10 @@ double render_price(const VroomChart& chart, size_t i) {
     return chart.price_lines[i].price;
 }
 
-// The label font: the axis typeface at its normal weight. Returns false when no
-// typeface is loaded yet, in which case callers fall back to lines without labels.
+// The label font: the badge typeface. Returns false when no typeface is loaded
+// yet, in which case callers fall back to lines without labels.
 bool label_font(const VroomChart& chart, SkFont* out) {
-    auto tf = vroom::axis_typeface();
+    auto tf = chart.badge_typeface ? chart.badge_typeface : vroom::axis_typeface();
     if (!tf) return false;
     // <= 0 inherits the badge size (the axis size, 11px, by default). Either way
     // the label is an integer in [kMinFontPx, kMaxFontPx].

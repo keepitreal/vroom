@@ -72,7 +72,7 @@ void draw_badge(SkCanvas* canvas,
 }
 
 bool axis_font(const VroomChart& chart, SkFont* out) {
-    auto tf = vroom::axis_typeface();
+    auto tf = chart.badge_typeface ? chart.badge_typeface : vroom::axis_typeface();
     if (!tf) return false;
     *out = SkFont(tf, vroom::badge_font_px(chart.theme));
     out->setSubpixel(true);

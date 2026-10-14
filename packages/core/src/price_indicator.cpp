@@ -69,7 +69,7 @@ void draw(SkCanvas* canvas,
     // Price box in the y-axis strip. Needs the axis typeface; if it isn't
     // loaded yet, the line alone still conveys the level. Same when the y-axis
     // is hidden — the level stays readable, it just loses its badge.
-    auto tf = vroom::axis_typeface();
+    auto tf = chart.badge_typeface ? chart.badge_typeface : vroom::axis_typeface();
     const bool show_badge = tf && lay.y_axis_opacity > 0.f;
     const bool join_badge = show_badge && lay.y_axis_width_px > 0.f;
 

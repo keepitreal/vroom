@@ -490,8 +490,9 @@ void recompute_axis_width(VroomChart& chart) {
                                 ? chart.price_line_style.font_size_px
                                 : badge_px;
     SkFont axis_font(tf, axis_px);
-    SkFont badge_font(tf, badge_px);
-    SkFont line_font(tf, vroom::price_lines::clamp_label_font_px(requested));
+    const auto badge_tf = chart.badge_typeface ? chart.badge_typeface : tf;
+    SkFont badge_font(badge_tf, badge_px);
+    SkFont line_font(badge_tf, vroom::price_lines::clamp_label_font_px(requested));
 
     // Tick text and the crosshair / current-price badges share the column, so
     // budget the wider of the two at the badge pad.

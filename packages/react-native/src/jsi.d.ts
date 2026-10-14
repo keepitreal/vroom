@@ -19,6 +19,8 @@ export interface ChartHandle {
    * FLOAT_KEYS in theme.ts); e.g. wick width.
    */
   setFloat(key: number, value: number): void;
+  /** Font for filled badges. Family '' restores the axis typeface. */
+  setBadgeFont(family: string, weight: number): void;
   /** Pass 0, 0 to show all candles. */
   setVisibleRange(startMs: number, endMs: number): void;
   /**

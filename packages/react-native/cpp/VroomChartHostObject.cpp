@@ -4,9 +4,12 @@
 #include <string>
 #include <vector>
 
+#include "VroomFontMgr.h"
 #include "chart.h"
 #include "chart_internal.h"
 #include "vroom/vroom_chart.h"
+
+#include "include/core/SkFontStyle.h"
 
 // RN-Skia headers.
 #include "JsiSkNativeObjects.h"
@@ -47,6 +50,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setSize"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setColor"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFloat"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setBadgeFont"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setDefaultCandleWidth"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
@@ -356,6 +360,40 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           const int key = static_cast<int>(args[0].asNumber());
           vroom_chart_set_float(chart_, static_cast<VroomFloatKey>(key),
                                 static_cast<float>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setBadgeFont") {
+    // setBadgeFont(family, weight) — '' restores the axis typeface. A family the
+    // platform can't find (Android only sees system fonts) falls back to the
+    // default family at that weight.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setBadgeFont"),
+        2,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2 || !args[0].isString()) return jsi::Value::undefined();
+          const std::string family = args[0].asString(rt2).utf8(rt2);
+          const int weight = static_cast<int>(args[1].asNumber());
+          const std::string request = family + '\n' + std::to_string(weight);
+          if (request == badge_font_) return jsi::Value::undefined();
+          badge_font_ = request;
+          sk_sp<SkTypeface> tf;
+          static const sk_sp<SkFontMgr> mgr = vroom::makePlatformFontMgr();
+          if (!family.empty() && mgr) {
+            const SkFontStyle style(weight, SkFontStyle::kNormal_Width,
+                                    SkFontStyle::kUpright_Slant);
+            tf = mgr->matchFamilyStyle(family.c_str(), style);
+            if (!tf) tf = mgr->matchFamilyStyle(nullptr, style);
+            if (!tf) tf = mgr->matchFamilyStyle("sans-serif", style);
+          }
+          chart_->badge_typeface = std::move(tf);
+          vroom::labels::recompute_axis_width(*chart_);
+          chart_->mark_dirty();
           return jsi::Value::undefined();
         });
   }

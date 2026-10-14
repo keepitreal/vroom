@@ -4,7 +4,7 @@
 type TransitionEasing = "linear" | "ease-in" | "ease-out" | "ease-in-out";
 ```
 
-Source: [types/src/index.ts:259](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L259)
+Source: [types/src/index.ts:267](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L267)
 
 Easing curve for animated transitions (candle↔line and interval switches).
 Defaults to `'ease-in-out'`.

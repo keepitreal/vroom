@@ -17,6 +17,8 @@ type ColorField = Exclude<
   | 'lineTension'
   | 'lineTipDot'
   | 'lineTipPulse'
+  | 'badgeFontFamily'
+  | 'badgeFontWeight'
   | 'showXAxis'
   | 'showYAxis'
 >;
