@@ -12,6 +12,7 @@ import type {
   CrosshairButtonEvent,
   CrosshairEvent,
   CrosshairIndicatorKind,
+  CrosshairMode,
   DefaultDrawingStyle,
   Drawing,
   DrawingSelection,
@@ -49,8 +50,8 @@ function crosshairIndicator(info: CrosshairInfo | null): CrosshairEvent['indicat
 
 export type GestureOptions = {
   crosshairOffset: number;
-  /** False keeps hover / press from raising the crosshair. See VroomChartCoreProps. */
-  crosshairEnabled?: boolean;
+  /** 'none' keeps hover / press from raising the crosshair. See VroomChartCoreProps. */
+  crosshairMode?: CrosshairMode;
   /**
    * Chart is showing the loading line. Suppresses every pointer and wheel
    * gesture: there is no data to pan, zoom, inspect or draw against, and a
@@ -781,8 +782,8 @@ export function useGestures(
   const hideCrosshairImplRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    if (opts.crosshairEnabled === false) hideCrosshairImplRef.current?.();
-  }, [opts.crosshairEnabled]);
+    if (opts.crosshairMode === 'none') hideCrosshairImplRef.current?.();
+  }, [opts.crosshairMode]);
 
   // Reset the in-progress draft whenever no draw tool is active (e.g. the host
   // toggled the tool off, or switched tools, mid-draw), so re-entering draw mode
@@ -1027,7 +1028,7 @@ export function useGestures(
 
     const showCrosshair = (x: number, y: number, source: 'press' | 'hover', reason: 'show' | 'move') => {
       const h = handleRef.current;
-      if (!h || optsRef.current.crosshairEnabled === false) return;
+      if (!h || optsRef.current.crosshairMode === 'none') return;
       crosshairActive = true;
       localCrosshairActiveRef.current = true;
       crosshairSource = source;
@@ -1457,7 +1458,7 @@ export function useGestures(
         e.pointerType !== 'mouse' &&
         (panMode === 'chart' || panMode === 'indicator') &&
         !drawActive() &&
-        optsRef.current.crosshairEnabled !== false
+        optsRef.current.crosshairMode !== 'none'
       ) {
         longPressTimer = setTimeout(() => {
           longPressTimer = null;

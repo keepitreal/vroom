@@ -571,6 +571,20 @@ class WebChart {
     s.hover_boost = cfg["hoverBoost"].as<float>();
     vroom_chart_set_crosshair_button(chart_, &s);
   }
+  // `cfg` is { mode, lineStyle, lineWidthPx, timeFormat, hour12, simpleHeight,
+  // dimAhead, dimOpacity }.
+  void setCrosshairStyle(const em::val& cfg) {
+    VroomCrosshairStyle s{};
+    s.mode = cfg["mode"].as<int32_t>();
+    s.line_style = cfg["lineStyle"].as<int32_t>();
+    s.line_width_px = cfg["lineWidthPx"].as<float>();
+    s.time_format = cfg["timeFormat"].as<int32_t>();
+    s.hour12 = cfg["hour12"].as<bool>() ? 1 : 0;
+    s.simple_height = cfg["simpleHeight"].as<float>();
+    s.dim_ahead = cfg["dimAhead"].as<bool>() ? 1 : 0;
+    s.dim_opacity = cfg["dimOpacity"].as<float>();
+    vroom_chart_set_crosshair_style(chart_, &s);
+  }
   void setCrosshairButtonState(bool hovered, bool pinned) {
     vroom_chart_set_crosshair_button_state(chart_, hovered ? 1 : 0,
                                            pinned ? 1 : 0);
@@ -899,6 +913,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("hitTestFootprint", &WebChart::hitTestFootprint)
       .function("setFootprintHover", &WebChart::setFootprintHover)
       .function("setCrosshairButton", &WebChart::setCrosshairButton)
+      .function("setCrosshairStyle", &WebChart::setCrosshairStyle)
       .function("setCrosshairButtonState", &WebChart::setCrosshairButtonState)
       .function("getCrosshairButton", &WebChart::getCrosshairButton)
       .function("hitTestCrosshairButton", &WebChart::hitTestCrosshairButton)

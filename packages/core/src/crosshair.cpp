@@ -30,7 +30,6 @@ namespace vroom::crosshair {
 
 namespace {
 constexpr float kRingRadius = 3.5f;  // hollow dot at the intersection
-constexpr SkScalar kDash[2] = {2.f, 2.f};
 constexpr float kPadV = 4.f;     // badge padding above/below the text
 constexpr float kPadH = 8.f;     // badge padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-badge corner radius
@@ -71,6 +70,25 @@ void draw_badge(SkCanvas* canvas,
                        cy - (tb.fTop + tb.fBottom) * 0.5f, font, text_paint);
 }
 
+// Stroke for every crosshair line. Dash and dot spacing scale with the width.
+SkPaint line_paint(const VroomCrosshairStyle& style, SkColor color) {
+    const float w = style.line_width_px;
+    SkPaint p;
+    p.setAntiAlias(true);
+    p.setColor(color);
+    p.setStyle(SkPaint::kStroke_Style);
+    p.setStrokeWidth(w);
+    if (style.line_style == VROOM_CROSSHAIR_LINE_DASHED) {
+        const SkScalar dash[2] = {2.f * w, 2.f * w};
+        p.setPathEffect(SkDashPathEffect::Make(dash, 0.f));
+    } else if (style.line_style == VROOM_CROSSHAIR_LINE_DOTTED) {
+        const SkScalar dot[2] = {0.f, 2.5f * w};
+        p.setStrokeCap(SkPaint::kRound_Cap);
+        p.setPathEffect(SkDashPathEffect::Make(dot, 0.f));
+    }
+    return p;
+}
+
 bool axis_font(const VroomChart& chart, SkFont* out) {
     auto tf = vroom::axis_typeface();
     if (!tf) return false;
@@ -107,7 +125,8 @@ PriceBadge measure_price_badge(const VroomChart& chart,
                                const char* text = nullptr) {
     PriceBadge b;
     if (text && text[0] == '\0') return b;
-    const bool button = !text && chart.crosshair_button_style.enabled != 0;
+    const bool button = !text && chart.crosshair_button_style.enabled != 0 &&
+                        chart.crosshair_style.mode == VROOM_CROSSHAIR_ADVANCED;
     const bool axis =
         font && lay.y_axis_width_px > 0.f && lay.y_axis_opacity > 0.f;
     if (!axis && !button) return b;
@@ -223,6 +242,57 @@ void format_readout(const VroomChart& chart, const IndicatorReadout& r,
         vroom::format_price(buf, len, r.value, chart.price_fmt);
     }
 }
+
+void format_badge_time(const VroomChart& chart, int64_t time_ms, char* buf,
+                       size_t len) {
+    vroom::crosshair_style::format_time(time_ms, chart.crosshair_style.time_format,
+                                        chart.crosshair_style.hour12 != 0, buf, len);
+}
+
+// Simple mode: an optional dim over everything right of the line, then the line
+// from under a time badge down to `vline_bottom`, the badge's top placed at
+// `simple_height` of the chart's height.
+void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
+                 float candle_right, float vline_bottom, float snap_x,
+                 int64_t snap_time_ms) {
+    const VroomCrosshairStyle& style = chart.crosshair_style;
+    const auto& colors = chart.theme.colors;
+    const float cx = std::clamp(snap_x, 0.f, candle_right);
+
+    if (style.dim_ahead && style.dim_opacity < 1.f && cx < candle_right) {
+        SkPaint dim;
+        dim.setColor(colors[VROOM_COLOR_BACKGROUND]);
+        dim.setAlphaf(1.f - style.dim_opacity);
+        canvas->drawRect(SkRect::MakeLTRB(cx, 0.f, candle_right, vline_bottom), dim);
+    }
+
+    SkFont font;
+    const bool tf = axis_font(chart, &font);
+    char buf[32] = {};
+    float badge_h = 0.f;
+    if (tf) {
+        format_badge_time(chart, snap_time_ms, buf, sizeof(buf));
+        SkRect tb;
+        font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8, &tb);
+        badge_h = tb.height() + 2.f * kPadV;
+    }
+    const auto g = vroom::crosshair_style::simple_geometry(
+        lay.height_px, vline_bottom, badge_h, style.simple_height);
+
+    if (vline_bottom > g.line_top) {
+        canvas->drawLine(cx, g.line_top, cx, vline_bottom,
+                         line_paint(style, colors[VROOM_COLOR_CROSSHAIR]));
+    }
+    if (!tf) return;
+
+    const float text_w = font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
+    const float half_w = (text_w + 2.f * kPadH) * 0.5f;
+    const float badge_cx =
+        std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
+    draw_badge(canvas, font, buf, badge_cx, g.badge_top + badge_h * 0.5f,
+               colors[VROOM_COLOR_CROSSHAIR_TARGET], colors[VROOM_COLOR_BADGE_TEXT],
+               1.f);
+}
 }  // namespace
 
 float line_y(const VroomChart& chart,
@@ -243,6 +313,7 @@ bool button_rect(const VroomChart& chart,
                  crosshair_button::Rect* out,
                  double* price) {
     if (!chart.crosshair_active || !chart.crosshair_button_style.enabled ||
+        chart.crosshair_style.mode != VROOM_CROSSHAIR_ADVANCED ||
         candle_right <= 0.f || candle_area_h <= 0.f) {
         return false;
     }
@@ -272,6 +343,11 @@ void draw(SkCanvas* canvas,
           int64_t snap_time_ms,
           const IndicatorReadout& readout) {
     if (!canvas || candle_right <= 0.f || candle_area_h <= 0.f) return;
+    if (chart.crosshair_simple()) {
+        draw_simple(canvas, chart, lay, candle_right, vline_bottom, snap_x,
+                    snap_time_ms);
+        return;
+    }
 
     // Vertical line + ring snap to the nearest candle's center x; the horizontal
     // line and the ring's y follow the (lifted) touch y — into an indicator
@@ -296,16 +372,12 @@ void draw(SkCanvas* canvas,
                             readout.active ? readout_buf : nullptr);
     const float h_right = price_badge.shown ? price_badge.rect.left : candle_right;
 
-    // Dashed perpendicular lines. The vertical line runs the full height of the
+    // Perpendicular lines. The vertical line runs the full height of the
     // candle + indicator region (down to vline_bottom) so it stays visible over
     // any below-chart panes.
-    SkPaint dash;
-    dash.setAntiAlias(true);
-    dash.setColor(color);
-    dash.setStrokeWidth(1.f);
-    dash.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
-    canvas->drawLine(cx, 0.f, cx, vline_bottom, dash);
-    canvas->drawLine(0.f, cy, h_right, cy, dash);
+    const SkPaint line = line_paint(chart.crosshair_style, color);
+    canvas->drawLine(cx, 0.f, cx, vline_bottom, line);
+    canvas->drawLine(0.f, cy, h_right, cy, line);
 
     // Punch the dashes out from under the ring so its center reads as hollow.
     SkPaint hole;
@@ -335,12 +407,7 @@ void draw(SkCanvas* canvas,
     // vertically aligned with the time labels (centered in the strip).
     if (lay.x_axis_height_px > 0.f) {
         char buf[32];
-        const time_t time_s = static_cast<time_t>(snap_time_ms / 1000);
-        struct tm tm_buf;
-        localtime_r(&time_s, &tm_buf);
-        std::snprintf(buf, sizeof(buf), "%02d/%02d %02d:%02d",
-                      tm_buf.tm_mon + 1, tm_buf.tm_mday, tm_buf.tm_hour,
-                      tm_buf.tm_min);
+        format_badge_time(chart, snap_time_ms, buf, sizeof(buf));
 
         const float strip_center_y = vline_bottom + lay.x_axis_height_px * 0.5f;
         // Keep the badge within the candle area so it never slides under the

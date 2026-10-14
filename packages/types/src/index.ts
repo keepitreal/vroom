@@ -1188,6 +1188,69 @@ export type CrosshairButtonEvent = {
 };
 
 /**
+ * Which crosshair hover, long-press and press-drag raise.
+ *   'advanced' — default: vertical and horizontal lines, a ring where they
+ *                meet, a time badge in the x-axis strip and a price (or
+ *                indicator) badge in the y-axis strip. The plus button lives here.
+ *   'simple'   — one vertical line snapped to the candle, with a time badge on
+ *                top. Dragging moves it along the time axis only. Suits
+ *                sparkline-style charts. See {@link CrosshairConfig.simple}.
+ *   'none'     — gestures never raise a crosshair or fire `onCrosshair`, and
+ *                one already up is dismissed with a `'hide'`. Pan and zoom are
+ *                unaffected, and a `crosshairOverride` still draws.
+ */
+export type CrosshairMode = 'advanced' | 'simple' | 'none';
+
+/** Stroke pattern for the crosshair lines. */
+export type CrosshairLineStyle = 'dashed' | 'dotted' | 'solid';
+
+/**
+ * The crosshair time badge's text, in local time.
+ *   'datetime' — `10/14 11:30`
+ *   'time'     — `11:30`
+ *   'date'     — `Oct 14`
+ */
+export type CrosshairTimeFormat = 'datetime' | 'time' | 'date';
+
+/**
+ * Crosshair behavior and look. Every field is optional; colors come from the
+ * theme (`crosshair` for the lines, `crosshairTarget` for the ring and badge
+ * fill, `badgeText` for badge text).
+ */
+export type CrosshairConfig = {
+  /** Default `'advanced'`. See {@link CrosshairMode}. */
+  mode?: CrosshairMode;
+  /** Default `'dashed'` in advanced mode, `'solid'` in simple mode. */
+  lineStyle?: CrosshairLineStyle;
+  /** Line stroke in px. Default 1. Dash and dot spacing scale with it. */
+  lineWidth?: number;
+  /** Default `'datetime'` in advanced mode, `'time'` in simple mode. */
+  timeFormat?: CrosshairTimeFormat;
+  /** 12-hour clock with AM/PM (`11:30 AM`). Default false. */
+  hour12?: boolean;
+  /**
+   * Pixels the touch crosshair's dot and horizontal line sit above the finger
+   * (advanced mode). Default 40. Replaces `crosshairOffset`.
+   */
+  offset?: number;
+  /** The plus button (advanced mode only). Replaces `crosshairButton`. */
+  button?: CrosshairButtonConfig;
+  /** Simple-mode options. */
+  simple?: {
+    /**
+     * Where the badge's top sits, as a fraction of the chart's height: 1 is the
+     * top, 0 the bottom. Default 1. The badge always stays fully on screen, and
+     * the line runs from under it down to the bottom of the plot.
+     */
+    height?: number;
+    /** Dim everything right of the line, the scrub highlight. Default true. */
+    dimAhead?: boolean;
+    /** Opacity of what `dimAhead` dims, 0 to 1. Default 0.35. */
+    dimOpacity?: number;
+  };
+};
+
+/**
  * MACD indicator config. Rendered in its own pane below the candles: the gap
  * between a fast and a slow moving average, a signal line smoothing that gap,
  * and a histogram of the distance between the two.
@@ -1462,6 +1525,8 @@ export type VroomChartCoreProps = {
    * The crosshair plus button (a "+" inside the crosshair price badge) for
    * placing orders from the chart. Off unless
    * `enabled` is true. See {@link CrosshairButtonConfig}.
+   *
+   * @deprecated Use `crosshair.button`. Still honored when that is unset.
    */
   crosshairButton?: CrosshairButtonConfig;
   /**
@@ -1492,15 +1557,16 @@ export type VroomChartCoreProps = {
    * Pixels the crosshair dot / horizontal line sit *above* the touch point so
    * they aren't hidden under the thumb. The vertical line stays centered on the
    * touch x. Default 40.
+   *
+   * @deprecated Use `crosshair.offset`. Still honored when that is unset.
    */
   crosshairOffset?: number;
   /**
-   * Let the user raise the crosshair (hover, long-press, press-drag). Defaults to
-   * `true`. When `false`, those gestures never draw it or fire `onCrosshair`, and
-   * one already up is dismissed (with a `'hide'`). Pan and zoom are unaffected.
-   * A `crosshairOverride` still draws.
+   * Which crosshair the user gets, and how it looks. Pass a mode
+   * (`crosshair="simple"`) or a {@link CrosshairConfig}. Defaults to
+   * `'advanced'`, today's crosshair. See {@link CrosshairMode}.
    */
-  crosshairEnabled?: boolean;
+  crosshair?: CrosshairMode | CrosshairConfig;
   /**
    * Controlled external crosshair, in data space (epoch ms + price). When
    * non-null the chart shows a crosshair there — typically synced from another

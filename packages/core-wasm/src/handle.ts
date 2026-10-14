@@ -504,6 +504,25 @@ export type CrosshairButtonSpec = {
   hoverBoost: number;
 };
 
+/** The crosshair's style, in the core's numeric encoding. Negatives take the mode's defaults. */
+export type CrosshairStyleSpec = {
+  /** 0 advanced, 1 simple, 2 none. */
+  mode: number;
+  /** 0 dashed, 1 dotted, 2 solid; < 0 = solid in simple, dashed otherwise. */
+  lineStyle: number;
+  /** Stroke px; <= 0 = 1. */
+  lineWidthPx: number;
+  /** 0 datetime, 1 time, 2 date; < 0 = time in simple, datetime otherwise. */
+  timeFormat: number;
+  hour12: boolean;
+  /** Simple mode: badge top as a fraction of chart height (1 = top); < 0 = 1. */
+  simpleHeight: number;
+  /** Simple mode: dim the plot right of the line. */
+  dimAhead: boolean;
+  /** Simple mode: opacity of the dimmed region; < 0 = 0.35. */
+  dimOpacity: number;
+};
+
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */
 export type CrosshairButtonHit = {
   left: number;
@@ -814,6 +833,8 @@ export interface VroomChartHandle {
   setFootprintHover(candleTimeMs: number, side: number): void;
   /** Replace the crosshair plus button's style. `enabled: false` hides it. */
   setCrosshairButton(spec: CrosshairButtonSpec): void;
+  /** Replace the crosshair style (mode, lines, time badge, simple-mode options). */
+  setCrosshairStyle(spec: CrosshairStyleSpec): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the
    * price under it; `setCrosshair` / `clearCrosshair` release the lock.

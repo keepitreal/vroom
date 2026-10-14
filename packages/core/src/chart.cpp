@@ -1057,7 +1057,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //      (reading that pane's value) and otherwise stay in the price pane.
     if (crosshair_active) {
         const vroom::IndicatorReadout readout =
-            crosshair_pinned
+            crosshair_pinned || crosshair_simple()
                 ? vroom::IndicatorReadout{}
                 : indicator_readout(lay, range.start, n, crosshair_y_px);
         // Snap once: the slot gives both the vertical line's x (its center) and

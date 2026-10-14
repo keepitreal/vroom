@@ -96,6 +96,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestFootprint"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setFootprintHover"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairButton"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairStyle"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setCrosshairButtonState"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getCrosshairButton"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestCrosshairButton"));
@@ -1652,6 +1653,37 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.corner_radius_px = static_cast<float>(num("cornerRadiusPx"));
           s.hover_boost = static_cast<float>(num("hoverBoost"));
           vroom_chart_set_crosshair_button(chart_, &s);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setCrosshairStyle") {
+    // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
+    // simpleHeight, dimAhead, dimOpacity }). No render; the next render()
+    // picks it up.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setCrosshairStyle"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto cfg = args[0].asObject(rt2);
+          auto num = [&](const char* key) {
+            return cfg.getProperty(rt2, key).asNumber();
+          };
+          VroomCrosshairStyle s{};
+          s.mode = static_cast<int32_t>(num("mode"));
+          s.line_style = static_cast<int32_t>(num("lineStyle"));
+          s.line_width_px = static_cast<float>(num("lineWidthPx"));
+          s.time_format = static_cast<int32_t>(num("timeFormat"));
+          s.hour12 = cfg.getProperty(rt2, "hour12").getBool() ? 1 : 0;
+          s.simple_height = static_cast<float>(num("simpleHeight"));
+          s.dim_ahead = cfg.getProperty(rt2, "dimAhead").getBool() ? 1 : 0;
+          s.dim_opacity = static_cast<float>(num("dimOpacity"));
+          vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });
   }

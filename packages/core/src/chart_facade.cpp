@@ -1045,6 +1045,13 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
     // the one on the badge.
     out->indicator_kind = -1;
     out->indicator_value = 0.0;
+    // Simple mode has no horizontal line to read a price at, so it reports the
+    // close of the candle under the vertical line.
+    if (chart->crosshair_simple()) {
+        out->price = snap.has_candle ? chart->candles[snap.index].close
+                                     : std::numeric_limits<double>::quiet_NaN();
+        return true;
+    }
     const vroom::IndicatorReadout readout =
         chart->crosshair_pinned
             ? vroom::IndicatorReadout{}
@@ -1056,6 +1063,19 @@ extern "C" bool vroom_chart_get_crosshair_info(VroomChart* chart,
                                      : std::numeric_limits<double>::quiet_NaN();
     }
     return true;
+}
+
+extern "C" void vroom_chart_set_crosshair_style(VroomChart* chart,
+                                                const VroomCrosshairStyle* style) {
+    if (!chart) return;
+    chart->crosshair_style =
+        vroom::crosshair_style::resolve(style ? *style : VroomCrosshairStyle{});
+    // The plus button only exists on the advanced crosshair.
+    if (chart->crosshair_simple()) {
+        chart->crosshair_button_hovered = false;
+        chart->crosshair_pinned = false;
+    }
+    chart->mark_dirty();
 }
 
 // ---- Crosshair plus button ------------------------------------------------

@@ -38,6 +38,10 @@ export type {
   FootprintEvent,
   CrosshairButtonConfig,
   CrosshairButtonEvent,
+  CrosshairConfig,
+  CrosshairLineStyle,
+  CrosshairMode,
+  CrosshairTimeFormat,
   PlotRect,
   DefaultDrawingStyle,
 } from './types';

@@ -43,6 +43,11 @@ const typedocSidebar = {
         },
         {
           type: "doc",
+          id: "reference/type-aliases/CrosshairConfig",
+          label: "CrosshairConfig"
+        },
+        {
+          type: "doc",
           id: "reference/type-aliases/CrosshairEvent",
           label: "CrosshairEvent"
         },
@@ -50,6 +55,21 @@ const typedocSidebar = {
           type: "doc",
           id: "reference/type-aliases/CrosshairIndicatorKind",
           label: "CrosshairIndicatorKind"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/CrosshairLineStyle",
+          label: "CrosshairLineStyle"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/CrosshairMode",
+          label: "CrosshairMode"
+        },
+        {
+          type: "doc",
+          id: "reference/type-aliases/CrosshairTimeFormat",
+          label: "CrosshairTimeFormat"
         },
         {
           type: "doc",

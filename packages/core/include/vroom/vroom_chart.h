@@ -353,6 +353,43 @@ typedef struct VroomPriceLineStyle {
     float    corner_radius_px;  // < 0 = default 6px; otherwise clamped to 0–6
 } VroomPriceLineStyle;
 
+// ---- Crosshair style --------------------------------------------------------
+
+typedef enum {
+    VROOM_CROSSHAIR_ADVANCED = 0,  // both lines, ring, time + price badges (default)
+    VROOM_CROSSHAIR_SIMPLE   = 1,  // one vertical line with a time badge on top
+    VROOM_CROSSHAIR_NONE     = 2,  // gestures raise nothing; an override draws advanced
+} VroomCrosshairMode;
+
+typedef enum {
+    VROOM_CROSSHAIR_LINE_DASHED = 0,
+    VROOM_CROSSHAIR_LINE_DOTTED = 1,
+    VROOM_CROSSHAIR_LINE_SOLID  = 2,
+} VroomCrosshairLineStyle;
+
+typedef enum {
+    VROOM_CROSSHAIR_TIME_DATETIME = 0,  // 10/14 11:30
+    VROOM_CROSSHAIR_TIME_TIME     = 1,  // 11:30
+    VROOM_CROSSHAIR_TIME_DATE     = 2,  // Oct 14
+} VroomCrosshairTimeFormat;
+
+// Colors come from the theme (crosshair lines, crosshair target fill, badge text).
+// A zero-initialized struct is the advanced crosshair as it has always looked.
+typedef struct VroomCrosshairStyle {
+    int32_t mode;           // VroomCrosshairMode
+    int32_t line_style;     // VroomCrosshairLineStyle; < 0 => solid in simple, dashed otherwise
+    float   line_width_px;  // <= 0 => 1
+    int32_t time_format;    // VroomCrosshairTimeFormat; < 0 => time in simple, datetime otherwise
+    int32_t hour12;         // 1 = 11:30 AM
+    float   simple_height;  // simple: badge top as a fraction of chart height (1 = top); < 0 => 1
+    int32_t dim_ahead;      // simple: dim the plot right of the line
+    float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
+} VroomCrosshairStyle;
+
+// Replaces the crosshair style. A null style restores the zero-initialized
+// default.
+void vroom_chart_set_crosshair_style(VroomChart* chart, const VroomCrosshairStyle* style);
+
 // ---- Crosshair plus button (order entry) ----------------------------------
 
 // A "+" drawn inside the crosshair's price badge, left of the price; the whole

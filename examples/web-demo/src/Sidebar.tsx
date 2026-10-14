@@ -2,6 +2,8 @@ import { type CSSProperties, type ReactNode, useState } from 'react';
 import type {
   ChartMode,
   ChartType,
+  CrosshairLineStyle,
+  CrosshairMode,
   DrawTool,
   PriceScaleMode,
   TransitionEasing,
@@ -212,8 +214,10 @@ export type SidebarProps = {
     setPriceScaleMode: (v: PriceScaleMode) => void;
     autoscaleY: boolean;
     setAutoscaleY: (v: boolean) => void;
-    crosshairEnabled: boolean;
-    setCrosshairEnabled: (v: boolean) => void;
+    crosshairMode: CrosshairMode;
+    setCrosshairMode: (v: CrosshairMode) => void;
+    crosshairLineStyle: CrosshairLineStyle | undefined;
+    setCrosshairLineStyle: (v: CrosshairLineStyle | undefined) => void;
   };
   animation: {
     transitionMs: number;
@@ -361,12 +365,36 @@ export function Sidebar({
           onChange={layout.setAutoscaleY}
           title="Ease the price axis to fit the visible candles while panning, until you zoom or scale an axis."
         />
-        <ToggleRow
-          label="Crosshair"
-          checked={layout.crosshairEnabled}
-          onChange={layout.setCrosshairEnabled}
-          title="Let hover and long-press raise the crosshair."
-        />
+        <Row label="Crosshair">
+          <select
+            value={layout.crosshairMode}
+            onChange={(e) => layout.setCrosshairMode(e.target.value as CrosshairMode)}
+            style={select}
+          >
+            {(['advanced', 'simple', 'none'] as CrosshairMode[]).map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        </Row>
+        <Row label="Crosshair line">
+          <select
+            value={layout.crosshairLineStyle ?? 'default'}
+            onChange={(e) =>
+              layout.setCrosshairLineStyle(
+                e.target.value === 'default' ? undefined : (e.target.value as CrosshairLineStyle),
+              )
+            }
+            style={select}
+          >
+            {['default', 'dashed', 'dotted', 'solid'].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </Row>
         <ToggleRow
           label="Two panes"
           checked={layout.twoPane}

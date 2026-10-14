@@ -39,8 +39,12 @@ import type { ChartFrame, ChartHandle, CrosshairButtonHit } from './jsi.d';
 import type {
   CrosshairButtonConfig,
   CrosshairButtonEvent,
+  CrosshairConfig,
   CrosshairEvent,
   CrosshairIndicatorKind,
+  CrosshairLineStyle,
+  CrosshairMode,
+  CrosshairTimeFormat,
   Footprint,
   VroomChartProps,
 } from './types';
@@ -76,6 +80,43 @@ function crosshairButtonToSpec(cfg: CrosshairButtonConfig | undefined) {
     enabled: cfg?.enabled ?? false,
     cornerRadiusPx: cfg?.cornerRadius ?? -1,
     hoverBoost: cfg?.hoverBoost ?? 0,
+  };
+}
+
+// Mirror VroomCrosshairMode / LineStyle / TimeFormat in packages/core/include/vroom/vroom_chart.h.
+const CROSSHAIR_MODES: readonly CrosshairMode[] = ['advanced', 'simple', 'none'];
+const CROSSHAIR_LINE_STYLES: readonly CrosshairLineStyle[] = ['dashed', 'dotted', 'solid'];
+const CROSSHAIR_TIME_FORMATS: readonly CrosshairTimeFormat[] = ['datetime', 'time', 'date'];
+
+// Folds the `crosshair` prop (mode string or config) over the deprecated
+// `crosshairOffset` / `crosshairButton` props. Unset style fields go down as
+// the core's sentinels so it owns the per-mode defaults.
+function resolveCrosshair(
+  prop: VroomChartProps['crosshair'],
+  legacyOffset: number | undefined,
+  legacyButton: CrosshairButtonConfig | undefined,
+): {
+  mode: CrosshairMode;
+  spec: Parameters<ChartHandle['setCrosshairStyle']>[0];
+  offset: number;
+  button: CrosshairButtonConfig | undefined;
+} {
+  const cfg: CrosshairConfig = typeof prop === 'string' ? { mode: prop } : prop ?? {};
+  const mode = cfg.mode ?? 'advanced';
+  return {
+    mode,
+    spec: {
+      mode: CROSSHAIR_MODES.indexOf(mode),
+      lineStyle: cfg.lineStyle ? CROSSHAIR_LINE_STYLES.indexOf(cfg.lineStyle) : -1,
+      lineWidthPx: cfg.lineWidth ?? 0,
+      timeFormat: cfg.timeFormat ? CROSSHAIR_TIME_FORMATS.indexOf(cfg.timeFormat) : -1,
+      hour12: cfg.hour12 === true,
+      simpleHeight: cfg.simple?.height ?? -1,
+      dimAhead: cfg.simple?.dimAhead !== false,
+      dimOpacity: cfg.simple?.dimOpacity ?? -1,
+    },
+    offset: cfg.offset ?? legacyOffset ?? 40,
+    button: mode === 'advanced' ? cfg.button ?? legacyButton : undefined,
   };
 }
 
@@ -121,8 +162,8 @@ export function VroomChart(props: VroomChartProps) {
     ichimoku,
     fairValueGaps,
     volume,
-    crosshairOffset = 40,
-    crosshairEnabled = true,
+    crosshair: crosshairProp,
+    crosshairOffset: legacyCrosshairOffset,
     onCrosshair,
     onViewportChange,
     priceLines,
@@ -133,9 +174,15 @@ export function VroomChart(props: VroomChartProps) {
     footprints,
     footprintsStyle,
     onFootprint,
-    crosshairButton,
+    crosshairButton: legacyCrosshairButton,
     onCrosshairButton,
   } = props;
+  const {
+    mode: crosshairMode,
+    spec: crosshairStyle,
+    offset: crosshairOffset,
+    button: crosshairButton,
+  } = resolveCrosshair(crosshairProp, legacyCrosshairOffset, legacyCrosshairButton);
 
   // Fill the parent by default: measure via onLayout. Explicit width/height
   // props (if given) win per-axis. Until the first layout, dims are 0 and we
@@ -341,6 +388,16 @@ export function VroomChart(props: VroomChartProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle, crosshairButtonKey, applyFrame]);
 
+  const crosshairStyleKey = JSON.stringify(crosshairStyle);
+  useEffect(() => {
+    if (!handle) return;
+    handle.setCrosshairStyle(crosshairStyle);
+    const frame = handle.render();
+    if (frame) applyFrame(frame);
+    // crosshairStyle tracked via crosshairStyleKey.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handle, crosshairStyleKey, applyFrame]);
+
   useEffect(() => {
     closePlusRef.current();
   }, [seriesKey]);
@@ -361,14 +418,14 @@ export function VroomChart(props: VroomChartProps) {
   const lastCrosshairKey = useRef<string | null>(null);
 
   useEffect(() => {
-    if (crosshairEnabled || !handle || !crosshairActive.current) return;
+    if (crosshairMode !== 'none' || !handle || !crosshairActive.current) return;
     closePlusRef.current(false);
     crosshairActive.current = false;
     const ch = handle.clearCrosshair();
     if (ch) applyFrame(ch);
     lastCrosshairKey.current = null;
     onCrosshair?.(crosshairEvent(null, 'hide'));
-  }, [crosshairEnabled, handle, applyFrame, onCrosshair]);
+  }, [crosshairMode, handle, applyFrame, onCrosshair]);
 
   // Momentum scroll. After Pan ends with non-trivial velocity, we run a RAF
   // loop that calls handle.pan(dx, 0) each frame with an exponentially
@@ -965,7 +1022,7 @@ export function VroomChart(props: VroomChartProps) {
   // activates `pan` (it needs movement first), so the chart won't scroll under
   // the hold. The dot/horizontal line are lifted above the fingertip.
   const longPress = Gesture.LongPress()
-    .enabled(!showLoadingLine && crosshairEnabled)
+    .enabled(!showLoadingLine && crosshairMode !== 'none')
     .runOnJS(true)
     .onStart((e) => {
       if (!handle) return;

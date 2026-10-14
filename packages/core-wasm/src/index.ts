@@ -55,6 +55,7 @@ export type {
   FootprintHit,
   CrosshairButtonHit,
   CrosshairButtonSpec,
+  CrosshairStyleSpec,
   Coord,
   RectPx,
 } from './handle';

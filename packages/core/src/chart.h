@@ -23,6 +23,7 @@
 #include "include/core/SkRefCnt.h"
 #pragma clang diagnostic pop
 
+#include "crosshair_style.h"
 #include "fair_value_gaps.h"
 #include "footprints_layout.h"
 #include "labels.h"
@@ -207,10 +208,16 @@ struct VroomChart {
     vroom::PriceBounds autoscale_display{0.0, 1.0};
     bool autoscale_display_valid = false;
 
-    // --- crosshair (not yet drawn) -----------------------------------------
+    // --- crosshair -----------------------------------------------------------
     bool   crosshair_active = false;
     float  crosshair_x_px = 0.f;
     float  crosshair_y_px = 0.f;
+    // Stored resolved (see crosshair_style::resolve).
+    VroomCrosshairStyle crosshair_style =
+        vroom::crosshair_style::resolve(VroomCrosshairStyle{});
+    bool crosshair_simple() const {
+        return crosshair_style.mode == VROOM_CROSSHAIR_SIMPLE;
+    }
 
     // Plus button on the horizontal line (order entry). Style is stored
     // resolved (see crosshair_button::resolve). While pinned, the line tracks

@@ -529,6 +529,20 @@ export interface ChartHandle {
     hoverBoost: number;
   }): void;
   /**
+   * Replaces the crosshair style, in the core's numeric encoding (see
+   * VroomCrosshairStyle). Negative values take the mode's defaults.
+   */
+  setCrosshairStyle(spec: {
+    mode: number;
+    lineStyle: number;
+    lineWidthPx: number;
+    timeFormat: number;
+    hour12: boolean;
+    simpleHeight: number;
+    dimAhead: boolean;
+    dimOpacity: number;
+  }): void;
+  /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the
    * price under it; setCrosshair / clearCrosshair release the lock.
    */
