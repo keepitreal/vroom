@@ -315,6 +315,43 @@ PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
     return {from_scale(log, mid - half), from_scale(log, mid + half), log};
 }
 
+PriceBounds ease_price_bounds(const PriceBounds& display,
+                              const PriceBounds& target,
+                              const PriceBounds& envelope,
+                              float dt_s, bool animate) {
+    if (!animate || !(dt_s > 0.f) || display.log != target.log ||
+        !(display.max > display.min) || !(target.max > target.min)) {
+        return target;
+    }
+    const bool log = target.log;
+    const double t_lo = to_scale(log, target.min);
+    const double t_hi = to_scale(log, target.max);
+    const double eps = kAutoscaleSnapFrac * (t_hi - t_lo);
+    const double dt = static_cast<double>(dt_s);
+
+    // Edges that land are returned as the target's own price rather than a
+    // scale-space round trip, so a settled range compares equal to the target.
+    const auto step = [&](double cur, double tgt, double tgt_price,
+                          bool expanding) {
+        const double tau = expanding ? kAutoscaleExpandTau : kAutoscaleContractTau;
+        const double next = tgt + (cur - tgt) * std::exp(-dt / tau);
+        return std::abs(next - tgt) <= eps ? tgt_price : from_scale(log, next);
+    };
+    const double d_lo = to_scale(log, display.min);
+    const double d_hi = to_scale(log, display.max);
+    PriceBounds out{step(d_lo, t_lo, target.min, t_lo < d_lo),
+                    step(d_hi, t_hi, target.max, t_hi > d_hi), log};
+
+    if (envelope.max >= envelope.min) {
+        // A log scale can't map the envelope's low below its floor.
+        const double env_lo =
+            log ? std::max(envelope.min, kMinLogPrice) : envelope.min;
+        out.min = std::min(out.min, env_lo);
+        out.max = std::max(out.max, envelope.max);
+    }
+    return out;
+}
+
 PriceBounds preserve_envelope_bounds(const PriceBounds& old_axis,
                                      const PriceBounds& old_env,
                                      const PriceBounds& new_env) {

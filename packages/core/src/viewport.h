@@ -352,6 +352,28 @@ constexpr double kAutoYZoom = 1.5;
 PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
                               bool log);
 
+// --- Animated auto-fit (autoscaleY) -----------------------------------------
+// Each edge of the on-screen range chases its target exponentially, so the
+// result depends only on elapsed time, not on how it was split into frames —
+// a pan retargets every frame, and a fixed-length tween would restart (and
+// stutter) on each one. An edge opening up to make room moves faster than one
+// closing in, so a new extreme gets space quickly without the range pumping.
+inline constexpr double kAutoscaleExpandTau = 0.045;   // seconds
+inline constexpr double kAutoscaleContractTau = 0.07;  // seconds
+// An edge this close to its target (as a fraction of the target range, about
+// half a pixel on a phone) lands on it exactly, which is what ends the ease.
+inline constexpr double kAutoscaleSnapFrac = 1e-3;
+
+// One frame of the ease from `display` toward `target`, `dt_s` seconds on. The
+// result always contains `envelope` (the visible low..high), so a wick never
+// clips while the range is still catching up. Returns `target` outright when
+// `animate` is false, `dt_s` <= 0, or either range is degenerate — and returns
+// it exactly (bit-for-bit) once settled, so callers can compare for equality.
+PriceBounds ease_price_bounds(const PriceBounds& display,
+                              const PriceBounds& target,
+                              const PriceBounds& envelope,
+                              float dt_s, bool animate);
+
 // Rescales an axis range so a data envelope keeps the pixel height *and* the
 // pixel position it had before a data swap — the "scale lock" applied on a
 // timeframe switch, where the same price action re-buckets into a smaller or

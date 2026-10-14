@@ -657,6 +657,88 @@ TEST_CASE("auto_price_bounds") {
     }
 }
 
+TEST_CASE("ease_price_bounds") {
+    const PriceBounds none{1.0, 0.0};  // no envelope to contain
+
+    SUBCASE("converges onto the target exactly") {
+        PriceBounds d{0.0, 100.0};
+        const PriceBounds t{20.0, 80.0};
+        for (int i = 0; i < 120 && !(d.min == t.min && d.max == t.max); ++i) {
+            d = vroom::ease_price_bounds(d, t, none, 1.f / 60.f, true);
+        }
+        CHECK(d.min == t.min);
+        CHECK(d.max == t.max);
+    }
+
+    SUBCASE("moves part of the way in one frame") {
+        const PriceBounds d{0.0, 100.0};
+        const PriceBounds t{20.0, 80.0};
+        const PriceBounds b = vroom::ease_price_bounds(d, t, none, 1.f / 60.f, true);
+        CHECK(b.min > d.min);
+        CHECK(b.min < t.min);
+        CHECK(b.max < d.max);
+        CHECK(b.max > t.max);
+    }
+
+    SUBCASE("is frame-rate independent") {
+        const PriceBounds d{0.0, 100.0};
+        const PriceBounds t{20.0, 80.0};
+        const PriceBounds one = vroom::ease_price_bounds(d, t, none, 0.016f, true);
+        const PriceBounds half = vroom::ease_price_bounds(d, t, none, 0.008f, true);
+        const PriceBounds two = vroom::ease_price_bounds(half, t, none, 0.008f, true);
+        CHECK(two.min == doctest::Approx(one.min).epsilon(1e-4));
+        CHECK(two.max == doctest::Approx(one.max).epsilon(1e-4));
+    }
+
+    SUBCASE("an edge opening up moves faster than one closing in") {
+        // Top expands 100 -> 120, bottom contracts 0 -> 20: same distance.
+        const PriceBounds d{0.0, 100.0};
+        const PriceBounds t{20.0, 120.0};
+        const PriceBounds b = vroom::ease_price_bounds(d, t, none, 1.f / 60.f, true);
+        CHECK((b.max - d.max) > (b.min - d.min));
+    }
+
+    SUBCASE("always contains the visible envelope") {
+        // The target jumps far above the current range; the envelope's high
+        // must be on screen on the very first frame.
+        const PriceBounds d{0.0, 100.0};
+        const PriceBounds t{150.0, 450.0};
+        const PriceBounds env{200.0, 400.0};
+        const PriceBounds b = vroom::ease_price_bounds(d, t, env, 1.f / 60.f, true);
+        CHECK(b.min <= env.min);
+        CHECK(b.max >= env.max);
+    }
+
+    SUBCASE("snaps without animation, without elapsed time, or when degenerate") {
+        const PriceBounds d{0.0, 100.0};
+        const PriceBounds t{20.0, 80.0};
+        const PriceBounds still = vroom::ease_price_bounds(d, t, none, 0.016f, false);
+        CHECK(still.min == t.min);
+        CHECK(still.max == t.max);
+        const PriceBounds first = vroom::ease_price_bounds(d, t, none, 0.f, true);
+        CHECK(first.min == t.min);
+        CHECK(first.max == t.max);
+        const PriceBounds flat = vroom::ease_price_bounds({5.0, 5.0}, t, none,
+                                                          0.016f, true);
+        CHECK(flat.min == t.min);
+        CHECK(flat.max == t.max);
+    }
+
+    SUBCASE("eases in log space and stays positive") {
+        const PriceBounds d{1.0, 1000.0, true};
+        const PriceBounds t{10.0, 100.0, true};
+        const PriceBounds b = vroom::ease_price_bounds(d, t, none, 1.f / 60.f, true);
+        CHECK(b.log);
+        CHECK(b.min > 1.0);
+        CHECK(b.min < 10.0);
+        CHECK(b.max < 1000.0);
+        CHECK(b.max > 100.0);
+        // Symmetric in log space: both edges cover the same share of a decade.
+        CHECK(std::log10(b.min) - 0.0 ==
+              doctest::Approx(3.0 - std::log10(b.max)).epsilon(1e-6));
+    }
+}
+
 TEST_CASE("preserve_envelope_bounds") {
     SUBCASE("a halved envelope halves the axis range") {
         PriceBounds axis{0.0, 100.0};

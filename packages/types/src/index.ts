@@ -1343,6 +1343,24 @@ export type VroomChartCoreProps = {
    */
   priceScaleMode?: PriceScaleMode;
   /**
+   * Keep the price axis fitted to the candles on screen as the user pans,
+   * animating each refit quickly so the scale glides rather than jumps. The
+   * highest high and lowest low in view always stay inside the plot.
+   *
+   * While it's in charge, a one-finger (or mouse) drag pans time only — its
+   * vertical component is ignored, so a slightly diagonal swipe doesn't take the
+   * scale over. Zooming or scaling either axis (a pinch, a wheel/trackpad zoom,
+   * or a drag on the price or time axis) hands control to the user: the price
+   * axis freezes where it is and stays manual for this series. A new series — a
+   * `seriesKey` change or a switch to a different asset — turns it back on; an
+   * interval switch on the same series does not.
+   *
+   * Default false, which keeps the instant auto-fit that lasts until the first
+   * vertical drag. Snaps instead of animating when the OS requests reduced
+   * motion.
+   */
+  autoscaleY?: boolean;
+  /**
    * Duration (ms) of the animated transitions: the candle↔line switch when
    * `chartType` changes, and the interval switch when the `candles` array is
    * swapped for a different interval of the same asset. Default ~300. `0` snaps

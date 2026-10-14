@@ -339,9 +339,41 @@ vroom::IndexRange VroomChart::fit_range() const {
 
 vroom::PriceBounds VroomChart::screen_price_bounds() const {
     if (price_bounds_manual) return price_bounds;
+    if (autoscale_y_engaged() && autoscale_display_valid &&
+        autoscale_display.log == price_bounds.log) {
+        return autoscale_display;
+    }
     const auto fit = fit_range();
     return vroom::auto_price_bounds(candles.data() + fit.start,
                                     fit.end - fit.start, price_bounds.log);
+}
+
+bool VroomChart::autoscale_target(vroom::PriceBounds* target,
+                                  vroom::PriceBounds* envelope) const {
+    const auto fit = fit_range();
+    if (fit.end <= fit.start) return false;
+    const ::VroomCandle* first = candles.data() + fit.start;
+    const std::size_t n = fit.end - fit.start;
+    *target = vroom::auto_price_bounds(first, n, price_bounds.log);
+    *envelope = vroom::price_bounds(first, n);
+    return true;
+}
+
+void VroomChart::snap_autoscale() {
+    vroom::PriceBounds target{}, envelope{};
+    autoscale_display_valid = autoscale_target(&target, &envelope);
+    if (autoscale_display_valid) autoscale_display = target;
+}
+
+bool VroomChart::autoscale_animating() const {
+    if (!autoscale_y_engaged() || !autoscale_display_valid || loading) {
+        return false;
+    }
+    vroom::PriceBounds target{}, envelope{};
+    if (!autoscale_target(&target, &envelope)) return false;
+    return autoscale_display.min != target.min ||
+           autoscale_display.max != target.max ||
+           autoscale_display.log != target.log;
 }
 
 vroom::SnapResult VroomChart::crosshair_snap(const vroom::Layout& lay) const {
@@ -1062,6 +1094,30 @@ void VroomChart::begin_frame() {
     tip_pulse_elapsed_s =
         std::fmod(tip_pulse_elapsed_s + dt, vroom::tip_pulse::kPeriodSeconds);
 
+    // The eased y-range takes its step here, before anything in the frame
+    // reads screen_price_bounds, so every layer and hit test sees one range.
+    if (!autoscale_y_engaged() || loading) {
+        // Re-engaging seeds from the fit rather than easing out of a stale range.
+        autoscale_display_valid = false;
+    } else {
+        vroom::PriceBounds target{}, envelope{};
+        if (autoscale_target(&target, &envelope)) {
+            // A timeframe switch already animates the bars through its own
+            // capture; easing the range under it too would move them twice.
+            const bool interval_morphing =
+                interval_morph_t < 1.f && !morph_is_stream;
+            if (!autoscale_display_valid || interval_morphing ||
+                autoscale_display.log != target.log) {
+                autoscale_display = target;
+            } else {
+                autoscale_display = vroom::ease_price_bounds(
+                    autoscale_display, target, envelope, dt,
+                    autoscale_y_animate);
+            }
+            autoscale_display_valid = true;
+        }
+    }
+
     if (loading) {
         // Frozen once a capture exists: stage 2 morphs away from the phase the
         // sine held when the data landed, and advancing it underneath would
@@ -1258,6 +1314,7 @@ bool VroomChart::is_animating_now() const {
     // motion, once faded in) has nothing left to redraw and may go idle. The
     // two hand-off stages are host-driven, so they need nothing here.
     if (loading && (loading_animate || loading_fade_in < 1.f)) return true;
+    if (autoscale_animating()) return true;
     for (const auto& f : y_fades) {
         if (f.opacity != f.target) return true;
     }

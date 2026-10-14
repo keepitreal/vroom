@@ -565,6 +565,11 @@ export default function App() {
     setPriceScaleMode((m) => (m === 'linear' ? 'log' : 'linear'));
     Haptics.selectionAsync().catch(() => {});
   }, []);
+  const [autoscaleY, setAutoscaleY] = useState(false);
+  const toggleAutoscaleY = useCallback(() => {
+    setAutoscaleY((on) => !on);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
 
   // Line-chart corner smoothing, stepped rather than continuous so the render at
   // each value is easy to compare against the last.
@@ -888,6 +893,7 @@ export default function App() {
             seriesKey={`listing-${listing.count}-${backfill ? 'zeros' : 'bare'}`}
             chartType={chartType}
             priceScaleMode={priceScaleMode}
+            autoscaleY={autoscaleY}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
             theme={theme}
@@ -1144,6 +1150,21 @@ export default function App() {
                   ]}
                 >
                   {priceScaleMode === 'log' ? 'LOG' : 'LIN'}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, autoscaleY && styles.fnBtnActive]}
+                onPress={toggleAutoscaleY}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    autoscaleY && styles.fnSymbolActive,
+                  ]}
+                >
+                  AUTO
                 </Text>
               </Pressable>
 

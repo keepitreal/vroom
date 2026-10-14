@@ -190,6 +190,23 @@ struct VroomChart {
     vroom::PriceBounds price_bounds{0.0, 1.0};
     bool price_bounds_manual = false;
 
+    // --- autoscaleY ---------------------------------------------------------
+    // Opt-in variant of auto mode: the y-range *eases* toward the visible
+    // candles' fit instead of snapping to it, and the vertical part of a drag is
+    // ignored so a diagonal swipe can't take the scale manual. Runs only while
+    // autoscale_y_engaged().
+    bool autoscale_y = false;
+    // Cleared for reduced motion, which lands every retarget immediately.
+    bool autoscale_y_animate = true;
+    // Set once the user zooms or scales either axis, and from then on autoscale
+    // stays off for this series. Only reset_view (an asset / seriesKey change)
+    // clears it — a timeframe switch is the same series, so it doesn't.
+    bool axes_user_adjusted = false;
+    // The range actually on screen while engaged, advanced by begin_frame.
+    // Invalid until the first engaged frame, which seeds it without easing.
+    vroom::PriceBounds autoscale_display{0.0, 1.0};
+    bool autoscale_display_valid = false;
+
     // --- crosshair (not yet drawn) -----------------------------------------
     bool   crosshair_active = false;
     float  crosshair_x_px = 0.f;
@@ -523,6 +540,24 @@ struct VroomChart {
     // fit_range(). Every hit test and projection reads this so they line up
     // with draw_chart.
     vroom::PriceBounds screen_price_bounds() const;
+
+    // Whether the eased auto-fit is in charge of the y-range right now.
+    bool autoscale_y_engaged() const {
+        return autoscale_y && !axes_user_adjusted && !price_bounds_manual;
+    }
+
+    // The instant auto-fit over fit_range() (what autoscale eases toward), and
+    // the raw visible low..high it must always contain. False with nothing in
+    // view.
+    bool autoscale_target(vroom::PriceBounds* target,
+                          vroom::PriceBounds* envelope) const;
+
+    // Lands the eased range on its target with no animation, for changes that
+    // either animate the geometry themselves or reframe wholesale.
+    void snap_autoscale();
+
+    // True while the eased range hasn't reached its target yet.
+    bool autoscale_animating() const;
 
     // The crosshair's slot, snapped over fit_range() so it never lands on a
     // candle whose center is off screen. `index` is into `candles`.

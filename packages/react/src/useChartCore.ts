@@ -470,6 +470,7 @@ export function useChartCore(
     defaultCandleWidth,
     chartType,
     priceScaleMode,
+    autoscaleY,
     transitionMs,
     transitionEasing,
     intervalTransition,
@@ -1120,6 +1121,14 @@ export function useChartCore(
     h.setPriceScaleMode(priceScaleMode === 'log' ? 1 : 0);
     scheduleRender();
   }, [ready, priceScaleMode, scheduleRender]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    h.setAutoscaleY(autoscaleY === true, !prefersReducedMotion());
+    scheduleRender();
+  }, [ready, autoscaleY, scheduleRender]);
 
   useEffect(() => {
     if (!ready) return;

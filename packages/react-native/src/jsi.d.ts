@@ -49,6 +49,13 @@ export interface ChartHandle {
    */
   resetPriceScale(): void;
   /**
+   * Opt-in animated y auto-fit (the `autoscaleY` prop). While on, and until the
+   * user zooms or scales either axis, the price range eases toward the visible
+   * candles as the view pans; resetView re-arms it. `animate` false snaps
+   * instead (reduced motion).
+   */
+  setAutoscaleY(enabled: boolean, animate: boolean): void;
+  /**
    * The visible price *envelope* — the min low / max high across the currently
    * visible candles, i.e. the extent the candles occupy rather than the (wider)
    * axis range. Null when no candles are visible.

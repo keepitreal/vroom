@@ -719,6 +719,7 @@ export function App() {
       ? 'log'
       : 'linear',
   );
+  const [autoscaleY, setAutoscaleY] = useState(false);
   // Duration (ms) of the candle↔line and interval-switch animations. 0 = snap.
   const [transitionMs, setTransitionMs] = useState(() => loadNum(TRANSITION_MS_KEY, 300));
   const [easing, setEasing] = useState<TransitionEasing>(() => {
@@ -1326,6 +1327,7 @@ export function App() {
                   theme={chartTheme}
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
+                  autoscaleY={autoscaleY}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1348,6 +1350,7 @@ export function App() {
                   theme={chartTheme}
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
+                  autoscaleY={autoscaleY}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
                   intervalTransition={intervalTransition}
@@ -1375,6 +1378,7 @@ export function App() {
                 theme={chartTheme}
                 chartType={chartType}
                 priceScaleMode={priceScaleMode}
+                autoscaleY={autoscaleY}
                 transitionMs={transitionMs}
                 transitionEasing={easing}
                 intervalTransition={intervalTransition}
@@ -1398,7 +1402,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,

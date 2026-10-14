@@ -577,6 +577,16 @@ void vroom_chart_reset_view(VroomChart* chart);
 // switch) so the price scale re-fits the newly visible candles.
 void vroom_chart_reset_price_scale(VroomChart* chart);
 
+// Opt-in animated y auto-fit. While on, and until the user zooms or scales
+// either axis, the price range eases (quickly) toward the visible candles as
+// the view pans, always keeping their low..high on screen; the vertical part of
+// a translate is ignored so a diagonal drag can't take the scale manual. Any
+// zoom or axis drag freezes y where it stands and ends autoscale for the
+// series; vroom_chart_reset_view re-arms it. `animate` 0 snaps instead of
+// easing (reduced motion). Off by default, which keeps the instant auto-fit.
+void vroom_chart_set_autoscale_y(VroomChart* chart, int32_t enabled,
+                                 int32_t animate);
+
 // Reads the visible price *envelope* — the min low / max high across the
 // currently visible candles. This is the extent the candles actually occupy, not
 // the axis range (which is wider: see vroom_chart_preserve_price_envelope).

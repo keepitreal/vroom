@@ -420,7 +420,8 @@ namespace {
 
 // The scale the y labels will actually draw against: the pre-switch scale while
 // an interval morph is still showing the old ticks, otherwise the manual scale
-// or the visible candles' auto-fit. False when there is nothing to lay out.
+// or the on-screen auto-fit (eased, under autoscaleY). False when there is
+// nothing to lay out.
 bool label_scale(const VroomChart& chart, vroom::PriceBounds* out) {
     if (interval_phase(chart).outgoing) {
         *out = chart.morph_from_bounds;
@@ -433,9 +434,7 @@ bool label_scale(const VroomChart& chart, vroom::PriceBounds* out) {
     if (chart.candles.empty()) return false;
     const auto idx = chart.fit_range();
     if (idx.end <= idx.start) return false;
-    *out = vroom::auto_price_bounds(
-        chart.candles.data() + idx.start, idx.end - idx.start,
-        chart.price_bounds.log);
+    *out = chart.screen_price_bounds();
     return out->max > out->min;
 }
 

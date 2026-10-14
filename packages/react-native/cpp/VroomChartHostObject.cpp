@@ -55,6 +55,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetPriceScale"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setAutoscaleY"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "beginIntervalMorph"));
@@ -493,6 +494,23 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_reset_price_scale(chart_);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setAutoscaleY") {
+    // setAutoscaleY(enabled, animate) — opt-in eased y auto-fit while panning.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setAutoscaleY"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_set_autoscale_y(chart_, args[0].getBool() ? 1 : 0,
+                                      args[1].getBool() ? 1 : 0);
           return jsi::Value::undefined();
         });
   }

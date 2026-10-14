@@ -51,6 +51,7 @@ interface WebChartInstance {
   getVisibleRange(): { startMs: number; endMs: number };
   resetView(): void;
   resetPriceScale(): void;
+  setAutoscaleY(enabled: boolean, animate: boolean): void;
   getVisiblePriceEnvelope(): { low: number; high: number } | null;
   preservePriceEnvelope(prevLow: number, prevHigh: number): void;
   beginIntervalMorph(mode: number): void;
@@ -176,6 +177,9 @@ class WasmHandle implements VroomChartHandle {
   }
   resetPriceScale(): void {
     this.wc.resetPriceScale();
+  }
+  setAutoscaleY(enabled: boolean, animate: boolean): void {
+    this.wc.setAutoscaleY(enabled, animate);
   }
   getVisiblePriceEnvelope(): { low: number; high: number } | null {
     return this.wc.getVisiblePriceEnvelope();

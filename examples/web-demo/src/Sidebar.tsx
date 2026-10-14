@@ -210,6 +210,8 @@ export type SidebarProps = {
     setChartType: (v: ChartType) => void;
     priceScaleMode: PriceScaleMode;
     setPriceScaleMode: (v: PriceScaleMode) => void;
+    autoscaleY: boolean;
+    setAutoscaleY: (v: boolean) => void;
   };
   animation: {
     transitionMs: number;
@@ -351,6 +353,12 @@ export function Sidebar({
             onChange={layout.setPriceScaleMode}
           />
         </Field>
+        <ToggleRow
+          label="Autoscale Y"
+          checked={layout.autoscaleY}
+          onChange={layout.setAutoscaleY}
+          title="Ease the price axis to fit the visible candles while panning, until you zoom or scale an axis."
+        />
         <ToggleRow
           label="Two panes"
           checked={layout.twoPane}

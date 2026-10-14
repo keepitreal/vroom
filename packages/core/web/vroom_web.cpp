@@ -146,6 +146,9 @@ class WebChart {
   }
   void resetView() { vroom_chart_reset_view(chart_); }
   void resetPriceScale() { vroom_chart_reset_price_scale(chart_); }
+  void setAutoscaleY(bool enabled, bool animate) {
+    vroom_chart_set_autoscale_y(chart_, enabled ? 1 : 0, animate ? 1 : 0);
+  }
   // Returns the visible {low, high} candle envelope, or null when nothing is
   // visible.
   em::val getVisiblePriceEnvelope() {
@@ -852,6 +855,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("getVisibleRange", &WebChart::getVisibleRange)
       .function("resetView", &WebChart::resetView)
       .function("resetPriceScale", &WebChart::resetPriceScale)
+      .function("setAutoscaleY", &WebChart::setAutoscaleY)
       .function("getVisiblePriceEnvelope", &WebChart::getVisiblePriceEnvelope)
       .function("preservePriceEnvelope", &WebChart::preservePriceEnvelope)
       .function("beginIntervalMorph", &WebChart::beginIntervalMorph)
