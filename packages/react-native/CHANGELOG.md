@@ -1,5 +1,11 @@
 # react-native-vroom-chart
 
+## 0.22.1
+
+### Patch Changes
+
+- db1ad47: Snap a fresh chart handle to the `chartType` prop before the first picture, so a line chart does not flash candlesticks. Candles stay the default when the prop is candles or omitted.
+
 ## 0.22.0
 
 ### Minor Changes
