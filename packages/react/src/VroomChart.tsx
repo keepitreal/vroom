@@ -85,12 +85,13 @@ export function VroomChart(props: VroomChartProps) {
     };
   }, [historyRef, stored, undo, redo, clearHistory, restyle]);
 
-  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef } = useChartCore(
-    stored ? { ...props, drawings: effectiveDrawings } : props,
-    wasm ? { wasm } : undefined,
-  );
+  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef } =
+    useChartCore(
+      stored ? { ...props, drawings: effectiveDrawings } : props,
+      wasm ? { wasm } : undefined,
+    );
 
-  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, {
+  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef, {
     crosshairOffset,
     crosshairEnabled,
     // Same condition useChartCore draws the line on: a refresh that still
