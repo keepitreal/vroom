@@ -41,6 +41,7 @@ import type {
   CrosshairLineStyle,
   CrosshairMode,
   CrosshairTimeFormat,
+  Drawing,
   IntervalTransition,
   StreamTransition,
   TransitionEasing,
@@ -57,6 +58,20 @@ import {
 } from './dataTransitions';
 import { ease, easingIndex } from './easing';
 import { isValidDrawing } from './drawingStorage';
+
+// The drawings dependency key, stringified once per array: a controlled host
+// hands over a new array only when the drawings change, so streaming re-renders
+// don't re-serialize every pencil stroke.
+const drawingsKeys = new WeakMap<readonly Drawing[], string>();
+function drawingsKeyOf(drawings: readonly Drawing[] | undefined): string {
+  if (!drawings) return '';
+  let key = drawingsKeys.get(drawings);
+  if (key === undefined) {
+    key = JSON.stringify(drawings);
+    drawingsKeys.set(drawings, key);
+  }
+  return key;
+}
 
 function prefersReducedMotion(): boolean {
   return !!(
@@ -501,6 +516,12 @@ export type UseChartCore = {
    * drew, whatever caused it to change.
    */
   afterPresentRef: React.RefObject<(() => void) | null>;
+  /**
+   * Called right after the committed drawings are pushed to the core, with the
+   * list that was pushed (core index order). Assign to restate an edit in
+   * progress, which that push would otherwise wipe.
+   */
+  resyncEditRef: React.RefObject<((list: Drawing[]) => void) | null>;
   /** Measured CSS size of the container (0 until first layout). */
   size: { width: number; height: number };
 };
@@ -611,6 +632,7 @@ export function useChartCore(
   // the gesture layer to report the selection's on-screen rect (which is only
   // meaningful once the frame it belongs to has been laid out).
   const afterPresentRef = useRef<(() => void) | null>(null);
+  const resyncEditRef = useRef<((list: Drawing[]) => void) | null>(null);
 
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
@@ -829,7 +851,7 @@ export function useChartCore(
   const ichimokuKey = ichimoku ? JSON.stringify(ichimoku) : '';
   const fvgKey = fairValueGaps ? JSON.stringify(fairValueGaps) : '';
   const volumeKey = volume ? JSON.stringify(volume) : '';
-  const drawingsKey = drawings ? JSON.stringify(drawings) : '';
+  const drawingsKey = drawingsKeyOf(drawings);
   const liquidityKey = liquidity ? JSON.stringify(liquidity) : '';
   // Whether a close handler exists is part of the rendered output (it gates the
   // button), so it belongs in the key alongside the lines themselves.
@@ -1070,7 +1092,9 @@ export function useChartCore(
     // The controlled `drawings` prop is consumer-supplied — filter malformed
     // entries (wrong arity, non-finite anchors) before they reach the WASM
     // boundary, matching the validation the managed store path already does.
-    h.setDrawings((drawings ?? []).filter(isValidDrawing).map(drawingToSpec));
+    const pushedDrawings = (drawings ?? []).filter(isValidDrawing);
+    h.setDrawings(pushedDrawings.map(drawingToSpec));
+    resyncEditRef.current?.(pushedDrawings);
     h.setLiquidity(
       liquidity?.bands?.length ? liquidityToSpec(liquidity) : EMPTY_LIQUIDITY,
     );
@@ -1354,6 +1378,7 @@ export function useChartCore(
     handleRef,
     scheduleRender,
     afterPresentRef,
+    resyncEditRef,
     size: { width, height },
   };
 }

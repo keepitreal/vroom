@@ -84,13 +84,14 @@ export function VroomChart(props: VroomChartProps) {
     };
   }, [historyRef, stored, undo, redo, clearHistory, restyle]);
 
-  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef } = useChartCore(
-    stored ? { ...props, drawings: effectiveDrawings } : props,
-    wasm ? { wasm } : undefined,
-  );
+  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef } =
+    useChartCore(
+      stored ? { ...props, drawings: effectiveDrawings } : props,
+      wasm ? { wasm } : undefined,
+    );
 
   const crosshair = resolveCrosshair(props.crosshair, crosshairOffset, props.crosshairButton);
-  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, {
+  useGestures(containerRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef, {
     crosshairOffset: crosshair.offset,
     crosshairMode: crosshair.mode,
     // Same condition useChartCore draws the line on: a refresh that still
