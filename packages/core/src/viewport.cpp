@@ -249,6 +249,19 @@ IndexRange draw_indices(const ::VroomCandle* candles,
     return r;
 }
 
+int64_t plot_end_ms(const Layout& layout,
+                    float y_axis_collapse_t,
+                    int64_t start_ms,
+                    int64_t end_ms) {
+    const float usable = candle_area_width(layout);
+    const float extra_px = plot_right(layout, y_axis_collapse_t) - usable;
+    if (extra_px <= 0.f || usable <= 0.f || end_ms <= start_ms) return end_ms;
+    return end_ms + static_cast<int64_t>(std::ceil(
+                        static_cast<double>(end_ms - start_ms) *
+                        static_cast<double>(extra_px) /
+                        static_cast<double>(usable)));
+}
+
 SnapResult snap_to_fit_slot(const Layout& layout,
                             const ::VroomCandle* candles,
                             size_t count,

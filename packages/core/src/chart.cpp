@@ -327,9 +327,11 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
-    return vroom::draw_indices(candles.data(), candles.size(),
-                               visible_start_ms, visible_end_ms,
-                               candle_duration_ms);
+    return vroom::draw_indices(
+        candles.data(), candles.size(), visible_start_ms,
+        vroom::plot_end_ms(layout(), y_axis_collapse_t, visible_start_ms,
+                           visible_end_ms),
+        candle_duration_ms);
 }
 
 vroom::IndexRange VroomChart::fit_range() const {
@@ -722,6 +724,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const float candle_area_h = vroom::price_pane_bottom(lay);
     const float candle_right =
         width_px - lay.y_axis_width_px - lay.right_padding_px;
+    // What the price pane's series, gridlines, and background mask stop at.
+    // candle_right with the y-axis shown; the chart's edge once it's hidden.
+    const float pane_right = vroom::plot_right(lay, y_axis_collapse_t);
     // The line tip is the one plot layer allowed past candle_right: its dot
     // overhangs the newest candle's center, which the pinned-to-latest framing
     // puts within a few pixels of that edge. It stops at the y-axis strip.
@@ -747,7 +752,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     //    re-enable by adding `vroom::labels::draw_x_gridlines(canvas, *this,
     //    axis_start_ms, axis_end_ms, candle_right, candle_area_h);` here.
     vroom::labels::draw_y_gridlines(canvas, *this, lay, axis_bounds,
-                                    candle_right, candle_area_h);
+                                    pane_right, candle_area_h);
 
     // 4.35. Price-series morph state, shared by the gradient fill below and the
     //       series itself (5). `morph_fade` crossfades candles→line and
@@ -799,13 +804,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             // Behind the candles, as in the settled z-order.
             const bool fills_wrapped = push_fade_layer();
             draw_overlay_fills(canvas, lay, bounds, visible, 0, range.start,
-                               window_ms, candle_right, candle_area_h, true, 0.f);
+                               window_ms, pane_right, candle_area_h, true, 0.f);
             if (fills_wrapped) canvas->restore();
 
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
                     canvas, lay, bounds, visible, 0, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, pane_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY],
                     fade * layer, morph_from.data(), morph_n, 0.f,
@@ -821,7 +826,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
                     canvas, lay, bounds, visible, 0, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, pane_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
                     morph_from.data(), morph_n, 0.f,
@@ -837,7 +842,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             // they occupy disjoint bands, so nothing overlaps across the two.
             const bool lines_wrapped = push_fade_layer();
             draw_overlay_lines(canvas, lay, bounds, visible, 0, range.start,
-                               window_ms, candle_right, candle_area_h, true, 0.f);
+                               window_ms, pane_right, candle_area_h, true, 0.f);
             if (lay.indicator_area_h > 0.f) {
                 draw_indicator_panes(canvas, lay, visible, 0, range.start,
                                      window_ms, candle_right, candle_area_h,
@@ -861,7 +866,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_gradient(
                     canvas, lay, bounds, visible, n, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, pane_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY], fade,
                     morph_src, morph_n_draw, morph_t,
@@ -901,7 +906,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
             // 4.7 / 4.75. Bollinger fill and Ichimoku cloud, behind the candles.
             draw_overlay_fills(canvas, lay, bounds, visible, n, range.start,
-                               window_ms, candle_right, candle_area_h, reshape,
+                               window_ms, pane_right, candle_area_h, reshape,
                                morph_t);
 
             // 5. Price series — candles, a close-price line, or a blend.
@@ -914,7 +919,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             if (fade > 0.f) {
                 vroom::ma_overlay::draw_close_line(
                     canvas, lay, bounds, visible, n, window_ms,
-                    visible_start_ms, candle_duration_ms, candle_right,
+                    visible_start_ms, candle_duration_ms, pane_right,
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade, morph_src,
                     morph_n_draw, morph_t,
@@ -923,7 +928,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
             // 5.5 - 5.67. Moving averages, VWAP, Bollinger and Ichimoku lines.
             draw_overlay_lines(canvas, lay, bounds, visible, n, range.start,
-                               window_ms, candle_right, candle_area_h, reshape,
+                               window_ms, pane_right, candle_area_h, reshape,
                                morph_t);
 
             // 5.7. Drawing annotations.
@@ -970,12 +975,12 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     SkPaint axis_bg;
     axis_bg.setColor(theme.colors[VROOM_COLOR_BACKGROUND]);
     canvas->drawRect(
-        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), candle_right,
+        SkRect::MakeXYWH(0, vroom::x_axis_top(lay), pane_right,
                          lay.x_axis_height_px),
         axis_bg);
-    const float axis_block_w = width_px - candle_right;
+    const float axis_block_w = width_px - pane_right;
     canvas->drawRect(
-        SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
+        SkRect::MakeXYWH(pane_right, 0, axis_block_w, height_px),
         axis_bg);
 
     // 6.5. Line-mode tip marker, resolved at 5.8. After the masks because the
@@ -987,7 +992,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
         vroom::ma_overlay::draw_close_tip(
             canvas, lay, bounds, visible, tip_slots, window_ms,
-            visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,
+            visible_start_ms, candle_duration_ms, pane_right, tip_clip_right,
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
             theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], tip_opacity,
@@ -1017,7 +1022,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             (price_anchor.use_morph && morph_src && morph_n_draw > 0)
                 ? morph_src
                 : nullptr;
-        vroom::price_indicator::draw(canvas, *this, lay, bounds, candle_right,
+        vroom::price_indicator::draw(canvas, *this, lay, bounds, pane_right,
                                      candle_area_h, price_from, morph_t);
 
         // 7.54. Fair Value Gap labels — the boxes themselves are back behind

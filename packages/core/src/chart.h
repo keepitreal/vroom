@@ -535,7 +535,9 @@ struct VroomChart {
                              vroom::IndexRange range, int64_t window_ms);
 
     // The candles every layer draws, morph capture included: centered in the
-    // window plus one past each edge (vroom::draw_indices).
+    // window plus one past each edge (vroom::draw_indices). The right edge is
+    // plot_right's (vroom::plot_end_ms), so a hidden y-axis's gutter isn't
+    // where the line ends.
     vroom::IndexRange draw_range() const;
 
     // The candles whose center is in the window (vroom::fit_indices): what the

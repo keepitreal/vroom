@@ -73,6 +73,17 @@ inline float candle_area_width(const Layout& l) {
     return l.width_px - l.y_axis_width_px - l.right_padding_px;
 }
 
+// Right edge the price pane paints to. Candles still lay out against
+// candle_area_width, so the newest one keeps the gutter's breathing room (and
+// the line's tip dot its overhang). But the gutter only stays blank while it
+// separates the plot from a y-axis strip: as the strip collapses the pane
+// reclaims it, or a series panned past its newest candle stops short of the
+// chart's edge.
+inline float plot_right(const Layout& l, float y_axis_collapse_t) {
+    return candle_area_width(l) +
+           l.right_padding_px * clamp_collapse(y_axis_collapse_t);
+}
+
 // Always in price units, whatever the scale mode. `log` only changes how a
 // price maps onto the band: linearly, or linearly in log10(price) (TradingView's
 // logarithmic price scale). Anything that reshapes the bounds — pan, zoom,
@@ -208,6 +219,15 @@ IndexRange draw_indices(const ::VroomCandle* candles,
                         int64_t start_ms,
                         int64_t end_ms,
                         int64_t candle_duration_ms);
+
+// The time at plot_right: end_ms carried over the gutter the pane reclaims as
+// the y-axis collapses, so draw_indices' neighbour past the edge is the one past
+// the painted edge rather than one sitting in the gutter. Exactly end_ms with
+// the y-axis shown, and for the 0/0 sentinel or a degenerate window.
+int64_t plot_end_ms(const Layout& layout,
+                    float y_axis_collapse_t,
+                    int64_t start_ms,
+                    int64_t end_ms);
 
 // The candles the price auto-fit and the crosshair read: those whose center is
 // inside [start_ms, end_ms], i.e. whose wick is on screen, so a neighbour that

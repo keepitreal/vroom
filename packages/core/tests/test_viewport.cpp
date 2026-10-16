@@ -217,10 +217,30 @@ TEST_CASE("axis collapse trades strip extent for plot width") {
 
         l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
         CHECK(vroom::candle_area_width(l) == doctest::Approx(shown + 60.f));
-        // The gutter survives a hidden axis — it paints as background, so the
-        // candles keep a little breathing room at the right edge.
+        // The gutter survives a hidden axis in the layout, so the newest candle
+        // keeps a little breathing room at the right edge.
         CHECK(vroom::candle_area_width(l) ==
               doctest::Approx(l.width_px - l.right_padding_px));
+    }
+
+    SUBCASE("the pane paints over the gutter once the axis is gone") {
+        Layout l = make_layout();
+        l.right_padding_px = 10.f;
+
+        l.y_axis_width_px = vroom::axis_extent(60.f, 0.f);
+        CHECK(vroom::plot_right(l, 0.f) ==
+              doctest::Approx(vroom::candle_area_width(l)));
+
+        l.y_axis_width_px = vroom::axis_extent(60.f, 0.5f);
+        CHECK(vroom::plot_right(l, 0.5f) ==
+              doctest::Approx(vroom::candle_area_width(l) + 5.f));
+
+        // Hidden: the candles keep their gutter, but a series panned past the
+        // newest candle runs to the chart's edge instead of stopping short.
+        l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
+        CHECK(vroom::candle_area_width(l) == doctest::Approx(990.f));
+        CHECK(vroom::plot_right(l, 1.f) == doctest::Approx(l.width_px));
+        CHECK(vroom::plot_right(l, 2.f) == doctest::Approx(l.width_px));
     }
 }
 
@@ -609,6 +629,64 @@ TEST_CASE("draw_indices and fit_indices") {
         PriceBounds b = vroom::auto_price_bounds(candles + f.start,
                                                  f.end - f.start, false);
         CHECK(b.max < 3.0);
+    }
+}
+
+TEST_CASE("draw range reaches past plot_right as the y-axis collapses") {
+    // Duration 100: candle i is centered at i*100+50. A wide gutter keeps the
+    // numbers round: window [0, 900] over a 900px candle area once hidden.
+    VroomCandle candles[12];
+    for (int i = 0; i < 12; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+    constexpr int64_t kDur = 100;
+    constexpr int64_t kStart = 0;
+    constexpr int64_t kEnd = 900;
+    Layout l = make_layout();
+    l.right_padding_px = 100.f;
+
+    const auto draw = [&](float t) {
+        return vroom::draw_indices(
+            candles, 12, kStart, vroom::plot_end_ms(l, t, kStart, kEnd), kDur);
+    };
+    const auto x_of = [&](size_t i) {
+        return vroom::candle_center_x(l, candles[i].time_ms, kDur, kStart,
+                                      kEnd - kStart);
+    };
+
+    SUBCASE("shown: the window's end and the range are untouched") {
+        l.y_axis_width_px = vroom::axis_extent(60.f, 0.f);
+        CHECK(vroom::plot_end_ms(l, 0.f, kStart, kEnd) == kEnd);
+        IndexRange d = draw(0.f);
+        IndexRange before = vroom::draw_indices(candles, 12, kStart, kEnd, kDur);
+        CHECK(d.start == before.start);
+        CHECK(d.end == before.end);
+        CHECK(d.end == 10);
+        CHECK(x_of(d.end - 1) > vroom::plot_right(l, 0.f));
+    }
+
+    SUBCASE("hidden: the line runs off the painted edge, not the gutter") {
+        l.y_axis_width_px = vroom::axis_extent(60.f, 1.f);
+        const float edge = vroom::plot_right(l, 1.f);
+        REQUIRE(edge == doctest::Approx(l.width_px));
+        // Candle 9 (x 950) is the neighbour past the window's end, but it now
+        // sits in the reclaimed gutter: ending there stops the line short.
+        IndexRange window_only =
+            vroom::draw_indices(candles, 12, kStart, kEnd, kDur);
+        REQUIRE(window_only.end == 10);
+        CHECK(x_of(window_only.end - 1) < edge);
+
+        CHECK(vroom::plot_end_ms(l, 1.f, kStart, kEnd) == 1000);
+        IndexRange d = draw(1.f);
+        CHECK(d.start == 0);
+        CHECK(d.end == 11);
+        CHECK(x_of(d.end - 2) <= edge);
+        CHECK(x_of(d.end - 1) > edge);
+    }
+
+    SUBCASE("sentinel and degenerate windows pass through") {
+        CHECK(vroom::plot_end_ms(l, 1.f, 0, 0) == 0);
+        CHECK(vroom::plot_end_ms(l, 1.f, 500, 500) == 500);
+        l.right_padding_px = 0.f;
+        CHECK(vroom::plot_end_ms(l, 1.f, kStart, kEnd) == kEnd);
     }
 }
 
