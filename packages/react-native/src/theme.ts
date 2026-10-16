@@ -35,6 +35,10 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   lineTension: 13, // VROOM_FLOAT_LINE_TENSION
   lineTipPulseOpacity: 17, // VROOM_FLOAT_LINE_TIP_PULSE_OPACITY
   lineTipDotRadius: 18, // VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX
+  priceIndicatorDashLength: 19, // VROOM_FLOAT_PRICE_INDICATOR_DASH_PX
+  priceIndicatorDashGap: 20, // VROOM_FLOAT_PRICE_INDICATOR_GAP_PX
+  priceIndicatorLineWidth: 21, // VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX
+  priceIndicatorLineOpacity: 22, // VROOM_FLOAT_PRICE_INDICATOR_OPACITY
 };
 
 // Named because useChartCore clears it directly under reduced motion, outside
@@ -50,6 +54,7 @@ export const BOOL_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   wickRoundCap: 9, // VROOM_FLOAT_WICK_ROUND_CAP
   lineTipDot: 14, // VROOM_FLOAT_LINE_TIP_DOT
   lineTipPulse: FLOAT_LINE_TIP_PULSE,
+  priceIndicatorRoundCap: 23, // VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP
 };
 
 // Parses a color into a packed 0xAARRGGBB integer (Skia's ARGB order).

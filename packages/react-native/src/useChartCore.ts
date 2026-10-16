@@ -451,6 +451,9 @@ export function useChartCore(
     candles: Candle[];
     seriesKey?: string;
   } | null>(null);
+  // The chart type the theme was last pushed for, keyed by handle like
+  // prevDataRef, so the data effect can tell a candle↔line switch apart.
+  const themedTypeRef = useRef<{ handle: ChartHandle; line: boolean } | null>(null);
   const intervalMorphRaf = useRef<number | null>(null);
   const streamRaf = useRef<number | null>(null);
   // Where an in-flight stream shift is headed, so cancelling it can land there
@@ -921,6 +924,22 @@ export function useChartCore(
     }
     // Later chartType changes are driven by VroomChart's morph. This effect only
     // snaps a fresh handle (above) so the picture stored below matches the prop.
+    //
+    // A switch usually brings its own price-line style and accents, so the core
+    // captures the outgoing look before the sweep below replaces it and blends
+    // between them on that morph's fade. A fresh handle, transitionMs=0 and
+    // reduced motion snap.
+    const line = chartType === 'line';
+    const themed = themedTypeRef.current;
+    if (
+      themed?.handle === h &&
+      themed.line !== line &&
+      animRef.current.ms > 0 &&
+      !animRef.current.reduceMotion
+    ) {
+      h.beginPriceIndicatorMorph(line ? 1 : 0);
+    }
+    themedTypeRef.current = { handle: h, line };
     if (theme) {
       applyTheme(h, theme);
     }
@@ -960,8 +979,9 @@ export function useChartCore(
     if (!morphing) setPicture(h.render());
     // theme/rsi/macd/atr/movingAverages/vwap/bollingerBands/ichimoku/
     // fairValueGaps/volume/priceLines/footprints are represented by their *Key
-    // deps. chartType is omitted on purpose: only a fresh handle reads it, and
-    // a later change belongs to VroomChart's morph.
+    // deps. chartType is omitted on purpose: only a fresh handle and the
+    // price-line morph capture read it, and a later change belongs to
+    // VroomChart's morph.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, showLoadingLine, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, startLoadingHandoff, endIntervalMorph, startStreamAnim, settleStream]);
 

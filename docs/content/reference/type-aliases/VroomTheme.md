@@ -25,6 +25,11 @@ type VroomTheme = {
   lineTipPulse?: boolean;
   lineTipPulseOpacity?: number;
   lineWidth?: number;
+  priceIndicatorDashGap?: number;
+  priceIndicatorDashLength?: number;
+  priceIndicatorLineOpacity?: number;
+  priceIndicatorLineWidth?: number;
+  priceIndicatorRoundCap?: boolean;
   showXAxis?: boolean;
   showYAxis?: boolean;
   skeleton?: VroomColor;
@@ -347,13 +352,83 @@ Line-chart-mode polyline stroke width in px. Defaults to 1.5.
 
 ---
 
+### priceIndicatorDashGap?
+
+```ts
+optional priceIndicatorDashGap?: number;
+```
+
+Source: [types/src/index.ts:214](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L214)
+
+Gap in px between the current-price indicator's dashes. Defaults to 2; 0
+draws a solid line.
+
+Like `priceIndicatorDashLength`, this is the gap you see, caps included.
+
+---
+
+### priceIndicatorDashLength?
+
+```ts
+optional priceIndicatorDashLength?: number;
+```
+
+Source: [types/src/index.ts:207](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L207)
+
+Dash length in px of the current-price indicator's dashed line. Defaults to 2.
+
+This is the length you see, caps included: with `priceIndicatorRoundCap`
+on, the round ends are taken out of it rather than added to it.
+
+---
+
+### priceIndicatorLineOpacity?
+
+```ts
+optional priceIndicatorLineOpacity?: number;
+```
+
+Source: [types/src/index.ts:224](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L224)
+
+Opacity of the current-price indicator's dashed line, from 0 to 1. Defaults
+to 1.
+
+Multiplies the alpha of `accentBull` / `accentBear`, so a translucent accent
+gets fainter still. The price badge keeps the accent's own alpha.
+
+---
+
+### priceIndicatorLineWidth?
+
+```ts
+optional priceIndicatorLineWidth?: number;
+```
+
+Source: [types/src/index.ts:216](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L216)
+
+Stroke width in px of the current-price indicator's dashed line. Defaults to 1.
+
+---
+
+### priceIndicatorRoundCap?
+
+```ts
+optional priceIndicatorRoundCap?: boolean;
+```
+
+Source: [types/src/index.ts:226](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L226)
+
+Round the ends of the current-price indicator's dashes. Defaults to `false`.
+
+---
+
 ### showXAxis?
 
 ```ts
 optional showXAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:220](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L220)
+Source: [types/src/index.ts:246](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L246)
 
 Show the time (x) axis strip along the bottom. Defaults to `true`.
 
@@ -368,7 +443,7 @@ grows into it, and the time labels and crosshair time badge fade first.
 optional showYAxis?: boolean;
 ```
 
-Source: [types/src/index.ts:213](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L213)
+Source: [types/src/index.ts:239](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L239)
 
 Show the price (y) axis strip down the right edge. Defaults to `true`.
 

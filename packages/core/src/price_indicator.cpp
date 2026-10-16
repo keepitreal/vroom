@@ -28,7 +28,6 @@
 namespace vroom::price_indicator {
 
 namespace {
-constexpr SkScalar kDash[2] = {2.f, 2.f};
 constexpr float kPadV = 4.f;     // box padding above/below the text
 constexpr float kPadH = 8.f;     // box padding left/right of the text
 constexpr float kCorner = 6.f;   // rounded-box corner radius
@@ -36,15 +35,16 @@ static_assert(kPadH == vroom::labels::kAxisBadgePadH,
               "the stroke ends on the pad this badge actually draws");
 }  // namespace
 
-void draw(SkCanvas* canvas,
-          const VroomChart& chart,
-          const Layout& lay,
-          const PriceBounds& bounds,
-          float candle_right,
-          float candle_area_h,
-          const vroom::CandleSnapshot* morph_from,
-          float morph_t) {
-    if (!canvas || chart.candles.empty()) return;
+uint32_t draw(SkCanvas* canvas,
+              const VroomChart& chart,
+              const Layout& lay,
+              const PriceBounds& bounds,
+              float candle_right,
+              float candle_area_h,
+              const vroom::CandleSnapshot* morph_from,
+              float morph_t) {
+    if (!canvas || chart.candles.empty())
+        return chart.theme.colors[VROOM_COLOR_ACCENT_BULL];
 
     // The "current price" is the latest period's close, regardless of whether
     // that candle is horizontally in view. Mid-morph it is wherever that close
@@ -58,13 +58,16 @@ void draw(SkCanvas* canvas,
     // Blended rather than switched, so a candle that changes direction under a
     // tick carries the indicator's color with it instead of snapping — the same
     // cross-fade the body itself does.
-    const SkColor color = static_cast<SkColor>(vroom::lerp_argb(
+    const uint32_t accent = vroom::lerp_argb(
         chart.theme.colors[bull ? VROOM_COLOR_ACCENT_BEAR : VROOM_COLOR_ACCENT_BULL],
         chart.theme.colors[bull ? VROOM_COLOR_ACCENT_BULL : VROOM_COLOR_ACCENT_BEAR],
-        level.bull_t));
+        level.bull_t);
+    // Across a chart-type switch, eased from the color the last chart type drew.
+    const SkColor color = vroom::price_indicator_style::color(
+        chart.price_indicator_morph, accent, chart.morph_fade);
 
     const float y = level.y;
-    if (y < 0.f || y > candle_area_h) return;  // price scrolled off-range
+    if (y < 0.f || y > candle_area_h) return accent;  // price scrolled off-range
 
     // Price box in the y-axis strip. Needs the axis typeface; if it isn't
     // loaded yet, the line alone still conveys the level. Same when the y-axis
@@ -94,13 +97,24 @@ void draw(SkCanvas* canvas,
     const float line_right = join_badge
         ? vroom::labels::axis_badge_left(lay.width_px, lay.y_axis_width_px, text_w)
         : candle_right;
+    const auto style = vroom::price_indicator_style::current(
+        chart.price_indicator_morph, chart.theme, chart.morph_fade);
+    const auto iv = vroom::price_indicator_dash::intervals(
+        style.dash, style.gap, style.width, style.round_cap);
     SkPaint line;
     line.setAntiAlias(true);
     line.setColor(color);
-    line.setStrokeWidth(1.f);
-    line.setPathEffect(SkDashPathEffect::Make(kDash, 0.f));
-    canvas->drawLine(0.f, y, line_right, y, line);
-    if (!show_badge) return;
+    line.setAlphaf(line.getAlphaf() * style.opacity);
+    line.setStrokeWidth(style.width);
+    line.setStrokeCap(style.round_cap ? SkPaint::kRound_Cap : SkPaint::kButt_Cap);
+    if (iv.off > 0.f) {
+        const SkScalar dash[2] = {iv.on, iv.off};
+        line.setPathEffect(SkDashPathEffect::Make(dash, 0.f));
+    }
+    const float start_x = vroom::price_indicator_dash::stroke_start(
+        line_right, style.width, style.round_cap);
+    canvas->drawLine(start_x, y, 0.f, y, line);
+    if (!show_badge) return accent;
 
     const auto metrics = vroom::labels::badge_text_metrics(font);
 
@@ -130,6 +144,7 @@ void draw(SkCanvas* canvas,
     const float text_x = axis_center_x - text_w * 0.5f;
     const float baseline_y = y + metrics.baseline_dy;
     canvas->drawString(buf, text_x, baseline_y, font, text_paint);
+    return accent;
 }
 
 }  // namespace vroom::price_indicator

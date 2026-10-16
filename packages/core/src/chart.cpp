@@ -1017,8 +1017,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             (price_anchor.use_morph && morph_src && morph_n_draw > 0)
                 ? morph_src
                 : nullptr;
-        vroom::price_indicator::draw(canvas, *this, lay, bounds, candle_right,
-                                     candle_area_h, price_from, morph_t);
+        price_indicator_accent = vroom::price_indicator::draw(
+            canvas, *this, lay, bounds, candle_right, candle_area_h, price_from,
+            morph_t);
 
         // 7.54. Fair Value Gap labels — the boxes themselves are back behind
         //       the candles, but their text has to clear the bars it sits over.

@@ -17,6 +17,11 @@ type ColorField = Exclude<
   | 'lineTension'
   | 'lineTipDot'
   | 'lineTipPulse'
+  | 'priceIndicatorDashLength'
+  | 'priceIndicatorDashGap'
+  | 'priceIndicatorLineWidth'
+  | 'priceIndicatorLineOpacity'
+  | 'priceIndicatorRoundCap'
   | 'showXAxis'
   | 'showYAxis'
 >;

@@ -532,6 +532,13 @@ typedef enum {
     VROOM_FLOAT_BADGE_FONT_SIZE_PX,      // filled-badge text; <= 0 follows AXIS_FONT_SIZE_PX
     VROOM_FLOAT_LINE_TIP_PULSE_OPACITY,  // 0..1: the pulse ring's alpha as it leaves the dot
     VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX,  // tip dot radius px; <= 0 follows LINE_WIDTH_PX
+    // The current-price indicator's dashed line. Dash and gap are the visible
+    // lengths, round caps included (see price_indicator.h).
+    VROOM_FLOAT_PRICE_INDICATOR_DASH_PX,    // dash length px
+    VROOM_FLOAT_PRICE_INDICATOR_GAP_PX,     // gap px; 0 draws a solid line
+    VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX,   // stroke width px
+    VROOM_FLOAT_PRICE_INDICATOR_OPACITY,    // 0..1, multiplies the accent's alpha
+    VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP,  // 0/1: round the dash ends
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
@@ -600,6 +607,14 @@ void vroom_chart_set_price_scale_mode(VroomChart* chart, int32_t mode);
 // both 1 = line. Driven per-frame by the host animation loop; set_chart_type
 // snaps both to the target.
 void vroom_chart_set_morph(VroomChart* chart, float collapse, float fade);
+
+// Blends the current-price line's style (the PRICE_INDICATOR_* keys) and the
+// line and badge's accent color into whatever the theme sets next, over a
+// candle↔line morph heading to `mode` (0 = candles, 1 = line). Call it before
+// pushing the new theme. The blend rides set_morph's `fade` from where it
+// stands now, and set_chart_type ends it. Without this call a price-line theme
+// change snaps.
+void vroom_chart_begin_price_indicator_morph(VroomChart* chart, int32_t mode);
 
 // Reads the current visible time window. Either out pointer may be null.
 // Both are 0 when the window is still uninitialized.

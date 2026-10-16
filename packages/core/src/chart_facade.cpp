@@ -319,7 +319,17 @@ extern "C" void vroom_chart_set_chart_type(VroomChart* chart, int32_t mode) {
     const float t = mode == 1 ? 1.f : 0.f;
     chart->morph_collapse = t;
     chart->morph_fade = t;
+    chart->price_indicator_morph.from_fade = chart->price_indicator_morph.to_fade;
     chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_begin_price_indicator_morph(VroomChart* chart,
+                                                        int32_t mode) {
+    if (!chart) return;
+    // Nothing visible changes until the theme does, so no mark_dirty.
+    chart->price_indicator_morph = vroom::price_indicator_style::begin(
+        chart->price_indicator_morph, chart->theme, chart->price_indicator_accent,
+        chart->morph_fade, mode == 1 ? 1.f : 0.f);
 }
 
 extern "C" void vroom_chart_set_price_scale_mode(VroomChart* chart,

@@ -52,6 +52,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setChartType"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceScaleMode"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "beginPriceIndicatorMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetPriceScale"));
@@ -446,6 +447,24 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           vroom_chart_set_morph(chart_,
                                 static_cast<float>(args[0].asNumber()),
                                 static_cast<float>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "beginPriceIndicatorMorph") {
+    // beginPriceIndicatorMorph(mode) — blend the price line's style into the
+    // next theme over the candle↔line morph heading to `mode`.
+    return jsi::Function::createFromHostFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "beginPriceIndicatorMorph"),
+        1,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1) return jsi::Value::undefined();
+          vroom_chart_begin_price_indicator_morph(
+              chart_, static_cast<int32_t>(args[0].asNumber()));
           return jsi::Value::undefined();
         });
   }

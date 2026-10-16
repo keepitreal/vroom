@@ -34,6 +34,10 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   lineTension: FloatKey.LineTension,
   lineTipPulseOpacity: FloatKey.LineTipPulseOpacity,
   lineTipDotRadius: FloatKey.LineTipDotRadius,
+  priceIndicatorDashLength: FloatKey.PriceIndicatorDash,
+  priceIndicatorDashGap: FloatKey.PriceIndicatorGap,
+  priceIndicatorLineWidth: FloatKey.PriceIndicatorWidth,
+  priceIndicatorLineOpacity: FloatKey.PriceIndicatorOpacity,
 };
 
 // Maps each boolean VroomTheme field to its FloatKey (pushed as 0/1).
@@ -45,6 +49,7 @@ export const BOOL_KEYS: Partial<Record<keyof VroomTheme, FloatKey>> = {
   wickRoundCap: FloatKey.WickRoundCap,
   lineTipDot: FloatKey.LineTipDot,
   lineTipPulse: FloatKey.LineTipPulse,
+  priceIndicatorRoundCap: FloatKey.PriceIndicatorRoundCap,
 };
 
 /**

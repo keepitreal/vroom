@@ -1,5 +1,6 @@
 #include "doctest.h"
 
+#include "price_indicator.h"
 #include "price_indicator_anim.h"
 #include "viewport.h"
 
@@ -141,5 +142,181 @@ TEST_CASE("the accent cross-fades only when the candle changes direction") {
               doctest::Approx(0.5f));
         CHECK(level_at(lay, band, 160.0, true, &from, band, 1.f).bull_t ==
               doctest::Approx(1.f));
+    }
+}
+
+TEST_CASE("flat dash caps use the dash and gap as is") {
+    const auto iv = vroom::price_indicator_dash::intervals(2.f, 2.f, 1.f, false);
+    CHECK(iv.on == doctest::Approx(2.f));
+    CHECK(iv.off == doctest::Approx(2.f));
+}
+
+TEST_CASE("round dash caps move the cap width from the dash into the gap") {
+    using vroom::price_indicator_dash::intervals;
+
+    const auto thin = intervals(4.f, 8.f, 1.f, true);
+    CHECK(thin.on == doctest::Approx(3.f));
+    CHECK(thin.off == doctest::Approx(9.f));
+
+    const auto thick = intervals(4.f, 8.f, 2.f, true);
+    CHECK(thick.on == doctest::Approx(2.f));
+    CHECK(thick.off == doctest::Approx(10.f));
+}
+
+TEST_CASE("a round-capped dash shorter than the width is a dot on the same period") {
+    const auto iv = vroom::price_indicator_dash::intervals(1.f, 4.f, 3.f, true);
+    CHECK(iv.on == doctest::Approx(0.f));
+    CHECK(iv.off == doctest::Approx(5.f));
+}
+
+TEST_CASE("a zero dash gap draws solid") {
+    using vroom::price_indicator_dash::intervals;
+    CHECK(intervals(4.f, 0.f, 1.f, false).off == doctest::Approx(0.f));
+    CHECK(intervals(4.f, 0.f, 1.f, true).off == doctest::Approx(0.f));
+}
+
+TEST_CASE("the dash pattern hangs off the line's right end") {
+    using vroom::price_indicator_dash::intervals;
+    using vroom::price_indicator_dash::stroke_start;
+    constexpr float kRight = 300.f;
+
+    SUBCASE("flat caps start the first dash at the edge") {
+        CHECK(stroke_start(kRight, 1.f, false) == doctest::Approx(kRight));
+    }
+
+    SUBCASE("a round cap ends flush with the edge, a whole dash long") {
+        const float width = 2.f;
+        const float start = stroke_start(kRight, width, true);
+        const auto iv = intervals(4.f, 8.f, width, true);
+        // Drawn leftward from `start`, the first dash covers [start - on, start]
+        // and its caps reach half the width past either end.
+        CHECK(start + width * 0.5f == doctest::Approx(kRight));
+        CHECK(start - iv.on - width * 0.5f == doctest::Approx(kRight - 4.f));
+    }
+}
+
+namespace {
+
+using vroom::price_indicator_style::Morph;
+using vroom::price_indicator_style::Style;
+
+vroom::Theme price_line_theme(float dash, float gap, float width,
+                              float opacity, bool round_cap) {
+    vroom::Theme t = vroom::default_theme();
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_DASH_PX] = dash;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_GAP_PX] = gap;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_WIDTH_PX] = width;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_OPACITY] = opacity;
+    t.floats[VROOM_FLOAT_PRICE_INDICATOR_ROUND_CAP] = round_cap ? 1.f : 0.f;
+    return t;
+}
+
+}  // namespace
+
+TEST_CASE("a settled price-line blend draws the theme as is") {
+    const vroom::Theme theme = price_line_theme(4.f, 6.f, 1.f, 0.3f, false);
+    const Style s = vroom::price_indicator_style::current(Morph{}, theme, 0.7f);
+    CHECK(s.gap == doctest::Approx(6.f));
+    CHECK_FALSE(s.round_cap);
+}
+
+TEST_CASE("every number in the price-line style blends") {
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::current;
+
+    const vroom::Theme candles = vroom::default_theme();  // 2 / 2, 1px, opaque
+    const vroom::Theme line = price_line_theme(4.f, 8.f, 3.f, 0.3f, true);
+    const Morph m = begin(Morph{}, candles, 0, 0.f, 1.f);
+    const Style s = current(m, line, 0.25f);
+    CHECK(s.dash == doctest::Approx(2.5f));
+    CHECK(s.gap == doctest::Approx(3.5f));
+    CHECK(s.width == doctest::Approx(1.5f));
+    CHECK(s.opacity == doctest::Approx(0.825f));
+    CHECK_FALSE(s.round_cap);
+    CHECK(current(m, line, 0.5f).round_cap);
+}
+
+TEST_CASE("the price-line blend rides the morph fade either way") {
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::current;
+    using vroom::price_indicator_style::progress;
+
+    const vroom::Theme candles = vroom::default_theme();
+    const vroom::Theme line = price_line_theme(4.f, 8.f, 1.f, 0.3f, true);
+
+    // Candles → line: captured at fade 0, then the line theme lands.
+    const Morph to_line = begin(Morph{}, candles, 0, 0.f, 1.f);
+    CHECK(current(to_line, line, 0.f).gap == doctest::Approx(2.f));
+    CHECK(current(to_line, line, 1.f).gap == doctest::Approx(8.f));
+
+    // Reversed at 0.6: the way back starts where the line stood.
+    const Style mid = current(to_line, line, 0.6f);
+    const Morph back = begin(to_line, line, 0, 0.6f, 0.f);
+    CHECK(progress(back, 0.6f) == doctest::Approx(0.f));
+    CHECK(current(back, candles, 0.6f).gap == doctest::Approx(mid.gap));
+    CHECK(current(back, candles, 0.3f).gap ==
+          doctest::Approx(mid.gap + (2.f - mid.gap) * 0.5f));
+    CHECK(current(back, candles, 0.f).gap == doctest::Approx(2.f));
+
+    // Ending it (set_chart_type) draws the theme whatever the fade says.
+    Morph settled = back;
+    settled.from_fade = settled.to_fade;
+    CHECK(current(settled, candles, 0.6f).gap == doctest::Approx(2.f));
+}
+
+TEST_CASE("the price line and badge color blends on the same fade") {
+    using vroom::lerp_argb;
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::color;
+    constexpr uint32_t kRed = 0xFFFF0000u;    // the line theme's period color
+    constexpr uint32_t kGreen = 0xFF00FF00u;  // the candle theme's bull accent
+
+    const vroom::Theme line = vroom::default_theme();
+    CHECK(color(Morph{}, kGreen, 0.3f) == kGreen);
+
+    // Line → candles, captured red at fade 1; the candles resolve green.
+    const Morph to_candles = begin(Morph{}, line, kRed, 1.f, 0.f);
+    CHECK(color(to_candles, kGreen, 1.f) == kRed);
+    CHECK(color(to_candles, kGreen, 0.5f) == 0xFF808000u);
+    CHECK(color(to_candles, kGreen, 0.f) == kGreen);
+
+    // Reversed at 0.75: back to red from the blend on screen, not from green.
+    const uint32_t mid = color(to_candles, kGreen, 0.75f);
+    CHECK(mid == lerp_argb(kRed, kGreen, 0.25f));
+    const Morph back = begin(to_candles, line, kGreen, 0.75f, 1.f);
+    CHECK(color(back, kRed, 0.75f) == mid);
+    CHECK(color(back, kRed, 0.875f) == lerp_argb(mid, kRed, 0.5f));
+    CHECK(color(back, kRed, 1.f) == kRed);
+
+    // Ending it (set_chart_type) draws the accent whatever the fade says.
+    Morph settled = back;
+    settled.from_fade = settled.to_fade;
+    CHECK(color(settled, kRed, 0.8f) == kRed);
+}
+
+TEST_CASE("line to candles only closes the price line's gaps") {
+    using vroom::price_indicator_dash::intervals;
+    using vroom::price_indicator_dash::stroke_start;
+    using vroom::price_indicator_style::begin;
+    using vroom::price_indicator_style::current;
+    constexpr float kRight = 300.f;
+
+    const vroom::Theme line = price_line_theme(4.f, 8.f, 1.f, 0.3f, true);
+    const vroom::Theme candles = price_line_theme(4.f, 6.f, 1.f, 0.3f, false);
+    const Morph m = begin(Morph{}, line, 0, 1.f, 0.f);
+    for (int i = 0; i <= 8; ++i) {
+        const float t = static_cast<float>(i) / 8.f;
+        const Style s = current(m, candles, 1.f - t);
+        const auto iv = intervals(s.dash, s.gap, s.width, s.round_cap);
+        const float cap = s.round_cap ? s.width * 0.5f : 0.f;
+        const float start = stroke_start(kRight, s.width, s.round_cap);
+        CAPTURE(t);
+        CHECK(s.round_cap == (t < 0.5f));
+        CHECK(s.opacity == doctest::Approx(0.3f));
+        // The first dash keeps its right end and its visible length through
+        // the cap switch, and the gap closes evenly from 8 to 6.
+        CHECK(start + cap == doctest::Approx(kRight));
+        CHECK(iv.on + 2.f * cap == doctest::Approx(4.f));
+        CHECK(iv.off - 2.f * cap == doctest::Approx(8.f - 2.f * t));
     }
 }

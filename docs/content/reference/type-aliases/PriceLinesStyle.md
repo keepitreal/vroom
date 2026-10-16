@@ -11,7 +11,7 @@ type PriceLinesStyle = {
 };
 ```
 
-Source: [types/src/index.ts:965](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L965)
+Source: [types/src/index.ts:991](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L991)
 
 Shared layout/style for every price line, passed via `priceLinesStyle`.
 
@@ -23,7 +23,7 @@ Shared layout/style for every price line, passed via `priceLinesStyle`.
 optional align?: "left" | "center" | "right";
 ```
 
-Source: [types/src/index.ts:984](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L984)
+Source: [types/src/index.ts:1010](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1010)
 
 Where the label group sits horizontally. Default `'right'`.
 
@@ -35,7 +35,7 @@ Where the label group sits horizontally. Default `'right'`.
 optional bodyBackground?: VroomColor;
 ```
 
-Source: [types/src/index.ts:970](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L970)
+Source: [types/src/index.ts:996](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L996)
 
 Translucent fill behind the body and close-button pills, so the label reads
 over candles without hiding them. Defaults to a dark translucent grey.
@@ -48,7 +48,7 @@ over candles without hiding them. Defaults to a dark translucent grey.
 optional cornerRadius?: number;
 ```
 
-Source: [types/src/index.ts:995](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L995)
+Source: [types/src/index.ts:1021](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1021)
 
 Corner radius of the label pills in CSS px, clamped to 0–6. Omit for the
 current 6px radius. 0 draws square corners.
@@ -61,7 +61,7 @@ current 6px radius. 0 draws square corners.
 optional fontSize?: number;
 ```
 
-Source: [types/src/index.ts:976](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L976)
+Source: [types/src/index.ts:1002](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1002)
 
 Label font size in integer CSS px, clamped to 10–14. Omit to follow
 `theme.badgeFontSize`, which itself defaults to `theme.axisFontSize` (11px
@@ -75,7 +75,7 @@ by default, also clamped into that range).
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:990](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L990)
+Source: [types/src/index.ts:1016](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1016)
 
 How much the hovered line or close button brightens, as a channel
 multiplier. 1 disables the highlight. Default 1.25. Web only — touch
@@ -89,7 +89,7 @@ platforms have no hover state.
 optional inset?: number;
 ```
 
-Source: [types/src/index.ts:982](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L982)
+Source: [types/src/index.ts:1008](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1008)
 
 How far in from the price axis the label group sits, as a fraction of pane
 width (0 = flush against the axis, 0.5 = at the pane's midpoint). Only

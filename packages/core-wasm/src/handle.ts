@@ -52,6 +52,11 @@ export enum FloatKey {
   BadgeFontSize = 16,
   LineTipPulseOpacity = 17,
   LineTipDotRadius = 18,
+  PriceIndicatorDash = 19,
+  PriceIndicatorGap = 20,
+  PriceIndicatorWidth = 21,
+  PriceIndicatorOpacity = 22,
+  PriceIndicatorRoundCap = 23,
 }
 
 /** OHLCV readout for the candle under the crosshair. */
