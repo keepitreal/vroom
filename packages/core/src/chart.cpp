@@ -1193,12 +1193,10 @@ void VroomChart::begin_loading_morph() {
         p.to_y = to_y;
         loading_line.push_back(p);
     };
-    // Mid-range, not mid-body: the bars grow outward symmetrically from this
-    // line, so anchoring on the body would leave one wick reaching further
-    // than the other.
+    // The close, as Liveline does: the line lands as the close-price line and
+    // the bars grow out of it in stage 3.
     const auto center_frac = [&](const ::VroomCandle& c) {
-        return static_cast<float>(
-            vroom::price_fraction(target.bounds, (c.high + c.low) * 0.5));
+        return static_cast<float>(vroom::price_fraction(target.bounds, c.close));
     };
     const auto center_x_frac = [&](const ::VroomCandle& c) {
         return vroom::candle_center_x(lay, c.time_ms, candle_duration_ms,
@@ -1259,12 +1257,12 @@ void VroomChart::begin_loading_reveal() {
     for (std::size_t slot = 0; slot < target.n; ++slot) {
         const ::VroomCandle& c = target.visible[target.n - 1 - slot];
         const float center = static_cast<float>(
-            vroom::price_fraction(target.bounds, (c.high + c.low) * 0.5));
+            vroom::price_fraction(target.bounds, c.close));
 
         vroom::CandleSnapshot s{};
         s.x = vroom::candle_center_x(lay, c.time_ms, candle_duration_ms,
                                      visible_start_ms, window_ms) / area_w;
-        // Every price collapsed onto the centre, so the slot starts as a
+        // Every price collapsed onto the close, so the slot starts as a
         // zero-height sliver sitting on the line and the existing lerp is what
         // grows it out to full open/high/low/close.
         s.open = s.high = s.low = s.close = center;

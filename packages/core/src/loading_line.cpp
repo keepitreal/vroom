@@ -33,14 +33,12 @@ SkColor faded(SkColor c, float a) {
     return SkColorSetA(c, static_cast<U8CPU>(scaled + 0.5f));
 }
 
-// The loading line's color. A transparent `skeleton` inherits the gridline
-// color, the same sentinel convention the candle border and wick colors use.
-// The gridlines are the chart's existing vocabulary for "structure, not data",
-// which is exactly what the line is: drawing it in that tone keeps it from
-// reading as a series, without needing to be scaled down to stay quiet.
+// The loading line's color. A transparent `skeleton` inherits the axis text
+// color, the same sentinel convention the candle border and wick colors use,
+// and the tone Liveline draws its loading line in. The breath keeps it faint.
 SkColor stroke_color(const VroomChart& chart) {
     const SkColor c = chart.theme.colors[VROOM_COLOR_SKELETON];
-    return SkColorGetA(c) == 0 ? chart.theme.colors[VROOM_COLOR_GRID] : c;
+    return SkColorGetA(c) == 0 ? chart.theme.colors[VROOM_COLOR_AXIS_TEXT] : c;
 }
 
 // Emits `pts` as a monotone cubic — the same curve the line chart draws (see
@@ -121,7 +119,8 @@ SkPath idle_path(const VroomChart& chart, float area_w, float pane_h) {
 }
 
 // Stages 2 and 3: the captured vertices, eased from the frozen curve toward the
-// candle centres. `t` of 1 is the shape the candles grow out of.
+// candle closes. `t` of 1 is the shape the candles grow out of. The centre
+// resolves first and the edges last, as Liveline's does.
 SkPath morph_path(const VroomChart& chart,
                   const Layout& lay,
                   float area_w,
@@ -132,7 +131,9 @@ SkPath morph_path(const VroomChart& chart,
     for (const LinePoint& pt : chart.loading_line) {
         const float from_y = pt.from_y * pane_h;
         const float to_y = y_at_fraction(lay, pt.to_y);
-        pts.push_back(SkPoint{pt.x * area_w, from_y + (to_y - from_y) * t});
+        const float edge = std::fabs(pt.x - 0.5f) * 2.f;
+        const float local = std::clamp((t - edge * 0.4f) / 0.6f, 0.f, 1.f);
+        pts.push_back(SkPoint{pt.x * area_w, from_y + (to_y - from_y) * local});
     }
     return spline(pts);
 }
@@ -148,20 +149,15 @@ void draw(SkCanvas* canvas, const VroomChart& chart, const Layout& lay) {
     const float b = loading_wave::breath(phase(chart));
 
     // A capture present means the data has landed and the line is on its way to
-    // the candle centres; absent means nothing has arrived yet.
+    // the candle closes; absent means nothing has arrived yet. The breath is
+    // frozen with the phase, so the morph holds the line's last brightness.
     if (chart.loading_line.empty()) {
         stroke_path(canvas, chart, idle_path(chart, area_w, pane_h), b);
         return;
     }
-    // Settle out of the breath as the line resolves, so it holds still at full
-    // strength by the time it reaches the candle centres — subtle at the
-    // default gridline tone, but it stops a bright custom color from pulsing
-    // while the data lands. Stage 3 then fades from full, where draw_fading
-    // picks up.
-    const float alpha = b + (1.f - b) * chart.loading_line_t;
     stroke_path(canvas, chart,
                 morph_path(chart, lay, area_w, pane_h, chart.loading_line_t),
-                alpha);
+                b);
 }
 
 void draw_fading(SkCanvas* canvas,
@@ -174,10 +170,10 @@ void draw_fading(SkCanvas* canvas,
     const float pane_h = price_pane_bottom(lay);
     if (area_w <= 0.f || pane_h <= 0.f) return;
 
-    // Held at the morph's end state: the line has already reached the centres,
+    // Held at the morph's end state: the line has already reached the closes,
     // and the candles are growing out of exactly these pixels.
     stroke_path(canvas, chart, morph_path(chart, lay, area_w, pane_h, 1.f),
-                alpha);
+                alpha * loading_wave::breath(phase(chart)));
 }
 
 }  // namespace vroom::loading_line

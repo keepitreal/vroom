@@ -132,7 +132,7 @@ struct VroomChart {
     // Empty means stage 1 — nothing to morph toward yet — which is what
     // loading_line::draw switches on.
     std::vector<vroom::LinePoint> loading_line;
-    // Stage 2's progress, 0 = the frozen sine, 1 = through the candle centres.
+    // Stage 2's progress, 0 = the frozen sine, 1 = through the candle closes.
     // Parked at 1 when no morph is running.
     float loading_line_t = 1.f;
     // Set for stage 3, where the line rides `interval_morph_t` out on the same
@@ -646,7 +646,7 @@ struct VroomChart {
 
     // Stage 2. Call *after* pushing the real candles: it needs them to know
     // where the line is heading. Freezes the sine at its current phase and
-    // pairs each vertex with the vertical centre of the candle that will occupy
+    // pairs each vertex with the close of the candle that will occupy
     // that column, then hands `loading_line_t` to the host to drive 0 → 1.
     //
     // Freezing rather than letting the wave run underneath is deliberate — a
@@ -663,7 +663,7 @@ struct VroomChart {
     };
     LoadingTarget loading_target() const;
 
-    // Stage 3. Captures every candle collapsed onto its own vertical centre at
+    // Stage 3. Captures every candle collapsed onto its own close at
     // zero alpha and hands it to the interval-morph machinery, so the existing
     // slot lerp grows each bar outward from the line while candles::draw blends
     // its colour up out of nothing. Also releases `loading`, letting the axes,

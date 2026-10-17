@@ -392,15 +392,15 @@ optional skeleton?: VroomColor;
 Source: [types/src/index.ts:154](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L154)
 
 The line drawn across the plot while loading (see the `loading` prop).
-Defaults to inheriting `grid`: the gridlines are already the chart's tone
-for structure rather than data, which is what the line is, so matching
-them keeps it from being read as a series.
+Defaults to inheriting `axisText`, the tone Liveline draws its loading
+line in. The breath keeps it faint, so it still reads as structure
+rather than as a series.
 
-The line breathes between roughly 60% and 100% of whatever color it ends
-up with — a pulse, not a dimmer, so a recessive color stays legible. Any
-alpha given here multiplies into that, so an opaque color is the usual
-choice. Pass `lineColor` to make the line read as the chart's own series
-warming up instead.
+The line breathes between 14% and 30% of whatever color it ends up with,
+on a cycle of about 2.4s. Any alpha given here multiplies into that, so
+an opaque color is the usual choice. Pass `lineColor` to make the line
+read as the chart's own series warming up instead, as Liveline does in
+line mode.
 
 ---
 

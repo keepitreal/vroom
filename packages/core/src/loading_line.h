@@ -4,9 +4,9 @@
 // Three stages, all drawn by the one function here:
 //
 //   1. idle    — a travelling sine across the full width (see loading_wave.h)
-//   2. morph   — that sine, frozen, easing into a polyline through the vertical
-//                centre of every candle about to be drawn
-//   3. reveal  — the polyline holding still at those centres while it fades
+//   2. morph   — that sine, frozen, easing into a polyline through the
+//                close of every candle about to be drawn
+//   3. reveal  — the polyline holding still at those closes while it fades
 //                out and the candles grow outward from it
 //
 // Stages 1 and 2 run instead of the chart, so the axis text, price badge,

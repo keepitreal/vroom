@@ -10,9 +10,9 @@ const { candles, isLoading } = useCandles(symbol);
 ```
 
 That's the whole API. When the data lands, the line **becomes** the chart in two
-steps: first it reshapes into the series' silhouette, bending to pass through
-the vertical centre of every candle about to be drawn; then it fades out while
-those candles grow outward from it and their colour fades up. The chart resolves
+steps: first it reshapes into the series' silhouette, resolving from the centre
+outward to pass through the close of every candle about to be drawn; then it
+fades out while those candles grow outward from it and their colour fades up. The chart resolves
 into place rather than cutting from one scene to another.
 
 ## The contract
@@ -59,14 +59,10 @@ why the line is drawn dim and never at the contrast of a real series.
 
 ## Styling
 
-`theme.skeleton` sets the line's colour, and defaults to inheriting `grid` —
-the gridline tone. The gridlines are already how the chart draws structure
-rather than data, which is what the line is, so matching them keeps it from
-being read as a series.
+`theme.skeleton` sets the line's colour, and defaults to inheriting `axisText`.
 
-The line breathes between roughly 60% and 100% of whatever colour it ends up
-with. That's a pulse rather than a dimmer, so a recessive colour stays legible;
-any alpha you pass multiplies into it, making an opaque colour the usual choice.
+The line breathes between 14% and 30% of whatever colour it ends up with; any
+alpha you pass multiplies into it, making an opaque colour the usual choice.
 
 To make the line read as the chart's own series warming up instead, hand it the
 line colour:
@@ -94,13 +90,9 @@ detected automatically; on React Native, pass it through `reduceMotion`.
 
 ## Why it looks the way it does
 
-The curve is four sine waves summed, at frequencies that aren't multiples of one
-another and each drifting at its own rate. A single sine reads as a test
-pattern — the repeat is too easy to find — while the sum keeps rearranging
-itself.
-
-Its frequency content is tuned to sit next to candlesticks rather than to look
-decorative: roughly the texture of real price action at minute resolution, and
-drawn through the same monotone spline the line chart uses. That is what makes
-the first step of the hand-off read as the same curve coming into focus instead
-of one shape being replaced by another.
+The line matches [Liveline](https://github.com/benjitaylor/liveline)'s loading
+state: three sine waves summed, at frequencies that aren't multiples of one
+another and each drifting leftward at its own rate. A single sine reads as a
+test pattern — the repeat is too easy to find — while the sum keeps rearranging
+itself. It's drawn through the same monotone spline the line chart uses, so the
+first step of the hand-off has no renderer seam to hide.

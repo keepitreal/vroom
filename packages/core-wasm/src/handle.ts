@@ -673,7 +673,7 @@ export interface VroomChartHandle {
   setLoading(on: boolean, animate?: boolean): void;
   /**
    * Hand-off stage one: reshape the loading line into the series. Freezes the
-   * sine where it is and aims each vertex at the vertical centre of the candle
+   * sine where it is and aims each vertex at the close of the candle
    * that will occupy its column, so the line resolves into the silhouette of
    * the data.
    *
@@ -684,12 +684,12 @@ export interface VroomChartHandle {
   beginLoadingMorph(): void;
   /**
    * Advance stage one. `t` (clamped to 0..1) is the eased progress: 0 renders
-   * the frozen sine, 1 the polyline through the candle centres.
+   * the frozen sine, 1 the polyline through the candle closes.
    */
   setLoadingMorph(t: number): void;
   /**
    * Hand-off stage two: the candles take over. Captures each one collapsed onto
-   * its own vertical centre at zero alpha and leaves the loading state, so the
+   * its own close at zero alpha and leaves the loading state, so the
    * bars grow outward from the line and their color fades up as it fades out.
    *
    * Call once stage one has reached 1, then drive {@link setIntervalMorph} from

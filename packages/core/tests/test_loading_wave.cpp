@@ -53,15 +53,33 @@ TEST_CASE("the components drift at different rates") {
     CHECK(drifts.size() == static_cast<std::size_t>(kHarmonicCount));
 }
 
-TEST_CASE("the curve travels toward the right") {
-    // Each component's phase is (k*x - w*t), so a feature at x after dt sits
-    // further right. Checking the carrier alone is enough to fix the direction.
+TEST_CASE("the curve travels toward the left") {
+    // Each component's phase is (k*x + w*t), so a feature at x after dt sits
+    // further left. Checking the carrier alone is enough to fix the direction.
     const auto& carrier = kHarmonics[0];
     const float dt = 0.5f;
     const float x0 = (kTwoPi * 0.25f) / carrier.freq;
-    const float x1 = (kTwoPi * 0.25f +
+    const float x1 = (kTwoPi * 0.25f -
                       carrier.drift * kDriftRadPerSecond * dt) / carrier.freq;
-    CHECK(x1 > x0);
+    CHECK(x1 < x0);
+}
+
+TEST_CASE("the curve and breath match Liveline's loading line") {
+    // loadingY and loadingBreath in Liveline's src/draw/loadingShape.ts.
+    for (float t : {0.f, 0.7f, 3.1f, 11.f}) {
+        for (int xi = 0; xi <= 20; ++xi) {
+            const float x = static_cast<float>(xi) / 20.f;
+            const float liveline = std::sin(x * 9.4f + t) * 0.55f +
+                                   std::sin(x * 15.7f + t * 1.3f) * 0.3f +
+                                   std::sin(x * 4.2f + t * 0.7f) * 0.15f;
+            CHECK(at(t, x) == doctest::Approx(liveline).epsilon(0.001));
+            CHECK(y_frac(t, x) ==
+                  doctest::Approx(0.5f + 0.07f * liveline).epsilon(0.001));
+        }
+    }
+    CHECK(breath(0.f) == doctest::Approx(0.22f));
+    CHECK(breath(0.6f) == doctest::Approx(0.30f).epsilon(0.01));
+    CHECK(breath(1.8f) == doctest::Approx(0.14f).epsilon(0.01));
 }
 
 TEST_CASE("a full period returns the whole curve to where it started") {
@@ -77,9 +95,9 @@ TEST_CASE("a full period returns the whole curve to where it started") {
     }
 }
 
-TEST_CASE("the curve has price-action texture, not a lone swell") {
-    // Count local extremes across the plot. Too few and it reads as decorative
-    // next to candlesticks; too many and it reads as noise.
+TEST_CASE("the curve undulates gently, not as a lone swell or noise") {
+    // Count local extremes across the plot: a crest or two, never a flat arc
+    // and never jitter.
     const auto extremes = [](float t) {
         int n = 0;
         float prev = 0.f;
@@ -95,8 +113,8 @@ TEST_CASE("the curve has price-action texture, not a lone swell") {
     };
     for (int i = 0; i <= 10; ++i) {
         const int n = extremes(kPeriodSeconds * static_cast<float>(i) / 11.f);
-        CHECK(n >= 6);
-        CHECK(n <= 16);
+        CHECK(n >= 2);
+        CHECK(n <= 8);
     }
 }
 
@@ -141,12 +159,10 @@ TEST_CASE("y_frac tracks the offset it is built from") {
 }
 
 TEST_CASE("the breath stays faint and within its bounds") {
-    // A pulse around full strength rather than a dimmer: the color decides how
-    // quiet the line reads (it inherits the recessive gridline tone), so the
-    // breath must not scale it down far enough to lose it against the
-    // background.
-    CHECK(kBreathMin > 0.5f);
-    CHECK(kBreathMax <= 1.f);
+    // A dimmer on the axis text tone the line inherits, but never down to
+    // nothing.
+    CHECK(kBreathMin > 0.f);
+    CHECK(kBreathMax < 0.5f);
     CHECK(kBreathMax > kBreathMin);
     for (int ti = 0; ti <= 200; ++ti) {
         const float b = breath(static_cast<float>(ti) * 0.17f);

@@ -35,58 +35,51 @@ struct Harmonic {
 
 // Frequencies deliberately not integer multiples of one another: harmonics
 // would lock into one repeating shape, which is the thing being avoided. The
-// drifts are all multiples of a quarter only so the whole curve has an exact
+// drifts are all multiples of a tenth only so the whole curve has an exact
 // period to wrap the phase clock on — see kPeriodSeconds.
 //
-// Four components, weighted toward the middle of the range, because the curve
-// has to sit convincingly next to candlesticks. A gentler two-or-three-crest
-// undulation suits a smooth live line chart, but against minute-resolution
-// price action it reads as decorative, and it makes the hand-off a real change
-// of shape rather than the same curve coming into focus.
+// Liveline's exact components, so the two charts' loading lines match.
 constexpr Harmonic kHarmonics[] = {
-    {14.0f, 0.40f, 1.00f},  // carrier — a little over two crests per screen
-    {25.0f, 0.28f, 1.25f},  // ripple, running ahead
-    {45.0f, 0.16f, 1.50f},  // fine texture, ahead again
-    {6.0f, 0.16f, 0.75f},   // a slow swell, running behind
+    {9.4f, 0.55f, 1.0f},   // carrier — a crest and a half per screen
+    {15.7f, 0.30f, 1.3f},  // ripple, running ahead
+    {4.2f, 0.15f, 0.7f},   // a slow swell, running behind
 };
-constexpr int kHarmonicCount = 4;
+constexpr int kHarmonicCount = 3;
 
 // Base phase speed. Slow on purpose: this plays under a chart that has nothing
 // to say yet, and anything quicker reads as activity.
 constexpr float kDriftRadPerSecond = 1.0f;
 
-// One full cycle of the *whole* curve. The drifts differ by quarters, so every
-// component returns to its starting phase only after four base cycles — which
-// is also why the shape takes ~25s to come back around. Callers wrap elapsed
+// One full cycle of the *whole* curve. The drifts differ by tenths, so every
+// component returns to its starting phase only after ten base cycles — which
+// is also why the shape takes ~63s to come back around. Callers wrap elapsed
 // time by this so a chart left loading doesn't lose float precision on the
 // phase, and wrapping here is seamless because it is a true period.
-constexpr float kPeriodSeconds = 4.f * kTwoPi / kDriftRadPerSecond;
+constexpr float kPeriodSeconds = 10.f * kTwoPi / kDriftRadPerSecond;
 
 // Peak displacement from the centreline, as a fraction of the pane height. The
 // components rarely peak together, so the curve typically occupies well under
 // this — it is a bound, not the height it looks.
-constexpr float kAmplitudeFrac = 0.10f;
+constexpr float kAmplitudeFrac = 0.07f;
 
-// Breathing opacity. A pulse around full strength, not a dimmer: how quiet the
-// line reads is the *color's* job — it inherits the gridline tone by default —
-// and scaling an already-recessive grey down by a third again would leave the
-// curve indistinguishable from the background.
-constexpr float kBreathMin = 0.75f;
-constexpr float kBreathMax = 1.00f;
-// Ten breaths per curve cycle, so the breath wraps with the phase (~2.5s each)
+// Breathing opacity, a dimmer on the color: the line inherits the axis text
+// tone by default, which would compete with the data at full strength.
+constexpr float kBreathMin = 0.14f;
+constexpr float kBreathMax = 0.30f;
+// 26 breaths per curve cycle, so the breath wraps with the phase (~2.4s each)
 // and never syncs with the drift into one combined pulse.
-constexpr float kBreathCyclesPerPeriod = 10.f;
+constexpr float kBreathCyclesPerPeriod = 26.f;
 
 // Offset at `x_frac` (0 = left edge of the plot, 1 = right) and `elapsed_s`, in
 // -1 .. 1. The weights sum to 1, so that range is tight. Phase runs as
-// (k*x - w*t), which walks the crests rightward — the direction the series
-// grows. Time outside one period is fine; sin wraps on its own.
+// (k*x + w*t), which walks the crests leftward, the way a live series scrolls.
+// Time outside one period is fine; sin wraps on its own.
 inline float at(float elapsed_s, float x_frac) {
     const float base = kDriftRadPerSecond * elapsed_s;
     float sum = 0.f;
     for (int i = 0; i < kHarmonicCount; ++i) {
         const Harmonic& h = kHarmonics[i];
-        sum += h.weight * std::sin(h.freq * x_frac - h.drift * base);
+        sum += h.weight * std::sin(h.freq * x_frac + h.drift * base);
     }
     return sum;
 }
