@@ -327,9 +327,21 @@ void VroomChart::ensure_footprint_buckets() {
 }
 
 vroom::IndexRange VroomChart::draw_range() const {
+    // Out to the y-axis strip rather than candle_right, because the close line
+    // and its fill run on through the gutter (draw_chart, 6.45). The morph
+    // captures slice through here too, so a capture and the frame it eases into
+    // always pair the same candles.
+    int64_t end_ms = visible_end_ms;
+    const int64_t window_ms = visible_end_ms - visible_start_ms;
+    const auto lay = layout();
+    const float area_w = vroom::candle_area_width(lay);
+    if (window_ms > 0 && area_w > 0.f && lay.right_padding_px > 0.f) {
+        end_ms += static_cast<int64_t>(
+            std::ceil(static_cast<double>(lay.right_padding_px) / area_w *
+                      static_cast<double>(window_ms)));
+    }
     return vroom::draw_indices(candles.data(), candles.size(),
-                               visible_start_ms, visible_end_ms,
-                               candle_duration_ms);
+                               visible_start_ms, end_ms, candle_duration_ms);
 }
 
 vroom::IndexRange VroomChart::fit_range() const {
@@ -722,9 +734,10 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const float candle_area_h = vroom::price_pane_bottom(lay);
     const float candle_right =
         width_px - lay.y_axis_width_px - lay.right_padding_px;
-    // The line tip is the one plot layer allowed past candle_right: its dot
-    // overhangs the newest candle's center, which the pinned-to-latest framing
-    // puts within a few pixels of that edge. It stops at the y-axis strip.
+    // The line tip, and with it the close line and fill it sits on, are the
+    // plot layers allowed past candle_right: the dot overhangs the newest
+    // candle's center, which the pinned-to-latest framing puts within a few
+    // pixels of that edge. They stop at the y-axis strip.
     const float tip_clip_right = width_px - lay.y_axis_width_px;
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
@@ -779,6 +792,19 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     std::size_t tip_from_n = 0;
     float tip_morph_t = 1.f;
 
+    // The close line and its fill, as drawn by the branch below, so 6.45 can
+    // paint their stretch under the gutter with identical inputs. The tip
+    // marker draws out to tip_clip_right, and the line has to reach it there.
+    struct CloseLinePass {
+        float opacity = 0.f;
+        float layer = 1.f;  // a saveLayer alpha the branch wrapped them in
+        std::size_t n = 0;
+        const vroom::CandleSnapshot* from = nullptr;
+        std::size_t from_n = 0;
+        float morph_t = 1.f;
+    } close_line;
+    const bool tip_dot = theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f;
+
     if (fade_out) {
         // First half: only what was captured, at the axis envelope opacity.
         // Layers with no snapshot (volume, liquidity, FVG, drawings) would
@@ -826,6 +852,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
                     morph_from.data(), morph_n, 0.f,
                     theme.floats[VROOM_FLOAT_LINE_TENSION]);
+                close_line = {fade * layer, 1.f, 0, morph_from.data(), morph_n,
+                              0.f};
                 tip_opacity = fade * layer;
                 tip_slots = 0;
                 tip_from = morph_from.data();
@@ -919,6 +947,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade, morph_src,
                     morph_n_draw, morph_t,
                     theme.floats[VROOM_FLOAT_LINE_TENSION]);
+                close_line = {fade, wrap ? axis_phase.opacity : 1.f, n,
+                              morph_src, morph_n_draw, morph_t};
             }
 
             // 5.5 - 5.67. Moving averages, VWAP, Bollinger and Ichimoku lines.
@@ -978,13 +1008,42 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         SkRect::MakeXYWH(candle_right, 0, axis_block_w, height_px),
         axis_bg);
 
+    // 6.45. The close line and its fill under the gutter, which the masks just
+    //       covered. Same inputs as their pass at 4.4 / 5, clipped to the
+    //       stretch between candle_right and the y-axis strip, so the line
+    //       runs on into the tip marker below wherever that is drawn. A view
+    //       following the latest bar has nothing past its newest close, so this
+    //       only paints once the view is panned back.
+    if (close_line.opacity > 0.f && tip_dot && tip_clip_right > candle_right) {
+        const bool layered = close_line.layer < 0.999f;
+        if (layered) {
+            canvas->saveLayerAlpha(
+                nullptr, static_cast<U8CPU>(close_line.layer * 255.f + 0.5f));
+        }
+        vroom::ma_overlay::draw_close_gradient(
+            canvas, lay, bounds, visible, close_line.n, window_ms,
+            visible_start_ms, candle_duration_ms, tip_clip_right,
+            candle_area_h, theme.colors[VROOM_COLOR_LINE],
+            theme.floats[VROOM_FLOAT_LINE_GRADIENT_OPACITY], close_line.opacity,
+            close_line.from, close_line.from_n, close_line.morph_t,
+            theme.floats[VROOM_FLOAT_LINE_TENSION], candle_right);
+        vroom::ma_overlay::draw_close_line(
+            canvas, lay, bounds, visible, close_line.n, window_ms,
+            visible_start_ms, candle_duration_ms, tip_clip_right,
+            candle_area_h, theme.colors[VROOM_COLOR_LINE],
+            theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], close_line.opacity,
+            close_line.from, close_line.from_n, close_line.morph_t,
+            theme.floats[VROOM_FLOAT_LINE_TENSION], candle_right);
+        if (layered) canvas->restore();
+    }
+
     // 6.5. Line-mode tip marker, resolved at 5.8. After the masks because the
     //      dot sits on the newest close, which a view following the latest bar
     //      parks within a few pixels of candle_right — closer than the dot's own
     //      radius — so it paints into the gutter the layout widened for it. The
     //      clip still stops at the y-axis strip, so nothing here can reach the
     //      price labels; the pulse ring simply ends there.
-    if (tip_opacity > 0.f && theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f) {
+    if (tip_opacity > 0.f && tip_dot) {
         vroom::ma_overlay::draw_close_tip(
             canvas, lay, bounds, visible, tip_slots, window_ms,
             visible_start_ms, candle_duration_ms, candle_right, tip_clip_right,

@@ -68,6 +68,9 @@ void draw(SkCanvas* canvas,
 // `tension` (0..1) rounds the corners, monotone-limited so the curve can't
 // overshoot into a price that never traded (see curve.h). 0 is straight segments.
 //
+// Clipped to [`clip_left`, `candle_right`] across, which lets the caller paint
+// the stretch under the gutter in a second pass (VroomChart::draw_chart, 6.45).
+//
 // Separate from draw() because the capture holds candle closes — it can't stand
 // in for an indicator's values.
 void draw_close_line(SkCanvas* canvas,
@@ -86,13 +89,14 @@ void draw_close_line(SkCanvas* canvas,
                      const CandleSnapshot* from = nullptr,
                      std::size_t from_n = 0,
                      float morph_t = 1.f,
-                     float tension = 0.f);
+                     float tension = 0.f,
+                     float clip_left = 0.f);
 
 // The area beneath the close-price polyline, filled with `color` ramping from
 // `gradient_opacity` at the line's peak to fully transparent at the pane bottom.
-// Takes the same geometry, morph and tension arguments as draw_close_line and
-// builds the identical path, so the fill tracks the line through a timeframe
-// switch and follows the same rounded corners.
+// Takes the same geometry, morph, tension and clip arguments as
+// draw_close_line and builds the identical path, so the fill tracks the line
+// through a timeframe switch and follows the same rounded corners.
 //
 // `opacity` multiplies the ramp, which is what fades the fill in alongside the
 // line during the candle→line morph. Draws nothing when either opacity is 0.
@@ -114,7 +118,8 @@ void draw_close_gradient(SkCanvas* canvas,
                          const CandleSnapshot* from = nullptr,
                          std::size_t from_n = 0,
                          float morph_t = 1.f,
-                         float tension = 0.f);
+                         float tension = 0.f,
+                         float clip_left = 0.f);
 
 // The marker at the line's newest end: a dot in `line_color`, `dot_radius` px
 // or (when <= 0) sized off `line_width`, and optionally a pulse expanding out
@@ -127,8 +132,8 @@ void draw_close_gradient(SkCanvas* canvas,
 //
 // `n` counts the slots to the candle being marked, which is the series' newest
 // rather than the visible slice's — see tip_anchor.h, which derives it. That
-// candle can sit off the pane when panned into history, and the marker then
-// draws nothing.
+// candle can sit off the pane when panned into history; the marker keeps drawing
+// until neither the dot nor its ring reaches into the clip.
 //
 // `pulse_phase` is in cycles and wraps, so the caller can hand over elapsed time
 // divided by tip_pulse::kPeriodSeconds. `pulse_opacity` is the ring's alpha as

@@ -8,6 +8,7 @@
 using vroom::tip_geometry::gutter_px;
 using vroom::tip_geometry::kClearPx;
 using vroom::tip_geometry::of;
+using vroom::tip_geometry::reaches_clip;
 
 TEST_CASE("the dot scales with the stroke and floors at a visible size") {
     CHECK(of(3.f).dot_r == doctest::Approx(4.5f));
@@ -40,10 +41,9 @@ TEST_CASE("the gutter clears the dot at every line width") {
 }
 
 // The regression this file exists for: with the view pinned to the latest bar,
-// the tip dot was clipped in half by the y-axis. Model the worst case the
-// renderer allows — draw_close_tip drops the marker once its center passes
-// candle_right, so the center can sit exactly on that edge — and check the dot
-// still lands clear of the axis strip.
+// the tip dot was clipped in half by the y-axis. Model the worst case for a view
+// following the latest bar — the newest candle's center sits exactly on
+// candle_right — and check the dot still lands clear of the axis strip.
 TEST_CASE("the tip dot clears the y-axis when the view sits on the newest bar") {
     constexpr float kWidth = 390.f;   // phone-width plot
     constexpr float kAxisW = 56.f;    // price labels
@@ -57,7 +57,7 @@ TEST_CASE("the tip dot clears the y-axis when the view sits on the newest bar") 
 
     const float candle_right = vroom::candle_area_width(lay);
     const float axis_left = kWidth - kAxisW;
-    const float tip_x = candle_right;  // worst case the on-pane guard permits
+    const float tip_x = candle_right;  // worst case while following the latest bar
     const float dot_right = tip_x + of(kLineWidth).dot_r;
 
     CHECK(dot_right < axis_left);
@@ -85,4 +85,44 @@ TEST_CASE("an explicit dot radius widens the gutter to keep the same clearance")
     const float axis_left = kWidth - kAxisW;
     const float dot_right = vroom::candle_area_width(lay) + of(3.f, kDotR).dot_r;
     CHECK(axis_left - dot_right >= doctest::Approx(kClearPx));
+}
+
+// Panning into history carries the tip past the plot's right edge. It used to
+// vanish the moment its center crossed candle_right, with half the dot and most
+// of the ring still on screen.
+TEST_CASE("the marker keeps drawing until none of it is left in the clip") {
+    constexpr float kRight = 334.f;  // the y-axis strip's left edge
+    constexpr float kBottom = 500.f;
+    constexpr float kDotR = 6.f;
+    constexpr float kRingR = kDotR * 3.5f;  // the pulse at its widest
+
+    SUBCASE("past the right edge, until its full radius has crossed it") {
+        CHECK(reaches_clip(kRight + 1.f, 250.f, kDotR, kRight, kBottom));
+        CHECK(reaches_clip(kRight + kDotR - 0.1f, 250.f, kDotR, kRight, kBottom));
+        CHECK_FALSE(reaches_clip(kRight + kDotR, 250.f, kDotR, kRight, kBottom));
+    }
+
+    SUBCASE("the ring holds it on screen after the dot has gone") {
+        CHECK(reaches_clip(kRight + 15.f, 250.f, kRingR, kRight, kBottom));
+        CHECK_FALSE(reaches_clip(kRight + 15.f, 250.f, kDotR, kRight, kBottom));
+        CHECK_FALSE(reaches_clip(kRight + kRingR, 250.f, kRingR, kRight, kBottom));
+    }
+
+    SUBCASE("every edge, the same way") {
+        CHECK(reaches_clip(-kDotR + 0.1f, 250.f, kDotR, kRight, kBottom));
+        CHECK_FALSE(reaches_clip(-kDotR, 250.f, kDotR, kRight, kBottom));
+        CHECK(reaches_clip(100.f, -kDotR + 0.1f, kDotR, kRight, kBottom));
+        CHECK_FALSE(reaches_clip(100.f, kBottom + kDotR, kDotR, kRight, kBottom));
+    }
+
+    SUBCASE("off a corner, by distance rather than per axis") {
+        // 5px out on both axes is within 6px per axis but ~7.07px away.
+        CHECK_FALSE(reaches_clip(kRight + 5.f, -5.f, kDotR, kRight, kBottom));
+        CHECK(reaches_clip(kRight + 4.f, -4.f, kDotR, kRight, kBottom));
+    }
+
+    SUBCASE("anywhere inside counts") {
+        CHECK(reaches_clip(100.f, 250.f, kDotR, kRight, kBottom));
+        CHECK(reaches_clip(kRight, 0.f, kDotR, kRight, kBottom));
+    }
 }

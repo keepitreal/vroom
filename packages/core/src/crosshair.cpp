@@ -264,12 +264,16 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     const VroomCrosshairStyle& style = chart.crosshair_style;
     const auto& colors = chart.theme.colors;
     const float cx = std::clamp(snap_x, 0.f, candle_right);
+    // Out to the y-axis strip, not the plot edge: the close line runs through
+    // the gutter, and a dim that stops early leaves that stretch full opacity.
+    const float dim_right = vroom::crosshair_style::simple_dim_right(
+        candle_right, lay.right_padding_px);
 
-    if (style.dim_ahead && style.dim_opacity < 1.f && cx < candle_right) {
+    if (style.dim_ahead && style.dim_opacity < 1.f && cx < dim_right) {
         SkPaint dim;
         dim.setColor(colors[VROOM_COLOR_BACKGROUND]);
         dim.setAlphaf(1.f - style.dim_opacity);
-        canvas->drawRect(SkRect::MakeLTRB(cx, 0.f, candle_right, vline_bottom), dim);
+        canvas->drawRect(SkRect::MakeLTRB(cx, 0.f, dim_right, vline_bottom), dim);
     }
 
     SkFont font;

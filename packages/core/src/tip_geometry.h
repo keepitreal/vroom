@@ -42,12 +42,24 @@ inline Geometry of(float line_width, float dot_radius = 0.f) {
 
 // Gutter width that lets the dot draw in full with `kClearPx` to spare.
 //
-// draw_close_tip drops the marker once its center passes the plot's right edge,
-// so the center is at worst flush with that edge and the dot overhangs it by
+// A view following the latest bar keeps the dot's center inside the plot, so
+// the center is at worst flush with its right edge and the dot overhangs it by
 // exactly `dot_r`. A gutter of that plus the clearance therefore makes "the
 // dot never touches the axis strip" true by construction, whatever the window.
+// Panned into history, the dot moves on past that edge and slides out under
+// the strip.
 inline float gutter_px(float line_width, float dot_radius = 0.f) {
     return of(line_width, dot_radius).dot_r + kClearPx;
+}
+
+// Whether a marker `extent` px in radius, centered at (x, y), still shows any
+// of itself inside the clip rect [0, right] x [0, bottom]. draw_close_tip keeps
+// drawing until this is false, so the dot and its ring slide off an edge
+// rather than vanishing the moment their center crosses it.
+inline bool reaches_clip(float x, float y, float extent, float right, float bottom) {
+    const float dx = std::max({0.f, -x, x - right});
+    const float dy = std::max({0.f, -y, y - bottom});
+    return dx * dx + dy * dy < extent * extent;
 }
 
 }  // namespace vroom::tip_geometry

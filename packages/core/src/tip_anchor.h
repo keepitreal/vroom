@@ -4,7 +4,8 @@
 // The tip marks the newest close in the *series*, not the newest close on
 // screen — the same rule the price indicator follows (price_indicator.cpp).
 // Panning into history therefore carries the dot off the right edge with the
-// candle it belongs to, where draw_close_tip's on-pane guard drops it.
+// candle it belongs to, and draw_close_tip stops once none of the marker is left
+// in view.
 //
 // Every other line-chart layer draws the visible slice, so the tip is the one
 // caller that has to reach past range.end. The slice is a view into the same

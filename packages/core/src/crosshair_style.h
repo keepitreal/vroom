@@ -79,6 +79,14 @@ struct SimpleGeometry {
     float line_top;   // where the vertical line starts (the badge's bottom)
 };
 
+// Right edge of the simple-mode dim. The close line draws through the right
+// gutter and stops at the y-axis strip, so the dim has to cover that same
+// stretch. `plot_right` is the candle area's right edge.
+inline float simple_dim_right(float plot_right, float right_padding_px) {
+    const float gutter = right_padding_px > 0.f ? right_padding_px : 0.f;
+    return plot_right + gutter;
+}
+
 // Simple mode: the badge's top sits at `height_frac` of `chart_h` (1 = top,
 // 0 = bottom), clamped so the badge stays on screen and above `line_bottom`.
 inline SimpleGeometry simple_geometry(float chart_h, float line_bottom,

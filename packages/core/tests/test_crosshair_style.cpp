@@ -95,6 +95,16 @@ TEST_CASE("crosshair_style::format_tm") {
     CHECK(fmt(noon, VROOM_CROSSHAIR_TIME_DATE, true) == "Dec 31");
 }
 
+TEST_CASE("crosshair_style::simple_dim_right") {
+    SUBCASE("includes the right gutter, stopping at the y-axis strip") {
+        CHECK(cs::simple_dim_right(320.f, 18.f) == doctest::Approx(338.f));
+    }
+
+    SUBCASE("a plot with no gutter stays on the plot edge") {
+        CHECK(cs::simple_dim_right(320.f, 0.f) == doctest::Approx(320.f));
+    }
+}
+
 TEST_CASE("crosshair_style::simple_geometry") {
     SUBCASE("height 1 puts the badge at the top") {
         const auto g = cs::simple_geometry(400.f, 360.f, 20.f, 1.f);
