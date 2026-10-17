@@ -712,6 +712,9 @@ export function useChartCore(
       chartTypeHandleRef.current = h;
       // 0 = candles (the core default, also when the prop is omitted), 1 = line.
       h.setChartType(chartType === 'line' ? 1 : 0);
+      // Same race for the axis strips: VroomChart snaps them only after this
+      // effect stores its picture, which the next commit would repaint.
+      h.setAxisCollapse(theme?.showYAxis === false ? 1 : 0, theme?.showXAxis === false ? 1 : 0);
     }
     h.setSize(size.width, size.height, size.pxRatio ?? 1);
     // Ahead of setCandles, like setDefaultCandleWidth below: the default framing
