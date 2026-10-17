@@ -62,11 +62,14 @@ enum class CompactScale {
 
 // How to render a price. `group` inserts thousands separators, which only ever
 // affects the integer part of a non-compact format. `compact` scales the value
-// and appends M / B / T; grouping is skipped in that path.
+// and appends M / B / T; grouping is skipped in that path. `fixed` marks
+// decimals the host pinned (VROOM_FLOAT_PRICE_DECIMALS): the tick guard leaves
+// them alone, and the ticks are spaced so they stay distinct instead.
 struct PriceFormat {
     int          decimals = kPriceMinDecimals;
     bool         group = true;
     CompactScale compact = CompactScale::None;
+    bool         fixed = false;
 };
 
 // Decimals giving kPriceSigDigits significant digits for an asset priced around
@@ -75,8 +78,16 @@ struct PriceFormat {
 int significant_decimals(double reference);
 
 // The format for an asset priced around `reference`, including the compact
-// suffix when |reference| is at least a million.
-PriceFormat price_format_for(double reference);
+// suffix when |reference| is at least a million. A `fixed_decimals` of zero or
+// more (rounded, clamped to kPriceMaxDecimals) replaces the significant-digit
+// count and marks the format fixed; a negative or non-finite one is automatic.
+PriceFormat price_format_for(double reference, double fixed_decimals = -1.0);
+
+// The finest tick interval, in the data's units, whose labels stay distinct
+// under `fmt`: one unit in its last decimal place (scaled back up by the
+// compact divisor). 0 — no floor — unless `fmt` is fixed, since an automatic
+// format grows decimals to fit the ticks instead.
+double min_tick_interval(const PriceFormat& fmt);
 
 // Decimal places needed so adjacent ticks `interval` apart don't collapse to
 // the same string. 0.01 → 2, 0.005 → 3, 1e-8 → 8. Clamped to [0, 12].
@@ -87,6 +98,7 @@ int price_decimals(double interval);
 // `interval` is in the data's units; when `fmt` is compact the guard converts
 // it into display units (interval / 1e6 for millions, etc.) so a 1,000-wide
 // step on a 32M chart still gets enough decimals to print as 32.192M vs 32.193M.
+// A fixed `fmt` comes back unchanged.
 PriceFormat with_tick_guard(const PriceFormat& fmt, double interval);
 
 // Writes `price` into `buf` per `fmt`, truncating rather than overrunning.

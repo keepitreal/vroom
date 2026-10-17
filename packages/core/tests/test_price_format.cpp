@@ -9,6 +9,7 @@ using vroom::CompactScale;
 using vroom::format_price;
 using vroom::kPriceMaxDecimals;
 using vroom::kPriceMinDecimals;
+using vroom::min_tick_interval;
 using vroom::price_decimals;
 using vroom::price_format_for;
 using vroom::PriceFormat;
@@ -175,6 +176,47 @@ TEST_CASE("the tick guard runs in compact display units") {
     SUBCASE("an unscaled format still measures the interval in data units") {
         CHECK(with_tick_guard(PriceFormat{2, true}, 1000.0).decimals == 2);
     }
+}
+
+TEST_CASE("fixed decimals override the significant digits and the tick guard") {
+    const PriceFormat cents = price_format_for(1.00012, 2.0);
+    CHECK(cents.fixed);
+    CHECK(cents.decimals == 2);
+    CHECK(render(0.99987, cents) == "1.00");
+
+    SUBCASE("the tick guard leaves a fixed format alone") {
+        const PriceFormat guarded = with_tick_guard(cents, 1e-5);
+        CHECK(guarded.decimals == 2);
+        CHECK(guarded.fixed);
+        // The automatic format would have grown to five decimals here.
+        CHECK(with_tick_guard(price_format_for(1.00012), 1e-5).decimals == 5);
+    }
+
+    SUBCASE("rounded and clamped to the decimal ceiling") {
+        CHECK(price_format_for(1.0, 2.6).decimals == 3);
+        CHECK(price_format_for(1.0, 0.0).decimals == 0);
+        CHECK(price_format_for(1.0, 99.0).decimals == kPriceMaxDecimals);
+    }
+
+    SUBCASE("negative or non-finite is automatic") {
+        CHECK_FALSE(price_format_for(1.0, -1.0).fixed);
+        CHECK(price_format_for(1.0, -1.0).decimals == 4);
+        CHECK_FALSE(price_format_for(1.0, NAN).fixed);
+        CHECK(price_format_for(1.0).decimals == 4);
+    }
+
+    SUBCASE("a compact scale keeps its suffix at the pinned decimals") {
+        const PriceFormat millions = price_format_for(3.2e7, 1.0);
+        CHECK(millions.compact == CompactScale::Million);
+        CHECK(render(3.22e7, millions) == "32.2M");
+    }
+}
+
+TEST_CASE("min_tick_interval is one unit in a fixed format's last place") {
+    CHECK(min_tick_interval(price_format_for(1.0)) == 0.0);
+    CHECK(min_tick_interval(price_format_for(1.0, 2.0)) == doctest::Approx(0.01));
+    CHECK(min_tick_interval(price_format_for(1.0, 0.0)) == doctest::Approx(1.0));
+    CHECK(min_tick_interval(price_format_for(3.2e7, 2.0)) == doctest::Approx(1e4));
 }
 
 TEST_CASE("price_decimals keeps adjacent ticks distinct") {

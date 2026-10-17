@@ -349,8 +349,14 @@ constexpr double kAutoYZoom = 1.5;
 // used whenever the price scale is in auto (follow-the-data) mode. Returns the
 // {0, 1} sentinel when count == 0 (callers keep their previous bounds). With
 // `log` the widening is symmetric in log space, so the bounds stay positive.
+//
+// A positive `min_range_ratio` (VROOM_FLOAT_MIN_PRICE_RANGE_RATIO) first opens
+// the data's low..high, symmetrically about its midpoint, to at least that
+// fraction of the midpoint price — so a stablecoin drifting a hundredth of a
+// cent doesn't get stretched across the whole pane. The kAutoYZoom headroom
+// applies on top. In log mode the floored low never drops below kMinLogPrice.
 PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
-                              bool log);
+                              bool log, double min_range_ratio = 0.0);
 
 // --- Animated auto-fit (autoscaleY) -----------------------------------------
 // Each edge of the on-screen range chases its target exponentially, so the
@@ -425,8 +431,11 @@ inline constexpr float kLogTickMinGapPx = 30.f;
 // from the local price density and skipping ticks closer than
 // kLogTickMinGapPx — so labels read 10k / 20k / 50k / 100k rather than one
 // fixed step.
+//
+// No interval goes below `min_interval` (price_format.h's min_tick_interval),
+// so pinned label decimals never print the same price twice. 0 = no floor.
 void price_ticks(const PriceBounds& bounds, float pane_h, int max_count,
-                 std::vector<double>& out);
+                 std::vector<double>& out, double min_interval = 0.0);
 
 // The finest tick interval on screen, which sets how many decimals the labels
 // need (price_format.h's with_tick_guard). For log that's the bottom of the band.

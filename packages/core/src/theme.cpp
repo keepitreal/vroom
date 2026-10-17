@@ -52,6 +52,8 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     0.f,    // BADGE_FONT_SIZE_PX — follow AXIS_FONT_SIZE_PX
     tip_pulse::kDefaultStartAlpha,  // LINE_TIP_PULSE_OPACITY — 0.4
     0.f,    // LINE_TIP_DOT_RADIUS_PX — follow LINE_WIDTH_PX
+    -1.f,   // PRICE_DECIMALS — automatic, from the asset's price
+    0.f,    // MIN_PRICE_RANGE_RATIO — auto-fit follows the data alone
 };
 
 }  // namespace

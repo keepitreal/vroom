@@ -345,8 +345,9 @@ vroom::PriceBounds VroomChart::screen_price_bounds() const {
         return autoscale_display;
     }
     const auto fit = fit_range();
-    return vroom::auto_price_bounds(candles.data() + fit.start,
-                                    fit.end - fit.start, price_bounds.log);
+    return vroom::auto_price_bounds(
+        candles.data() + fit.start, fit.end - fit.start, price_bounds.log,
+        theme.floats[VROOM_FLOAT_MIN_PRICE_RANGE_RATIO]);
 }
 
 bool VroomChart::autoscale_target(vroom::PriceBounds* target,
@@ -355,7 +356,9 @@ bool VroomChart::autoscale_target(vroom::PriceBounds* target,
     if (fit.end <= fit.start) return false;
     const ::VroomCandle* first = candles.data() + fit.start;
     const std::size_t n = fit.end - fit.start;
-    *target = vroom::auto_price_bounds(first, n, price_bounds.log);
+    *target = vroom::auto_price_bounds(
+        first, n, price_bounds.log,
+        theme.floats[VROOM_FLOAT_MIN_PRICE_RANGE_RATIO]);
     *envelope = vroom::price_bounds(first, n);
     return true;
 }

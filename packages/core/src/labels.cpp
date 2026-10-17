@@ -138,7 +138,8 @@ void update_y_fades(VroomChart& chart,
     const float candle_area_h = vroom::price_pane_bottom(lay);
     constexpr int kMaxLabels = 64;
     std::vector<double> ticks;
-    vroom::price_ticks(bounds, candle_area_h, kMaxLabels, ticks);
+    vroom::price_ticks(bounds, candle_area_h, kMaxLabels, ticks,
+                       vroom::min_tick_interval(chart.price_fmt));
     if (ticks.empty()) return;
 
     for (auto& f : chart.y_fades) f.target = 0.f;
@@ -469,7 +470,8 @@ static_assert(kAxisBadgePadH == vroom::price_lines::kPadH,
 void recompute_axis_width(VroomChart& chart) {
     // Precision first, and unconditionally: the label sites read it whether or
     // not a typeface has loaded, and it's what the measurement below sizes for.
-    chart.price_fmt = vroom::price_format_for(reference_price(chart));
+    chart.price_fmt = vroom::price_format_for(
+        reference_price(chart), chart.theme.floats[VROOM_FLOAT_PRICE_DECIMALS]);
 
     auto tf = vroom::axis_typeface();
     if (!tf) {
@@ -531,7 +533,8 @@ void recompute_axis_width(VroomChart& chart) {
     // 99,950 high). Same walk update_y_fades uses, capped the same way.
     constexpr int kMaxLabels = 64;
     std::vector<double> ticks;
-    vroom::price_ticks(bounds, vroom::price_pane_bottom(lay), kMaxLabels, ticks);
+    vroom::price_ticks(bounds, vroom::price_pane_bottom(lay), kMaxLabels, ticks,
+                       vroom::min_tick_interval(chart.price_fmt));
     for (const double price : ticks) consider(price);
 
     chart.axis_width_px = axis_strip_width(axis_content_width(axis_w, line_w));

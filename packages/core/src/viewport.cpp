@@ -304,10 +304,19 @@ PriceBounds price_bounds(const ::VroomCandle* candles, size_t count) {
 }
 
 PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
-                              bool log) {
+                              bool log, double min_range_ratio) {
     PriceBounds b = price_bounds(candles, count);
     b.log = log;
     if (count == 0) return b;
+    if (min_range_ratio > 0.0 && std::isfinite(min_range_ratio)) {
+        const double mid = (b.min + b.max) * 0.5;
+        const double half = std::abs(mid) * min_range_ratio * 0.5;
+        if (b.max - b.min < half * 2.0) {
+            b.min = mid - half;
+            b.max = mid + half;
+            if (log) b.min = std::max(b.min, kMinLogPrice);
+        }
+    }
     const double lo = to_scale(log, b.min);
     const double hi = to_scale(log, b.max);
     const double mid = (lo + hi) * 0.5;
@@ -408,13 +417,13 @@ PriceBounds rescale_scaled(const PriceBounds& b, double scale, double anchor) {
 }
 
 void price_ticks(const PriceBounds& bounds, float pane_h, int max_count,
-                 std::vector<double>& out) {
+                 std::vector<double>& out, double min_interval) {
     out.clear();
     if (!(bounds.max > bounds.min) || pane_h <= 0.f || max_count <= 0) return;
 
     if (!bounds.log) {
-        const double interval =
-            pick_price_interval(bounds.max - bounds.min, pane_h);
+        const double interval = std::max(
+            pick_price_interval(bounds.max - bounds.min, pane_h), min_interval);
         if (interval <= 0.0) return;
         const double first = std::ceil(bounds.min / interval) * interval;
         int n = 0;
@@ -434,7 +443,7 @@ void price_ticks(const PriceBounds& bounds, float pane_h, int max_count,
     const double ln_span = std::log(hi / lo);
     const double px_per_ln = static_cast<double>(pane_h) / ln_span;
     const auto local_interval = [&](double p) {
-        return pick_price_interval(p * ln_span, pane_h);
+        return std::max(pick_price_interval(p * ln_span, pane_h), min_interval);
     };
 
     double interval = local_interval(hi);

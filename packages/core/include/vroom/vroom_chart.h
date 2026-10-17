@@ -532,6 +532,8 @@ typedef enum {
     VROOM_FLOAT_BADGE_FONT_SIZE_PX,      // filled-badge text; <= 0 follows AXIS_FONT_SIZE_PX
     VROOM_FLOAT_LINE_TIP_PULSE_OPACITY,  // 0..1: the pulse ring's alpha as it leaves the dot
     VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX,  // tip dot radius px; <= 0 follows LINE_WIDTH_PX
+    VROOM_FLOAT_PRICE_DECIMALS,          // fixed price-label decimals, rounded; < 0 = automatic
+    VROOM_FLOAT_MIN_PRICE_RANGE_RATIO,   // auto-fit span floor as a fraction of mid price; <= 0 = off
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 

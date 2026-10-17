@@ -127,6 +127,33 @@ export type VroomTheme = {
    */
   badgeFontSize?: number;
   /**
+   * Print every price at exactly this many decimals (rounded, at most 12): the
+   * price ticks, the current-price badge, the crosshair's price badge,
+   * price-line pills, and the MACD / ATR readouts that share the price axis's
+   * precision. Omit or pass a negative number for the automatic precision —
+   * five significant digits of the latest close, with extra decimals when a
+   * deep zoom needs them.
+   *
+   * Pinned decimals also hold through that zoom: the price ticks are never
+   * closer together than one unit in the last decimal (0.01 at 2), so no two
+   * labels read the same. Assets in the millions keep their M / B / T suffix,
+   * with the decimals counted after it.
+   */
+  priceDecimals?: number;
+  /**
+   * The narrowest price range auto-fit will show, as a fraction of the visible
+   * prices' midpoint: `0.02` keeps at least ±1% on screen. Omit or pass 0 for
+   * no floor.
+   *
+   * When the visible lows and highs span less than that, the fitted range opens
+   * symmetrically about their midpoint before the usual headroom is added, so
+   * a stablecoin trading between 0.9998 and 1.0002 fits to about 0.985–1.015
+   * instead of stretching its noise across the pane. Applies whenever the
+   * price scale follows the data, eased or not; a manually scaled axis ignores
+   * it.
+   */
+  minPriceRangeRatio?: number;
+  /**
    * Text drawn on a filled badge — the current-price indicator, the crosshair's
    * price and time badges, and price-line pills. Defaults to white, which reads
    * against the saturated fills those badges use on a dark theme; light themes

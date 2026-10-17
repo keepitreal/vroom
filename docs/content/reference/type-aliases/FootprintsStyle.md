@@ -9,7 +9,7 @@ type FootprintsStyle = {
 };
 ```
 
-Source: [types/src/index.ts:1031](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1031)
+Source: [types/src/index.ts:1058](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1058)
 
 Shared layout/style for every footprint badge, passed via `footprintsStyle`.
 
@@ -21,7 +21,7 @@ Shared layout/style for every footprint badge, passed via `footprintsStyle`.
 optional gap?: number;
 ```
 
-Source: [types/src/index.ts:1038](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1038)
+Source: [types/src/index.ts:1065](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1065)
 
 Vertical gap between the two stacked badges on a candle that has both a buy
 and a sell. Default 4 — wide enough that each stays independently hoverable.
@@ -34,7 +34,7 @@ and a sell. Default 4 — wide enough that each stays independently hoverable.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:1045](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1045)
+Source: [types/src/index.ts:1072](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1072)
 
 How much the hovered badge brightens, as a channel multiplier. 1 disables
 the highlight (the halo ring still draws). Default 1.25.
@@ -47,7 +47,7 @@ the highlight (the halo ring still draws). Default 1.25.
 optional margin?: number;
 ```
 
-Source: [types/src/index.ts:1040](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1040)
+Source: [types/src/index.ts:1067](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1067)
 
 Gap between the candle's high and the first badge, in px. Default 8.
 
@@ -59,6 +59,6 @@ Gap between the candle's high and the first badge, in px. Default 8.
 optional radius?: number;
 ```
 
-Source: [types/src/index.ts:1033](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1033)
+Source: [types/src/index.ts:1060](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1060)
 
 Badge radius in px. Default 9.

@@ -60,9 +60,19 @@ int significant_decimals(double reference) {
                       kPriceMaxDecimals);
 }
 
-PriceFormat price_format_for(double reference) {
-    return PriceFormat{significant_decimals(reference), true,
-                       compact_scale_for(reference)};
+PriceFormat price_format_for(double reference, double fixed_decimals) {
+    const CompactScale compact = compact_scale_for(reference);
+    if (fixed_decimals >= 0.0 && std::isfinite(fixed_decimals)) {
+        const int decimals = static_cast<int>(std::min(
+            std::round(fixed_decimals), static_cast<double>(kPriceMaxDecimals)));
+        return PriceFormat{decimals, true, compact, true};
+    }
+    return PriceFormat{significant_decimals(reference), true, compact};
+}
+
+double min_tick_interval(const PriceFormat& fmt) {
+    if (!fmt.fixed) return 0.0;
+    return std::pow(10.0, -fmt.decimals) * compact_divisor(fmt.compact);
 }
 
 int price_decimals(double interval) {
@@ -74,6 +84,7 @@ int price_decimals(double interval) {
 }
 
 PriceFormat with_tick_guard(const PriceFormat& fmt, double interval) {
+    if (fmt.fixed) return fmt;
     const double divisor = compact_divisor(fmt.compact);
     const double display_interval =
         (divisor != 1.0 && interval > 0.0 && std::isfinite(interval))

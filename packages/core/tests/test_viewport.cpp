@@ -657,6 +657,51 @@ TEST_CASE("auto_price_bounds") {
     }
 }
 
+TEST_CASE("auto_price_bounds with a minimum range ratio") {
+    VroomCandle stable[2] = {
+        ohlc(0, 0.9999, 1.0001),
+        ohlc(1, 0.9998, 1.0002),
+    };
+
+    SUBCASE("opens a narrow range to the floor, then pads it") {
+        // mid 1.0, floor 0.02 -> {0.99, 1.01} -> x1.5 -> {0.985, 1.015}
+        const PriceBounds b = vroom::auto_price_bounds(stable, 2, false, 0.02);
+        CHECK(b.min == doctest::Approx(0.985));
+        CHECK(b.max == doctest::Approx(1.015));
+    }
+
+    SUBCASE("a flat candle gets the floor too") {
+        VroomCandle flat[1] = {ohlc(0, 1.0, 1.0)};
+        const PriceBounds b = vroom::auto_price_bounds(flat, 1, false, 0.02);
+        CHECK(b.min == doctest::Approx(0.985));
+        CHECK(b.max == doctest::Approx(1.015));
+    }
+
+    SUBCASE("a range already wider than the floor is untouched") {
+        VroomCandle wide[2] = {ohlc(0, 0.95, 1.0), ohlc(1, 1.0, 1.05)};
+        const PriceBounds floored = vroom::auto_price_bounds(wide, 2, false, 0.02);
+        const PriceBounds plain = vroom::auto_price_bounds(wide, 2, false);
+        CHECK(floored.min == plain.min);
+        CHECK(floored.max == plain.max);
+    }
+
+    SUBCASE("zero, negative or non-finite is off") {
+        const PriceBounds plain = vroom::auto_price_bounds(stable, 2, false);
+        for (const double ratio : {0.0, -0.5, static_cast<double>(NAN)}) {
+            const PriceBounds b = vroom::auto_price_bounds(stable, 2, false, ratio);
+            CHECK(b.min == plain.min);
+            CHECK(b.max == plain.max);
+        }
+    }
+
+    SUBCASE("log: an oversized floor still leaves a positive range") {
+        const PriceBounds b = vroom::auto_price_bounds(stable, 2, true, 4.0);
+        CHECK(b.log);
+        CHECK(b.min > 0.0);
+        CHECK(b.max > b.min);
+    }
+}
+
 TEST_CASE("ease_price_bounds") {
     const PriceBounds none{1.0, 0.0};  // no envelope to contain
 
@@ -1026,6 +1071,23 @@ TEST_CASE("price_ticks") {
         const double top_step = ticks[0] - ticks[1];
         const double bottom_step = ticks[ticks.size() - 2] - ticks.back();
         CHECK(bottom_step < top_step);
+    }
+
+    SUBCASE("linear: a minimum interval coarsens the ticks") {
+        // 550px over 0.03 would step 0.002; a two-decimal floor steps 0.01.
+        vroom::price_ticks({0.985, 1.015}, 550.f, 64, ticks, 0.01);
+        REQUIRE(ticks.size() == 3);
+        CHECK(ticks[0] == doctest::Approx(0.99));
+        CHECK(ticks[1] == doctest::Approx(1.00));
+        CHECK(ticks[2] == doctest::Approx(1.01));
+    }
+
+    SUBCASE("log: no step is finer than the minimum interval") {
+        vroom::price_ticks({1.0, 1.2, true}, 600.f, 64, ticks, 0.05);
+        REQUIRE(ticks.size() >= 2);
+        for (size_t i = 1; i < ticks.size(); ++i) {
+            CHECK(ticks[i - 1] - ticks[i] >= 0.05 - 1e-9);
+        }
     }
 
     SUBCASE("respects max_count and degenerate inputs") {
