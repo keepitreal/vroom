@@ -5,7 +5,7 @@ packages:
 
 # Fail the install when a dependency wants to run a build/install script that
 # isn't approved in package.json (pnpm.onlyBuiltDependencies) or explicitly
-# skipped (pnpm.ignoredBuiltDependencies), instead of skipping it with a warning.
+# skipped (ignoredBuiltDependencies below), instead of skipping it with a warning.
 strictDepBuilds: true
 
 # Refuse package versions published less than 3 days ago (in minutes). Most
