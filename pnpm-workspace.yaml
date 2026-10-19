@@ -2,3 +2,17 @@ packages:
   - "packages/*"
   - "examples/*"
   - "docs"
+
+# Fail the install when a dependency wants to run a build/install script that
+# isn't approved in package.json (pnpm.onlyBuiltDependencies) or explicitly
+# skipped (pnpm.ignoredBuiltDependencies), instead of skipping it with a warning.
+strictDepBuilds: true
+
+# Refuse package versions published less than 3 days ago (in minutes). Most
+# hijacked releases are caught and unpublished within that window.
+minimumReleaseAge: 4320
+
+# core-js's postinstall only prints a funding banner; skip it explicitly so
+# strictDepBuilds doesn't fail on it.
+ignoredBuiltDependencies:
+  - core-js

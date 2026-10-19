@@ -6,6 +6,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Matches minimumReleaseAge in pnpm-workspace.yaml: never propose a release
+    # younger than 3 days, so pnpm doesn't reject Dependabot's own lockfile.
+    cooldown:
+      default-days: 3
     groups:
       dev-minor-patch:
         dependency-type: development
@@ -16,6 +20,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
     groups:
       actions:
         patterns: ["*"]
