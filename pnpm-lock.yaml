@@ -79,17 +79,17 @@ importers:
         specifier: 3.10.2
         version: 3.10.2(postcss@8.5.30)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       docusaurus-plugin-typedoc:
-        specifier: 1.4.2
-        version: 1.4.2(typedoc-plugin-markdown@4.12.0(typedoc@0.28.20(typescript@5.9.3)))
+        specifier: 1.4.3
+        version: 1.4.3(typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3))
       prettier:
-        specifier: ^3.9.6
-        version: 3.9.6
+        specifier: ^3.9.10
+        version: 3.9.10
       typedoc:
         specifier: ^0.28.20
         version: 0.28.20(typescript@5.9.3)
       typedoc-plugin-markdown:
-        specifier: ^4.8.0
-        version: 4.12.0(typedoc@0.28.20(typescript@5.9.3))
+        specifier: ^4.14.0
+        version: 4.14.0(typedoc@0.28.20(typescript@5.9.3))
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
@@ -202,8 +202,8 @@ importers:
         specifier: workspace:*
         version: link:../types
       jsdom:
-        specifier: ^30.1.2
-        version: 30.1.2
+        specifier: ^30.1.3
+        version: 30.1.3
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -218,7 +218,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@26.1.2)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
+        version: 4.1.11(@types/node@26.1.2)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
 
   packages/react-native:
     devDependencies:
@@ -254,7 +254,7 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^4.1.11
-        version: 4.1.11(@types/node@26.1.2)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
+        version: 4.1.11(@types/node@26.1.2)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
 
   packages/types:
     devDependencies:
@@ -355,12 +355,12 @@ packages:
     resolution: {integrity: sha512-Yyyne4l//vDSdg4MhYJkaVne+KEPi833eCj3/T/87ernTwrvP6j9biXXZELsN8sLI/f2ndV/vugDIy2jdJQB6g==}
     engines: {node: '>= 14.0.0'}
 
-  '@asamuzakjp/css-color@7.1.5':
-    resolution: {integrity: sha512-jCpAvj8apa7SKHZYogk0rbXB3Kb0hLFrpkWF+Ap+vBA5rirItnpv9NKyAyEuDuFizvl0qwnj6JWR70RGJ0rOlw==}
+  '@asamuzakjp/css-color@7.1.6':
+    resolution: {integrity: sha512-jZJUZX0mR6JqnjQGb79yTYbR5WXmACmcLoFSgZk+7W+0qMJ8jWGRp9ncYvE1ihwL3dwbmfeCe6/O0rRwWTko4g==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
-  '@asamuzakjp/dom-selector@9.2.4':
-    resolution: {integrity: sha512-YnVzxDxLaqL0t7Q4wfcgHZjg55Wm6y5EaO7Bhu3q9J7wq/8iw3PhsnWiOQhYekx4VexnbkgWpTT6n+QIV7kczw==}
+  '@asamuzakjp/dom-selector@10.0.3':
+    resolution: {integrity: sha512-3+777rEPsOOjoy5/sRmIzHnoRDaLpm3XWY2dmWn/N7f/XwDG0bcpnFaKL3X9FYJUbNwLmpcJC1bUYexJRxsFlw==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   '@babel/code-frame@7.29.7':
@@ -4150,10 +4150,12 @@ packages:
   dnssd-advertise@1.1.6:
     resolution: {integrity: sha512-Ndrrf6BMPalkQPd/zubL+4YghH2J9NspapQ09uDXwYbvOPkP0oaqf5CkcwJ0b50kS2O3ul6yVu+jz+RY62Cejg==}
 
-  docusaurus-plugin-typedoc@1.4.2:
-    resolution: {integrity: sha512-1qerRejLSYxEWdyVPLDMMeKFPLA/37yZAsdwJy9ThHFQR78+v3b5spSbk67VHGLr2mAn4FVHu0aGJ6p7iWotSg==}
+  docusaurus-plugin-typedoc@1.4.3:
+    resolution: {integrity: sha512-daX9JvZe+Uwm1VZqrg6E/wyEaf8dopX1a7LuBpFoiDZ4uJHZdD6j/Sk2yAdwuWdP3aGMBcxlh7oXtUkMlg+L9Q==}
+    engines: {node: '>= 18'}
     peerDependencies:
-      typedoc-plugin-markdown: '>=4.8.0'
+      typedoc: 0.28.x
+      typedoc-plugin-markdown: '>=4.11.0'
 
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
@@ -5249,8 +5251,8 @@ packages:
   jsc-safe-url@0.2.4:
     resolution: {integrity: sha512-0wM3YBWtYePOjfyXQH5MWQ8H7sdk5EXSwZvmSLKk2RboVQ2Bu239jycHDz5J/8Blf3K0Qnoy2b6xD+z10MFB+Q==}
 
-  jsdom@30.1.2:
-    resolution: {integrity: sha512-0FFE/jE1rppmVfUrJUgxqXjcwolZYIGtAgj1pTussMhNZxIxi7W/PvfWaMNroGi2B36X1IKHbexpZ9DhkoOPiQ==}
+  jsdom@30.1.3:
+    resolution: {integrity: sha512-hQMUPvRgN7KxsfIytDQji7bimuJeRQa6Qo5+iuiZQk5CafeRxLIA10/cG5YCBFNpD9RO3oqIiN4CO1Y44kxqXg==}
     engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
     peerDependencies:
       canvas: ^3.2.3
@@ -5460,10 +5462,6 @@ packages:
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
-
-  lru-cache@11.5.2:
-    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
-    engines: {node: 20 || >=22}
 
   lru-cache@11.5.3:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
@@ -6789,8 +6787,8 @@ packages:
     engines: {node: '>=10.13.0'}
     hasBin: true
 
-  prettier@3.9.6:
-    resolution: {integrity: sha512-OpN0zzVdiaiAhxpuuj5efpIS4sY9j7bY6uR5mnj5yPzGkdkjNKSJeUThPb60Jw29QuAZgA4o+/iB49kFiaBX6g==}
+  prettier@3.9.10:
+    resolution: {integrity: sha512-skGHTH1Yb9QvaTC4hWnRTzEYtCpApF0UMBPz+t/0ZPzP8ihefo/btKd+QA7pUE0fEwA1SbS/NmhyEcstdXOIdA==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -7800,13 +7798,15 @@ packages:
   typedarray-to-buffer@3.1.5:
     resolution: {integrity: sha512-zdu8XMNEDepKKR+XYOXAVPtWui0ly0NtohUscw+UmaHiAWT8hrV1rr//H6V+0DvJ3OQ19S979M0laLfX8rm82Q==}
 
-  typedoc-docusaurus-theme@1.4.2:
-    resolution: {integrity: sha512-i9YYDcScLD0WUiX8I+LXHX3ZVvRDlJsmRo9l/uWrFT37cHlMz4Ay0GOnWzHUBnnwAo1uzYOw9RjUXznbWozBEA==}
+  typedoc-docusaurus-theme@1.4.3:
+    resolution: {integrity: sha512-CAvSCfmrl3kF+5qiiZts4WSNNJbWejnu0qYkkyHlBGsu8Lc1TIUdzcehNivUk/EehA/brAhlyGPOHlYPsLpn/A==}
+    engines: {node: '>= 18'}
     peerDependencies:
-      typedoc-plugin-markdown: '>=4.8.0'
+      typedoc: 0.28.x
+      typedoc-plugin-markdown: '>=4.11.0'
 
-  typedoc-plugin-markdown@4.12.0:
-    resolution: {integrity: sha512-eJDEMAfxCmede22c/Jw7d0FA13ggAQv+KkwQYKYCdqI02cin6Rc9QRwbG/7XvvHWinuFejySnZVUWDtvGk3Vbg==}
+  typedoc-plugin-markdown@4.14.0:
+    resolution: {integrity: sha512-Y2a3oDV9ekrbkk6RBSGH8GyNkh0xIdemIOOTr3tiRN/33nvFGStOs9nw+6Q84gF1XFkcVZrgM4Ckcsf6e/YpKQ==}
     engines: {node: '>= 18'}
     peerDependencies:
       typedoc: 0.28.x
@@ -7835,8 +7835,8 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
-  undici@6.29.0:
-    resolution: {integrity: sha512-R+RODBqp6i2pPflGdq+xIOUkl+RNfGgHwoinecKu/JCuf2uO06cOKoDbI2P7Dn6KcswdKwrczbU6IYJ6K8X+wg==}
+  undici@6.29.1:
+    resolution: {integrity: sha512-EvRlUt/QqAEvXdQeRMYUfwOQsfzpDztykrG2owGEE/rBOBoYv9uF39ZzsNDh4lTFHhTr2XOZjKkYgueD12ZmGA==}
     engines: {node: '>=18.17'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
@@ -8453,7 +8453,7 @@ snapshots:
     dependencies:
       '@algolia/client-common': 5.55.0
 
-  '@asamuzakjp/css-color@7.1.5':
+  '@asamuzakjp/css-color@7.1.6':
     dependencies:
       '@csstools/css-calc': 3.4.3(@csstools/css-parser-algorithms@4.0.2(@csstools/css-tokenizer@4.0.2))(@csstools/css-tokenizer@4.0.2)
       '@csstools/css-color-parser': 4.2.6(@csstools/css-parser-algorithms@4.0.2(@csstools/css-tokenizer@4.0.2))(@csstools/css-tokenizer@4.0.2)
@@ -8461,7 +8461,7 @@ snapshots:
       '@csstools/css-tokenizer': 4.0.2
       lru-cache: 11.5.3
 
-  '@asamuzakjp/dom-selector@9.2.4':
+  '@asamuzakjp/dom-selector@10.0.3':
     dependencies:
       bidi-js: 1.1.0
       css-tree: 3.2.1
@@ -13747,7 +13747,7 @@ snapshots:
       parse5: 7.3.0
       parse5-htmlparser2-tree-adapter: 7.1.0
       parse5-parser-stream: 7.1.2
-      undici: 6.29.0
+      undici: 6.29.1
       whatwg-mimetype: 4.0.0
 
   chokidar@3.6.0:
@@ -14248,10 +14248,11 @@ snapshots:
 
   dnssd-advertise@1.1.6: {}
 
-  docusaurus-plugin-typedoc@1.4.2(typedoc-plugin-markdown@4.12.0(typedoc@0.28.20(typescript@5.9.3))):
+  docusaurus-plugin-typedoc@1.4.3(typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3)):
     dependencies:
-      typedoc-docusaurus-theme: 1.4.2(typedoc-plugin-markdown@4.12.0(typedoc@0.28.20(typescript@5.9.3)))
-      typedoc-plugin-markdown: 4.12.0(typedoc@0.28.20(typescript@5.9.3))
+      typedoc: 0.28.20(typescript@5.9.3)
+      typedoc-docusaurus-theme: 1.4.3(typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3))
+      typedoc-plugin-markdown: 4.14.0(typedoc@0.28.20(typescript@5.9.3))
 
   dom-accessibility-api@0.5.16: {}
 
@@ -15488,10 +15489,10 @@ snapshots:
 
   jsc-safe-url@0.2.4: {}
 
-  jsdom@30.1.2:
+  jsdom@30.1.3:
     dependencies:
-      '@asamuzakjp/css-color': 7.1.5
-      '@asamuzakjp/dom-selector': 9.2.4
+      '@asamuzakjp/css-color': 7.1.6
+      '@asamuzakjp/dom-selector': 10.0.3
       '@bramus/specificity': 2.4.3
       '@csstools/css-syntax-patches-for-csstree': 1.1.15(css-tree@3.2.1)
       '@exodus/bytes': 1.16.0
@@ -15504,7 +15505,7 @@ snapshots:
       parse5: 8.0.1
       saxes: 6.0.0
       tough-cookie: 6.0.2
-      undici: 6.29.0
+      undici: 6.29.1
       w3c-xmlserializer: 6.0.0
       webidl-conversions: 8.0.1
       whatwg-mimetype: 5.0.0
@@ -15671,8 +15672,6 @@ snapshots:
   lowercase-keys@3.0.0: {}
 
   lru-cache@10.4.3: {}
-
-  lru-cache@11.5.2: {}
 
   lru-cache@11.5.3: {}
 
@@ -17139,7 +17138,7 @@ snapshots:
 
   path-scurry@2.0.2:
     dependencies:
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       minipass: 7.1.3
 
   path-to-regexp@0.1.13: {}
@@ -17654,7 +17653,7 @@ snapshots:
 
   prettier@2.8.8: {}
 
-  prettier@3.9.6: {}
+  prettier@3.9.10: {}
 
   pretty-error@4.0.0:
     dependencies:
@@ -18829,11 +18828,12 @@ snapshots:
     dependencies:
       is-typedarray: 1.0.0
 
-  typedoc-docusaurus-theme@1.4.2(typedoc-plugin-markdown@4.12.0(typedoc@0.28.20(typescript@5.9.3))):
+  typedoc-docusaurus-theme@1.4.3(typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(typescript@5.9.3)))(typedoc@0.28.20(typescript@5.9.3)):
     dependencies:
-      typedoc-plugin-markdown: 4.12.0(typedoc@0.28.20(typescript@5.9.3))
+      typedoc: 0.28.20(typescript@5.9.3)
+      typedoc-plugin-markdown: 4.14.0(typedoc@0.28.20(typescript@5.9.3))
 
-  typedoc-plugin-markdown@4.12.0(typedoc@0.28.20(typescript@5.9.3)):
+  typedoc-plugin-markdown@4.14.0(typedoc@0.28.20(typescript@5.9.3)):
     dependencies:
       typedoc: 0.28.20(typescript@5.9.3)
 
@@ -18856,7 +18856,7 @@ snapshots:
 
   undici-types@8.3.0: {}
 
-  undici@6.29.0: {}
+  undici@6.29.1: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
@@ -19015,7 +19015,7 @@ snapshots:
       terser: 5.51.2
       yaml: 2.9.1
 
-  vitest@4.1.11(@types/node@26.1.2)(jsdom@30.1.2)(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)):
+  vitest@4.1.11(@types/node@26.1.2)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.11
       '@vitest/mocker': 4.1.11(vite@8.3.4(@types/node@26.1.2)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.51.2)(yaml@2.9.1))
@@ -19039,7 +19039,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 26.1.2
-      jsdom: 30.1.2
+      jsdom: 30.1.3
     transitivePeerDependencies:
       - msw
 
