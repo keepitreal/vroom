@@ -15,8 +15,16 @@ package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 # machine fails `pod install --deployment`. Resolving at spec-eval time (rather
 # than hardcoding `../@shopify/react-native-skia`) keeps this correct under
 # non-hoisted layouts such as pnpm's.
+# CocoaPods evaluates this file from the pod's own directory, so resolve from the
+# app's install root first (where autolinking finds RN-Skia); in a monorepo this
+# package's own devDependency would otherwise shadow the app's Skia version.
+resolve_paths = [defined?(Pod::Config) ? Pod::Config.instance.installation_root.to_s : nil, __dir__].compact
 skia_pkg_json = %w[react-native-skia @shopify/react-native-skia]
-  .map { |name| `node --print "require.resolve('#{name}/package.json')" 2>/dev/null`.strip }
+  .map do |name|
+    js_paths = resolve_paths.map { |path| "'#{path}'" }.join(", ")
+    script = "require.resolve('#{name}/package.json', { paths: [#{js_paths}] })"
+    `node --print "#{script}" 2>/dev/null`.strip
+  end
   .find { |path| !path.empty? }
 raise "react-native-vroom-chart: could not resolve react-native-skia" if skia_pkg_json.nil?
 skia_src_dir = File.dirname(skia_pkg_json)

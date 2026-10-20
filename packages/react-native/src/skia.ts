@@ -1,8 +1,8 @@
 // The only module that names the RN-Skia package.
 //
 // RN-Skia v3 is published as `react-native-skia`; v2 is
-// `@shopify/react-native-skia`. Metro treats requires inside try/catch as
-// optional, so whichever one is installed wins. Never install both: they would
+// `@shopify/react-native-skia`. Metro only treats a require as optional inside
+// a `try` block, so each package gets its own. Never install both: they would
 // register two copies of the native module.
 
 type SkiaModule = typeof import('@shopify/react-native-skia');
@@ -10,9 +10,13 @@ type SkiaModule = typeof import('@shopify/react-native-skia');
 function load(): SkiaModule {
   try {
     return require('react-native-skia');
-  } catch {
+  } catch {}
+  try {
     return require('@shopify/react-native-skia');
-  }
+  } catch {}
+  throw new Error(
+    'react-native-vroom-chart: install @shopify/react-native-skia (v2) or react-native-skia (v3).',
+  );
 }
 
 const skia = load();

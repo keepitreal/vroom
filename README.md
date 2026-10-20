@@ -71,7 +71,8 @@ platforms are consumed through the React Native package above.
 
 - `packages/core/` — platform-agnostic C++ engine (Skia-based). Public C facade.
 - `packages/react-native/` — RN npm package. JSI bridge + iOS/Android shims around the core.
-- `examples/test-bench/` — Expo dev-client test bench app.
+- `examples/test-bench/` — Expo dev-client test bench app (React Native Skia v2).
+- `examples/test-bench-v3/` — the same app on React Native Skia v3 (`pnpm start:v3`, `pnpm rebuild:ios:v3`).
 - `docs/` — Docusaurus documentation site.
 - `third_party/skia/` — fetched prebuilts (gitignored).
 

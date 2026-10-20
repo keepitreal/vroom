@@ -23,7 +23,7 @@ packages/
   react-native/  React Native wrapper. JSI bridge around the C++ core.
   types/         Shared TypeScript types (private, bundled into published packages).
 docs/            Docusaurus documentation site.
-examples/        test-bench (Expo dev client) + web-demo (Vite).
+examples/        test-bench + test-bench-v3 (Expo dev clients, Skia v2 / v3) + web-demo (Vite).
 ```
 
 ## Development workflow

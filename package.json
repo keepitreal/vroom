@@ -10,6 +10,8 @@
   "scripts": {
     "start": "pnpm --filter test-bench start",
     "rebuild:ios": "pnpm --filter test-bench rebuild:ios",
+    "start:v3": "pnpm --filter test-bench-v3 start",
+    "rebuild:ios:v3": "pnpm --filter test-bench-v3 rebuild:ios",
     "test": "pnpm --filter react-native-vroom-chart test",
     "test:core": "cmake -S packages/core -B packages/core/build -DVROOM_BUILD_TESTS=ON && cmake --build packages/core/build --target vroom_tests && ctest --test-dir packages/core/build --output-on-failure",
     "docs": "pnpm --filter vroom-docs start",
