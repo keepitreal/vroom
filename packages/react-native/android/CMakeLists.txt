@@ -7,9 +7,9 @@
 #
 # RN-Skia's headers (JsiSkNativeObjects.h, JsiSkPicture.h, and the
 # RNSkPlatformContext.h they pull in) aren't consumed via CMake's prefab
-# mechanism; instead we point directly at @shopify/react-native-skia's `cpp/`
+# mechanism; instead we point directly at RN-Skia's `cpp/`
 # sources, mirroring the podspec's
-# `require.resolve('@shopify/react-native-skia/package.json')` trick
+# `require.resolve('<skia package>/package.json')` trick
 # (VROOM_SKIA_CPP_DIR is computed the same way in build.gradle).
 #
 # Prebuilt libskia.a lives in the sibling npm package react-native-skia-android
@@ -30,10 +30,14 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(ReactAndroid REQUIRED CONFIG)
 find_package(fbjni REQUIRED CONFIG)
 # Prefab package name matches the Gradle project name AGP autolinking assigns
-# RN-Skia (":shopify_react-native-skia"), not the "rnskia" module name inside
-# its own `prefab { rnskia { ... } }` block — that block key becomes the
-# `shopify_react-native-skia::rnskia` *target* name below, not the package.
-find_package(shopify_react-native-skia REQUIRED CONFIG)
+# RN-Skia (":shopify_react-native-skia" on v2, ":react-native-skia" on v3), not
+# the "rnskia" module name inside its own `prefab { rnskia { ... } }` block —
+# that block key becomes the `<package>::rnskia` *target* name below, not the
+# package. build.gradle passes the name in as VROOM_SKIA_PREFAB.
+if(NOT DEFINED VROOM_SKIA_PREFAB)
+  message(FATAL_ERROR "VROOM_SKIA_PREFAB not set — passed from android/build.gradle.")
+endif()
+find_package(${VROOM_SKIA_PREFAB} REQUIRED CONFIG)
 
 if(NOT DEFINED VROOM_SKIA_CPP_DIR)
   message(FATAL_ERROR "VROOM_SKIA_CPP_DIR not set — passed from android/build.gradle.")
@@ -145,6 +149,6 @@ target_link_libraries(vroomchart
   ReactAndroid::jsi
   ReactAndroid::reactnative
   fbjni::fbjni
-  shopify_react-native-skia::rnskia
+  ${VROOM_SKIA_PREFAB}::rnskia
   vroom_skia_prebuilt
 )

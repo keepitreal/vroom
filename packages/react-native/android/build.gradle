@@ -28,14 +28,32 @@ def resolvePackageDir(packageJsonSpecifier) {
 }
 
 def reactNativeDir = resolvePackageDir("react-native/package.json")
-def skiaPkgDir = resolvePackageDir("@shopify/react-native-skia/package.json")
+
+// RN-Skia v3 is published as `react-native-skia`; v2 as
+// `@shopify/react-native-skia`. Use whichever is installed.
+def tryResolvePackageDir(packageJsonSpecifier) {
+  try {
+    return resolvePackageDir(packageJsonSpecifier)
+  } catch (Exception ignored) {
+    return null
+  }
+}
+def skiaPkgDir = tryResolvePackageDir("react-native-skia/package.json")
+    ?: resolvePackageDir("@shopify/react-native-skia/package.json")
 def skiaCppDir = new File(skiaPkgDir, "cpp")
+def skiaMajor = new groovy.json.JsonSlurper()
+    .parse(new File(skiaPkgDir, "package.json")).version.tokenize('.')[0] as int
 
 // Skia 2.10+ ships Android prebuilts in react-native-skia-android (Ganesh)
-// or react-native-skia-graphite-android (Graphite). Graphite is selected by
-// the same libs/.graphite marker RN-Skia uses. Resolve from the skia package
-// so pnpm's nested .pnpm layout still finds the sibling binary package.
-def useGraphite = new File(skiaPkgDir, "libs/.graphite").exists()
+// or react-native-skia-graphite-android (Graphite). v3 is Graphite-only; on v2
+// Graphite is selected by the libs/.graphite marker RN-Skia uses. Resolve from
+// the skia package so pnpm's nested .pnpm layout still finds the sibling
+// binary package.
+def useGraphite = skiaMajor >= 3 || new File(skiaPkgDir, "libs/.graphite").exists()
+// The Gradle project name doubles as the prefab package name (minus the colon).
+def skiaProject = rootProject.findProject(":react-native-skia") != null
+    ? ":react-native-skia"
+    : ":shopify_react-native-skia"
 def skiaAndroidPkgName = useGraphite
     ? "react-native-skia-graphite-android"
     : "react-native-skia-android"
@@ -90,7 +108,8 @@ android {
                   "-DREACT_NATIVE_DIR=${reactNativeDir}",
                   "-DVROOM_SKIA_CPP_DIR=${skiaCppDir}",
                   "-DVROOM_SKIA_ANDROID_LIBS_DIR=${skiaAndroidLibsDir}",
-                  "-DVROOM_SKIA_GRAPHITE=${useGraphite ? 'ON' : 'OFF'}"
+                  "-DVROOM_SKIA_GRAPHITE=${useGraphite ? 'ON' : 'OFF'}",
+                  "-DVROOM_SKIA_PREFAB=${skiaProject.substring(1)}"
       }
     }
   }
@@ -139,5 +158,5 @@ dependencies {
   // prefab-published `rnskia` package (below, in CMakeLists.txt) rather than
   // recompiling those .cpp files ourselves, to avoid duplicate definitions of
   // RN-Skia's internals across two separately-loaded .so's.
-  implementation project(":shopify_react-native-skia")
+  implementation project(skiaProject)
 }

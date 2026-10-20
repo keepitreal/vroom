@@ -14,6 +14,7 @@ export default defineConfig({
     'react',
     'react-native',
     '@shopify/react-native-skia',
+    'react-native-skia',
     'react-native-gesture-handler',
     'react-native-reanimated',
   ],

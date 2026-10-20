@@ -234,7 +234,11 @@ jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
   auto dataFactoryObj = dataFactory.asObject(rt);
   auto imageFactoryObj = imageFactory.asObject(rt);
   auto fromBytes = dataFactoryObj.getPropertyAsFunction(rt, "fromBytes");
-  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, "MakeImage");
+  // RN-Skia v3 renamed MakeImage to MakeRasterImage.
+  const char* makeImageName = imageFactoryObj.hasProperty(rt, "MakeRasterImage")
+                                  ? "MakeRasterImage"
+                                  : "MakeImage";
+  auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, makeImageName);
 
   auto skData =
       fromBytes.callWithThis(rt, dataFactoryObj, bytesLike(rt, std::move(pixels)));

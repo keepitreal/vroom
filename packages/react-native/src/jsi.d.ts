@@ -1,6 +1,6 @@
 // Ambient declaration for the JSI HostObject installed by VroomChartModule.
 
-import type { SkImage, SkPicture } from '@shopify/react-native-skia';
+import type { SkImage, SkPicture } from './skia';
 import type { IntervalTransition } from '@vroomchart/types';
 
 /** Frame the JSI handle returns: an SkPicture on iOS, an SkImage on Android. */

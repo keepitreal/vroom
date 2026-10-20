@@ -16,7 +16,7 @@ Peer dependencies (install if you don't already have them):
 npm install @shopify/react-native-skia react-native-gesture-handler react-native-reanimated react-native-worklets
 ```
 
-Requires `@shopify/react-native-skia` ≥ 2.11.0 and `react-native-worklets` ≥ 0.7.0.
+Requires React Native Skia ≥ 2.11.0 and `react-native-worklets` ≥ 0.7.0. Both Skia generations are supported: v2 (`@shopify/react-native-skia`) and v3 (published as `react-native-skia`, Graphite only). Install exactly one of them; installing both registers two copies of the native module.
 
 ### Usage
 

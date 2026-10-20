@@ -8,7 +8,7 @@
 // two Skia copies can't share a picture pointer) so pan/zoom don't serialize
 // the scene — and the system typeface — on every frame.
 //
-// Reanimated 4 + RN-Skia 2 propagate SharedValue changes to <Picture>/<Image>
+// Reanimated 4 + RN-Skia 2/3 propagate SharedValue changes to <Picture>/<Image>
 // without a React re-render, so gesture-driven redraws are cheap.
 //
 // Gestures run on the JS thread for now (`runOnJS(true)`) — installing the
@@ -23,9 +23,10 @@ import {
   Image,
   Picture,
   Skia,
+  makeRasterImage,
   type SkImage,
   type SkPicture,
-} from '@shopify/react-native-skia';
+} from './skia';
 import {
   Gesture,
   GestureDetector,
@@ -233,7 +234,7 @@ export function VroomChart(props: VroomChartProps) {
   }, []);
   const emptyImage = useMemo(() => {
     const data = Skia.Data.fromBytes(new Uint8Array(4));
-    return Skia.Image.MakeImage(
+    return makeRasterImage(
       {
         width: 1,
         height: 1,
