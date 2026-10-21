@@ -80,7 +80,7 @@
     }
   },
   "devDependencies": {
-    "@shopify/react-native-skia": "2.12.0",
+    "@shopify/react-native-skia": "2.14.0",
     "@types/react": "~19.2.0",
     "@vroomchart/types": "workspace:*",
     "react": "19.2.3",
