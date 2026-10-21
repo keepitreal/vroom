@@ -1,5 +1,37 @@
 # react-native-vroom-chart
 
+## 0.23.0
+
+### Minor Changes
+
+- 31f860f: Badge text color can now be set per badge instead of only through the global `theme.badgeText`. `PriceLine.badgeTextColor` sets the text on one line's y-axis price badge and quantity pill, `crosshair.badgeTextColor` sets the text on the crosshair's badges and plus button, and `theme.priceIndicatorBadgeText` sets the text on the current-price badge. Each falls back to `theme.badgeText` when unset, so nothing changes unless you set them.
+
+  ```tsx
+  <VroomChart
+    priceLines={[
+      {
+        id: "tp",
+        price: 2555.4,
+        color: "#4ade80",
+        text: "TP",
+        badgeTextColor: "#0b0f14",
+      },
+    ]}
+    crosshair={{ badgeColor: "#9ca3af", badgeTextColor: "#0b0f14" }}
+    theme={{ priceIndicatorBadgeText: "#0b0f14" }}
+  />
+  ```
+
+- 57d62e9: New theme keys style the current-price indicator's dashed line: `priceIndicatorDashLength`, `priceIndicatorDashGap`, `priceIndicatorLineWidth`, `priceIndicatorLineOpacity` and `priceIndicatorRoundCap`. Dash and gap are the lengths you see, so turning on round caps doesn't make the dashes longer. Opacity multiplies the accent color's alpha and leaves the price badge alone. The defaults match today's line (2px dashes, 2px gaps, 1px wide, full opacity, square ends), so nothing changes unless you set them.
+- 57d62e9: The current-price line's style and color now blend across a candle↔line switch. When `priceIndicator*` theme keys change in the same render as `chartType`, the dash, gap, width and opacity ease in step with the chart's morph and the caps switch halfway, instead of snapping while the chart morphs around them. The dashes stay anchored to the price pill throughout. The line and price pill color eases the same way, so swapping `accentBull` / `accentBear` with the chart type (say, a red period color in line mode for a green latest candle) fades from one to the other. A fresh mount, `transitionMs: 0` and reduced motion still snap.
+- d394f18: Support the `react-native-skia` package name (Skia 2.15+ and 3.x, Graphite on 3.x) alongside `@shopify/react-native-skia` 2.x. The JS shim, podspec and Gradle/CMake build each pick whichever package is installed, Android links the separate Dawn library that Skia 3.x ships, and the raster path handles the `MakeImage` to `MakeRasterImage` rename. Install exactly one of the two Skia packages.
+
+### Patch Changes
+
+- 18dc5e7: Snap a fresh chart handle's axis collapse to `showXAxis` / `showYAxis` before the first picture, so hidden axes do not flash on and then collapse.
+- db1ad47: Snap a fresh chart handle to the `chartType` prop before the first picture, so a line chart does not flash candlesticks. Candles stay the default when the prop is candles or omitted.
+- 57d62e9: The current-price line's dashes now start at the price pill, so a whole dash always meets it.
+
 ## 0.22.0
 
 ### Minor Changes
