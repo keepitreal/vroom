@@ -30,7 +30,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(ReactAndroid REQUIRED CONFIG)
 find_package(fbjni REQUIRED CONFIG)
 # Prefab package name matches the Gradle project name AGP autolinking assigns
-# RN-Skia (":shopify_react-native-skia" on v2, ":react-native-skia" on v3), not
+# RN-Skia (":shopify_react-native-skia" on older 2.x, ":react-native-skia" on 3.x and 2.15+), not
 # the "rnskia" module name inside its own `prefab { rnskia { ... } }` block —
 # that block key becomes the `<package>::rnskia` *target* name below, not the
 # package. build.gradle passes the name in as VROOM_SKIA_PREFAB.
@@ -65,6 +65,18 @@ set(VROOM_SKIA_LIBS_DIR "${VROOM_SKIA_ANDROID_LIBS_DIR}/${ANDROID_ABI}")
 add_library(vroom_skia_prebuilt STATIC IMPORTED)
 set_property(TARGET vroom_skia_prebuilt PROPERTY
   IMPORTED_LOCATION "${VROOM_SKIA_LIBS_DIR}/libskia.a")
+
+# RN-Skia 3.x links Dawn dynamically (react-native-webgpu-dawn) instead of folding it
+# into libskia.a. Since we link libskia.a ourselves we must link that same
+# libwebgpu_dawn.so too. build.gradle passes the directory only when RN-Skia needs it.
+if(VROOM_DAWN_LIBS_DIR)
+  set(VROOM_DAWN_LIB "${VROOM_DAWN_LIBS_DIR}/${ANDROID_ABI}/libwebgpu_dawn.so")
+  if(NOT EXISTS "${VROOM_DAWN_LIB}")
+    message(FATAL_ERROR "react-native-vroom-chart: ${VROOM_DAWN_LIB} not found. Reinstall dependencies.")
+  endif()
+  add_library(vroom_webgpu_dawn SHARED IMPORTED)
+  set_property(TARGET vroom_webgpu_dawn PROPERTY IMPORTED_LOCATION "${VROOM_DAWN_LIB}")
+endif()
 
 # The chart core (shared across iOS/Android/WASM — see ../../core/CMakeLists.txt).
 set(VROOM_CORE_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../cpp/_core_include")
@@ -152,3 +164,6 @@ target_link_libraries(vroomchart
   ${VROOM_SKIA_PREFAB}::rnskia
   vroom_skia_prebuilt
 )
+if(VROOM_DAWN_LIBS_DIR)
+  target_link_libraries(vroomchart vroom_webgpu_dawn)
+endif()

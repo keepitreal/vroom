@@ -3,7 +3,7 @@ require "pathname"
 
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
-# Locate the RN-Skia source (`react-native-skia` on v3, `@shopify/react-native-skia` on v2). We need it because RN-Skia ships
+# Locate the RN-Skia source (`react-native-skia` on 3.x and 2.15+, `@shopify/react-native-skia` on older 2.x). We need it because RN-Skia ships
 # its Skia headers via `#include "include/core/SkPicture.h"`, which only resolves
 # when the include path points at the source `cpp/` and `cpp/skia/` directories —
 # CocoaPods' flat Headers/Public/ layout loses the `include/...` prefix.
@@ -35,7 +35,7 @@ skia_skia_dir = File.join(skia_rel_dir, "cpp", "skia")
 skia_api_dir = File.join(skia_rel_dir, "cpp", "api")
 # Absolute is fine here: the result only selects a preprocessor-define string,
 # so it never reaches the emitted spec.
-# v3 is Graphite-only and ships no marker; on v2 the libs/.graphite marker decides.
+# 3.x is Graphite-only and ships no marker; on 2.x the libs/.graphite marker decides.
 skia_major = JSON.parse(File.read(skia_pkg_json))["version"].to_i
 use_graphite = skia_major >= 3 || File.exist?(File.join(skia_src_dir, "libs", ".graphite"))
 skia_preprocessor_defs = use_graphite ?

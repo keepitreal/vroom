@@ -1,6 +1,6 @@
 // The only module that names the RN-Skia package.
 //
-// RN-Skia v3 is published as `react-native-skia`; v2 is
+// RN-Skia 3.x and 2.15+ are published as `react-native-skia`; older 2.x as
 // `@shopify/react-native-skia`. Metro only treats a require as optional inside
 // a `try` block, so each package gets its own. Never install both: they would
 // register two copies of the native module.
@@ -15,7 +15,7 @@ function load(): SkiaModule {
     return require('@shopify/react-native-skia');
   } catch {}
   throw new Error(
-    'react-native-vroom-chart: install @shopify/react-native-skia (v2) or react-native-skia (v3).',
+    'react-native-vroom-chart: install @shopify/react-native-skia (>= 2.11) or react-native-skia (>= 2.15).',
   );
 }
 
@@ -32,7 +32,7 @@ export type { SkImage, SkPicture } from '@shopify/react-native-skia';
 
 type ImageFactory = typeof Skia.Image;
 
-/** v3 renamed `Skia.Image.MakeImage` to `MakeRasterImage`. */
+/** Skia 3.x renamed `Skia.Image.MakeImage` to `MakeRasterImage`. */
 export function makeRasterImage(
   ...args: Parameters<ImageFactory['MakeImage']>
 ): ReturnType<ImageFactory['MakeImage']> {

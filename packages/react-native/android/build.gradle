@@ -29,7 +29,7 @@ def resolvePackageDir(packageJsonSpecifier) {
 
 def reactNativeDir = resolvePackageDir("react-native/package.json")
 
-// RN-Skia v3 is published as `react-native-skia`; v2 as
+// RN-Skia 3.x and 2.15+ are published as `react-native-skia`; older 2.x as
 // `@shopify/react-native-skia`. Use whichever is installed.
 def tryResolvePackageDir(packageJsonSpecifier) {
   try {
@@ -41,11 +41,11 @@ def tryResolvePackageDir(packageJsonSpecifier) {
 def skiaPkgDir = tryResolvePackageDir("react-native-skia/package.json")
     ?: resolvePackageDir("@shopify/react-native-skia/package.json")
 def skiaCppDir = new File(skiaPkgDir, "cpp")
-def skiaMajor = new groovy.json.JsonSlurper()
-    .parse(new File(skiaPkgDir, "package.json")).version.tokenize('.')[0] as int
+def skiaPkgJson = new groovy.json.JsonSlurper().parse(new File(skiaPkgDir, "package.json"))
+def skiaMajor = skiaPkgJson.version.tokenize('.')[0] as int
 
 // Skia 2.10+ ships Android prebuilts in react-native-skia-android (Ganesh)
-// or react-native-skia-graphite-android (Graphite). v3 is Graphite-only; on v2
+// or react-native-skia-graphite-android (Graphite). 3.x is Graphite-only; on 2.x
 // Graphite is selected by the libs/.graphite marker RN-Skia uses. Resolve from
 // the skia package so pnpm's nested .pnpm layout still finds the sibling
 // binary package.
@@ -63,6 +63,27 @@ def skiaAndroidPkgJson = providers.exec {
       "require.resolve('${skiaAndroidPkgName}/package.json', { paths: ['${skiaPkgDir}'] })")
 }.standardOutput.asText.get().trim()
 def skiaAndroidLibsDir = new File(file(skiaAndroidPkgJson).parentFile, "libs")
+
+// RN-Skia 3.x keeps Dawn (the WebGPU implementation Graphite renders with) out of
+// libskia.a: it is a shared library from react-native-webgpu-dawn that RN-Skia links
+// dynamically. We link libskia.a statically, so link the very same libwebgpu_dawn.so.
+// RN-Skia declares the Dawn package as a dependency exactly when it needs this, and
+// a Dawn built locally with `yarn build-dawn` takes precedence over the package, as
+// it does in RN-Skia's own build.gradle.
+def dawnLibsDir = null
+if (skiaPkgJson.dependencies?.get("react-native-webgpu-dawn") != null) {
+  def localDawnLibsDir = new File(skiaPkgDir, "libs/dawn/android")
+  if (localDawnLibsDir.exists()) {
+    dawnLibsDir = localDawnLibsDir
+  } else {
+    def dawnPkgJsonPath = providers.exec {
+      workingDir(rootDir)
+      commandLine("node", "--print",
+          "require.resolve('react-native-webgpu-dawn/package.json', { paths: ['${skiaPkgDir}'] })")
+    }.standardOutput.asText.get().trim()
+    dawnLibsDir = new File(file(dawnPkgJsonPath).parentFile, "libs/android")
+  }
+}
 
 // Mirror ../cpp/_core_{src,include} from ../../core/{src,include} whenever
 // the monorepo core is present, so edits to packages/core/ propagate on the
@@ -109,7 +130,8 @@ android {
                   "-DVROOM_SKIA_CPP_DIR=${skiaCppDir}",
                   "-DVROOM_SKIA_ANDROID_LIBS_DIR=${skiaAndroidLibsDir}",
                   "-DVROOM_SKIA_GRAPHITE=${useGraphite ? 'ON' : 'OFF'}",
-                  "-DVROOM_SKIA_PREFAB=${skiaProject.substring(1)}"
+                  "-DVROOM_SKIA_PREFAB=${skiaProject.substring(1)}",
+                  "-DVROOM_DAWN_LIBS_DIR=${dawnLibsDir ?: ''}"
       }
     }
   }
@@ -135,6 +157,8 @@ android {
     exclude "**/libfbjni.so"
     exclude "**/libjsi.so"
     exclude "**/libreactnative.so"
+    // RN-Skia (a hard dependency) ships libwebgpu_dawn.so; ours would be a duplicate.
+    exclude "**/libwebgpu_dawn.so"
   }
 
   lintOptions {
