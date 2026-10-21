@@ -76,6 +76,11 @@ SkColor badge_fill(const VroomChart& chart) {
                   : chart.theme.colors[VROOM_COLOR_CROSSHAIR_TARGET];
 }
 
+SkColor badge_text(const VroomChart& chart) {
+    return static_cast<SkColor>(vroom::badge_text_color(
+        chart.theme, chart.crosshair_style.badge_text));
+}
+
 // Stroke for every crosshair line. Dash and dot spacing scale with the width.
 SkPaint line_paint(const VroomCrosshairStyle& style, SkColor color) {
     const float w = style.line_width_px;
@@ -192,9 +197,8 @@ void draw_price_badge(SkCanvas* canvas,
                       const SkFont* font,
                       const PriceBadge& b) {
     if (!b.shown || b.opacity <= 0.f) return;
-    const auto& colors = chart.theme.colors;
     const VroomCrosshairButtonStyle& s = chart.crosshair_button_style;
-    const SkColor text_color = colors[VROOM_COLOR_BADGE_TEXT];
+    const SkColor text_color = badge_text(chart);
     SkColor fill = badge_fill(chart);
     const SkRect rect =
         SkRect::MakeLTRB(b.rect.left, b.rect.top, b.rect.right, b.rect.bottom);
@@ -296,7 +300,7 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
     const float badge_cx =
         std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
     draw_badge(canvas, font, buf, badge_cx, g.badge_top + badge_h * 0.5f,
-               badge_fill(chart), colors[VROOM_COLOR_BADGE_TEXT], 1.f);
+               badge_fill(chart), badge_text(chart), 1.f);
 }
 }  // namespace
 
@@ -406,7 +410,7 @@ void draw(SkCanvas* canvas,
     }
 
     const SkColor fill = badge_fill(chart);
-    const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
+    const SkColor text_color = badge_text(chart);
 
     // Date/time badge over the x-axis strip, centered on the vertical line and
     // vertically aligned with the time labels (centered in the strip).
@@ -423,7 +427,7 @@ void draw(SkCanvas* canvas,
         const float badge_cx =
             std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
         draw_badge(canvas, font, buf, badge_cx, strip_center_y, fill,
-                   badge_text, lay.x_axis_opacity);
+                   text_color, lay.x_axis_opacity);
     }
 
     // Price badge over the y-axis strip, centered on the horizontal line with

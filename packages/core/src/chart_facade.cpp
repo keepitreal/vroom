@@ -1243,6 +1243,7 @@ extern "C" void vroom_chart_set_price_lines(VroomChart* chart,
         if (src.text) pl.text = src.text;
         if (src.quantity) pl.quantity = src.quantity;
         pl.flags = src.flags;
+        pl.badge_text = src.badge_text;
         chart->price_lines.push_back(std::move(pl));
     }
     if (style) chart->price_line_style = *style;

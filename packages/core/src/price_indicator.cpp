@@ -139,7 +139,8 @@ uint32_t draw(SkCanvas* canvas,
     // vertically centered on `y` (= the box center and the dotted line).
     SkPaint text_paint;
     text_paint.setAntiAlias(true);
-    text_paint.setColor(chart.theme.colors[VROOM_COLOR_BADGE_TEXT]);
+    text_paint.setColor(vroom::badge_text_color(
+        chart.theme, chart.theme.colors[VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT]));
     text_paint.setAlphaf(text_paint.getAlphaf() * lay.y_axis_opacity);
     const float text_x = axis_center_x - text_w * 0.5f;
     const float baseline_y = y + metrics.baseline_dy;

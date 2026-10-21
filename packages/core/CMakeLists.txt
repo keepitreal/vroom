@@ -72,6 +72,7 @@ if(VROOM_BUILD_TESTS)
         tests/test_drawing_bounds.cpp
         tests/test_crosshair_button.cpp
         tests/test_crosshair_style.cpp
+        tests/test_badge_text.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
         src/footprints_layout.cpp

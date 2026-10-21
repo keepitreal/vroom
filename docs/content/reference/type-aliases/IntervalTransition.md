@@ -4,7 +4,7 @@
 type IntervalTransition = "transform" | "fade";
 ```
 
-Source: [types/src/index.ts:293](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L293)
+Source: [types/src/index.ts:303](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L303)
 
 How a same-asset interval switch animates. `'transform'` (default) lerps
 each visible column into its counterpart. `'fade'` fades the old scene out

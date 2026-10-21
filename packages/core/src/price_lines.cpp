@@ -267,7 +267,6 @@ void draw(SkCanvas* canvas,
 
     const VroomPriceLineStyle& style = chart.price_line_style;
     const float corner = resolve_corner_radius_px(style.corner_radius_px);
-    const SkColor badge_text = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
     SkFont font;
     const bool has_font = label_font(chart, &font);
     const vroom::PriceFormat fmt = vroom::with_tick_guard(
@@ -283,6 +282,8 @@ void draw(SkCanvas* canvas,
         if (y < 0.f || y > candle_area_h) continue;  // off-pane: cull, don't clamp
 
         const SkColor color = static_cast<SkColor>(pl.color);
+        const SkColor badge_text =
+            vroom::badge_text_color(chart.theme, pl.badge_text);
         const float stroke = pl.width > 0.f ? pl.width : 1.f;
         // Hovering the line body lifts the whole line; hovering just the close
         // button lifts only that button (handled below).

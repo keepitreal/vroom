@@ -53,6 +53,12 @@ describe('applyTheme', () => {
     expect(calls).toHaveLength(3);
   });
 
+  it('pushes the current-price badge text at its VroomColorKey index', () => {
+    const { handle, calls } = fakeHandle();
+    applyTheme(handle, { priceIndicatorBadgeText: '#0b0f14' });
+    expect(calls).toEqual([[18, 0xff0b0f14]]);
+  });
+
   it('skips absent and unparseable colors', () => {
     const { handle, calls } = fakeHandle();
     applyTheme(handle, { grid: 'nonsense', axisText: '#c9d1d9' });

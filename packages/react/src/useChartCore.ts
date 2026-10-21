@@ -389,6 +389,7 @@ function priceLinesToSpec(
         (hasCloseHandler && l.closable !== false ? PRICE_LINE_CLOSABLE : 0) |
         (l.axisLabel !== false ? PRICE_LINE_AXIS_LABEL : 0) |
         (l.extendLeft !== false ? PRICE_LINE_EXTEND_LEFT : 0),
+      badgeText: (l.badgeTextColor != null ? parseColor(l.badgeTextColor) : null) ?? 0,
     })),
     bodyBg:
       (style?.bodyBackground != null ? parseColor(style.bodyBackground) : null) ??
@@ -499,6 +500,7 @@ export function resolveCrosshair(
       dimAhead: cfg.simple?.dimAhead !== false,
       dimOpacity: cfg.simple?.dimOpacity ?? -1,
       badgeColor: (cfg.badgeColor != null ? parseColor(cfg.badgeColor) : null) ?? 0,
+      badgeText: (cfg.badgeTextColor != null ? parseColor(cfg.badgeTextColor) : null) ?? 0,
     },
     offset: cfg.offset ?? legacyOffset ?? 40,
     button: mode === 'advanced' ? cfg.button ?? legacyButton : undefined,

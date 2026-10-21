@@ -1418,7 +1418,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setPriceLines") {
     // setPriceLines({ lines: [{ price, color, width, lineStyle, text, quantity,
-    // flags }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
+    // flags, badgeText }, ...], bodyBg, fontSizePx, lineLengthFrac, align, hoverBoost,
     // cornerRadiusPx }) —
     // replaces the full set of price status lines. No render; the next render()
     // picks it up.
@@ -1458,6 +1458,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
             lines[i].quantity = quantities[i].c_str();
             lines[i].flags = static_cast<int32_t>(
                 l.getProperty(rt2, "flags").asNumber());
+            lines[i].badge_text = static_cast<uint32_t>(
+                l.getProperty(rt2, "badgeText").asNumber());
           }
           VroomPriceLineStyle style{};
           style.body_bg = static_cast<uint32_t>(
@@ -1682,7 +1684,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setCrosshairStyle") {
     // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
-    // simpleHeight, dimAhead, dimOpacity, badgeColor }). No render; the next render()
+    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText }). No render; the next render()
     // picks it up.
     return jsi::Function::createFromHostFunction(
         rt,
@@ -1707,6 +1709,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.dim_ahead = cfg.getProperty(rt2, "dimAhead").getBool() ? 1 : 0;
           s.dim_opacity = static_cast<float>(num("dimOpacity"));
           s.badge_color = static_cast<uint32_t>(num("badgeColor"));
+          s.badge_text = static_cast<uint32_t>(num("badgeText"));
           vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });

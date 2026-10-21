@@ -29,6 +29,7 @@ export enum ColorKey {
   AccentBear = 15,
   Line = 16,
   Skeleton = 17,
+  PriceIndicatorBadgeText = 18,
 }
 
 /** Theme float slots — mirrors the `VroomFloatKey` enum in the C facade. */
@@ -434,6 +435,8 @@ export type PriceLineSpec = {
   quantity: string;
   /** Bitwise-or of the PRICE_LINE_* flags. */
   flags: number;
+  /** Packed 0xAARRGGBB axis-badge and quantity text. 0 inherits the theme's badgeText. */
+  badgeText: number;
 };
 
 /** Price status lines + shared style, in the core's numeric encoding. */
@@ -528,6 +531,8 @@ export type CrosshairStyleSpec = {
   dimOpacity: number;
   /** Packed 0xAARRGGBB badge fill. 0 inherits the theme's crosshairTarget. */
   badgeColor: number;
+  /** Packed 0xAARRGGBB badge text. 0 inherits the theme's badgeText. */
+  badgeText: number;
 };
 
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */

@@ -30,6 +30,7 @@ constexpr uint32_t kDefaultColors[VROOM_COLOR_COUNT_] = {
     // chart's tone for structure rather than data, which is what the loading
     // line is, so matching them keeps it from being read as a series.
     0x00000000,
+    0x00000000,  // PRICE_INDICATOR_BADGE_TEXT — transparent sentinel: inherit BADGE_TEXT
 };
 
 constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {

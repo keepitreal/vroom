@@ -459,6 +459,8 @@ export interface ChartHandle {
       text: string;
       quantity: string;
       flags: number;
+      /** Packed 0xAARRGGBB axis-badge and quantity text; 0 inherits the theme's badgeText. */
+      badgeText: number;
     }[];
     bodyBg: number;
     fontSizePx: number;
@@ -551,6 +553,8 @@ export interface ChartHandle {
     dimOpacity: number;
     /** Packed 0xAARRGGBB; 0 inherits the theme's crosshairTarget. */
     badgeColor: number;
+    /** Packed 0xAARRGGBB; 0 inherits the theme's badgeText. */
+    badgeText: number;
   }): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the

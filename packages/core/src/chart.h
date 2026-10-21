@@ -443,6 +443,7 @@ struct VroomChart {
         std::string text;
         std::string quantity;
         int32_t     flags = 0;  // VroomPriceLineFlags
+        uint32_t    badge_text = 0;  // 0 inherits the theme's BADGE_TEXT
     };
     std::vector<StoredPriceLine> price_lines;
     VroomPriceLineStyle          price_line_style{};

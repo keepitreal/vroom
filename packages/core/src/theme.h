@@ -27,4 +27,10 @@ inline float badge_font_px(const Theme& t) {
     return badge > 0.f ? badge : t.floats[VROOM_FLOAT_AXIS_FONT_SIZE_PX];
 }
 
+// Text color on a filled badge: `override` unless it is fully transparent (the
+// inherit sentinel), else the theme's BADGE_TEXT.
+inline uint32_t badge_text_color(const Theme& t, uint32_t override) {
+    return (override >> 24) != 0 ? override : t.colors[VROOM_COLOR_BADGE_TEXT];
+}
+
 }  // namespace vroom

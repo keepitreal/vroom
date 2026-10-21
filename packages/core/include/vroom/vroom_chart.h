@@ -341,6 +341,7 @@ typedef struct VroomPriceLine {
     const char* text;        // body label
     const char* quantity;    // trailing solid-fill segment
     int32_t     flags;       // bitwise-or of VroomPriceLineFlags
+    uint32_t    badge_text;  // 0xAARRGGBB axis-badge + quantity text; 0 inherits VROOM_COLOR_BADGE_TEXT
 } VroomPriceLine;
 
 // Layout/style shared by every price line, so the per-line struct stays small.
@@ -374,7 +375,7 @@ typedef enum {
 } VroomCrosshairTimeFormat;
 
 // Colors come from the theme (crosshair lines, crosshair target fill, badge text)
-// unless badge_color overrides the badge fill.
+// unless badge_color / badge_text override the badge fill / text.
 // A zero-initialized struct is the advanced crosshair as it has always looked.
 typedef struct VroomCrosshairStyle {
     int32_t mode;           // VroomCrosshairMode
@@ -386,6 +387,7 @@ typedef struct VroomCrosshairStyle {
     int32_t dim_ahead;      // simple: dim the plot right of the line
     float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
     uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
+    uint32_t badge_text;    // 0xAARRGGBB badge text; 0 inherits VROOM_COLOR_BADGE_TEXT
 } VroomCrosshairStyle;
 
 // Replaces the crosshair style. A null style restores the zero-initialized
@@ -496,7 +498,9 @@ typedef enum {
     // the TypeScript theme maps hardcode the indices below it.
     VROOM_COLOR_RESERVED_7_,
     // Text drawn on a filled badge: the current-price indicator, the crosshair's
-    // axis badges, and price-line pills. Defaults to white.
+    // axis badges, and price-line pills. Defaults to white. Each of those can
+    // override it (VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT, the crosshair style's
+    // badge_text, VroomPriceLine::badge_text).
     VROOM_COLOR_BADGE_TEXT,
     VROOM_COLOR_CROSSHAIR_TARGET,  // the hollow ring/dot at the intersection
     VROOM_COLOR_BORDER_BULL,       // bull body 1px outline; 0 alpha => inherit BULL fill
@@ -509,6 +513,7 @@ typedef enum {
     // The loading line. Its own alpha is honored, then scaled by the fade-in
     // and the stage-3 fade-out, so an opaque color here is the usual choice.
     VROOM_COLOR_SKELETON,
+    VROOM_COLOR_PRICE_INDICATOR_BADGE_TEXT,  // current-price badge text; 0 alpha => inherit BADGE_TEXT
     VROOM_COLOR_COUNT_
 } VroomColorKey;
 

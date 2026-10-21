@@ -4,6 +4,6 @@
 type MAKind = "sma" | "ema";
 ```
 
-Source: [types/src/index.ts:558](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L558)
+Source: [types/src/index.ts:568](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L568)
 
 Averaging used by a moving average: simple or exponential.

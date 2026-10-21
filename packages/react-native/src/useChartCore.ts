@@ -297,6 +297,7 @@ function priceLinesToSpec(cfg: PriceLinesProp) {
         (cfg.hasCloseHandler && l.closable !== false ? PRICE_LINE_CLOSABLE : 0) |
         (l.axisLabel !== false ? PRICE_LINE_AXIS_LABEL : 0) |
         (l.extendLeft !== false ? PRICE_LINE_EXTEND_LEFT : 0),
+      badgeText: (l.badgeTextColor != null ? parseColor(l.badgeTextColor) : null) ?? 0,
     })),
     bodyBg:
       (cfg.style?.bodyBackground != null ? parseColor(cfg.style.bodyBackground) : null) ??
