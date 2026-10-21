@@ -10,6 +10,10 @@ updates:
     # younger than 3 days, so pnpm doesn't reject Dependabot's own lockfile.
     cooldown:
       default-days: 3
+    # Major bumps must land together with changesets/action's (see release.yml).
+    ignore:
+      - dependency-name: "@changesets/cli"
+        update-types: ["version-update:semver-major"]
     groups:
       dev-minor-patch:
         dependency-type: development
@@ -22,6 +26,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 3
+    # Major bumps must land together with @changesets/cli's (see release.yml).
+    ignore:
+      - dependency-name: changesets/action
+        update-types: ["version-update:semver-major"]
     groups:
       actions:
         patterns: ["*"]
