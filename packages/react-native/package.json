@@ -89,7 +89,7 @@
     "react-native-reanimated": "~4.5.1",
     "react-native-worklets": "0.10.1",
     "tsup": "^8.5.1",
-    "typescript": "~5.9.2",
+    "typescript": "~7.0.2",
     "vitest": "^4.1.11"
   }
 }
