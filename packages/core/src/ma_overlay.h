@@ -72,6 +72,9 @@ void draw(SkCanvas* canvas,
 //
 // Separate from draw() because the capture holds candle closes — it can't stand
 // in for an indicator's values.
+// `tip_hole_r` leaves a disc that size unstroked at the line's end, for a tip
+// dot that will cover it at the same alpha: stacked, the two would show the
+// line's end through the dot.
 void draw_close_line(SkCanvas* canvas,
                      const Layout& lay,
                      const PriceBounds& bounds,
@@ -88,7 +91,8 @@ void draw_close_line(SkCanvas* canvas,
                      const CandleSnapshot* from = nullptr,
                      std::size_t from_n = 0,
                      float morph_t = 1.f,
-                     float tension = 0.f);
+                     float tension = 0.f,
+                     float tip_hole_r = 0.f);
 
 // The area beneath the close-price polyline, filled with `color` ramping from
 // `gradient_opacity` at the line's peak to fully transparent at the pane bottom.

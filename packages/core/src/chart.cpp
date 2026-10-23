@@ -778,6 +778,20 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const vroom::CandleSnapshot* tip_from = nullptr;
     std::size_t tip_from_n = 0;
     float tip_morph_t = 1.f;
+    // The disc the series line leaves unstroked for that dot when the two are
+    // translucent and the dot sits on the line's end (see draw_close_line).
+    const float tip_dot_r =
+        theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f
+            ? vroom::tip_geometry::of(
+                  theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
+                  theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX])
+                  .dot_r
+            : 0.f;
+    const auto tip_hole_r = [&](float alpha, bool at_line_end) {
+        const bool translucent =
+            alpha < 1.f || SkColorGetA(theme.colors[VROOM_COLOR_LINE]) < 255;
+        return at_line_end && translucent ? tip_dot_r : 0.f;
+    };
 
     if (fade_out) {
         // First half: only what was captured, at the axis envelope opacity.
@@ -825,7 +839,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * layer,
                     morph_from.data(), morph_n, 0.f,
-                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+                    theme.floats[VROOM_FLOAT_LINE_TENSION],
+                    tip_hole_r(fade * layer, true));
                 tip_opacity = fade * layer;
                 tip_slots = 0;
                 tip_from = morph_from.data();
@@ -925,7 +940,10 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                     candle_area_h, theme.colors[VROOM_COLOR_LINE],
                     theme.floats[VROOM_FLOAT_LINE_WIDTH_PX], fade * series_line,
                     morph_src, morph_n_draw, morph_t,
-                    theme.floats[VROOM_FLOAT_LINE_TENSION]);
+                    theme.floats[VROOM_FLOAT_LINE_TENSION],
+                    tip_hole_r(fade * series_line *
+                                   (wrap ? axis_phase.opacity : 1.f),
+                               range.end >= candles.size()));
             }
 
             // 5.5 - 5.67. Moving averages, VWAP, Bollinger and Ichimoku lines.
