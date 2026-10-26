@@ -63,6 +63,58 @@ jobs:
 
       - run: pnpm test:core
 
+  # The WASM binary is committed because building it needs Skia, so CI can only
+  # check that it was rebuilt after the last change to its inputs. Warning only:
+  # some core changes legitimately need no rebuild.
+  wasm-fresh:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the committed WASM is rebuilt
+        run: |
+          # Everything the VROOM_WASM build in packages/core/CMakeLists.txt reads.
+          src=(packages/core/src packages/core/include packages/core/web
+               packages/core/CMakeLists.txt packages/core/scripts/build-wasm.sh
+               ':(exclude)packages/core/web/README.md')
+          wasm=packages/core-wasm/assets/vroom_core.wasm
+
+          # HEAD is the PR's merge commit: HEAD^1 is the base, HEAD^2 the PR head.
+          changed=$(git diff --name-only HEAD^1 HEAD -- "${src[@]}")
+          if [ -z "$changed" ]; then
+            echo "No WASM build inputs changed."
+            exit 0
+          fi
+
+          src_commit=$(git log -1 --format=%H HEAD^1..HEAD^2 -- "${src[@]}")
+          wasm_commit=$(git log -1 --format=%H HEAD^1..HEAD^2 -- "$wasm")
+          if git diff --quiet HEAD^1 HEAD -- "$wasm"; then
+            msg="Core sources feeding the WASM build changed, but $wasm wasn't rebuilt."
+          elif [ -n "$src_commit" ] && [ -n "$wasm_commit" ] &&
+               ! git merge-base --is-ancestor "$src_commit" "$wasm_commit"; then
+            msg="$wasm was last rebuilt in ${wasm_commit:0:7}, before the source change in ${src_commit:0:7}."
+          else
+            echo "WASM was rebuilt after the latest change to its inputs."
+            exit 0
+          fi
+
+          hint="If the change affects the web build, run build:wasm (see AGENTS.md) and commit packages/core-wasm/assets/."
+          echo "::warning title=WASM may be stale::$msg $hint"
+          {
+            echo "### WASM may be stale"
+            echo
+            echo "$msg $hint"
+            echo
+            echo "Changed inputs:"
+            echo '```'
+            echo "$changed"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
   audit:
     runs-on: ubuntu-latest
     steps:

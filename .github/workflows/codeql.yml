@@ -1,0 +1,45 @@
+name: CodeQL
+
+# Advanced setup in place of CodeQL default setup, which skips pull requests
+# from forks and so leaves the required `CodeQL` check pending on them forever.
+# Default setup must stay off: while it's on, uploads from this workflow are
+# rejected. Categories match default setup's so PR alerts still diff against
+# main's baseline.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 10 * * 1" # weekly, Monday 10:00 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write # upload results to code scanning
+    strategy:
+      fail-fast: false
+      matrix:
+        # No build needed: C/C++ uses build-mode none, so Skia isn't required.
+        language: [actions, c-cpp, javascript-typescript]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
+        with:
+          category: /language:${{ matrix.language }}
