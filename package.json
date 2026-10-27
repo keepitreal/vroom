@@ -30,12 +30,13 @@
       "esbuild"
     ],
     "auditConfig": {
-      "//": "image-size has no fixed release — every version through 2.0.2 (the latest) is affected, so there is nothing to pin. Both advisories are parser denial-of-service reached only at build time, via docusaurus's mdx-loader and expo's metro, on images from this repo; neither path ships in a published package. Drop these once docusaurus/expo pick up a fixed image-size. node-forge (GHSA-86w9-cpqp-85rv) has no fixed release either — 1.4.0 (the latest) is affected, and the newest @expo/cli still depends on it. It is reached only via @expo/cli in examples/test-bench and ships in no published package. Drop it once node-forge publishes a fix. braces (GHSA-vfj7-8cjw-p6xm) has no fixed release — 3.0.3 (the latest) is affected, and micromatch 4.0.8 (the latest) still requires it. It is reached only through build/dev tooling (changesets, docusaurus, metro) and ships in no published package. Drop it once braces publishes a fix.",
+      "//": "image-size has no fixed release — every version through 2.0.2 (the latest) is affected, so there is nothing to pin. Both advisories are parser denial-of-service reached only at build time, via docusaurus's mdx-loader and expo's metro, on images from this repo; neither path ships in a published package. Drop these once docusaurus/expo pick up a fixed image-size. node-forge (GHSA-86w9-cpqp-85rv) has no fixed release either — 1.4.0 (the latest) is affected, and the newest @expo/cli still depends on it. It is reached only via @expo/cli in examples/test-bench and ships in no published package. Drop it once node-forge publishes a fix. braces (GHSA-vfj7-8cjw-p6xm) has no fixed release — 3.0.3 (the latest) is affected, and micromatch 4.0.8 (the latest) still requires it. It is reached only through build/dev tooling (changesets, docusaurus, metro) and ships in no published package. Drop it once braces publishes a fix. zod (GHSA-mrhx-c7xc-m3w5) is fixed only in 4.6.6; @expo/cli@57.0.26 depends on zod 3.25.76, and zod 4 is a breaking API. It is reached only via @expo/cli in examples/test-bench and ships in no published package. Drop it once @expo/cli moves to zod 4.6.6+.",
       "ignoreGhsas": [
         "GHSA-w3rx-r6r6-pgpr",
         "GHSA-5p2g-fcmc-qvqq",
         "GHSA-86w9-cpqp-85rv",
-        "GHSA-vfj7-8cjw-p6xm"
+        "GHSA-vfj7-8cjw-p6xm",
+        "GHSA-mrhx-c7xc-m3w5"
       ]
     },
     "overrides": {
@@ -60,7 +61,7 @@
       "linkify-it": ">=5.0.2 <6",
       "http-proxy-middleware@2": ">=2.0.10 <3",
       "webpack-dev-server": ">=5.2.6 <6",
-      "body-parser": ">=1.20.6 <2",
+      "body-parser": ">=1.20.9 <2",
       "uuid": ">=11.1.1",
       "browserslist": ">=4.28.7",
       "proxy-addr": ">=2.0.8 <3",
