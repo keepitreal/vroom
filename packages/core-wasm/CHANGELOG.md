@@ -1,5 +1,30 @@
 # @vroomchart/core-wasm
 
+## 0.24.0
+
+### Minor Changes
+
+- b78e4fa: `autoscaleY` now stays on: a pinch zooms time only, in any direction, and the price axis no longer rescales.
+- 128339c: Redraw the `loading` line as a single sine wave, 7% of the pane in amplitude, drifting leftward, stroked at `lineWidth`, breathing between 14% and 30% of `skeleton`, which now inherits `axisText` instead of `grid`. On hand-off the moving line resolves centre-first onto the candle closes over about 0.9s on Liveline's ease, while the candles grow out of it; in line mode it becomes the series line.
+
+  The hand-off now runs on its own clock: `transitionMs` and `transitionEasing` no longer set its duration or easing, though `transitionMs={0}` still snaps it. If you drive the `@vroomchart/core-wasm` handle directly, call `beginLoadingMorph()` then `beginLoadingReveal()` and keep rendering while `isAnimating()` is true; you no longer drive `setIntervalMorph` to finish it.
+
+- 0bcaf02: New opt-in theme keys `priceDecimals` (fixed label decimals) and `minPriceRangeRatio` (narrowest auto-fit range).
+- 153b2ad: New opt-in `theme.yAxisFade`: the price series runs on under the y-axis strip and fades out to the chart's right edge instead of stopping at the strip.
+- ad7c615: The simple crosshair's time badge is now a capsule: 15px text on a 20px line, padded 4px by 10px. The new `theme.simpleCrosshairBadgeFontSize` sets its text size.
+
+### Patch Changes
+
+- dd760d6: Axis text colors now keep their own alpha: the label fades scale it instead of overwriting it.
+- 34cfa7a: Fading candles no longer show their wick through the body.
+- 8800177: With the price axis hidden, the line chart and price lines now run to the chart's right edge instead of stopping at the gutter kept for the axis, and the gutter comes back as the axis shows.
+- e4794c6: Pans and pinches stop one candle interval past the newest candle; the 3/4-window allowance and its rubber band are gone. The line chart's tip dot gets more clearance from the right edge.
+- 9b5ff01: The line chart's current-price line ends at the tip dot instead of running past it.
+- 1eb8e6d: Candles in the loading reveal now grow out of the loading line and stay on it until they land. The candle↔line switch grows them out of the line the same way.
+- cd9b87b: Live ticks during the loading reveal no longer flash the candles back to grey.
+- d5ea13f: Fade the line chart's tip dot and pulse ring with its line, so the line's end no longer shows through the dot while they're translucent.
+- 8800177: The line tip's dot and pulse ring now slide off the plot's edge with the line instead of vanishing once the dot's center crosses it.
+
 ## 0.23.0
 
 ### Minor Changes
