@@ -1,5 +1,15 @@
 # react-native-vroom-chart
 
+## 0.26.0
+
+### Minor Changes
+
+- 3b59823: Migrate chart gestures to React Native Gesture Handler 3 hooks and object configuration, preserving simultaneous pan, pinch, long-press, and tap handling on the JS thread. Require react-native-gesture-handler >=3.4.0 and React Native >=0.82; Gesture Handler v2 is no longer supported.
+
+### Patch Changes
+
+- d4c277c: Support React Native Skia 3.8.1's renamed image and picture factories while retaining compatibility with v2 and earlier v3 releases. Match release Skia prebuilt compile flags in native builds.
+
 ## 0.25.0
 
 ### Minor Changes
