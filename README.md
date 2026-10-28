@@ -18,6 +18,8 @@ npm install @shopify/react-native-skia react-native-gesture-handler react-native
 
 Requires `@shopify/react-native-skia` ≥ 2.11.0, or `react-native-skia` ≥ 2.15.0 (the same library under its new name), and `react-native-worklets` ≥ 0.7.0. Skia 3.x is Graphite-only and needs Android `minSdkVersion` 26. Install exactly one of the two Skia packages; installing both registers two copies of the native module.
 
+Gesture handling requires `react-native-gesture-handler` ≥ 3.4.0 and React Native ≥ 0.82 with the New Architecture. The chart uses Gesture Handler's v3 hooks; Gesture Handler v2 is no longer supported.
+
 ### Usage
 
 ```tsx

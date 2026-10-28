@@ -15,7 +15,7 @@
 // core's own animations keep their pace while JS is busy; the JS side only
 // changes the core and asks for a frame. Android still draws on JS: its frames
 // are rasterized through RN-Skia's JS API, which the UI runtime doesn't have.
-// Gestures run on the JS thread for now (`runOnJS(true)`).
+// Gestures run on the JS thread for now (`runOnJS: true`).
 
 import React, { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { PixelRatio, Platform, View, type LayoutChangeEvent } from 'react-native';
@@ -31,7 +31,11 @@ import {
   type SkPicture,
 } from './skia';
 import {
-  Gesture,
+  usePanGesture,
+  usePinchGesture,
+  useLongPressGesture,
+  useTapGesture,
+  useSimultaneousGestures,
   GestureDetector,
   GestureHandlerRootView,
 } from 'react-native-gesture-handler';
@@ -855,7 +859,7 @@ export function VroomChart(props: VroomChartProps) {
   // Pan routes to different C++ mutators depending on where it started: the
   // candle area (chart scroll / crosshair move), the y-axis strip (price
   // scale), the x-axis strip (time scale), the indicator pane (horizontal
-  // scroll only), or a draggable price line. We classify on onStart.
+  // scroll only), or a draggable price line. We classify on activation.
   const panMode = useRef<
     'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'price-line'
   >('chart');
@@ -885,11 +889,11 @@ export function VroomChart(props: VroomChartProps) {
     });
   };
 
-  const pan = Gesture.Pan()
-    .enabled(!showLoadingLine)
-    .runOnJS(true)
-    .maxPointers(1)  // don't fight Pinch's two-finger gesture
-    .onStart((e) => {
+  const pan = usePanGesture({
+    enabled: !showLoadingLine,
+    runOnJS: true,
+    maxPointers: 1, // don't fight Pinch's two-finger gesture
+    onActivate: (e) => {
       cancelDecay();
       // Any drag closes the menu: it moves either the viewport or the crosshair
       // out from under it.
@@ -917,8 +921,8 @@ export function VroomChart(props: VroomChartProps) {
       // covers the momentum fling too — decay only ever starts from a pan that
       // already began here.
       if (panMode.current !== 'price-line') dismissFootprint();
-    })
-    .onChange((e) => {
+    },
+    onUpdate: (e) => {
       if (!handle) return;
       let next: ReturnType<typeof handle.pan> = null;
       if (panMode.current === 'price-axis') {
@@ -965,8 +969,8 @@ export function VroomChart(props: VroomChartProps) {
       }
       applyFrame(next);
       maybeStartAnim();
-    })
-    .onEnd((e) => {
+    },
+    onDeactivate: (e) => {
       if (!handle) return;
       // Price-line drop. The preview always clears here: the line is a controlled
       // prop, so it only really moves once the host restates it — which means a
@@ -1015,7 +1019,8 @@ export function VroomChart(props: VroomChartProps) {
         }
       };
       decayRaf.current = requestAnimationFrame(tick);
-    });
+    },
+  });
 
   // Directional pinch. A single Pinch scale is uniform, so we read the two
   // touch points and track their horizontal/vertical spans independently: a
@@ -1038,10 +1043,10 @@ export function VroomChart(props: VroomChartProps) {
     enableX: false,
     enableY: false,
   });
-  const pinch = Gesture.Pinch()
-    .enabled(!showLoadingLine)
-    .runOnJS(true)
-    .onTouchesDown((e) => {
+  const pinch = usePinchGesture({
+    enabled: !showLoadingLine,
+    runOnJS: true,
+    onTouchesDown: (e) => {
       if (e.numberOfTouches < 2) return;
       dismissFootprint();
       closePlusRef.current();
@@ -1057,8 +1062,8 @@ export function VroomChart(props: VroomChartProps) {
         enableX: spanX >= MIN_SPAN && spanX >= spanY * AXIS_RATIO,
         enableY: spanY >= MIN_SPAN && spanY >= spanX * AXIS_RATIO,
       };
-    })
-    .onTouchesMove((e) => {
+    },
+    onTouchesMove: (e) => {
       if (!handle || crosshairActive.current) return;
       if (e.numberOfTouches < 2) return;
       const [a, b] = e.allTouches;
@@ -1094,15 +1099,16 @@ export function VroomChart(props: VroomChartProps) {
       const next = handle.zoom(frameX, frameY, focalX, focalY);
       applyFrame(next);
       maybeStartAnim();
-    });
+    },
+  });
 
   // Long press shows the crosshair at the press point. A stationary hold never
   // activates `pan` (it needs movement first), so the chart won't scroll under
   // the hold. The dot/horizontal line are lifted above the fingertip.
-  const longPress = Gesture.LongPress()
-    .enabled(!showLoadingLine && crosshairMode !== 'none')
-    .runOnJS(true)
-    .onStart((e) => {
+  const longPress = useLongPressGesture({
+    enabled: !showLoadingLine && crosshairMode !== 'none',
+    runOnJS: true,
+    onActivate: (e) => {
       if (!handle) return;
       // A long press on an axis strip controls the axis, never the crosshair.
       const region = hitAxis(e.x, e.y);
@@ -1123,15 +1129,16 @@ export function VroomChart(props: VroomChartProps) {
       const ev = crosshairEvent(handle.getCrosshairInfo(), 'show');
       lastCrosshairKey.current = `${ev.timeMs}|${ev.price}|${ev.indicator?.value ?? ''}`;
       onCrosshair?.(ev);
-    });
+    },
+  });
 
   // A tap activates a price line's close button, selects or dismisses a footprint
   // badge, and otherwise dismisses the crosshair while it's up. Any other tap is a
   // no-op, so it never interferes with normal pan/pinch.
-  const tap = Gesture.Tap()
-    .enabled(!showLoadingLine)
-    .runOnJS(true)
-    .onStart((e) => {
+  const tap = useTapGesture({
+    enabled: !showLoadingLine,
+    runOnJS: true,
+    onActivate: (e) => {
       if (!handle) return;
 
       // The plus button sits on the crosshair, above everything else: a tap on
@@ -1192,9 +1199,10 @@ export function VroomChart(props: VroomChartProps) {
       applyFrame(ch);
       lastCrosshairKey.current = null;
       onCrosshair?.(crosshairEvent(null, 'hide'));
-    });
+    },
+  });
 
-  const gesture = Gesture.Simultaneous(pan, pinch, longPress, tap);
+  const gesture = useSimultaneousGestures(pan, pinch, longPress, tap);
 
   return (
     <GestureHandlerRootView
