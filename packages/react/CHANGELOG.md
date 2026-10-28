@@ -1,5 +1,17 @@
 # @vroomchart/react
 
+## 0.25.0
+
+### Minor Changes
+
+- c114c40: New `theme.fontData` and `theme.badgeFontData` take font file bytes (e.g. app-bundled fonts): the first for the chart's text, such as axis labels, the second for its badges, which otherwise follow it.
+
+### Patch Changes
+
+- 0099cb1: The loading line ends half a slot short of the plot's edge, where the series' newest point lands.
+- Updated dependencies [0099cb1]
+  - @vroomchart/core-wasm@0.24.1
+
 ## 0.24.0
 
 ### Minor Changes

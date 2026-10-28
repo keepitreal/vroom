@@ -1,5 +1,11 @@
 # @vroomchart/core-wasm
 
+## 0.24.1
+
+### Patch Changes
+
+- 0099cb1: The loading line ends half a slot short of the plot's edge, where the series' newest point lands.
+
 ## 0.24.0
 
 ### Minor Changes
