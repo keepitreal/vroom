@@ -212,8 +212,11 @@ jsi::Value wrapSerializedPicture(jsi::Runtime& rt, const sk_sp<SkPicture>& pic) 
   auto pictureFactory = skiaApiObject(rt, "Picture");
   if (pictureFactory.isUndefined()) return jsi::Value::null();
   auto pictureFactoryObj = pictureFactory.asObject(rt);
+  const char* makePictureName = pictureFactoryObj.hasProperty(rt, "Make")
+                                    ? "Make"
+                                    : "MakePicture";
   auto makePicture =
-      pictureFactoryObj.getPropertyAsFunction(rt, "MakePicture");
+      pictureFactoryObj.getPropertyAsFunction(rt, makePictureName);
 
   // Skia 2.11's NativeState host methods recover the factory via `this`
   // (`fromThis` → "Expected PictureFactory but got non-object" if unbound).
@@ -260,10 +263,12 @@ jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
   auto dataFactoryObj = dataFactory.asObject(rt);
   auto imageFactoryObj = imageFactory.asObject(rt);
   auto fromBytes = dataFactoryObj.getPropertyAsFunction(rt, "fromBytes");
-  // RN-Skia 3.x renamed MakeImage to MakeRasterImage.
-  const char* makeImageName = imageFactoryObj.hasProperty(rt, "MakeRasterImage")
-                                  ? "MakeRasterImage"
-                                  : "MakeImage";
+  // v2: MakeImage; early v3: MakeRasterImage; v3.8+: MakeRaster.
+  const char* makeImageName = imageFactoryObj.hasProperty(rt, "MakeRaster")
+                                  ? "MakeRaster"
+                                  : imageFactoryObj.hasProperty(rt, "MakeRasterImage")
+                                        ? "MakeRasterImage"
+                                        : "MakeImage";
   auto makeImage = imageFactoryObj.getPropertyAsFunction(rt, makeImageName);
 
   auto skData =

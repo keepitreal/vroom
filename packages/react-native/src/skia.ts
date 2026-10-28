@@ -32,13 +32,17 @@ export type { SkImage, SkPicture } from '@shopify/react-native-skia';
 
 type ImageFactory = typeof Skia.Image;
 
-/** Skia 3.x renamed `Skia.Image.MakeImage` to `MakeRasterImage`. */
+/** Raster factory names differ across Skia v2, early v3, and v3.8+. */
 export function makeRasterImage(
   ...args: Parameters<ImageFactory['MakeImage']>
 ): ReturnType<ImageFactory['MakeImage']> {
   const factory = Skia.Image as ImageFactory & {
+    MakeRaster?: ImageFactory['MakeImage'];
     MakeRasterImage?: ImageFactory['MakeImage'];
   };
   // Host methods recover their factory via `this`, so call, don't detach.
-  return (factory.MakeRasterImage ?? factory.MakeImage).apply(factory, args);
+  return (factory.MakeRaster ?? factory.MakeRasterImage ?? factory.MakeImage).apply(
+    factory,
+    args,
+  );
 }

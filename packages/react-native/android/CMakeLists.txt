@@ -117,6 +117,8 @@ target_include_directories(vroomchart PRIVATE
 
 target_compile_definitions(vroomchart PRIVATE
   SK_BUILD_FOR_ANDROID
+  # Match the release Skia prebuilts even in a Debug app build.
+  SK_RELEASE
   SK_DISABLE_LEGACY_SHAPER_FACTORY
   SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API
   ONANDROID

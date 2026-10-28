@@ -39,7 +39,7 @@ skia_api_dir = File.join(skia_rel_dir, "cpp", "api")
 skia_major = JSON.parse(File.read(skia_pkg_json))["version"].to_i
 use_graphite = skia_major >= 3 || File.exist?(File.join(skia_src_dir, "libs", ".graphite"))
 skia_preprocessor_defs = use_graphite ?
-  "$(inherited) SK_GRAPHITE=1 SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1" :
+  "$(inherited) SK_GRAPHITE=1 SK_RELEASE=1 SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1" :
   "$(inherited) SK_METAL=1 SK_GANESH=1 SK_IMAGE_READ_PIXELS_DISABLE_LEGACY_API=1 SK_DISABLE_LEGACY_SHAPER_FACTORY=1"
 
 Pod::Spec.new do |s|
