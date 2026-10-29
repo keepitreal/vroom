@@ -256,7 +256,8 @@ SnapResult snap_to_fit_slot(const Layout& layout,
                             int64_t candle_duration_ms,
                             int64_t visible_start_ms,
                             int64_t window_ms,
-                            float x_px) {
+                            float x_px,
+                            bool snap_to_data) {
     const size_t n = fit.end - fit.start;
     if (n == 0) return {visible_start_ms, false, 0};
     SnapResult snap =
@@ -264,6 +265,9 @@ SnapResult snap_to_fit_slot(const Layout& layout,
                      visible_start_ms, window_ms, x_px);
     if (snap.has_candle) {
         snap.index += fit.start;
+    } else if (snap_to_data) {
+        // snap_to_slot's only empty slots lie past the slice's last candle.
+        return {candles[fit.end - 1].time_ms, true, fit.end - 1};
     } else if (fit.end < count) {
         const int64_t next = candles[fit.end].time_ms;
         const int64_t half = candle_duration_ms / 2;

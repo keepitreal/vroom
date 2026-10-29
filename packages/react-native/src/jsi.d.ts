@@ -567,6 +567,8 @@ export interface ChartHandle {
     badgeColor: number;
     /** Packed 0xAARRGGBB; 0 inherits the theme's badgeText. */
     badgeText: number;
+    /** Never snap past the last candle into an empty slot. */
+    snapToData: boolean;
   }): void;
   /**
    * Hover highlight and pinned (open) state. Pinning locks the crosshair to the

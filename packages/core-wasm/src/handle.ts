@@ -537,6 +537,8 @@ export type CrosshairStyleSpec = {
   badgeColor: number;
   /** Packed 0xAARRGGBB badge text. 0 inherits the theme's badgeText. */
   badgeText: number;
+  /** Never snap past the last candle into an empty slot. */
+  snapToData: boolean;
 };
 
 /** The crosshair plus button's geometry, in CSS px from the chart's top-left. */

@@ -398,7 +398,8 @@ bool VroomChart::autoscale_animating() const {
 vroom::SnapResult VroomChart::crosshair_snap(const vroom::Layout& lay) const {
     return vroom::snap_to_fit_slot(
         lay, candles.data(), candles.size(), fit_range(), candle_duration_ms,
-        visible_start_ms, visible_end_ms - visible_start_ms, crosshair_x_px);
+        visible_start_ms, visible_end_ms - visible_start_ms, crosshair_x_px,
+        crosshair_style.snap_to_data != 0);
 }
 
 vroom::IndexRange VroomChart::ichimoku_source_range(int64_t shift_ms) const {

@@ -15,6 +15,7 @@ type CrosshairConfig = {
     dimOpacity?: number;
     height?: number;
   };
+  snapToData?: boolean;
   timeFormat?: CrosshairTimeFormat;
 };
 ```
@@ -138,7 +139,7 @@ optional simple?: {
 };
 ```
 
-Source: [types/src/index.ts:1322](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1322)
+Source: [types/src/index.ts:1327](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1327)
 
 Simple-mode options.
 
@@ -167,6 +168,19 @@ optional height?: number;
 Where the badge's top sits, as a fraction of the chart's height: 1 is the
 top, 0 the bottom. Default 1. The badge always stays fully on screen, and
 the line runs from under it down to the bottom of the plot.
+
+---
+
+### snapToData?
+
+```ts
+optional snapToData?: boolean;
+```
+
+Source: [types/src/index.ts:1325](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1325)
+
+Keep the crosshair on the data: past the last candle it stays on that
+candle instead of snapping to an empty future slot. Default false.
 
 ---
 

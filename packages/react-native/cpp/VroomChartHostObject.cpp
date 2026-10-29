@@ -1766,7 +1766,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
 
   if (name == "setCrosshairStyle") {
     // setCrosshairStyle({ mode, lineStyle, lineWidthPx, timeFormat, hour12,
-    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText }). No render; the next render()
+    // simpleHeight, dimAhead, dimOpacity, badgeColor, badgeText, snapToData }). No render; the next render()
     // picks it up.
     return lockedFunction(
         rt,
@@ -1792,6 +1792,8 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           s.dim_opacity = static_cast<float>(num("dimOpacity"));
           s.badge_color = static_cast<uint32_t>(num("badgeColor"));
           s.badge_text = static_cast<uint32_t>(num("badgeText"));
+          const auto snapToData = cfg.getProperty(rt2, "snapToData");
+          s.snap_to_data = snapToData.isBool() && snapToData.getBool() ? 1 : 0;
           vroom_chart_set_crosshair_style(chart_, &s);
           return jsi::Value::undefined();
         });

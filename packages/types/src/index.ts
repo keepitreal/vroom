@@ -1318,6 +1318,11 @@ export type CrosshairConfig = {
   offset?: number;
   /** The plus button (advanced mode only). Replaces `crosshairButton`. */
   button?: CrosshairButtonConfig;
+  /**
+   * Keep the crosshair on the data: past the last candle it stays on that
+   * candle instead of snapping to an empty future slot. Default false.
+   */
+  snapToData?: boolean;
   /** Simple-mode options. */
   simple?: {
     /**

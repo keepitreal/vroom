@@ -543,6 +543,35 @@ TEST_CASE("snap_to_fit_slot") {
         CHECK(r.time_ms == 600);
     }
 
+    SUBCASE("snap_to_data: an empty slot stays on the last candle in view") {
+        VroomCandle candles[4];
+        for (int i = 0; i < 4; ++i) candles[i] = ohlc(i * 100, 1.0, 2.0);
+        const IndexRange fit = vroom::fit_indices(candles, 4, 0, 600, kDur);
+        auto future = vroom::snap_to_fit_slot(l, candles, 4, fit, kDur, 0, 600,
+                                              1000.f, true);
+        CHECK(future.has_candle == true);
+        CHECK(future.index == 3u);
+        CHECK(future.time_ms == 300);
+
+        // Over the data it snaps as usual.
+        auto over = vroom::snap_to_fit_slot(l, candles, 4, fit, kDur, 0, 600,
+                                            300.f, true);
+        CHECK(over.has_candle == true);
+        CHECK(over.index == 1u);
+    }
+
+    SUBCASE("snap_to_data: a gap before the next candle stays on the last one") {
+        VroomCandle candles[7];
+        const int64_t times[7] = {0, 100, 200, 300, 400, 700, 800};
+        for (int i = 0; i < 7; ++i) candles[i] = ohlc(times[i], 1.0, 2.0);
+        const IndexRange fit = vroom::fit_indices(candles, 7, 100, 600, kDur);
+        auto sat = vroom::snap_to_fit_slot(l, candles, 7, fit, kDur, 100, 500,
+                                           900.f, true);
+        CHECK(sat.has_candle == true);
+        CHECK(sat.index == 4u);
+        CHECK(sat.time_ms == 400);
+    }
+
     SUBCASE("empty fit slice") {
         VroomCandle candles[1] = {ohlc(0, 1.0, 2.0)};
         auto r = vroom::snap_to_fit_slot(l, candles, 1, IndexRange{0, 0}, kDur,

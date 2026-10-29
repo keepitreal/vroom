@@ -388,6 +388,7 @@ typedef struct VroomCrosshairStyle {
     float   dim_opacity;    // simple: opacity of the dimmed region; < 0 => 0.35
     uint32_t badge_color;   // 0xAARRGGBB badge fill; 0 inherits VROOM_COLOR_CROSSHAIR_TARGET
     uint32_t badge_text;    // 0xAARRGGBB badge text; 0 inherits VROOM_COLOR_BADGE_TEXT
+    int32_t snap_to_data;   // 1 = never snap past the last candle into an empty slot
 } VroomCrosshairStyle;
 
 // Replaces the crosshair style. A null style restores the zero-initialized

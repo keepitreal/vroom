@@ -501,6 +501,7 @@ export function resolveCrosshair(
       dimOpacity: cfg.simple?.dimOpacity ?? -1,
       badgeColor: (cfg.badgeColor != null ? parseColor(cfg.badgeColor) : null) ?? 0,
       badgeText: (cfg.badgeTextColor != null ? parseColor(cfg.badgeTextColor) : null) ?? 0,
+      snapToData: cfg.snapToData === true,
     },
     offset: cfg.offset ?? legacyOffset ?? 40,
     button: mode === 'advanced' ? cfg.button ?? legacyButton : undefined,
