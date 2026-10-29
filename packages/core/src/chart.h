@@ -21,6 +21,7 @@
                                      // sk_sp<SkPicture> field's destructor
                                      // is callable wherever VroomChart is.
 #include "include/core/SkRefCnt.h"
+#include "include/core/SkDrawable.h"
 #include "include/core/SkTypeface.h"
 #pragma clang diagnostic pop
 
@@ -497,6 +498,9 @@ struct VroomChart {
 
     // --- picture cache ------------------------------------------------------
     sk_sp<SkPicture> chart_picture;
+    // A recorded scene keeps the pulse's slot between masks and labels.
+    sk_sp<SkDrawable> chart_scene;
+    sk_sp<SkDrawable> tip_drawable;
     bool chart_dirty = true;
 
     // Typefaces set by the RN bridge. Null text falls back to the axis
@@ -659,7 +663,7 @@ struct VroomChart {
     // the per-frame animation clock (see begin_frame) so every host gets it —
     // the web build draws straight through vroom_chart_draw rather than the
     // SkPicture cache below.
-    void draw_chart(SkCanvas* canvas);
+    void draw_chart(SkCanvas* canvas, bool cache_pulse = false);
 
     // Per-frame animation bookkeeping: computes `last_dt_seconds`, which paces
     // the label fades, and advances `tip_pulse_elapsed_s`. Called at the top of
@@ -724,5 +728,6 @@ struct VroomChart {
     // True if any axis label is mid-fade, the tip pulse is running, or the
     // loading skeleton is waving. Used by the JS-side animation loop to know
     // when to keep ticking.
+    bool scene_is_animating() const;
     bool is_animating_now() const;
 };

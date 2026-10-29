@@ -696,7 +696,7 @@ void VroomChart::capture_morph_lines(const vroom::Layout& lay,
     }
 }
 
-void VroomChart::draw_chart(SkCanvas* canvas) {
+void VroomChart::draw_chart(SkCanvas* canvas, bool cache_pulse) {
     begin_frame();
     // Fit the strip to the labels this frame will draw before layout reads the
     // width. The price scale does not depend on the strip, so this cannot
@@ -1043,7 +1043,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
-            tip_from_n, tip_morph_t);
+            tip_from_n, tip_morph_t, cache_pulse ? &tip_drawable : nullptr);
     }
     if (right_fade) {
         // Shrinks onto the plot edge with the axis, so hiding it doesn't pop.
@@ -1490,15 +1490,23 @@ bool VroomChart::tip_pulse_active() const {
 void VroomChart::rebuild_chart_picture() {
     SkPictureRecorder recorder;
     SkCanvas* canvas = recorder.beginRecording(SkRect::MakeWH(width_px, height_px));
-    draw_chart(canvas);
-    chart_picture = recorder.finishRecordingAsPicture();
+    tip_drawable.reset();
+    chart_scene.reset();
+    draw_chart(canvas, true);
+    if (tip_drawable) {
+        chart_scene = recorder.finishRecordingAsDrawable();
+        chart_picture = chart_scene->makePictureSnapshot();
+    } else {
+        chart_picture = recorder.finishRecordingAsPicture();
+    }
     chart_dirty = false;
 }
 
 bool VroomChart::is_animating_now() const {
-    // The pulse never finishes on its own, so this is what keeps the host loops
-    // requeueing frames for it.
-    if (tip_pulse_active()) return true;
+    return tip_pulse_active() || scene_is_animating();
+}
+
+bool VroomChart::scene_is_animating() const {
     // Same deal for the loading line's wave, except a still line (reduced
     // motion, once faded in) has nothing left to redraw and may go idle. The
     // hand-off's reveal runs on the core's clock too.
@@ -1521,8 +1529,15 @@ namespace vroom {
 
 sk_sp<SkPicture> render_chart_picture(VroomChart* chart) {
     if (!chart) return nullptr;
-    if (chart->chart_dirty || !chart->chart_picture || chart->is_animating_now()) {
+    if (chart->chart_dirty || !chart->chart_picture || chart->scene_is_animating() ||
+        (chart->tip_pulse_active() && !chart->chart_scene)) {
         chart->rebuild_chart_picture();
+    } else if (chart->tip_pulse_active()) {
+        chart->begin_frame();
+        ma_overlay::set_tip_pulse_phase(chart->tip_drawable.get(),
+            chart->tip_pulse_elapsed_s / tip_pulse::kPeriodSeconds);
+        chart->chart_scene->notifyDrawingChanged();
+        chart->chart_picture = chart->chart_scene->makePictureSnapshot();
     }
     return chart->chart_picture;
 }
