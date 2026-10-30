@@ -164,4 +164,25 @@ describe('isValidDrawing (controlled drawings prop guard)', () => {
     expect(isValidDrawing(null)).toBe(false);
     expect(isValidDrawing('line')).toBe(false);
   });
+
+  it('accepts a string label and primitive-valued meta', () => {
+    expect(
+      isValidDrawing({ ...line, label: 'Resistance', meta: { source: 'agent', score: 3, auto: true } }),
+    ).toBe(true);
+  });
+
+  it('rejects a non-string label or non-primitive meta', () => {
+    expect(isValidDrawing({ ...line, label: 42 })).toBe(false);
+    expect(isValidDrawing({ ...line, meta: 'agent' })).toBe(false);
+    expect(isValidDrawing({ ...line, meta: ['agent'] })).toBe(false);
+    expect(isValidDrawing({ ...line, meta: { nested: { a: 1 } } })).toBe(false);
+    expect(isValidDrawing({ ...line, meta: { n: NaN } })).toBe(false);
+  });
+});
+
+describe('label and meta', () => {
+  it('round-trip through the envelope', () => {
+    const tagged: Drawing = { ...box, label: 'Demand zone', meta: { source: 'agent' } };
+    expect(deserializeDrawings(serializeDrawings([tagged]))).toEqual([tagged]);
+  });
 });
