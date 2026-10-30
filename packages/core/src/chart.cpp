@@ -331,15 +331,19 @@ void VroomChart::ensure_footprint_buckets() {
     footprint_buckets_dirty = false;
 }
 
+float VroomChart::series_clip_right(const vroom::Layout& lay) const {
+    const bool right_fade =
+        theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
+    return right_fade ? lay.width_px : vroom::plot_right(lay);
+}
+
 vroom::IndexRange VroomChart::draw_range() const {
     // The series runs on past the window into the gutter a hiding y-axis frees
     // up, or under the axis with Y_AXIS_FADE.
     int64_t end_ms = visible_end_ms;
     const auto lay = layout();
     const float area_w = vroom::candle_area_width(lay);
-    const bool right_fade =
-        theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
-    const float past = (right_fade ? lay.width_px : vroom::plot_right(lay)) - area_w;
+    const float past = series_clip_right(lay) - area_w;
     if (past > 0.f && area_w > 0.f) {
         end_ms += static_cast<int64_t>(
             static_cast<double>(visible_end_ms - visible_start_ms) * past / area_w);
@@ -748,7 +752,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const bool right_fade =
         theme.floats[VROOM_FLOAT_Y_AXIS_FADE] > 0.5f && lay.y_axis_opacity > 0.f;
     // Where the line series' clip stops; candles and volume have none.
-    const float series_right = right_fade ? width_px : plot_right;
+    const float series_right = series_clip_right(lay);
 
     // 3. Update label fade state ONCE per frame — both gridlines and labels
     //    share these opacities so their animations stay in lockstep.
@@ -987,6 +991,14 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,
                                   candle_area_h);
 
+            // 5.75. Footprint badges, over the candles and overlays they ride
+            //       on. Here rather than with the price lines so the axis masks
+            //       (6) and an incoming fade cover them exactly as they do the
+            //       series. No snapshot of the old buckets, so a fade's outgoing
+            //       half has none to draw.
+            ensure_footprint_buckets();
+            vroom::footprints::draw(canvas, *this, lay, bounds, window_ms);
+
             // 5.8. Line-mode tip marker. The saveLayer this branch may be
             //      wrapped in doesn't reach step 6.5, so fold its alpha in.
             if (fade > 0.f) {
@@ -1128,13 +1140,6 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         //       stays readable.
         vroom::price_lines::draw(canvas, *this, lay, bounds, candle_right,
                                    candle_area_h);
-
-        // 7.56. Footprint badges — data-anchored chrome that must not be hidden
-        //       by candles or overlays, so it draws with the price lines rather
-        //       than back at the drawings layer. Below the crosshair, which the
-        //       user is actively pointing with.
-        ensure_footprint_buckets();
-        vroom::footprints::draw(canvas, *this, lay, bounds, window_ms);
     }
 
     // 7.6. Indicator panes stacked below the candles, ordered by enable
