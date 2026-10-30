@@ -306,8 +306,10 @@ void draw_simple(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
 
     const float text_w = font.measureText(buf, std::strlen(buf), SkTextEncoding::kUTF8);
     const float half_w = (text_w + 2.f * kSimplePadH) * 0.5f;
-    const float badge_cx =
-        std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
+    // Flush with either edge of the plot. plot_right, not candle_right: a hidden
+    // y-axis hands its gutter back, and the badge can follow the line into it.
+    const float right = vroom::plot_right(lay);
+    const float badge_cx = std::clamp(cx, half_w, std::max(half_w, right - half_w));
     draw_badge(canvas, font, buf, badge_cx, g.badge_top + badge_h * 0.5f,
                badge_fill(chart), badge_text(chart), 1.f, kSimplePadH, badge_h,
                badge_h * 0.5f);
@@ -429,13 +431,15 @@ void draw(SkCanvas* canvas,
         format_badge_time(chart, snap_time_ms, buf, sizeof(buf));
 
         const float strip_center_y = vline_bottom + lay.x_axis_height_px * 0.5f;
-        // Keep the badge within the candle area so it never slides under the
-        // y-axis price column.
+        // Keep the badge within plot_right, the y-axis strip's mask edge, so it
+        // never slides under the price column but has the full width once the
+        // axis is hidden.
         const size_t len = std::strlen(buf);
         const float text_w = font.measureText(buf, len, SkTextEncoding::kUTF8);
         const float half_w = (text_w + 2.f * kPadH) * 0.5f;
+        const float right = vroom::plot_right(lay);
         const float badge_cx =
-            std::clamp(cx, half_w, std::max(half_w, candle_right - half_w));
+            std::clamp(cx, half_w, std::max(half_w, right - half_w));
         draw_badge(canvas, font, buf, badge_cx, strip_center_y, fill,
                    text_color, lay.x_axis_opacity);
     }
