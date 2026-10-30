@@ -148,6 +148,10 @@ if(VROOM_WASM)
     # our per-frame work is all inside one draw call, so it doesn't show up).
     # Verify after any toolchain bump: `grep -c 'new Function' vroom_core.mjs`
     # must print 0.
+    # Skia is built without RTTI. Its drawable subclass must match, while the
+    # embind wrapper keeps RTTI enabled for its bindings.
+    set_source_files_properties(src/ma_overlay.cpp PROPERTIES
+        COMPILE_OPTIONS "-fno-rtti")
     target_link_options(vroom_web PRIVATE
         "-O3"
         "-lembind"

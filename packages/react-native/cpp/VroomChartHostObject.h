@@ -21,6 +21,8 @@ struct VroomChart;
 
 namespace vroom {
 
+struct RasterFrameCache;
+
 class ChartHostObject : public facebook::jsi::HostObject {
  public:
   ChartHostObject();
@@ -42,12 +44,16 @@ class ChartHostObject : public facebook::jsi::HostObject {
       Fn fn);
 
   facebook::jsi::Value gestureFrame(facebook::jsi::Runtime& runtime);
+  facebook::jsi::Value renderFrame(facebook::jsi::Runtime& runtime);
 
   VroomChart* chart_ = nullptr;
   // Last setFont / setBadgeFont bytes, so repeats skip the rebuild.
   sk_sp<SkData> font_data_;
   sk_sp<SkData> badge_font_data_;
   bool gestureFrames_ = true;
+#if defined(__ANDROID__)
+  std::unique_ptr<RasterFrameCache> raster_cache_;
+#endif
   // VroomChart calls in from both the JS and the UI runtime, and the core
   // isn't thread-safe.
   std::mutex mutex_;
