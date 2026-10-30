@@ -11,11 +11,9 @@
 // Reanimated 4 + RN-Skia 2/3 propagate SharedValue changes to <Picture>/<Image>
 // without a React re-render, so gesture-driven redraws are cheap.
 //
-// On iOS every frame is drawn on the UI thread (see uiFrameLoop.ts), so the
-// core's own animations keep their pace while JS is busy; the JS side only
-// changes the core and asks for a frame. Android still draws on JS: its frames
-// are rasterized through RN-Skia's JS API, which the UI runtime doesn't have.
-// Gestures run on the JS thread for now (`runOnJS: true`).
+// Native frames and basic gestures run on UI (see uiFrameLoop.ts). Android
+// captures RN-Skia's factories into that runtime for its raster handoff.
+// Interactive price-line, footprint and plus-menu gestures keep their JS path.
 
 import React, { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { PixelRatio, Platform, View, type LayoutChangeEvent } from 'react-native';
@@ -42,6 +40,7 @@ import {
 import { runOnJS, runOnUI, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
+import { useUiChartGestures } from './useUiChartGestures';
 import { ease, easingIndex } from './easing';
 import { parseColor } from './theme';
 import { drawUiFrames, LOOP_IDLE, LOOP_STOPPED } from './uiFrameLoop';
@@ -132,7 +131,8 @@ function resolveCrosshair(
   };
 }
 
-const UI_THREAD_FRAMES = Platform.OS === 'ios';
+const RASTER_FRAMES = Platform.OS === 'android';
+const UI_THREAD_FRAMES = Platform.OS === 'ios' || RASTER_FRAMES;
 
 function isSkImage(frame: ChartFrame): frame is SkImage {
   return typeof (frame as SkImage).getImageInfo === 'function';
@@ -271,7 +271,7 @@ export function VroomChart(props: VroomChartProps) {
   const pictureSV = useSharedValue<SkPicture>(emptyPicture);
   const imageSV = useSharedValue<SkImage>(emptyImage);
   const uiLoopState = useSharedValue(LOOP_IDLE);
-  // Set once the chart exists, on iOS (see the header).
+  // Set once the native chart exists.
   const requestUiFrames = useRef<(() => void) | null>(null);
 
   // Crosshair plus button. Open = the crosshair is pinned and the host's menu
@@ -389,20 +389,34 @@ export function VroomChart(props: VroomChartProps) {
     loading,
   );
 
-  const uiFrames = useMemo(() => {
+  const drawFrameOnUI = useMemo(() => {
     if (!handle || !UI_THREAD_FRAMES) return null;
     // The worklet captures `handle` by reference: both runtimes reach the same
     // core, which serializes their calls (see VroomChartHostObject.h).
     const present = (frame: ChartFrame) => {
       'worklet';
-      pictureSV.value = frame as SkPicture;
+      if (RASTER_FRAMES && typeof (frame as SkImage).getImageInfo === 'function') {
+        imageSV.value = frame as SkImage;
+        pictureSV.value = emptyPicture;
+      } else {
+        pictureSV.value = frame as SkPicture;
+        if (RASTER_FRAMES) imageSV.value = emptyImage;
+      }
       if (plusOpenSV.value) runOnJS(reanchorPlus)();
     };
-    return runOnUI(() => {
+    // Skia v3's serializer reattaches its factory prototypes on UI; v2 uses
+    // shareable HostObjects. Never move raw runtime-bound JS values in C++.
+    const skiaApi = Skia;
+    return () => {
       'worklet';
+      if (RASTER_FRAMES) globalThis.SkiaApi = skiaApi;
       drawUiFrames(handle, uiLoopState, present);
-    });
-  }, [handle, pictureSV, plusOpenSV, uiLoopState, reanchorPlus]);
+    };
+  }, [handle, emptyImage, emptyPicture, imageSV, pictureSV, plusOpenSV, uiLoopState, reanchorPlus]);
+  const uiFrames = useMemo(
+    () => drawFrameOnUI ? runOnUI(drawFrameOnUI) : null,
+    [drawFrameOnUI],
+  );
   requestUiFrames.current = uiFrames;
   useEffect(() => handle?.setGestureFrames(!uiFrames), [handle, uiFrames]);
   useEffect(
@@ -470,14 +484,10 @@ export function VroomChart(props: VroomChartProps) {
     closePlusRef.current();
   }, [seriesKey]);
 
-  // When the crosshair is showing, pan moves it (instead of scrolling) and
-  // pinch is disabled. A ref (not state) so gesture callbacks read it
-  // synchronously without re-subscribing. Tap dismisses it.
-  const crosshairActive = useRef(false);
+  // Both gesture paths share crosshair state; UI never waits for a JS callback.
+  const crosshairActive = useSharedValue(false);
 
-  // Whether a footprint badge is currently open, so a tap that misses every badge
-  // knows whether it has a tooltip to dismiss. A ref for the same reason as
-  // crosshairActive: gesture callbacks read it synchronously.
+  // Footprint tooltips belong to the JS-only interactive-overlay path.
   const footprintActive = useRef(false);
 
   // The slot, price and indicator value last reported through onCrosshair, so
@@ -486,33 +496,35 @@ export function VroomChart(props: VroomChartProps) {
   const lastCrosshairKey = useRef<string | null>(null);
 
   useEffect(() => {
-    if (crosshairMode !== 'none' || !handle || !crosshairActive.current) return;
+    if (crosshairMode !== 'none' || !handle || !crosshairActive.value) return;
     closePlusRef.current(false);
-    crosshairActive.current = false;
+    crosshairActive.value = false;
     const ch = handle.clearCrosshair();
     applyFrame(ch);
     lastCrosshairKey.current = null;
     onCrosshair?.(crosshairEvent(null, 'hide'));
-  }, [crosshairMode, handle, applyFrame, onCrosshair]);
+  }, [crosshairMode, handle, applyFrame, onCrosshair, crosshairActive]);
 
   // Momentum scroll. After Pan ends with non-trivial velocity, we run a RAF
   // loop that calls handle.pan(dx, 0) each frame with an exponentially
   // decaying velocity. A new pan (or unmount) cancels the loop.
+  const uiDecayEpoch = useSharedValue(0);
   const decayRaf = useRef<number | null>(null);
   const cancelDecay = useCallback(() => {
+    uiDecayEpoch.value++;
     if (decayRaf.current != null) {
       cancelAnimationFrame(decayRaf.current);
       decayRaf.current = null;
     }
-  }, []);
+  }, [uiDecayEpoch]);
   useEffect(() => cancelDecay, [cancelDecay]);
 
   // Axis-label fade animation loop. When a gesture changes which labels are
   // active, the C++ side starts ramping their opacities. We keep calling
   // render() on every frame until handle.isAnimating() returns false. The
   // loop is started by gesture callbacks (and the momentum tick) after they
-  // update the picture, and self-stops when fades settle. Android only: on iOS
-  // the UI thread runs it (uiFrameLoop.ts).
+  // update the picture, and self-stops when fades settle. Native platforms use
+  // uiFrameLoop.ts; this RAF remains the fallback for a JS frame driver.
   const animRaf = useRef<number | null>(null);
   const animTick = useCallback(() => {
     animRaf.current = null;
@@ -907,7 +919,7 @@ export function VroomChart(props: VroomChartProps) {
       // preview at the committed price puts the label in drag styling before the
       // first move, so the grab registers immediately.
       priceDrag.current = null;
-      if (handle && panMode.current === 'chart' && !crosshairActive.current) {
+      if (handle && panMode.current === 'chart' && !crosshairActive.value) {
         const pl = hitPriceLine(e.x, e.y);
         if (pl && pl.part === 0) {
           panMode.current = 'price-line';
@@ -929,7 +941,7 @@ export function VroomChart(props: VroomChartProps) {
         next = handle.scalePriceAxis(e.changeY);
       } else if (panMode.current === 'time-axis') {
         next = handle.scaleTimeAxis(e.changeX);
-      } else if (panMode.current === 'indicator' && !crosshairActive.current) {
+      } else if (panMode.current === 'indicator' && !crosshairActive.value) {
         // Drag in an indicator pane scrolls the candles horizontally only —
         // no vertical price slide (the pane's scale is fixed).
         next = handle.pan(e.changeX, 0);
@@ -943,7 +955,7 @@ export function VroomChart(props: VroomChartProps) {
         handle.setPriceLineDrag(g.index, c.price);
         onPriceLineDrag?.(g.id, c.price);
         next = handle.render();
-      } else if (crosshairActive.current) {
+      } else if (crosshairActive.value) {
         // Chart area or an indicator pane + crosshair up → the drag moves the
         // crosshair instead of scrolling. Vertical line tracks the finger x; the
         // dot/horizontal line stay lifted `crosshairOffset` px above the
@@ -986,7 +998,7 @@ export function VroomChart(props: VroomChartProps) {
       }
       // A chart-area drag with the crosshair up just moved the crosshair —
       // nothing about the viewport changed, and no momentum.
-      if (panMode.current === 'chart' && crosshairActive.current) return;
+      if (panMode.current === 'chart' && crosshairActive.value) return;
       onViewportChange?.(0, 0);
 
       // Axis drags don't get momentum — they're a precise size adjustment.
@@ -1064,7 +1076,7 @@ export function VroomChart(props: VroomChartProps) {
       };
     },
     onTouchesMove: (e) => {
-      if (!handle || crosshairActive.current) return;
+      if (!handle || crosshairActive.value) return;
       if (e.numberOfTouches < 2) return;
       const [a, b] = e.allTouches;
       const start = pinchStart.current;
@@ -1123,7 +1135,7 @@ export function VroomChart(props: VroomChartProps) {
       // No redraw: setCrosshair below returns a frame that already has the badge
       // un-highlighted.
       dismissFootprint(false);
-      crosshairActive.current = true;
+      crosshairActive.value = true;
       const ch = handle.setCrosshair(e.x, e.y - crosshairOffset);
       applyFrame(ch);
       const ev = crosshairEvent(handle.getCrosshairInfo(), 'show');
@@ -1143,7 +1155,7 @@ export function VroomChart(props: VroomChartProps) {
 
       // The plus button sits on the crosshair, above everything else: a tap on
       // it toggles the host's menu. Any other tap while it's open just closes it.
-      if (crosshairActive.current && handle.hitTestCrosshairButton(e.x, e.y)) {
+      if (crosshairActive.value && handle.hitTestCrosshairButton(e.x, e.y)) {
         if (plusOpen.current) closePlusRef.current();
         else openPlus();
         return;
@@ -1190,11 +1202,11 @@ export function VroomChart(props: VroomChartProps) {
         onPriceLineClose?.(pl.line.id);
         return;
       }
-      if (!crosshairActive.current) return;
+      if (!crosshairActive.value) return;
       // A tap on an axis strip controls the axis, never dismisses the crosshair.
       const tapRegion = hitAxis(e.x, e.y);
       if (tapRegion !== 'chart' && tapRegion !== 'indicator') return;
-      crosshairActive.current = false;
+      crosshairActive.value = false;
       const ch = handle.clearCrosshair();
       applyFrame(ch);
       lastCrosshairKey.current = null;
@@ -1202,7 +1214,32 @@ export function VroomChart(props: VroomChartProps) {
     },
   });
 
-  const gesture = useSimultaneousGestures(pan, pinch, longPress, tap);
+  const uiGestureEligible = drawFrameOnUI != null &&
+    !priceLines?.length && !footprints?.length && !crosshairButton?.enabled;
+  const notifyUiCrosshair = useCallback((
+    info: ReturnType<ChartHandle['getCrosshairInfo']>,
+    reason: 'show' | 'move' | 'hide',
+  ) => {
+    const event = crosshairEvent(info, reason);
+    lastCrosshairKey.current = reason === 'hide' ? null :
+      `${event.timeMs}|${event.price}|${event.indicator?.value ?? ''}`;
+    onCrosshair?.(event);
+  }, [onCrosshair]);
+  const notifyUiViewport = useCallback(() => onViewportChange?.(0, 0), [onViewportChange]);
+  const uiGestures = useUiChartGestures({
+    enabled: uiGestureEligible && !showLoadingLine,
+    handle, draw: drawFrameOnUI, width, height, autoscaleY: autoscaleY === true,
+    crosshairEnabled: crosshairMode !== 'none', crosshairOffset,
+    crosshairActive, epoch: uiDecayEpoch,
+    notifyCrosshair: notifyUiCrosshair, notifyViewport: notifyUiViewport,
+  });
+  useEffect(() => { cancelDecay(); }, [handle, uiGestureEligible, cancelDecay]);
+  const gesture = useSimultaneousGestures(
+    uiGestureEligible ? uiGestures.pan : pan,
+    uiGestureEligible ? uiGestures.pinch : pinch,
+    uiGestureEligible ? uiGestures.longPress : longPress,
+    uiGestureEligible ? uiGestures.tap : tap,
+  );
 
   return (
     <GestureHandlerRootView
