@@ -1156,9 +1156,12 @@ export function VroomChart(props: VroomChartProps) {
       // Badges get first refusal: one is a ~9px circle, while a price line's grab
       // band spans the pane and would otherwise swallow any badge it crosses.
       // Touch has no hover, so a tap is what opens a footprint here, and the next
-      // tap anywhere closes it.
+      // tap anywhere closes it. Without an onFootprint there is nothing to open,
+      // so badges aren't tap targets and the tap falls through as if they weren't
+      // there.
       const prints = footprints ?? [];
-      const fp = prints.length ? handle.hitTestFootprint(e.x, e.y) : null;
+      const fp =
+        onFootprint && prints.length ? handle.hitTestFootprint(e.x, e.y) : null;
       if (fp) {
         handle.setFootprintHover(fp.candleTimeMs, fp.side);
         const frame = handle.render();
