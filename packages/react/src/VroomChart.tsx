@@ -72,17 +72,17 @@ export function VroomChart(props: VroomChartProps) {
   // Managed-mode history surface: availability changes out via onHistoryChange,
   // programmatic controls in via historyRef. Controlled mode owns its own
   // history (see useDrawingHistory), so both are managed-only.
-  const { historyState, undo, redo, clearHistory, restyle } = managed;
+  const { historyState, undo, redo, clearHistory, restyle, add, update, remove, list } = managed;
   useEffect(() => {
     if (stored) onHistoryChange?.(historyState);
   }, [stored, historyState, onHistoryChange]);
   useEffect(() => {
     if (!historyRef || !stored) return;
-    historyRef.current = { undo, redo, clearHistory, restyle };
+    historyRef.current = { undo, redo, clearHistory, restyle, add, update, remove, list };
     return () => {
       historyRef.current = null;
     };
-  }, [historyRef, stored, undo, redo, clearHistory, restyle]);
+  }, [historyRef, stored, undo, redo, clearHistory, restyle, add, update, remove, list]);
 
   const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef } =
     useChartCore(

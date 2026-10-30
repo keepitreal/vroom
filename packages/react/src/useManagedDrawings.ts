@@ -15,7 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Drawing, DrawingStore, DrawingStyle, UndoRedoState } from '@vroomchart/types';
 
-import { serializeDrawings, deserializeDrawings } from './drawingStorage';
+import { serializeDrawings, deserializeDrawings, isValidDrawing } from './drawingStorage';
 import { DrawingHistory, DEFAULT_HISTORY_LIMIT } from './drawingHistory';
 
 const SAVE_DEBOUNCE_MS = 400;
@@ -26,6 +26,10 @@ export type ManagedDrawings = {
   onDrawingChange: (d: Drawing) => void;
   onDrawingDelete: (id: string) => void;
   restyle: (id: string, patch: DrawingStyle) => void;
+  add: (d: Drawing) => boolean;
+  update: (d: Drawing) => boolean;
+  remove: (id: string) => boolean;
+  list: () => Drawing[];
   undo: () => void;
   redo: () => void;
   clearHistory: () => void;
@@ -240,6 +244,36 @@ export function useManagedDrawings(
     [scheduleSave],
   );
 
+  // Programmatic edits (AI agents, host UI). Validated up front because the
+  // input didn't come from a gesture, then routed through the same handlers so
+  // undo and persistence behave exactly as they do for the user's own edits.
+  const add = useCallback(
+    (d: Drawing) => {
+      if (!isValidDrawing(d) || typeof d.id !== 'string' || d.id === '') return false;
+      if (drawingsRef.current.some((x) => x.id === d.id)) return false;
+      onDrawingComplete(d);
+      return true;
+    },
+    [onDrawingComplete],
+  );
+  const update = useCallback(
+    (d: Drawing) => {
+      if (!isValidDrawing(d) || !drawingsRef.current.some((x) => x.id === d.id)) return false;
+      onDrawingChange(d);
+      return true;
+    },
+    [onDrawingChange],
+  );
+  const remove = useCallback(
+    (id: string) => {
+      if (!drawingsRef.current.some((x) => x.id === id)) return false;
+      onDrawingDelete(id);
+      return true;
+    },
+    [onDrawingDelete],
+  );
+  const list = useCallback(() => drawingsRef.current, []);
+
   const undo = useCallback(() => {
     const next = historyRef.current!.undo(drawingsRef.current);
     syncHistoryState();
@@ -265,6 +299,10 @@ export function useManagedDrawings(
     onDrawingChange,
     onDrawingDelete,
     restyle,
+    add,
+    update,
+    remove,
+    list,
     undo,
     redo,
     clearHistory,

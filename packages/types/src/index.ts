@@ -364,6 +364,19 @@ type DrawingBase = {
    * dragged, reshaped or deleted, and its grab handles aren't drawn. Web only.
    */
   locked?: boolean;
+  /**
+   * Human-readable name, e.g. `'Resistance 64.2k'`. Not drawn on the chart —
+   * it's for drawing lists, tooltips, and AI agents referring to the drawing.
+   * Kept through user edits and persisted with the drawing.
+   */
+  label?: string;
+  /**
+   * Free-form host metadata, kept through user edits and persisted with the
+   * drawing. Use it to tag provenance (`{ source: 'agent' }`) so drawings made
+   * by an AI agent can be found, styled, or removed as a group. Values must be
+   * JSON primitives.
+   */
+  meta?: Record<string, string | number | boolean>;
 };
 
 /** A two-point trendline from `points[0]` to `points[1]`. */
@@ -549,6 +562,24 @@ export type DrawingControls = {
    * other edit.
    */
   restyle: (id: string, patch: DrawingStyle) => void;
+  /**
+   * Append a drawing, as if the user had just drawn it. Returns false (and
+   * changes nothing) when the drawing is malformed or its `id` is already taken.
+   *
+   * Like every method below, the edit records one undo step and persists like a
+   * gesture would — so a user can undo a drawing an AI agent placed. `locked`
+   * guards against user gestures only; these methods ignore it.
+   */
+  add: (drawing: Drawing) => boolean;
+  /**
+   * Replace the drawing that has the same `id` — geometry, style, and all.
+   * Returns false for an unknown id or a malformed drawing.
+   */
+  update: (drawing: Drawing) => boolean;
+  /** Delete the drawing with this `id`. Returns false for an unknown id. */
+  remove: (id: string) => boolean;
+  /** The drawings currently on the chart, in render order. */
+  list: () => Drawing[];
 };
 
 /**
@@ -648,6 +679,11 @@ export type RSIConfig = {
  * these via `movingAverages` to render a ribbon of SMA/EMA lines.
  */
 export type MovingAverageOverlay = {
+  /**
+   * Optional stable id, so a host or AI agent can update or remove one line in
+   * the ribbon without matching on its settings. Not used by the renderer.
+   */
+  id?: string;
   /** Averaging for this line ({@link MAKind}). */
   maType: MAKind;
   /** Lookback in candles. */
@@ -1755,5 +1791,12 @@ export type VroomChartCoreProps = {
    */
   onRedo?: () => void;
   onCrosshair?: (e: CrosshairEvent) => void;
+  /**
+   * The visible time window (Unix epoch ms) after the user pans or zooms. Fires
+   * once the gesture settles — on release, or after a short pause in wheel
+   * input — and only when the window actually changed, so it's cheap to feed
+   * straight back into a controlled `visibleRange`. On React Native it is
+   * currently a change ping that reports `(0, 0)`.
+   */
   onViewportChange?: (startMs: number, endMs: number) => void;
 };

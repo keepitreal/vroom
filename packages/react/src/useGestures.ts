@@ -115,6 +115,7 @@ const AXIS_RATIO = 0.5; // an axis scales only if its span ≥ this × the other
 const LONG_PRESS_MS = 350;
 const MOVE_THRESH = 6; // px before a press becomes a drag
 const WHEEL_K = 0.0015; // wheel delta → zoom factor exponent
+const WHEEL_SETTLE_MS = 150; // quiet period after wheel input before onViewportChange
 const SEP_HIT = 4; // px band around the indicator separator for hit-testing
 
 // Freehand capture tuning. PENCIL_MIN_DIST drops samples the pointer barely
@@ -160,6 +161,8 @@ function makeDrawing(
     width?: number;
     fill?: BoxDrawing['fill'];
     locked?: boolean;
+    label?: string;
+    meta?: Drawing['meta'];
   },
   type: Drawing['type'],
   pts: DrawPoint[],
@@ -169,6 +172,8 @@ function makeDrawing(
     ...(base.color != null ? { color: base.color } : {}),
     ...(base.width != null ? { width: base.width } : {}),
     ...(base.locked != null ? { locked: base.locked } : {}),
+    ...(base.label != null ? { label: base.label } : {}),
+    ...(base.meta != null ? { meta: base.meta } : {}),
   };
   if (type === 'pencil' || type === 'path') {
     return { id: base.id, type, points: pts, ...style };
@@ -195,6 +200,8 @@ function styleOf(d: Drawing): Parameters<typeof makeDrawing>[0] {
     color: d.color,
     width: d.width,
     locked: d.locked,
+    label: d.label,
+    meta: d.meta,
     ...(d.type === 'box' ? { fill: d.fill } : {}),
   };
 }
@@ -909,6 +916,24 @@ export function useGestures(
     let plusHover = false;
     let plusPress = false;
     let pointerInside = false;
+    // The window when the current gesture began. onViewportChange fires when the
+    // gesture settles (pointer release, or a pause in wheel input) and only if
+    // the window ended up somewhere else.
+    let gestureViewport: { startMs: number; endMs: number } | null = null;
+    let wheelSettleTimer: ReturnType<typeof setTimeout> | null = null;
+    const markViewport = () => {
+      gestureViewport = handleRef.current?.getVisibleRange() ?? null;
+    };
+    const reportViewport = () => {
+      const from = gestureViewport;
+      gestureViewport = null;
+      const h = handleRef.current;
+      const cb = optsRef.current.onViewportChange;
+      if (!h || !cb || !from) return;
+      const { startMs, endMs } = h.getVisibleRange();
+      if (startMs === from.startMs && endMs === from.endMs) return;
+      cb(startMs, endMs);
+    };
 
     const rel = (e: PointerEvent | WheelEvent) => {
       const r = el.getBoundingClientRect();
@@ -1350,6 +1375,7 @@ export function useGestures(
       lastY = y;
       el.setPointerCapture(e.pointerId);
       pointers.set(e.pointerId, { x, y });
+      if (pointers.size === 1) markViewport();
 
       // The plus button can overhang the price-axis strip, so it's tested
       // before the region decides what this press is.
@@ -1873,8 +1899,8 @@ export function useGestures(
       // Press crosshair is active only while held — release dismisses it.
       if (crosshairSource === 'press' && pointers.size === 0) {
         hideCrosshair();
-      } else if (moved && (panMode === 'chart' || panMode === 'indicator')) {
-        optsRef.current.onViewportChange?.(0, 0);
+      } else if (pointers.size === 0) {
+        reportViewport();
       }
       if (pointers.size === 0) el.style.cursor = '';
     };
@@ -1916,6 +1942,7 @@ export function useGestures(
       // nothing else would re-evaluate the hover.
       setFootprintHover(null);
       closePlusNow();
+      if (wheelSettleTimer == null) markViewport();
       const { x, y } = rel(e);
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.
@@ -1933,6 +1960,11 @@ export function useGestures(
         h.zoom(f, 1, x, y);
       }
       scheduleRender();
+      if (wheelSettleTimer != null) clearTimeout(wheelSettleTimer);
+      wheelSettleTimer = setTimeout(() => {
+        wheelSettleTimer = null;
+        reportViewport();
+      }, WHEEL_SETTLE_MS);
     };
 
     // Shift press/release re-applies the 45° constraint live at the last cursor
@@ -1967,6 +1999,7 @@ export function useGestures(
       plusCloseImplRef.current = null;
       hideCrosshairImplRef.current = null;
       clearLongPress();
+      if (wheelSettleTimer != null) clearTimeout(wheelSettleTimer);
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', endPointer);

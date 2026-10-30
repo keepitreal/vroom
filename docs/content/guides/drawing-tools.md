@@ -228,6 +228,29 @@ function Chart({ candles, asset, drawingStore }) {
 }
 ```
 
+`historyRef` also edits the drawings themselves: `add(drawing)`,
+`update(drawing)`, `remove(id)` and `list()`. They're how code outside the
+chart, such as an AI agent, places drawings in managed mode. Each edit is one
+undo step and persists like a gesture, so the user can undo anything the agent
+drew. `add` and `update` return `false` for a malformed drawing (or a taken or
+unknown `id`) instead of throwing. Tag the drawing with `meta` so you can find
+your own drawings later:
+
+```tsx
+historyRef.current?.add({
+  id: crypto.randomUUID(),
+  type: "box",
+  points: [
+    { timeMs: zoneStartMs, price: 64_200 },
+    { timeMs: zoneEndMs, price: 63_900 },
+  ],
+  label: "Support",
+  meta: { source: "agent" },
+});
+```
+
+`label` and `meta` aren't drawn. They survive user edits and persistence.
+
 ### Controlled mode
 
 When you own the array, own the history too — `useDrawingHistory` bundles both.

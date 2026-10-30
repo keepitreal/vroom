@@ -49,7 +49,12 @@ function isPoint(p: unknown): boolean {
  */
 export function isValidDrawing(d: unknown): d is Drawing {
   if (d == null || typeof d !== 'object') return false;
-  const { type, points } = d as { type?: unknown; points?: unknown };
+  const { type, points, label, meta } = d as {
+    type?: unknown;
+    points?: unknown;
+    label?: unknown;
+    meta?: unknown;
+  };
   if (typeof type !== 'string' || !KNOWN_TYPES.has(type as Drawing['type'])) {
     return false;
   }
@@ -57,7 +62,16 @@ export function isValidDrawing(d: unknown): d is Drawing {
   if (FIXED_POINT_TYPES.has(type) ? points.length !== 2 : points.length < 2) {
     return false;
   }
+  if (label !== undefined && typeof label !== 'string') return false;
+  if (meta !== undefined && !isMeta(meta)) return false;
   return points.every(isPoint);
+}
+
+function isMeta(m: unknown): boolean {
+  if (m == null || typeof m !== 'object' || Array.isArray(m)) return false;
+  return Object.values(m).every(
+    (v) => typeof v === 'string' || typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v)),
+  );
 }
 
 type Envelope = { v: number; drawings: Drawing[] };
