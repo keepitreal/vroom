@@ -1,5 +1,22 @@
 # @vroomchart/react
 
+## 0.26.0
+
+### Minor Changes
+
+- f486416: Groundwork for driving the chart from code and AI agents (web):
+
+  - `onViewportChange` now reports the real visible window (epoch ms) once a pan, zoom, or wheel gesture settles, and only when the window changed. Previously it always sent `(0, 0)`.
+  - `historyRef` (managed drawings) gains `add`, `update`, `remove`, and `list`. Each edit is one undo step and persists like a gesture.
+  - Drawings accept optional `label` and `meta` fields. Neither is drawn; both survive user edits and persistence.
+  - `MovingAverageOverlay` accepts an optional `id`.
+
+### Patch Changes
+
+- 9fc0436: New package `@vroomchart/agent` for driving a chart from AI agents: JSON Schema tool definitions (OpenAI, Anthropic, MCP), a validating `applyAction` reducer over a JSON `ChartState`, `describeChart` and `findSwingLevels` for market context, and a `useAgentChart` React hook (`@vroomchart/agent/react`).
+
+  `@vroomchart/react`: the managed-drawing controls on `historyRef` (`add`, `update`, `remove`, `list`) now see their own edits immediately when called several times before a render.
+
 ## 0.25.0
 
 ### Minor Changes
