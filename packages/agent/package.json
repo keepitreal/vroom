@@ -1,0 +1,75 @@
+{
+  "name": "@vroomchart/agent",
+  "version": "0.0.0",
+  "description": "Tool schemas, a validating reducer, and market-context helpers for driving vroom charts from AI agents.",
+  "license": "MIT",
+  "author": "Darion Welch",
+  "homepage": "https://github.com/keepitreal/vroom#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keepitreal/vroom.git",
+    "directory": "packages/agent"
+  },
+  "keywords": [
+    "chart",
+    "candlestick",
+    "ai",
+    "agent",
+    "llm",
+    "tool-calling",
+    "mcp",
+    "trading",
+    "technical-analysis"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "import": "./dist/react.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsup",
+    "prepublishOnly": "tsup"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "~19.2.4",
+    "@vroomchart/types": "workspace:*",
+    "jsdom": "^30.1.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.11"
+  }
+}

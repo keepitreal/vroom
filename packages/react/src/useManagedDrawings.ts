@@ -186,11 +186,9 @@ export function useManagedDrawings(
     (d: Drawing) => {
       historyRef.current!.recordAdd(d);
       syncHistoryState();
-      setDrawings((p) => {
-        const next = [...p, d];
-        drawingsRef.current = next;
-        return next;
-      });
+      // Update the ref now, not in a state updater: programmatic calls (an agent
+      // issuing several in a row) read it back before React renders.
+      setBoth([...drawingsRef.current, d]);
       scheduleSave();
     },
     [scheduleSave],
@@ -202,11 +200,7 @@ export function useManagedDrawings(
         historyRef.current!.recordChange(before, d);
         syncHistoryState();
       }
-      setDrawings((p) => {
-        const next = p.map((x) => (x.id === d.id ? d : x));
-        drawingsRef.current = next;
-        return next;
-      });
+      setBoth(drawingsRef.current.map((x) => (x.id === d.id ? d : x)));
       scheduleSave();
     },
     [scheduleSave],
@@ -218,11 +212,7 @@ export function useManagedDrawings(
         historyRef.current!.recordDelete(drawingsRef.current[index]!, index);
         syncHistoryState();
       }
-      setDrawings((p) => {
-        const next = p.filter((x) => x.id !== id);
-        drawingsRef.current = next;
-        return next;
-      });
+      setBoth(drawingsRef.current.filter((x) => x.id !== id));
       scheduleSave();
     },
     [scheduleSave],

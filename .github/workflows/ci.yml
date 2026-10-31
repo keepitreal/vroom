@@ -36,7 +36,7 @@ jobs:
 
       - run: pnpm -r --filter './packages/*' run typecheck
 
-      - run: pnpm --filter @vroomchart/react --filter react-native-vroom-chart run test
+      - run: pnpm --filter @vroomchart/react --filter react-native-vroom-chart --filter @vroomchart/agent run test
 
       # An absolute path in the emitted podspec bakes the checkout root into the
       # consumer's SPEC CHECKSUMS and breaks their `pod install --deployment`.
