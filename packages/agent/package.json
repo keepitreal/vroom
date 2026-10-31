@@ -1,6 +1,6 @@
 {
   "name": "@vroomchart/agent",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Tool schemas, a validating reducer, and market-context helpers for driving vroom charts from AI agents.",
   "license": "MIT",
   "author": "Darion Welch",
