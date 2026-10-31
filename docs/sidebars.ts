@@ -27,6 +27,11 @@ const sidebars: SidebarsConfig = {
         'guides/drawing-tools',
         'guides/price-lines',
         'guides/footprints',
+        {
+          type: 'category',
+          label: 'AI agents',
+          items: ['guides/ai-agents/overview', 'guides/ai-agents/tools'],
+        },
       ],
     },
     {

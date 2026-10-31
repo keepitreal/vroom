@@ -50,6 +50,23 @@ describe('programmatic drawing controls', () => {
     expect(result.current.drawings).toEqual([line]);
   });
 
+  it('sees its own edits immediately when called back to back in one render', () => {
+    const { result } = setup();
+    const second: Drawing = { ...line, id: 'l2' };
+    const calls: boolean[] = [];
+    let listed: Drawing[] = [];
+    act(() => {
+      calls.push(result.current.add(line));
+      calls.push(result.current.add(line));
+      calls.push(result.current.add(second));
+      calls.push(result.current.remove('l1'));
+      listed = result.current.list();
+    });
+    expect(calls).toEqual([true, false, true, true]);
+    expect(listed).toEqual([second]);
+    expect(result.current.drawings).toEqual([second]);
+  });
+
   it('update replaces by id and undoes back to the original', () => {
     const { result } = setup();
     act(() => void result.current.add(line));
