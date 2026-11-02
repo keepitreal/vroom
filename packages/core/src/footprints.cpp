@@ -43,15 +43,6 @@ SkColor boost(SkColor c, float mul) {
                           up(SkColorGetB(c)));
 }
 
-// One laid-out badge, in pixels.
-struct Badge {
-    float   cx = 0.f;
-    float   cy = 0.f;
-    float   radius = 0.f;
-    int32_t side = -1;
-    int64_t candle_time_ms = 0;
-};
-
 // Walks every badge that could be on screen, in draw order, handing each to `fn`.
 // Both passes go through here: the badge the user sees and the badge they can
 // hover are the same object by construction.
@@ -132,15 +123,11 @@ void draw_glyph(SkCanvas* canvas, const Badge& b, SkColor color) {
     }
 }
 
-}  // namespace
-
-void draw(SkCanvas* canvas,
-          const VroomChart& chart,
-          const Layout& lay,
-          const PriceBounds& bounds,
-          int64_t window_ms) {
-    if (!canvas || chart.footprints.empty()) return;
-
+// Paints every badge `walk` hands to its callback. `hover` is off for a capture,
+// whose badges belong to a scene that is going away.
+template <typename Walk>
+void paint(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
+           bool hover, Walk&& walk) {
     const float pane_bottom = vroom::price_pane_bottom(lay);
     const float pane_right = chart.series_clip_right(lay);
     if (pane_right <= 0.f || pane_bottom <= 0.f) return;
@@ -155,9 +142,8 @@ void draw(SkCanvas* canvas,
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, pane_right, pane_bottom));
 
-    for_each_badge(chart, lay, bounds, window_ms,
-                   [&](const Badge& b, const Metrics& m) {
-        const bool hovered = chart.hovered_footprint_side == b.side &&
+    walk([&](const Badge& b, const Metrics& m) {
+        const bool hovered = hover && chart.hovered_footprint_side == b.side &&
                              chart.hovered_footprint_time_ms == b.candle_time_ms;
         const SkColor base = b.side == VROOM_FOOTPRINT_BUY ? bull : bear;
         const SkColor fill = hovered ? boost(base, m.hover_boost) : base;
@@ -182,6 +168,49 @@ void draw(SkCanvas* canvas,
     });
 
     canvas->restore();
+}
+
+}  // namespace
+
+void draw(SkCanvas* canvas,
+          const VroomChart& chart,
+          const Layout& lay,
+          const PriceBounds& bounds,
+          int64_t window_ms) {
+    if (!canvas || chart.footprints.empty()) return;
+    paint(canvas, chart, lay, true, [&](auto&& fn) {
+        for_each_badge(chart, lay, bounds, window_ms, fn);
+    });
+}
+
+std::vector<Badge> capture(const VroomChart& chart,
+                           const Layout& lay,
+                           const PriceBounds& bounds,
+                           int64_t window_ms) {
+    std::vector<Badge> out;
+    const float area_w = vroom::candle_area_width(lay);
+    if (chart.footprints.empty() || area_w <= 0.f) return out;
+    for_each_badge(chart, lay, bounds, window_ms,
+                   [&](const Badge& b, const Metrics&) {
+        out.push_back(b);
+        out.back().cx /= area_w;
+    });
+    return out;
+}
+
+void draw_captured(SkCanvas* canvas,
+                   const VroomChart& chart,
+                   const Layout& lay,
+                   const std::vector<Badge>& badges) {
+    if (!canvas || badges.empty()) return;
+    const float area_w = vroom::candle_area_width(lay);
+    const Metrics m = metrics_from(&chart.footprint_style);
+    paint(canvas, chart, lay, false, [&](auto&& fn) {
+        for (Badge b : badges) {
+            b.cx *= area_w;
+            fn(b, m);
+        }
+    });
 }
 
 ::VroomFootprintHit hit_test(const VroomChart& chart,

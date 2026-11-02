@@ -81,6 +81,15 @@ Stack layout_stack(const Bucket& bucket, float high_y, float pane_top,
 // kHitTolerance.
 bool hits_badge(float cx, float cy, float radius, float x, float y);
 
+// One laid-out badge, in pixels.
+struct Badge {
+    float   cx = 0.f;
+    float   cy = 0.f;
+    float   radius = 0.f;
+    int32_t side = -1;
+    int64_t candle_time_ms = 0;
+};
+
 // Resolves the style struct's raw fields to the values the layout should use.
 // A null `style`, or any field left at zero, takes the default.
 struct Metrics {

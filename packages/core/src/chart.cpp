@@ -50,6 +50,7 @@
 #include "tip_geometry.h"
 #include "tip_pulse.h"
 #include "volume.h"
+#include "volume_anim.h"
 #include "vwap.h"
 #include "theme.h"
 #include "viewport.h"
@@ -796,6 +797,9 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
     const vroom::CandleSnapshot* morph_src = reshape ? morph_from.data() : nullptr;
     const std::size_t morph_n_draw = reshape ? morph_n : 0;
     const float morph_t = reshape ? interval_morph_t : 1.f;
+    // The outgoing half draws in the look it was captured in (see
+    // morph_from_theme), through the end of the frame. Swapped back at step 8.
+    if (fade_out) std::swap(theme, morph_from_theme);
 
     // Line-mode tip marker, resolved by whichever branch below draws the price
     // series and painted at step 6.5. It is the only plot layer that has to
@@ -887,6 +891,15 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                      true, 0.f);
             }
             if (lines_wrapped) canvas->restore();
+
+            // 5.75's badges as they sat over the old candles, at the same
+            // point in the order so the masks below cover them alike.
+            if (!morph_from_footprints.empty()) {
+                const bool prints_wrapped = push_fade_layer();
+                vroom::footprints::draw_captured(canvas, *this, lay,
+                                                 morph_from_footprints);
+                if (prints_wrapped) canvas->restore();
+            }
         }
     } else {
         // Incoming fade: the new scene at envelope opacity, no slot lerp
@@ -994,8 +1007,7 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             // 5.75. Footprint badges, over the candles and overlays they ride
             //       on. Here rather than with the price lines so the axis masks
             //       (6) and an incoming fade cover them exactly as they do the
-            //       series. No snapshot of the old buckets, so a fade's outgoing
-            //       half has none to draw.
+            //       series. A fade's outgoing half draws the captured ones.
             ensure_footprint_buckets();
             vroom::footprints::draw(canvas, *this, lay, bounds, window_ms);
 
@@ -1092,9 +1104,13 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
 
     // 7.5. Current-price line + box — above labels so the box covers any label
     //      it overlaps; tracks the latest close as the price scale moves.
-    //      Hidden during a fade's outgoing half: the close is already the new
-    //      series and there is no snapshot to fade.
+    //      A fade's outgoing half draws only the price line, from the capture
+    //      (the close is already the new series); the rest of this chrome has
+    //      no snapshot. The incoming half brings it in on the scene's opacity
+    //      rather than popping it in.
     if (!fade_out) {
+        const bool chrome_wrap = fade_in && axis_phase.opacity < 0.999f;
+        if (chrome_wrap) canvas->saveLayerAlphaf(nullptr, axis_phase.opacity);
         // Eased off the same capture the candles reshape through, so the badge
         // rides the bar's close edge instead of landing on the new price a
         // whole animation early. The pairing rule is the tip marker's: the
@@ -1140,6 +1156,17 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
         //       stays readable.
         vroom::price_lines::draw(canvas, *this, lay, bounds, candle_right,
                                    candle_area_h);
+
+        if (chrome_wrap) canvas->restore();
+    } else if (axis_phase.opacity > 0.f) {
+        // The outgoing half's current-price line: where the old newest close
+        // sat on the old scale, out on the envelope with the rest of the scene.
+        const bool wrap = axis_phase.opacity < 0.999f;
+        if (wrap) canvas->saveLayerAlphaf(nullptr, axis_phase.opacity);
+        vroom::price_indicator::draw(canvas, *this, lay, morph_from_bounds,
+                                     plot_right, candle_area_h,
+                                     &morph_from_last, 0.f, tip_left);
+        if (wrap) canvas->restore();
     }
 
     // 7.6. Indicator panes stacked below the candles, ordered by enable
@@ -1172,6 +1199,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
                                snap.time_ms, readout);
     }
 
+    if (fade_out) std::swap(theme, morph_from_theme);
+
     // 8. GC fades that have fully faded out and aren't coming back.
     vroom::labels::gc_y_fades(*this);
     vroom::labels::gc_x_fades(*this);
@@ -1197,6 +1226,30 @@ void VroomChart::begin_frame() {
     // and a chart left open for hours would otherwise lose float precision on it.
     tip_pulse_elapsed_s =
         std::fmod(tip_pulse_elapsed_s + dt, vroom::tip_pulse::kPeriodSeconds);
+
+    // A run interval morph. Capped per frame so a hitch pauses it rather than
+    // jumping it ahead — the whole point is that it is always seen through.
+    if (interval_clock_running && loading_reveal_drives_morph) {
+        interval_clock_running = false;
+    }
+    if (interval_clock_running) {
+        constexpr float kMaxStepSeconds = 0.05f;
+        if (interval_clock_primed) {
+            interval_clock_s += std::min(dt, kMaxStepSeconds);
+        }
+        interval_clock_primed = true;
+        const float p = interval_clock_duration_s > 0.f
+                            ? interval_clock_s / interval_clock_duration_s
+                            : 1.f;
+        if (p >= 1.f) {
+            interval_clock_running = false;
+            vroom_chart_set_interval_morph(this, 1.f);
+        } else {
+            interval_morph_t =
+                vroom::volume_anim::ease(interval_clock_easing, p);
+            mark_dirty();
+        }
+    }
 
     // The eased y-range takes its step here, before anything in the frame
     // reads screen_price_bounds, so every layer and hit test sees one range.
@@ -1509,6 +1562,7 @@ bool VroomChart::is_animating_now() const {
     // hand-off's reveal runs on the core's clock too.
     if (loading && (loading_animate || loading_fade_in < 1.f)) return true;
     if (loading_line_revealing) return true;
+    if (interval_clock_running) return true;
     if (autoscale_animating()) return true;
     for (const auto& f : y_fades) {
         if (f.opacity != f.target) return true;

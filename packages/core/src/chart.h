@@ -171,6 +171,15 @@ struct VroomChart {
     std::vector<vroom::CandleSnapshot> morph_from;
     float interval_morph_t = 1.f;  // 1 = not morphing
     bool interval_morph_fade = false;
+    // Set while vroom_chart_run_interval_morph owns interval_morph_t, which
+    // begin_frame then advances from frame time. Any host write to the morph,
+    // or a new capture, clears it. `interval_clock_primed` makes the first frame
+    // after the start count as 0, so time spent before it isn't charged.
+    bool interval_clock_running = false;
+    bool interval_clock_primed = false;
+    float interval_clock_s = 0.f;
+    float interval_clock_duration_s = 0.f;
+    int32_t interval_clock_easing = VROOM_EASING_IN_OUT;
     // Set when the capture came from a live update rather than a timeframe
     // switch. Same slot machinery, but the axis holds still: a stream morph
     // only reshapes the last bar, and the ticks it sits between don't move, so
@@ -191,6 +200,16 @@ struct VroomChart {
     vroom::PriceBounds morph_from_bounds{0.0, 1.0};
     int64_t morph_from_start_ms = 0;
     int64_t morph_from_end_ms = 0;
+    // A fade's outgoing half is the pre-switch frame, so it keeps the pre-switch
+    // look: the host restyles in the same commit as the switch (a trend line
+    // recolored for the new window's change), after the capture. Taken by
+    // begin_interval_morph only. `morph_from_last` is the newest candle against
+    // morph_from_bounds, where the current-price line sat — morph_from[0] is
+    // only the newest *visible* one. `morph_from_footprints` is the badges as
+    // laid out over the old candles (see footprints::capture).
+    vroom::Theme morph_from_theme{};
+    vroom::CandleSnapshot morph_from_last{};
+    std::vector<vroom::footprints::Badge> morph_from_footprints;
 
     // Cached y-axis width in pixels, sized to the widest price badge plus an
     // inset on each side. 0 = uncomputed; layout() falls back to a width ratio.
