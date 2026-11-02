@@ -344,6 +344,7 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     chart->morph_lines.clear();
     chart->interval_morph_t = 1.f;
     chart->interval_morph_fade = false;
+    chart->interval_clock_running = false;
     apply_default_framing(chart);
     chart->snap_autoscale();
     vroom::labels::recompute_axis_width(*chart);
@@ -419,6 +420,7 @@ static void capture_morph(VroomChart* chart) {
     chart->morph_from.clear();
     chart->morph_lines.clear();
     chart->interval_morph_t = 1.f;
+    chart->interval_clock_running = false;
     chart->interval_morph_fade = false;
     chart->morph_is_stream = false;
 
@@ -477,6 +479,25 @@ extern "C" void vroom_chart_begin_interval_morph(VroomChart* chart, int32_t mode
     // captured geometry — which is what the pre-switch frame looked like.
     chart->interval_morph_fade = vroom::interval_morph_is_fade(mode);
     chart->interval_morph_t = 0.f;
+
+    chart->morph_from_theme = chart->theme;
+    const ::VroomCandle& last = chart->candles.back();
+    const auto& b = chart->morph_from_bounds;
+    chart->morph_from_last = vroom::CandleSnapshot{
+        0.f,
+        static_cast<float>(vroom::price_fraction(b, last.open)),
+        static_cast<float>(vroom::price_fraction(b, last.high)),
+        static_cast<float>(vroom::price_fraction(b, last.low)),
+        static_cast<float>(vroom::price_fraction(b, last.close)),
+        last.close >= last.open,
+    };
+    chart->morph_from_footprints.clear();
+    if (chart->interval_morph_fade && !chart->footprints.empty()) {
+        chart->ensure_footprint_buckets();
+        chart->morph_from_footprints = vroom::footprints::capture(
+            *chart, chart->layout(), b,
+            chart->morph_from_end_ms - chart->morph_from_start_ms);
+    }
 }
 
 extern "C" void vroom_chart_begin_stream_morph(VroomChart* chart) {
@@ -544,15 +565,37 @@ extern "C" void vroom_chart_set_interval_morph(VroomChart* chart, float t) {
     if (t < 1.f && chart->morph_from.empty()) return;
     chart->interval_morph_t = std::clamp(t, 0.f, 1.f);
     chart->loading_reveal_drives_morph = false;
+    chart->interval_clock_running = false;
     if (chart->interval_morph_t >= 1.f) {
         chart->morph_from.clear();
         chart->morph_from.shrink_to_fit();
         chart->morph_lines.clear();
         chart->morph_lines.shrink_to_fit();
+        chart->morph_from_footprints.clear();
         chart->interval_morph_fade = false;
         chart->morph_is_stream = false;
     }
     chart->mark_dirty();
+}
+
+extern "C" void vroom_chart_run_interval_morph(VroomChart* chart,
+                                               float duration_ms,
+                                               int32_t easing) {
+    if (!chart || chart->morph_from.empty() || chart->interval_morph_t >= 1.f) {
+        return;
+    }
+    if (chart->loading_line_revealing && chart->loading_reveal_drives_morph) return;
+    chart->interval_clock_running = true;
+    chart->interval_clock_primed = false;
+    chart->interval_clock_s = 0.f;
+    chart->interval_clock_duration_s = std::max(0.f, duration_ms) / 1000.f;
+    chart->interval_clock_easing = easing;
+    chart->mark_dirty();
+}
+
+extern "C" bool vroom_chart_is_interval_morphing(VroomChart* chart) {
+    return chart && !chart->morph_is_stream && chart->interval_morph_t < 1.f &&
+           !chart->morph_from.empty();
 }
 
 extern "C" void vroom_chart_pan(VroomChart* chart, float dx_px, float /*dy_px*/) {

@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MutableRefObject } from 'react';
 
 import NativeVroomChart from './NativeVroomChart';
+import { classifyDataChange, type DataState } from './dataChange';
 import type { DataTransition } from './dataTransitions';
 import {
   classifyStream,
-  classifyTransition,
   inferStepMs,
   isPinnedToLatest,
   timeframeWindow,
 } from './dataTransitions';
-import { ease } from './easing';
+import { ease, easingIndex } from './easing';
 import type { ChartFrame, ChartHandle } from './jsi.d';
 import { packCandles } from './packCandles';
 import { applyTheme, parseColor, FLOAT_LINE_TIP_PULSE } from './theme';
@@ -384,6 +384,8 @@ export type VolumeCollapse = { t: number; easing: number };
 export type TransitionOptions = {
   /** Identity of the series; a change forces a full view reset. */
   seriesKey?: string;
+  /** A change on the same series is a timeframe switch, so it morphs. */
+  transitionKey?: string | number;
   /** Duration of the interval morph in ms. 0 snaps. Default 300. */
   transitionMs?: number;
   /** Curve applied to the morph's progress. Default 'ease-in-out'. */
@@ -447,15 +449,10 @@ export function useChartCore(
   const volumeCollapseRef = useRef<VolumeCollapse | null>(null);
   // What the core currently holds, for classifying the next data change. Keyed
   // by handle so a recreated core is treated as a fresh initial load.
-  const prevDataRef = useRef<{
-    handle: ChartHandle;
-    candles: Candle[];
-    seriesKey?: string;
-  } | null>(null);
+  const prevDataRef = useRef<(DataState & { handle: ChartHandle }) | null>(null);
   // The chart type the theme was last pushed for, keyed by handle like
   // prevDataRef, so the data effect can tell a candle↔line switch apart.
   const themedTypeRef = useRef<{ handle: ChartHandle; line: boolean } | null>(null);
-  const intervalMorphRaf = useRef<number | null>(null);
   const streamRaf = useRef<number | null>(null);
   // Where an in-flight stream shift is headed, so cancelling it can land there
   // rather than stranding the view mid-slide.
@@ -507,29 +504,22 @@ export function useChartCore(
   const onFrameRef = useRef(transition?.onFrame);
   onFrameRef.current = transition?.onFrame;
   const seriesKey = transition?.seriesKey;
+  const transitionKey = transition?.transitionKey;
 
   // Stop an in-flight interval morph and land the core on the new candles.
   const endIntervalMorph = useCallback(() => {
-    if (intervalMorphRaf.current != null) {
-      cancelAnimationFrame(intervalMorphRaf.current);
-      intervalMorphRaf.current = null;
-    }
     handleRef.current?.setIntervalMorph(1);
   }, []);
 
-  // Runs the interval morph clock. The core holds the pre-swap geometry (see
-  // beginIntervalMorph) and reshapes each candle slot toward its new counterpart.
+  // Hands the interval morph to the core's frame clock. The core holds the
+  // pre-swap geometry (see beginIntervalMorph) and reshapes each candle slot
+  // toward its new counterpart. Clocked there rather than by a JS rAF so it
+  // advances with every frame drawn, on whichever thread draws them (the UI
+  // thread on iOS): the commit that switched the timeframe usually keeps the JS
+  // thread busy for most of the transition.
   const startIntervalMorph = useCallback((h: ChartHandle) => {
     const { ms, easing } = animRef.current;
-    const start = performance.now();
-    const step = (now: number) => {
-      const p = Math.min(1, (now - start) / ms);
-      h.setIntervalMorph(p < 1 ? ease(easing, p) : 1);
-      const pic = h.render();
-      if (pic) onFrameRef.current?.(pic);
-      intervalMorphRaf.current = p < 1 ? requestAnimationFrame(step) : null;
-    };
-    intervalMorphRaf.current = requestAnimationFrame(step);
+    h.runIntervalMorph(ms, easingIndex(easing));
   }, []);
 
   // Hands the loading line over to the data that just landed: the line
@@ -618,10 +608,6 @@ export function useChartCore(
 
   useEffect(() => {
     return () => {
-      if (intervalMorphRaf.current != null) {
-        cancelAnimationFrame(intervalMorphRaf.current);
-        intervalMorphRaf.current = null;
-      }
       if (streamRaf.current != null) {
         cancelAnimationFrame(streamRaf.current);
         streamRaf.current = null;
@@ -730,15 +716,16 @@ export function useChartCore(
     if (candles.length > 0) {
       const prev = prevDataRef.current;
       const freshHandle = prev == null || prev.handle !== h;
-      if (freshHandle || prev.candles !== candles || prev.seriesKey !== seriesKey) {
-        // A fresh core frames itself (its window starts at 0/0); an explicit
-        // visibleRange prop overrides any auto behavior, so treat the change
-        // like a stream and let the range application below win.
+      if (
+        freshHandle ||
+        prev.candles !== candles ||
+        prev.seriesKey !== seriesKey ||
+        prev.transitionKey !== transitionKey
+      ) {
+        // A fresh core frames itself (its window starts at 0/0).
         const transitionKind: DataTransition = freshHandle
           ? 'initial'
-          : explicit
-            ? 'stream'
-            : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+          : classifyDataChange(prev, { candles, seriesKey, transitionKey }, explicit);
 
         // Capture the outgoing view before setCandles re-infers the candle
         // period from the new data.
@@ -785,7 +772,10 @@ export function useChartCore(
                   window: { startMs: w.startMs + by, endMs: w.endMs + by },
                 };
               }
-            } else {
+            } else if (!h.isIntervalMorphing()) {
+              // Not over a timeframe switch in flight: its capture is the old
+              // interval, and recapturing would cut it. The tick just lands in
+              // the scene it's heading toward.
               stream = { morph: true, window: null };
             }
           }
@@ -804,6 +794,9 @@ export function useChartCore(
           settleStream();
         }
         if (transitionKind === 'timeframe' && prev != null) {
+          // Land a live update still animating, or its clock would go on
+          // driving the morph this switch is about to open.
+          settleStream();
           const oldWindow = h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
           if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
@@ -851,7 +844,9 @@ export function useChartCore(
 
         if (transitionKind === 'timeframe') {
           const newStepMs = inferStepMs(candles);
-          if (tfArgs && newStepMs != null) {
+          if (explicit) {
+            h.setVisibleRange(startMs, endMs);
+          } else if (tfArgs && newStepMs != null) {
             const w = timeframeWindow(
               tfArgs.oldWindow,
               tfArgs.oldStepMs,
@@ -884,7 +879,7 @@ export function useChartCore(
           if (explicit) h.setVisibleRange(startMs, endMs);
           startLoadingHandoff(h);
         }
-        prevDataRef.current = { handle: h, candles, seriesKey };
+        prevDataRef.current = { handle: h, candles, seriesKey, transitionKey };
       }
     }
     if (explicit) {
@@ -940,18 +935,19 @@ export function useChartCore(
     );
     // TODO(rn-parity): mirror the web `liquidity` overlay here (setLiquidity +
     // the VroomBand structs in the JSI handle) — web-only for now.
-    // A just-started morph is already pushing frames straight to the host sink;
-    // this snapshot would land on top of them a frame or two later. The morph's
-    // frame 0 is pixel-identical to what's on screen, so there's nothing to show
-    // in the meantime anyway.
-    if (!morphing) setPicture(h.render());
+    const pic = h.render();
+    // A just-started morph runs on the core's clock, which only advances as
+    // frames are drawn. Hand this one straight to the host so its loop picks the
+    // morph up now; the picture state below would wait for another commit.
+    if (morphing && pic) onFrameRef.current?.(pic);
+    setPicture(pic);
     // theme/rsi/macd/atr/movingAverages/vwap/bollingerBands/ichimoku/
     // fairValueGaps/volume/priceLines/footprints are represented by their *Key
     // deps. chartType is omitted on purpose: only a fresh handle and the
     // price-line morph capture read it, and a later change belongs to
     // VroomChart's morph.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles, showLoadingLine, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, theme?.fontData, theme?.badgeFontData, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, startLoadingHandoff, endIntervalMorph, startStreamAnim, settleStream]);
+  }, [candles, showLoadingLine, seriesKey, transitionKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, theme?.fontData, theme?.badgeFontData, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, startLoadingHandoff, endIntervalMorph, startStreamAnim, settleStream]);
 
   return { handle: handleRef.current, picture, volumeCollapseRef };
 }

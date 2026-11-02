@@ -70,6 +70,8 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setLoadingMorph"));
   out.push_back(jsi::PropNameID::forAscii(rt, "beginLoadingReveal"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setIntervalMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "runIntervalMorph"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "isIntervalMorphing"));
   out.push_back(jsi::PropNameID::forAscii(rt, "pan"));
   out.push_back(jsi::PropNameID::forAscii(rt, "translate"));
   out.push_back(jsi::PropNameID::forAscii(rt, "zoom"));
@@ -802,6 +804,38 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           vroom_chart_set_interval_morph(
               chart_, static_cast<float>(args[0].asNumber()));
           return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "runIntervalMorph") {
+    // runIntervalMorph(ms, easing) — run the open morph to the end on the
+    // core's frame clock. `easing` is a VroomEasing index.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "runIntervalMorph"),
+        2,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 2) return jsi::Value::undefined();
+          vroom_chart_run_interval_morph(
+              chart_, static_cast<float>(args[0].asNumber()),
+              static_cast<int32_t>(args[1].asNumber()));
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "isIntervalMorphing") {
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "isIntervalMorphing"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          return jsi::Value(vroom_chart_is_interval_morphing(chart_));
         });
   }
 

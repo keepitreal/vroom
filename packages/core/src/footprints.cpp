@@ -43,15 +43,6 @@ SkColor boost(SkColor c, float mul) {
                           up(SkColorGetB(c)));
 }
 
-// One laid-out badge, in pixels.
-struct Badge {
-    float   cx = 0.f;
-    float   cy = 0.f;
-    float   radius = 0.f;
-    int32_t side = -1;
-    int64_t candle_time_ms = 0;
-};
-
 // Walks every badge that could be on screen, in draw order, handing each to `fn`.
 // Both passes go through here: the badge the user sees and the badge they can
 // hover are the same object by construction.
@@ -63,13 +54,15 @@ void for_each_badge(const VroomChart& chart, const Layout& lay,
 
     const Metrics m = metrics_from(&chart.footprint_style);
     const float pane_bottom = vroom::price_pane_bottom(lay);
-    const float pane_right = vroom::candle_area_width(lay);
+    const float pane_right = chart.series_clip_right(lay);
 
     const ::VroomCandle* candles = chart.candles.data();
     const size_t candle_count = chart.candles.size();
 
-    // Only the buckets whose candles are in (or just off) the window matter. One
-    // bar of slack each side keeps a badge from popping in at the edge.
+    // Only the buckets whose candles are in (or just off) the plot matter. One
+    // bar of slack on the left keeps a badge from popping in at the edge. On the
+    // right the plot runs past visible_end_ms into the gutter (see draw_range),
+    // so the walk stops on pixels instead.
     const int64_t slack = chart.candle_duration_ms;
     const auto& buckets = chart.footprint_buckets;
     auto it = std::lower_bound(buckets.begin(), buckets.end(),
@@ -79,7 +72,12 @@ void for_each_badge(const VroomChart& chart, const Layout& lay,
                                });
 
     for (; it != buckets.end(); ++it) {
-        if (it->candle_time_ms > chart.visible_end_ms + slack) break;
+        const float cx = vroom::candle_center_x(lay, it->candle_time_ms,
+                                                chart.candle_duration_ms,
+                                                chart.visible_start_ms, window_ms);
+        // Buckets are time-ordered, so every one after this is further right.
+        if (cx > pane_right + m.radius) break;
+        if (cx < -m.radius) continue;
 
         // The bar this bucket belongs to, for its high.
         const ::VroomCandle* c =
@@ -90,12 +88,6 @@ void for_each_badge(const VroomChart& chart, const Layout& lay,
         if (c == candles + candle_count || c->time_ms != it->candle_time_ms) {
             continue;  // the bar went away; the bucket is about to be rebuilt
         }
-
-        const float cx = vroom::candle_center_x(lay, it->candle_time_ms,
-                                                chart.candle_duration_ms,
-                                                chart.visible_start_ms, window_ms);
-        // Cheap reject before laying the stack out.
-        if (cx < -m.radius || cx > pane_right + m.radius) continue;
 
         const float high_y = vroom::price_to_y(lay, bounds, c->high);
         const Stack stack = layout_stack(*it, high_y, 0.f, m.radius, m.gap, m.margin);
@@ -131,31 +123,27 @@ void draw_glyph(SkCanvas* canvas, const Badge& b, SkColor color) {
     }
 }
 
-}  // namespace
-
-void draw(SkCanvas* canvas,
-          const VroomChart& chart,
-          const Layout& lay,
-          const PriceBounds& bounds,
-          int64_t window_ms) {
-    if (!canvas || chart.footprints.empty()) return;
-
+// Paints every badge `walk` hands to its callback. `hover` is off for a capture,
+// whose badges belong to a scene that is going away.
+template <typename Walk>
+void paint(SkCanvas* canvas, const VroomChart& chart, const Layout& lay,
+           bool hover, Walk&& walk) {
     const float pane_bottom = vroom::price_pane_bottom(lay);
-    const float pane_right = vroom::candle_area_width(lay);
+    const float pane_right = chart.series_clip_right(lay);
     if (pane_right <= 0.f || pane_bottom <= 0.f) return;
 
     const SkColor bull = chart.theme.colors[VROOM_COLOR_BULL];
     const SkColor bear = chart.theme.colors[VROOM_COLOR_BEAR];
     const SkColor glyph = chart.theme.colors[VROOM_COLOR_BADGE_TEXT];
 
-    // Badges belong to the plot, not the axis strips: a bar at the right edge
-    // must not spill its badge over the price labels.
+    // Badges are clipped exactly like the series they ride on, and drawn before
+    // the axis masks, so wherever a bar is still visible — into a hidden axis's
+    // gutter, or fading out under the labels — its badge is too.
     canvas->save();
     canvas->clipRect(SkRect::MakeLTRB(0.f, 0.f, pane_right, pane_bottom));
 
-    for_each_badge(chart, lay, bounds, window_ms,
-                   [&](const Badge& b, const Metrics& m) {
-        const bool hovered = chart.hovered_footprint_side == b.side &&
+    walk([&](const Badge& b, const Metrics& m) {
+        const bool hovered = hover && chart.hovered_footprint_side == b.side &&
                              chart.hovered_footprint_time_ms == b.candle_time_ms;
         const SkColor base = b.side == VROOM_FOOTPRINT_BUY ? bull : bear;
         const SkColor fill = hovered ? boost(base, m.hover_boost) : base;
@@ -182,6 +170,49 @@ void draw(SkCanvas* canvas,
     canvas->restore();
 }
 
+}  // namespace
+
+void draw(SkCanvas* canvas,
+          const VroomChart& chart,
+          const Layout& lay,
+          const PriceBounds& bounds,
+          int64_t window_ms) {
+    if (!canvas || chart.footprints.empty()) return;
+    paint(canvas, chart, lay, true, [&](auto&& fn) {
+        for_each_badge(chart, lay, bounds, window_ms, fn);
+    });
+}
+
+std::vector<Badge> capture(const VroomChart& chart,
+                           const Layout& lay,
+                           const PriceBounds& bounds,
+                           int64_t window_ms) {
+    std::vector<Badge> out;
+    const float area_w = vroom::candle_area_width(lay);
+    if (chart.footprints.empty() || area_w <= 0.f) return out;
+    for_each_badge(chart, lay, bounds, window_ms,
+                   [&](const Badge& b, const Metrics&) {
+        out.push_back(b);
+        out.back().cx /= area_w;
+    });
+    return out;
+}
+
+void draw_captured(SkCanvas* canvas,
+                   const VroomChart& chart,
+                   const Layout& lay,
+                   const std::vector<Badge>& badges) {
+    if (!canvas || badges.empty()) return;
+    const float area_w = vroom::candle_area_width(lay);
+    const Metrics m = metrics_from(&chart.footprint_style);
+    paint(canvas, chart, lay, false, [&](auto&& fn) {
+        for (Badge b : badges) {
+            b.cx *= area_w;
+            fn(b, m);
+        }
+    });
+}
+
 ::VroomFootprintHit hit_test(const VroomChart& chart,
                              const Layout& lay,
                              const PriceBounds& bounds,
@@ -192,7 +223,7 @@ void draw(SkCanvas* canvas,
 
     // The rect the badges are clipped to. Reported on every hit so the host can
     // place a tooltip against the real plot edge rather than the element's.
-    const float pane_right = vroom::candle_area_width(lay);
+    const float pane_right = chart.series_clip_right(lay);
     const float pane_bottom = vroom::price_pane_bottom(lay);
     best.pane_left = 0.f;
     best.pane_top = 0.f;

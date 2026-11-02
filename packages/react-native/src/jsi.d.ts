@@ -114,6 +114,16 @@ export interface ChartHandle {
    */
   setIntervalMorph(t: number): void;
   /**
+   * Run the morph opened by beginIntervalMorph to the end on the core's own
+   * frame clock: `ms` of drawn frames, eased by `easing` (an easingIndex). It
+   * advances as frames render, on whichever thread renders them, and keeps
+   * isAnimating true until it lands. Call after setCandles. A later
+   * setIntervalMorph, or a new capture, takes the morph back.
+   */
+  runIntervalMorph(ms: number, easing: number): void;
+  /** True while a timeframe morph (not a live-update one) is open. */
+  isIntervalMorphing(): boolean;
+  /**
    * Shows or hides the loading line: a single stroke drawn across the plot in a
    * slow travelling sine, for a chart that is laid out but has no data yet.
    * Suppresses the axis text, price badge, crosshair and indicator panes while

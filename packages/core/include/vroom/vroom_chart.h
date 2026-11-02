@@ -745,6 +745,19 @@ void vroom_chart_begin_loading_reveal(VroomChart* chart);
 // Driven per-frame by the host animation loop.
 void vroom_chart_set_interval_morph(VroomChart* chart, float t);
 
+// Runs a morph opened by vroom_chart_begin_interval_morph to the end on the
+// core's own clock instead: `duration_ms` of drawn frames, eased by `easing`
+// (VroomEasing). It advances as frames are rendered — on whichever thread
+// renders them — so a busy host thread can't stall or skip it. Call after
+// set_candles and keep rendering while vroom_chart_is_animating is true. Any
+// later vroom_chart_set_interval_morph, or a new capture, takes the morph back.
+// No-op with no morph open.
+void vroom_chart_run_interval_morph(VroomChart* chart, float duration_ms,
+                                    int32_t easing);
+
+// True while a timeframe morph (not a live-update one) is open.
+bool vroom_chart_is_interval_morphing(VroomChart* chart);
+
 void vroom_chart_pan(VroomChart* chart, float dx_px, float dy_px);
 // Directional zoom. scale_x scales the time window around focus_x_px (>1 =
 // narrower window, wider candles); scale_y scales the price range around

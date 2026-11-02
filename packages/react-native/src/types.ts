@@ -51,4 +51,12 @@ export type {
 export type VroomChartProps = VroomChartCoreProps & {
   /** Style for the chart's root view. Defaults to filling the parent. */
   style?: StyleProp<ViewStyle>;
+  /**
+   * Declares a timeframe switch: when it changes between renders on the same
+   * `seriesKey`, the data change morphs (`intervalTransition`) even when the
+   * candle step is unchanged or the data heuristics would call it a stream or a
+   * reset. With `visibleRange` set, this is the only way a switch morphs; the
+   * range is where it lands. Omit to rely on automatic detection.
+   */
+  transitionKey?: string | number;
 };

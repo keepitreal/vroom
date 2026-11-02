@@ -153,6 +153,7 @@ export function VroomChart(props: VroomChartProps) {
     candles,
     loading,
     seriesKey,
+    transitionKey,
     width: widthProp,
     height: heightProp,
     style,
@@ -378,6 +379,7 @@ export function VroomChart(props: VroomChartProps) {
     footprintsProp,
     {
       seriesKey,
+      transitionKey,
       transitionMs,
       transitionEasing,
       intervalTransition,
