@@ -62,6 +62,7 @@ export enum FloatKey {
   SimpleCrosshairBadgeFontSize = 25,
   PriceDecimals = 26,
   MinPriceRangeRatio = 27,
+  ReduceMotion = 28,
 }
 
 /** OHLCV readout for the candle under the crosshair. */

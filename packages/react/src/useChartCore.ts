@@ -548,6 +548,7 @@ export function useChartCore(
     intervalTransition,
     streamTransition,
     streamTransitionMs,
+    reduceMotion,
     theme,
     rsi,
     macd,
@@ -619,6 +620,14 @@ export function useChartCore(
     // curve, and every one that does interrupts the last.
     streamMs: Math.max(0, streamTransitionMs ?? 150),
   };
+  // The prop forces reduced motion on; otherwise the OS preference decides. In a
+  // ref so the effects that read it at run time don't re-run when it flips.
+  const reduceMotionRef = useRef(reduceMotion);
+  reduceMotionRef.current = reduceMotion;
+  const reducedMotion = useCallback(
+    () => reduceMotionRef.current === true || prefersReducedMotion(),
+    [],
+  );
 
   // Captured at mount: which core to load (stub vs Skia-WASM). Changing it after
   // mount has no effect — the core is created once and shared process-wide.
@@ -872,7 +881,7 @@ export function useChartCore(
         h.setCandles(packCandles([]));
         prevDataRef.current = null;
       }
-      h.setLoading(true, !prefersReducedMotion());
+      h.setLoading(true, !reducedMotion());
       lineUpRef.current = true;
     } else if (lineUpRef.current && candles.length === 0) {
       // Loading resolved to nothing — an empty result, or an error the consumer
@@ -910,7 +919,7 @@ export function useChartCore(
         if (transition === 'stream' && prev != null && !explicit) {
           const { stream: mode, streamMs } = animRef.current;
           const stepMs = inferStepMs(candles);
-          if (mode === 'transform' && streamMs > 0 && stepMs != null && !prefersReducedMotion()) {
+          if (mode === 'transform' && streamMs > 0 && stepMs != null && !reducedMotion()) {
             const lastMs = candles[candles.length - 1].timeMs;
             const prevLastMs = prev.candles[prev.candles.length - 1].timeMs;
             if (classifyStream(prev.candles, candles) === 'append') {
@@ -960,7 +969,7 @@ export function useChartCore(
           // Capture the outgoing candle geometry, but only when it will actually
           // be animated so a disabled animation costs no snapshot. A switch
           // during a morph restarts from the data the core currently holds.
-          willMorph = animRef.current.ms > 0 && !prefersReducedMotion();
+          willMorph = animRef.current.ms > 0 && !reducedMotion();
           if (willMorph) {
             endIntervalMorph();
             h.beginIntervalMorph(animRef.current.interval);
@@ -977,7 +986,7 @@ export function useChartCore(
         // branch's endIntervalMorph.
         if (lineUpRef.current) {
           lineUpRef.current = false;
-          handOff = animRef.current.ms > 0 && !prefersReducedMotion();
+          handOff = animRef.current.ms > 0 && !reducedMotion();
           // Snap path only. The hand-off itself starts after setCandles and the
           // framing below: it aims at where the candles will actually sit, so
           // it can't be set up until they're there.
@@ -1043,7 +1052,7 @@ export function useChartCore(
     // candle↔line morph strikes when it keeps the crossfade but skips the
     // collapse. Also stops the pulse from pinning a rAF loop for a user who
     // asked for less motion.
-    if (prefersReducedMotion()) h.setFloat(FloatKey.LineTipPulse, 0);
+    if (reducedMotion()) h.setFloat(FloatKey.LineTipPulse, 0);
     h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));
     h.setATR(atrToSpec(atr));
@@ -1118,7 +1127,7 @@ export function useChartCore(
       return;
     }
 
-    const reduce = prefersReducedMotion();
+    const reduce = reducedMotion();
     const dur = Math.max(0, transitionMs ?? 300);
 
     if (morphRafRef.current != null) {
@@ -1168,13 +1177,23 @@ export function useChartCore(
     scheduleRender();
   }, [ready, priceScaleMode, scheduleRender]);
 
+  // The core paces the axis-label fades and the tip pulse itself, so it needs
+  // the flag too rather than just the host-driven animations.
   useEffect(() => {
     if (!ready) return;
     const h = handleRef.current;
     if (!h) return;
-    h.setAutoscaleY(autoscaleY === true, !prefersReducedMotion());
+    h.setFloat(FloatKey.ReduceMotion, reducedMotion() ? 1 : 0);
     scheduleRender();
-  }, [ready, autoscaleY, scheduleRender]);
+  }, [ready, reduceMotion, reducedMotion, scheduleRender]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const h = handleRef.current;
+    if (!h) return;
+    h.setAutoscaleY(autoscaleY === true, !reducedMotion());
+    scheduleRender();
+  }, [ready, autoscaleY, reduceMotion, reducedMotion, scheduleRender]);
 
   useEffect(() => {
     if (!ready) return;
@@ -1228,7 +1247,7 @@ export function useChartCore(
     }
 
     const dur = Math.max(0, transitionMs ?? 300);
-    if (dur === 0 || prefersReducedMotion()) {
+    if (dur === 0 || reducedMotion()) {
       volumeCollapseRef.current = target;
       h.setVolumeCollapse(target, easingIndex(animRef.current.easing));
       scheduleRender();
@@ -1306,7 +1325,7 @@ export function useChartCore(
     }
 
     const dur = Math.max(0, transitionMs ?? 300);
-    if (dur === 0 || prefersReducedMotion()) {
+    if (dur === 0 || reducedMotion()) {
       axisCollapseRef.current = { y: targetY, x: targetX };
       h.setAxisCollapse(targetY, targetX);
       scheduleRender();

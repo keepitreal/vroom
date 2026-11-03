@@ -49,6 +49,9 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
 // the theme sweep below.
 export const FLOAT_LINE_TIP_PULSE = 15; // VROOM_FLOAT_LINE_TIP_PULSE
 
+// Set from VroomChart's reduceMotion, outside the theme sweep below.
+export const FLOAT_REDUCE_MOTION = 28; // VROOM_FLOAT_REDUCE_MOTION
+
 // Maps each boolean VroomTheme field to its VroomFloatKey index (pushed as 0/1).
 //
 // `showXAxis` / `showYAxis` are absent on purpose: they animate, so VroomChart

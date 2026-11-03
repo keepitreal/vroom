@@ -89,8 +89,9 @@ staggered the way Liveline staggers them. `transitionEasing` doesn't apply to
 it, but `transitionMs={0}` still snaps it.
 
 Under an OS reduced-motion preference the line still draws, but held still: no
-drift, no breathing, and no hand-off — the data just appears. On the web this is
-detected automatically; on React Native, pass it through `reduceMotion`.
+drift, no breathing, and no hand-off — the data just appears. The OS preference
+is detected automatically; pass `reduceMotion` to force it on, say for low-end
+devices.
 
 ## Why it looks the way it does
 

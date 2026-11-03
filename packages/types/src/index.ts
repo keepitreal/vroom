@@ -1594,6 +1594,20 @@ export type VroomChartCoreProps = {
    * requests reduced motion.
    */
   streamTransitionMs?: number;
+  /**
+   * Turn every animation off, whatever the OS preference says. The chart then
+   * behaves as it does under an OS reduced-motion request: the candle↔line
+   * switch crossfades without the collapse, and everything else snaps — interval
+   * and live-update transitions, the volume and axis toggles, the `autoscaleY`
+   * refit, axis-label fades, the loading line (it draws still) and its hand-off.
+   * The line-tip pulse is dropped, so the chart can go idle. On React Native,
+   * momentum after a fling is skipped too.
+   *
+   * `true` forces it on; `false` or omitted leaves it to the OS preference, so
+   * this can't override a user who asked for less motion. Use it to cut cost on
+   * low-end devices.
+   */
+  reduceMotion?: boolean;
   theme?: VroomTheme;
   /** RSI indicator (pane below the candles). Omit/disable to hide it. */
   rsi?: RSIConfig;

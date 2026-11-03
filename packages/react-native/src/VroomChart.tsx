@@ -43,7 +43,7 @@ import { runOnJS, runOnUI, useReducedMotion, useSharedValue } from 'react-native
 
 import { useChartCore } from './useChartCore';
 import { ease, easingIndex } from './easing';
-import { parseColor } from './theme';
+import { FLOAT_REDUCE_MOTION, parseColor } from './theme';
 import { drawUiFrames, LOOP_IDLE, LOOP_STOPPED } from './uiFrameLoop';
 import type { ChartFrame, ChartHandle, CrosshairButtonHit } from './jsi.d';
 import type {
@@ -166,6 +166,7 @@ export function VroomChart(props: VroomChartProps) {
     intervalTransition,
     streamTransition,
     streamTransitionMs,
+    reduceMotion: reduceMotionProp,
     theme,
     rsi,
     macd,
@@ -344,9 +345,10 @@ export function VroomChart(props: VroomChartProps) {
     [imageSV, pictureSV, reanchorPlus],
   );
 
-  // An OS reduced-motion preference snaps every transition, the way
-  // prefers-reduced-motion does on web.
-  const reduceMotion = useReducedMotion();
+  // An OS reduced-motion preference, or the `reduceMotion` prop, snaps every
+  // transition, the way prefers-reduced-motion does on web.
+  const osReduceMotion = useReducedMotion();
+  const reduceMotion = osReduceMotion || reduceMotionProp === true;
 
   // The interval morph starts inside the data effect (it needs the pre-swap
   // capture) but repaints every frame, so it writes straight into the SV rather
@@ -642,6 +644,15 @@ export function VroomChart(props: VroomChartProps) {
     const p = handle.render();
     if (p) applyFrame(p);
   }, [handle, priceScaleMode, applyFrame]);
+
+  // The core paces the axis-label fades and the tip pulse itself, so it needs
+  // the flag too rather than just the host-driven animations above.
+  useEffect(() => {
+    if (!handle) return;
+    handle.setFloat(FLOAT_REDUCE_MOTION, reduceMotion ? 1 : 0);
+    const p = handle.render();
+    if (p) applyFrame(p);
+  }, [handle, reduceMotion, applyFrame]);
 
   useEffect(() => {
     if (!handle) return;
@@ -997,7 +1008,7 @@ export function VroomChart(props: VroomChartProps) {
       const MIN_LAUNCH = 80;       // ignore tiny flicks
       const MIN_STOP = 8;          // px/s — stop threshold
       const HALF_LIFE_S = 0.35;    // velocity halves every 0.35s
-      if (Math.abs(velocity) < MIN_LAUNCH) return;
+      if (Math.abs(velocity) < MIN_LAUNCH || reduceMotion) return;
 
       let lastTime = performance.now();
       const tick = () => {

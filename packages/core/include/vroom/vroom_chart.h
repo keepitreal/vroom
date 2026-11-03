@@ -548,6 +548,7 @@ typedef enum {
     VROOM_FLOAT_SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX,  // simple crosshair's time badge; <= 0 follows BADGE_FONT_SIZE_PX
     VROOM_FLOAT_PRICE_DECIMALS,          // fixed price-label decimals, rounded; < 0 = automatic
     VROOM_FLOAT_MIN_PRICE_RANGE_RATIO,   // auto-fit span floor as a fraction of mid price; <= 0 = off
+    VROOM_FLOAT_REDUCE_MOTION,           // 0/1: snap the animations the core paces itself (axis-label fades) and drop the tip pulse
     VROOM_FLOAT_COUNT_
 } VroomFloatKey;
 
