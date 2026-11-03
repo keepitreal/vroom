@@ -110,4 +110,25 @@ describe('reduceMotion', () => {
     expect(lastReduceMotion()).toBe(1);
     expect(setAutoscaleY).toHaveBeenLastCalledWith(true, false);
   });
+
+  it('restores the tip pulse when reduced motion is turned back off', async () => {
+    stubOsReducedMotion(false);
+    const lastPulse = () =>
+      setFloat.mock.calls.filter(([key]) => key === FloatKey.LineTipPulse).at(-1)?.[1];
+    const chart = (reduce: boolean) => (
+      <VroomChart
+        candles={candles}
+        width={800}
+        height={400}
+        theme={{ lineTipPulse: true }}
+        reduceMotion={reduce}
+      />
+    );
+    const r = render(chart(true));
+    await act(async () => {});
+    expect(lastPulse()).toBe(0);
+    r.rerender(chart(false));
+    await act(async () => {});
+    expect(lastPulse()).toBe(1);
+  });
 });

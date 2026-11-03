@@ -45,9 +45,7 @@ export const FLOAT_KEYS: Partial<Record<keyof VroomTheme, number>> = {
   minPriceRangeRatio: 27, // VROOM_FLOAT_MIN_PRICE_RANGE_RATIO
 };
 
-// Named because useChartCore clears it directly under reduced motion, outside
-// the theme sweep below.
-export const FLOAT_LINE_TIP_PULSE = 15; // VROOM_FLOAT_LINE_TIP_PULSE
+const FLOAT_LINE_TIP_PULSE = 15; // VROOM_FLOAT_LINE_TIP_PULSE
 
 // Set from VroomChart's reduceMotion, outside the theme sweep below.
 export const FLOAT_REDUCE_MOTION = 28; // VROOM_FLOAT_REDUCE_MOTION

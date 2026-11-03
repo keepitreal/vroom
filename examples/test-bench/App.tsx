@@ -591,6 +591,13 @@ export default function App() {
   // Off to match the library default — it holds the render loop open, so it's
   // worth seeing the chart both ways here.
   const [lineTipPulse, setLineTipPulse] = useState(false);
+
+  // Active = motion forced off, whatever the OS setting says.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const toggleReduceMotion = useCallback(() => {
+    setReduceMotion((p) => !p);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
   const toggleLineTipPulse = useCallback(() => {
     setLineTipPulse((p) => !p);
     Haptics.selectionAsync().catch(() => {});
@@ -928,6 +935,7 @@ export default function App() {
             }}
             intervalTransition={intervalTransition}
             streamTransition={streamTransition}
+            reduceMotion={reduceMotion}
             theme={theme}
             style={styles.chart}
             onCrosshair={handleCrosshair}
@@ -1252,6 +1260,18 @@ export default function App() {
                   style={[styles.fnSymbol, !showXAxis && styles.fnSymbolActive]}
                 >
                   ⇩
+                </Text>
+              </Pressable>
+
+              <Pressable
+                testID="reduce-motion-toggle"
+                style={[styles.fnBtn, reduceMotion && styles.fnBtnActive]}
+                onPress={toggleReduceMotion}
+              >
+                <Text
+                  style={[styles.fnSymbol, reduceMotion && styles.fnSymbolActive]}
+                >
+                  ◌
                 </Text>
               </Pressable>
 

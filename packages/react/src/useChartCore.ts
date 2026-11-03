@@ -1183,9 +1183,13 @@ export function useChartCore(
     if (!ready) return;
     const h = handleRef.current;
     if (!h) return;
-    h.setFloat(FloatKey.ReduceMotion, reducedMotion() ? 1 : 0);
+    const reduced = reducedMotion();
+    h.setFloat(FloatKey.ReduceMotion, reduced ? 1 : 0);
+    // The data effect clamps the pulse to 0 under reduced motion and only re-runs
+    // with the data, so hand the themed value back when motion returns.
+    h.setFloat(FloatKey.LineTipPulse, !reduced && theme?.lineTipPulse ? 1 : 0);
     scheduleRender();
-  }, [ready, reduceMotion, reducedMotion, scheduleRender]);
+  }, [ready, reduceMotion, reducedMotion, theme?.lineTipPulse, scheduleRender]);
 
   useEffect(() => {
     if (!ready) return;
