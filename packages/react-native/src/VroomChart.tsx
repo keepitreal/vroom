@@ -405,12 +405,24 @@ export function VroomChart(props: VroomChartProps) {
   }, [handle, pictureSV, plusOpenSV, uiLoopState, reanchorPlus]);
   requestUiFrames.current = uiFrames;
   useEffect(() => handle?.setGestureFrames(!uiFrames), [handle, uiFrames]);
-  useEffect(
-    () => () => {
+  // A hidden <Activity> (or StrictMode's effect replay) runs this cleanup but
+  // keeps the chart, so the setup has to reopen the loop for when it shows
+  // again. The canvas is remounted then too: its native view was torn down
+  // while hidden, and Skia drops the recording a revealed canvas sends before
+  // that view is recreated.
+  const [canvasKey, setCanvasKey] = useState(0);
+  const wasHidden = useRef(false);
+  useLayoutEffect(() => {
+    uiLoopState.value = LOOP_IDLE;
+    if (wasHidden.current) {
+      wasHidden.current = false;
+      setCanvasKey((key) => key + 1);
+    }
+    return () => {
       uiLoopState.value = LOOP_STOPPED;
-    },
-    [uiLoopState],
-  );
+      wasHidden.current = true;
+    };
+  }, [uiLoopState]);
 
   // Same condition useChartCore draws the line on: a refresh that still has
   // data keeps the chart interactive. Every gesture below is gated on this —
@@ -1215,7 +1227,7 @@ export function VroomChart(props: VroomChartProps) {
     >
       <GestureDetector gesture={gesture}>
         <View ref={viewRef} style={{ flex: 1 }}>
-          <Canvas style={{ flex: 1 }}>
+          <Canvas key={canvasKey} style={{ flex: 1 }}>
             {width > 0 && height > 0 ? (
               <>
                 <Picture picture={pictureSV} />
