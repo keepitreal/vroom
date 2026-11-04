@@ -1267,11 +1267,16 @@ export default function App() {
                 testID="reduce-motion-toggle"
                 style={[styles.fnBtn, reduceMotion && styles.fnBtnActive]}
                 onPress={toggleReduceMotion}
+                accessibilityLabel="Reduce motion: turn every chart animation off."
               >
                 <Text
-                  style={[styles.fnSymbol, reduceMotion && styles.fnSymbolActive]}
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    reduceMotion && styles.fnSymbolActive,
+                  ]}
                 >
-                  ◌
+                  Still
                 </Text>
               </Pressable>
 

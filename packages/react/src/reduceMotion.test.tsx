@@ -6,6 +6,8 @@ import type { Candle } from '@vroomchart/types';
 
 const setFloat = vi.fn();
 const setAutoscaleY = vi.fn();
+const setMorph = vi.fn();
+const setChartType = vi.fn();
 
 function fakeHandle() {
   const impl: Record<string, (...args: never[]) => unknown> = {
@@ -13,6 +15,8 @@ function fakeHandle() {
     getVisibleRange: () => ({ startMs: 0, endMs: 600_000 }),
     setFloat: setFloat as never,
     setAutoscaleY: setAutoscaleY as never,
+    setMorph: setMorph as never,
+    setChartType: setChartType as never,
   };
   return new Proxy(impl, {
     get: (target, key: string) => target[key] ?? (() => null),
@@ -43,6 +47,8 @@ afterEach(() => {
   cleanup();
   setFloat.mockClear();
   setAutoscaleY.mockClear();
+  setMorph.mockClear();
+  setChartType.mockClear();
   vi.unstubAllGlobals();
 });
 
@@ -130,5 +136,25 @@ describe('reduceMotion', () => {
     r.rerender(chart(false));
     await act(async () => {});
     expect(lastPulse()).toBe(1);
+  });
+
+  it('switches chart type at once instead of crossfading', async () => {
+    stubOsReducedMotion(false);
+    const chart = (type: 'candles' | 'line') => (
+      <VroomChart
+        candles={candles}
+        width={800}
+        height={400}
+        chartType={type}
+        reduceMotion
+      />
+    );
+    const r = render(chart('candles'));
+    await act(async () => {});
+    setChartType.mockClear();
+    r.rerender(chart('line'));
+    await act(async () => {});
+    expect(setChartType).toHaveBeenLastCalledWith(1);
+    expect(setMorph).not.toHaveBeenCalled();
   });
 });

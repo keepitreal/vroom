@@ -1048,10 +1048,8 @@ export function useChartCore(
     }
     if (explicit) h.setVisibleRange(startMs, endMs);
     if (theme) applyTheme(h, theme);
-    // The tip dot stays, only its animation drops — the same bargain the
-    // candle↔line morph strikes when it keeps the crossfade but skips the
-    // collapse. Also stops the pulse from pinning a rAF loop for a user who
-    // asked for less motion.
+    // The tip dot stays, only its animation drops. Also stops the pulse from
+    // pinning a rAF loop for a user who asked for less motion.
     if (reducedMotion()) h.setFloat(FloatKey.LineTipPulse, 0);
     h.setRSI(rsiToSpec(rsi));
     h.setMACD(macdToSpec(macd));
@@ -1134,7 +1132,8 @@ export function useChartCore(
       cancelAnimationFrame(morphRafRef.current);
       morphRafRef.current = null;
     }
-    if (dur === 0) {
+    // Reduced motion lands the chart type at once, like transitionMs={0}.
+    if (dur === 0 || reduce) {
       morphFadeRef.current = target;
       h.setChartType(target);
       scheduleRender();
@@ -1147,7 +1146,7 @@ export function useChartCore(
       const p = Math.min(1, (now - start) / dur);
       const fade = from + (target - from) * ease(animRef.current.easing, p);
       morphFadeRef.current = fade;
-      h.setMorph(reduce ? 0 : fade, fade);
+      h.setMorph(fade, fade);
       h.present();
       if (p < 1) {
         morphRafRef.current = requestAnimationFrame(step);

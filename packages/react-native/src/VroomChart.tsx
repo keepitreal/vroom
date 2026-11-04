@@ -594,7 +594,8 @@ export function VroomChart(props: VroomChartProps) {
       morphRaf.current = null;
     }
     const dur = Math.max(0, transitionMs ?? 300);
-    if (dur === 0) {
+    // Reduced motion lands the chart type at once, like transitionMs={0}.
+    if (dur === 0 || reduceMotion) {
       morphFade.current = target;
       handle.setChartType(target);
       const p = handle.render();
@@ -610,8 +611,7 @@ export function VroomChart(props: VroomChartProps) {
       const prog = Math.min(1, (now - startTs) / dur);
       const fade = from + (target - from) * ease(easingRef.current, prog);
       morphFade.current = fade;
-      // Reduced motion still crossfades, but skips the vertical collapse.
-      handle.setMorph(reduceMotion ? 0 : fade, fade);
+      handle.setMorph(fade, fade);
       const p = handle.render();
       if (p) applyFrame(p);
       if (prog < 1) {
