@@ -1040,7 +1040,8 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             candle_area_h, theme.colors[VROOM_COLOR_LINE],
             theme.floats[VROOM_FLOAT_LINE_WIDTH_PX],
             theme.floats[VROOM_FLOAT_LINE_TIP_DOT_RADIUS_PX], tip_opacity,
-            theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f,
+            theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f &&
+                theme.floats[VROOM_FLOAT_REDUCE_MOTION] < 0.5f,
             tip_pulse_elapsed_s / vroom::tip_pulse::kPeriodSeconds,
             theme.floats[VROOM_FLOAT_LINE_TIP_PULSE_OPACITY], tip_from,
             tip_from_n, tip_morph_t);
@@ -1484,7 +1485,8 @@ void VroomChart::begin_loading_reveal() {
 bool VroomChart::tip_pulse_active() const {
     return morph_fade > 0.f && !candles.empty() &&
            theme.floats[VROOM_FLOAT_LINE_TIP_DOT] > 0.5f &&
-           theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f;
+           theme.floats[VROOM_FLOAT_LINE_TIP_PULSE] > 0.5f &&
+           theme.floats[VROOM_FLOAT_REDUCE_MOTION] < 0.5f;
 }
 
 void VroomChart::rebuild_chart_picture() {

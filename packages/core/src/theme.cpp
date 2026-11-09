@@ -60,6 +60,7 @@ constexpr float kDefaultFloats[VROOM_FLOAT_COUNT_] = {
     15.f,   // SIMPLE_CROSSHAIR_BADGE_FONT_SIZE_PX
     -1.f,   // PRICE_DECIMALS — automatic, from the asset's price
     0.f,    // MIN_PRICE_RANGE_RATIO — auto-fit follows the data alone
+    0.f,    // REDUCE_MOTION — the core animates by default
 };
 
 }  // namespace

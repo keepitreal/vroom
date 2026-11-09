@@ -50,6 +50,14 @@ void advance(float& opacity, float target, float step, float dt) {
     }
 }
 
+// The dt the fades advance by. Reduced motion reports 0, which `advance` reads
+// as "snap to the target", so labels appear and disappear instead of fading.
+float frame_dt(const VroomChart& chart) {
+    return chart.theme.floats[VROOM_FLOAT_REDUCE_MOTION] > 0.5f
+               ? 0.f
+               : chart.last_dt_seconds;
+}
+
 template <typename Fade>
 void advance(Fade& f, float step, float dt) {
     advance(f.opacity, f.target, step, dt);
@@ -169,8 +177,9 @@ void update_y_fades(VroomChart& chart,
         apply_envelope(chart.y_fades, phase.opacity);
         return;
     }
-    const float step = kFadeRate * chart.last_dt_seconds;
-    for (auto& f : chart.y_fades) advance(f, step, chart.last_dt_seconds);
+    const float dt = frame_dt(chart);
+    const float step = kFadeRate * dt;
+    for (auto& f : chart.y_fades) advance(f, step, dt);
 }
 
 void draw_y_gridlines(SkCanvas* canvas,
@@ -318,10 +327,11 @@ void update_x_fades(VroomChart& chart,
         apply_envelope(chart.x_fades, phase.opacity);
         return;
     }
-    const float step = kFadeRate * chart.last_dt_seconds;
+    const float dt = frame_dt(chart);
+    const float step = kFadeRate * dt;
     for (auto& f : chart.x_fades) {
-        advance(f, step, chart.last_dt_seconds);
-        advance(f.label_opacity, f.label_target, step, chart.last_dt_seconds);
+        advance(f, step, dt);
+        advance(f.label_opacity, f.label_target, step, dt);
     }
 }
 
