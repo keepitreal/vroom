@@ -1,5 +1,24 @@
 # react-native-vroom-chart
 
+## 0.27.0
+
+### Minor Changes
+
+- f0ee85f: Add a `reduceMotion` prop that turns every animation off, for low-end devices or any host that wants a static chart. `true` behaves as an OS reduced-motion request does; `false` or omitted still follows the OS preference, so the prop can't override a user who asked for less motion.
+
+  The OS preference now also snaps the axis-label fades, which it left animating before. The core gains a `ReduceMotion` float key (`VROOM_FLOAT_REDUCE_MOTION`) for the animations it paces itself, and it drops the line-tip pulse too. On React Native, momentum after a fling is skipped under reduced motion.
+
+  Under reduced motion the candle↔line switch now lands at once instead of crossfading.
+
+### Patch Changes
+
+- f486416: Groundwork for driving the chart from code and AI agents (web):
+
+  - `onViewportChange` now reports the real visible window (epoch ms) once a pan, zoom, or wheel gesture settles, and only when the window changed. Previously it always sent `(0, 0)`.
+  - `historyRef` (managed drawings) gains `add`, `update`, `remove`, and `list`. Each edit is one undo step and persists like a gesture.
+  - Drawings accept optional `label` and `meta` fields. Neither is drawn; both survive user edits and persistence.
+  - `MovingAverageOverlay` accepts an optional `id`.
+
 ## 0.26.0
 
 ### Minor Changes
