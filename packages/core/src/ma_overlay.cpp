@@ -3,6 +3,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdocumentation"
 #include "include/core/SkCanvas.h"
+#include "include/core/SkDrawable.h"
 #include "include/core/SkColor.h"
 #include "include/core/SkPaint.h"
 #include "include/core/SkPath.h"
@@ -430,6 +431,30 @@ void fill_under(SkCanvas* canvas,
     canvas->restore();
 }
 
+namespace {
+class TipMarker final : public SkDrawable {
+ public:
+    SkPoint tip;
+    float right, clip_right, height, width, radius, opacity, phase, pulse_opacity;
+    uint32_t color;
+
+ private:
+    SkRect onGetBounds() override {
+        return SkRect::MakeWH(std::max(right, clip_right), height);
+    }
+    void onDraw(SkCanvas* canvas) override {
+        draw_tip_marker(canvas, tip, right, clip_right, height, color, width,
+                        radius, opacity, true, phase, pulse_opacity);
+    }
+};
+}  // namespace
+
+void set_tip_pulse_phase(SkDrawable* drawable, float phase) {
+    auto* marker = static_cast<TipMarker*>(drawable);
+    marker->phase = phase;
+    marker->notifyDrawingChanged();
+}
+
 float draw_close_tip(SkCanvas* canvas,
                     const Layout& lay,
                     const PriceBounds& bounds,
@@ -450,7 +475,8 @@ float draw_close_tip(SkCanvas* canvas,
                     float pulse_opacity,
                     const CandleSnapshot* from,
                     std::size_t from_n,
-                    float morph_t) {
+                    float morph_t,
+                    sk_sp<SkDrawable>* pulse_drawable) {
     constexpr float kNone = std::numeric_limits<float>::infinity();
     if (!canvas || opacity <= 0.f) return kNone;
     morph_t = std::clamp(morph_t, 0.f, 1.f);
@@ -462,6 +488,29 @@ float draw_close_tip(SkCanvas* canvas,
     const SkPoint tip =
         close_vertex(lay, bounds, visible, n, window_ms, visible_start_ms,
                      candle_duration_ms, from, from_count, morph_t, 0);
+    const float dot_r = tip_geometry::of(line_width, dot_radius).dot_r;
+    const SkRect clip = SkRect::MakeWH(std::max(candle_right, clip_right),
+                                      candle_area_h);
+    // Only cache a marker whose dot stays visible throughout the pulse.
+    // Offscreen ring-only culling can also affect the price-line endpoint.
+    if (pulse && pulse_drawable && candle_right > 0.f && candle_area_h > 0.f &&
+        clip.intersects(SkRect::MakeLTRB(
+            tip.fX - dot_r, tip.fY - dot_r, tip.fX + dot_r, tip.fY + dot_r))) {
+        auto marker = sk_make_sp<TipMarker>();
+        marker->tip = tip;
+        marker->right = candle_right;
+        marker->clip_right = clip_right;
+        marker->height = candle_area_h;
+        marker->color = line_color;
+        marker->width = line_width;
+        marker->radius = dot_radius;
+        marker->opacity = opacity;
+        marker->phase = pulse_phase;
+        marker->pulse_opacity = pulse_opacity;
+        canvas->drawDrawable(marker.get());
+        *pulse_drawable = std::move(marker);
+        return tip.fX - dot_r;
+    }
     return draw_tip_marker(canvas, tip, candle_right, clip_right, candle_area_h,
                     line_color, line_width, dot_radius, opacity, pulse,
                     pulse_phase, pulse_opacity);

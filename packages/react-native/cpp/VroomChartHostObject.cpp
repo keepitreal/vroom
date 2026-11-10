@@ -30,8 +30,20 @@ namespace vroom {
 
 namespace jsi = facebook::jsi;
 
+#if defined(__ANDROID__)
+// Native pixels only: no JS objects or runtime-bound handles survive a call.
+struct RasterFrameCache {
+  sk_sp<SkPicture> picture;
+  sk_sp<SkData> pixels;
+  float scale = 0.f;
+};
+#endif
+
 ChartHostObject::ChartHostObject() {
   chart_ = vroom_chart_create(nullptr, nullptr);
+#if defined(__ANDROID__)
+  raster_cache_ = std::make_unique<RasterFrameCache>();
+#endif
 }
 
 ChartHostObject::~ChartHostObject() {
@@ -225,7 +237,7 @@ jsi::Value wrapSerializedPicture(jsi::Runtime& rt, const sk_sp<SkPicture>& pic) 
 }
 
 jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
-                           float dpr) {
+                           float dpr, RasterFrameCache& cache) {
   const SkRect cull = pic->cullRect();
   const float scale = dpr > 0.f ? dpr : 1.f;
   const int w =
@@ -233,27 +245,29 @@ jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
   const int h =
       std::max(1, static_cast<int>(std::ceil(cull.height() * scale)));
 
-  // Reused across frames on this JS thread so pan/zoom doesn't heap-allocate
-  // a new bitmap every time. Multiple charts share it; a size change reallocs.
-  thread_local SkBitmap raster;
+  const size_t row_bytes = static_cast<size_t>(w) * 4;
   const auto info = SkImageInfo::MakeN32Premul(w, h);
-  if ((raster.width() != w || raster.height() != h) &&
-      !raster.tryAllocPixels(info)) {
-    return jsi::Value::null();
+  sk_sp<SkData> pixels = cache.pixels;
+  if (cache.picture != pic || cache.scale != scale || !pixels) {
+    const size_t byte_size = info.computeByteSize(row_bytes);
+    if (SkImageInfo::ByteSizeOverflowed(byte_size)) return jsi::Value::null();
+    pixels = SkData::MakeUninitialized(byte_size);
+    if (!pixels) return jsi::Value::null();
+    // Render into the owned transfer buffer. RN-Skia's fromBytes makes its
+    // own copy; a separate bitmap-to-SkData copy would move the same pixels twice.
+    SkBitmap raster;
+    if (!raster.installPixels(info, pixels->writable_data(), row_bytes)) {
+      return jsi::Value::null();
+    }
+    raster.eraseColor(SK_ColorTRANSPARENT);
+    SkCanvas canvas(raster);
+    canvas.scale(scale, scale);
+    canvas.translate(-cull.left(), -cull.top());
+    canvas.drawPicture(pic);
+    cache.picture = pic;
+    cache.pixels = pixels;
+    cache.scale = scale;
   }
-  raster.eraseColor(SK_ColorTRANSPARENT);
-  SkCanvas canvas(raster);
-  canvas.scale(scale, scale);
-  canvas.translate(-cull.left(), -cull.top());
-  canvas.drawPicture(pic);
-
-  SkPixmap pixmap;
-  if (!raster.peekPixels(&pixmap) || pixmap.addr() == nullptr) {
-    return jsi::Value::null();
-  }
-  sk_sp<SkData> pixels =
-      SkData::MakeWithCopy(pixmap.addr(), pixmap.computeByteSize());
-  if (!pixels) return jsi::Value::null();
 
   auto dataFactory = skiaApiObject(rt, "Data");
   auto imageFactory = skiaApiObject(rt, "Image");
@@ -279,19 +293,19 @@ jsi::Value wrapRasterImage(jsi::Runtime& rt, const sk_sp<SkPicture>& pic,
   imageInfo.setProperty(rt, "width", static_cast<double>(w));
   imageInfo.setProperty(rt, "height", static_cast<double>(h));
   imageInfo.setProperty(rt, "colorType",
-                        static_cast<double>(pixmap.colorType()));
+                        static_cast<double>(info.colorType()));
   imageInfo.setProperty(rt, "alphaType",
-                        static_cast<double>(pixmap.alphaType()));
+                        static_cast<double>(info.alphaType()));
   return makeImage.callWithThis(rt, imageFactoryObj, imageInfo, skData,
-                                static_cast<double>(pixmap.rowBytes()));
+                                static_cast<double>(row_bytes));
 }
 }  // namespace
 
 static facebook::jsi::Value wrapPicture(facebook::jsi::Runtime& rt,
                                        const sk_sp<SkPicture>& pic,
-                                       float dpr = 1.f) {
+                                       float dpr, RasterFrameCache& cache) {
   if (!pic) return facebook::jsi::Value::null();
-  auto image = wrapRasterImage(rt, pic, dpr);
+  auto image = wrapRasterImage(rt, pic, dpr, cache);
   if (!image.isNull()) return image;
   return wrapSerializedPicture(rt, pic);
 }
@@ -325,9 +339,18 @@ jsi::Function ChartHostObject::lockedFunction(jsi::Runtime& rt,
       });
 }
 
+jsi::Value ChartHostObject::renderFrame(jsi::Runtime& rt) {
+#if defined(__ANDROID__)
+  return wrapPicture(rt, render_chart_picture(chart_), chart_->px_ratio,
+                     *raster_cache_);
+#else
+  return wrapPicture(rt, render_chart_picture(chart_), chart_->px_ratio);
+#endif
+}
+
 jsi::Value ChartHostObject::gestureFrame(jsi::Runtime& rt) {
   if (!gestureFrames_) return jsi::Value::null();
-  return wrapPicture(rt, render_chart_picture(chart_), chart_->px_ratio);
+  return renderFrame(rt);
 }
 
 jsi::Value ChartHostObject::get(jsi::Runtime& rt,
@@ -1865,8 +1888,7 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                const jsi::Value& /*thisVal*/,
                const jsi::Value* /*args*/,
                size_t /*count*/) -> jsi::Value {
-          return wrapPicture(rt2, render_chart_picture(chart_),
-                         chart_->px_ratio);
+          return renderFrame(rt2);
         });
   }
 

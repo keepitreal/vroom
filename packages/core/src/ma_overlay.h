@@ -5,11 +5,13 @@
 
 #include <cstddef>
 #include <cstdint>
+#include "include/core/SkRefCnt.h"
 
 #include "tip_pulse.h"
 #include "vroom/vroom_chart.h"  // ::VroomCandle
 
 class SkCanvas;
+class SkDrawable;
 class SkPath;
 struct SkPoint;
 
@@ -167,7 +169,11 @@ float draw_close_tip(SkCanvas* canvas,
                     float pulse_opacity = tip_pulse::kDefaultStartAlpha,
                     const CandleSnapshot* from = nullptr,
                     std::size_t from_n = 0,
-                    float morph_t = 1.f);
+                    float morph_t = 1.f,
+                    sk_sp<SkDrawable>* pulse_drawable = nullptr);
+
+// Advances only the marker captured by draw_close_tip's optional drawable.
+void set_tip_pulse_phase(SkDrawable* drawable, float phase);
 
 // draw_close_tip's marker at an already-resolved `tip`, for a line whose end
 // isn't a candle's close (the loading reveal's). Same cull, clip and
