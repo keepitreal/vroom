@@ -566,6 +566,12 @@ struct VroomChart {
     // window plus one past each edge (vroom::draw_indices).
     vroom::IndexRange draw_range() const;
 
+    // Where the price series stops on the right, and with it everything that
+    // rides on it (footprints): the y-axis strip's mask (plot_right), or the
+    // chart's edge under Y_AXIS_FADE with the axis showing, where the fade mask
+    // takes over. draw_range() runs the series out to here.
+    float series_clip_right(const vroom::Layout& lay) const;
+
     // The candles whose center is in the window (vroom::fit_indices): what the
     // price auto-fit and the crosshair read, so a candle the clip mostly hides
     // never moves the scale or catches the pointer.
