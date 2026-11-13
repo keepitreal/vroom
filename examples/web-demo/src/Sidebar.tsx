@@ -252,6 +252,14 @@ export type SidebarProps = {
     loading: boolean;
     setLoading: (v: boolean) => void;
     onSimulateLoad: () => void;
+    fetchModes: readonly string[];
+    fetchMode: string;
+    setFetchMode: (m: string) => void;
+    controlledRange: boolean;
+    setControlledRange: (v: boolean) => void;
+    firstBarModes: readonly string[];
+    firstBar: string;
+    setFirstBar: (m: string) => void;
   };
   streaming: {
     onAddCandle: () => void;
@@ -559,6 +567,26 @@ export function Sidebar({
         <button onClick={data.onSimulateLoad} style={{ ...btn, width: '100%' }}>
           Simulate load (1.5s)
         </button>
+        <Field label="Fetch on switch">
+          <Segmented
+            options={data.fetchModes.map((m) => ({ label: m, value: m }))}
+            value={data.fetchMode}
+            onChange={data.setFetchMode}
+          />
+        </Field>
+        <ToggleRow
+          label="Controlled range"
+          checked={data.controlledRange}
+          onChange={data.setControlledRange}
+          title="Feed onViewportChange back into visibleRange, as a host persisting the user's zoom would. Pan once to take control, then switch timeframes — candle width must hold."
+        />
+        <Field label="First bar">
+          <Segmented
+            options={data.firstBarModes.map((m) => ({ label: m, value: m }))}
+            value={data.firstBar}
+            onChange={data.setFirstBar}
+          />
+        </Field>
       </Section>
 
       <Section title="Streaming">
