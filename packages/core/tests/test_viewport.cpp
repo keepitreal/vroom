@@ -1179,3 +1179,27 @@ TEST_CASE("blend_candle_snapshots tolerates an absent capture") {
     vroom::blend_candle_snapshots(&fresh, 1, nullptr, 0, 0.5f);
     CHECK(fresh.close == doctest::Approx(0.6f));
 }
+
+TEST_CASE("infer_candle_duration: median of the leading intervals") {
+    constexpr int64_t kStep = 300'000;
+    std::vector<VroomCandle> c;
+    for (int i = 0; i < 20; ++i) c.push_back(ohlc(i * kStep, 1.0, 2.0));
+    CHECK(vroom::infer_candle_duration(c.data(), c.size()) == kStep);
+
+    SUBCASE("a leading gap doesn't set it") {
+        c.erase(c.begin() + 1);
+        CHECK(vroom::infer_candle_duration(c.data(), c.size()) == kStep);
+    }
+    SUBCASE("a repeated first timestamp doesn't set it") {
+        c.insert(c.begin() + 1, c.front());
+        CHECK(vroom::infer_candle_duration(c.data(), c.size()) == kStep);
+    }
+    SUBCASE("too few candles to infer") {
+        CHECK(vroom::infer_candle_duration(c.data(), 1) == 0);
+        CHECK(vroom::infer_candle_duration(nullptr, 0) == 0);
+    }
+    SUBCASE("two candles sharing a timestamp") {
+        std::vector<VroomCandle> dup{ohlc(0, 1.0, 2.0), ohlc(0, 1.0, 2.0)};
+        CHECK(vroom::infer_candle_duration(dup.data(), dup.size()) == 0);
+    }
+}

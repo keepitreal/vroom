@@ -451,6 +451,11 @@ export function useChartCore(
     handle: ChartHandle;
     candles: Candle[];
     seriesKey?: string;
+    // Set while the loading line has replaced these candles in the core: the
+    // view they were framed in, kept so the series that lands next can be
+    // re-anchored from it rather than inheriting a window in another
+    // interval's units.
+    beforeLoading?: { window: VisibleRange; envelope: { low: number; high: number } | null };
   } | null>(null);
   // The chart type the theme was last pushed for, keyed by handle like
   // prevDataRef, so the data effect can tell a candle↔line switch apart.
@@ -711,11 +716,26 @@ export function useChartCore(
       // classify the incoming series as a timeframe switch rather than a fresh
       // load. Scoped to the loading case so that hold-the-last-frame behavior
       // is untouched for every other empty push.
+      //
+      // The outgoing series stays the reference for classifying what lands
+      // next, along with the view it was framed in: the core keeps that window
+      // through the clear, and a different interval landing in it as-is would
+      // be crushed or blown up by the ratio of the two steps.
       if (!lineUpRef.current) {
         endIntervalMorph();
         settleStream();
+        const prev = prevDataRef.current;
+        prevDataRef.current =
+          prev && prev.handle === h
+            ? {
+                ...prev,
+                beforeLoading: prev.beforeLoading ?? {
+                  window: h.getVisibleRange(),
+                  envelope: h.getVisiblePriceEnvelope(),
+                },
+              }
+            : null;
         h.setCandles(packCandles([]));
-        prevDataRef.current = null;
       }
       h.setLoading(true, !animRef.current.reduceMotion);
       lineUpRef.current = true;
@@ -754,7 +774,10 @@ export function useChartCore(
         // Set for an animated live update: whether the last bar reshapes, and
         // the window an appended bar should pull the view to.
         let stream: { morph: boolean; window: VisibleRange | null } | null = null;
-        if (transitionKind === 'stream' && prev != null && !explicit) {
+        // The loading line is what's on screen, not these candles, so there is
+        // nothing to morph or slide from; the hand-off reveals the new series.
+        const beforeLoading = freshHandle ? undefined : prev?.beforeLoading;
+        if (transitionKind === 'stream' && prev != null && !explicit && !beforeLoading) {
           const { stream: mode, streamMs, reduceMotion } = animRef.current;
           const stepMs = inferStepMs(candles);
           if (
@@ -804,7 +827,7 @@ export function useChartCore(
           settleStream();
         }
         if (transitionKind === 'timeframe' && prev != null) {
-          const oldWindow = h.getVisibleRange();
+          const oldWindow = beforeLoading?.window ?? h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
           if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
             tfArgs = {
@@ -813,14 +836,15 @@ export function useChartCore(
               oldLastMs: prev.candles[prev.candles.length - 1].timeMs,
             };
           }
-          prevEnvelope = h.getVisiblePriceEnvelope();
+          prevEnvelope = beforeLoading ? beforeLoading.envelope : h.getVisiblePriceEnvelope();
           // Capture the outgoing candle geometry, but only when it will actually
           // be animated so a disabled animation costs no snapshot. A switch
           // during a morph restarts from the data the core currently holds.
           morphing =
             animRef.current.ms > 0 &&
             !animRef.current.reduceMotion &&
-            onFrameRef.current != null;
+            onFrameRef.current != null &&
+            !beforeLoading;
           if (morphing) {
             endIntervalMorph();
             h.beginIntervalMorph(animRef.current.interval);
@@ -832,9 +856,8 @@ export function useChartCore(
         }
 
         // The loading line's data has landed, so it hands over to the series
-        // instead of the chart cutting to it. Always classified 'initial' (the
-        // loading branch above cleared prevDataRef), so this runs after that
-        // branch's endIntervalMorph.
+        // instead of the chart cutting to it. Whatever the classification, the
+        // loading branch above already landed any in-flight morph.
         if (lineUpRef.current) {
           lineUpRef.current = false;
           handOff =

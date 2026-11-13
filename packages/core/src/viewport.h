@@ -201,6 +201,13 @@ inline void blend_candle_snapshots(CandleSnapshot* dst, std::size_t dst_n,
     }
 }
 
+// The candle period, as the median of the first (up to) 8 intervals, so a
+// leading gap or a repeated first timestamp doesn't set it. Returns 0 when it
+// can't be inferred (fewer than two candles, or a non-positive median). Must
+// match inferStepMs in the TS dataTransitions, which frames the window from
+// the same series.
+int64_t infer_candle_duration(const ::VroomCandle* candles, size_t count);
+
 // Returns the indices of candles whose time_ms falls in [start_ms, end_ms].
 // When both are 0, returns the full range (Phase 1 default-everything behavior).
 // Candles must be sorted ascending by time_ms (invariant of the public API).
