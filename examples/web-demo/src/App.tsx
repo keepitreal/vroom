@@ -24,6 +24,7 @@ import {
   type StreamTransition,
   type UndoRedoControls,
   type UndoRedoState,
+  type VisibleRange,
 } from '@vroomchart/react';
 import {
   Sidebar,
@@ -348,6 +349,32 @@ function punchGaps(c: Candle[]): Candle[] {
   return out;
 }
 
+// Irregular first interval: `gap` drops the second bar (first interval = 2
+// steps), `dup` repeats the first bar's timestamp (first interval = 0), the
+// way a stitched history page can start. The core infers the candle period
+// from that first interval alone.
+const FIRST_BAR_MODES = ['normal', 'gap', 'dup'] as const;
+type FirstBarMode = (typeof FIRST_BAR_MODES)[number];
+
+function raggedStart(c: Candle[], mode: FirstBarMode): Candle[] {
+  if (mode === 'normal' || c.length < 3) return c;
+  if (mode === 'gap') return [c[0], ...c.slice(2)];
+  return [c[0], { ...c[0] }, ...c.slice(1)];
+}
+
+// Simulated fetch on asset/timeframe change: `empty` withholds candles for
+// FETCH_MS, `loading` also raises the loading prop, the way a real data layer
+// would while the new interval's history is in flight.
+const FETCH_MODES = ['off', 'empty', 'loading'] as const;
+type FetchMode = (typeof FETCH_MODES)[number];
+const FETCH_MS = 600;
+
+function queryEnum<T extends string>(key: string, values: readonly T[], fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const v = new URLSearchParams(window.location.search).get(key);
+  return values.includes(v as T) ? (v as T) : fallback;
+}
+
 // A simulated L2 order book around the latest close: buy bands stepping below
 // spot, sell bands above, each a thin price interval. Resting size tapers with
 // distance from spot (denser near the mid) plus a couple of prominent "walls"
@@ -644,7 +671,10 @@ export function App() {
   // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
   // bundled in @vroomchart/core-wasm.
   const [asset, setAsset] = useState<Asset>('BTC');
-  const [tf, setTf] = useState<number>(MINUTE);
+  const [tf, setTf] = useState<number>(() => {
+    const label = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tf') : null;
+    return TIMEFRAMES.find((t) => t.label === label)?.stepMs ?? MINUTE;
+  });
   const [useSeriesKey, setUseSeriesKey] = useState(true);
   const [gaps, setGaps] = useState(false);
   // Short-series repro (last 9 bars). `?sparse=1` turns it on at load so the
@@ -681,6 +711,26 @@ export function App() {
     },
     [],
   );
+  // Timeframe-zoom repros. `?fetch=loading`, `?controlled=1` and `?first=dup`
+  // deep-link them for e2e/timeframe-zoom.test.mjs.
+  const [fetchMode, setFetchMode] = useState<FetchMode>(() => queryEnum('fetch', FETCH_MODES, 'off'));
+  const [fetching, setFetching] = useState(false);
+  useEffect(() => {
+    if (fetchMode === 'off') return;
+    setFetching(true);
+    const id = setTimeout(() => setFetching(false), FETCH_MS);
+    return () => clearTimeout(id);
+  }, [fetchMode, asset, tf]);
+  const [firstBar, setFirstBar] = useState<FirstBarMode>(() => queryEnum('first', FIRST_BAR_MODES, 'normal'));
+  const [controlledRange, setControlledRange] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('controlled'),
+  );
+  const [range, setRange] = useState<VisibleRange | undefined>();
+  useEffect(() => setRange(undefined), [controlledRange, asset]);
+  const onViewportChange = useCallback(
+    (startMs: number, endMs: number) => setRange({ startMs, endMs }),
+    [],
+  );
   const [showLiquidity, setShowLiquidity] = useState(false);
   const [showPriceLines, setShowPriceLines] = useState(false);
   const [showFootprints, setShowFootprints] = useState(false);
@@ -690,10 +740,11 @@ export function App() {
   const demoBase = useMemo(() => {
     const base = aggregate(baseSeries(asset), tf);
     const series = gaps ? punchGaps(base) : base;
-    return listingCount > 0
-      ? newListing(series, listingCount, backfill, tf)
-      : maybeSparse(series, sparse);
-  }, [asset, tf, gaps, sparse, listingCount, backfill]);
+    return raggedStart(
+      listingCount > 0 ? newListing(series, listingCount, backfill, tf) : maybeSparse(series, sparse),
+      firstBar,
+    );
+  }, [asset, tf, gaps, sparse, listingCount, backfill, firstBar]);
   const [candles, setCandles] = useState<Candle[]>(demoBase);
   useEffect(() => {
     setCandles(demoBase);
@@ -1379,8 +1430,10 @@ export function App() {
                 // Withheld while loading, as a real fetch would: the line
                 // is for a chart that has no data, and passing both would
                 // (correctly) leave the real series up instead.
-                candles={loading ? EMPTY_CANDLES : candles}
-                loading={loading}
+                candles={loading || fetching ? EMPTY_CANDLES : candles}
+                loading={loading || (fetching && fetchMode === 'loading')}
+                visibleRange={controlledRange ? range : undefined}
+                onViewportChange={controlledRange ? onViewportChange : undefined}
                 seriesKey={seriesKey}
                 theme={chartTheme}
                 chartType={chartType}
@@ -1443,6 +1496,14 @@ export function App() {
               loading,
               setLoading,
               onSimulateLoad,
+              fetchModes: FETCH_MODES,
+              fetchMode,
+              setFetchMode: (m) => setFetchMode(m as FetchMode),
+              controlledRange,
+              setControlledRange,
+              firstBarModes: FIRST_BAR_MODES,
+              firstBar,
+              setFirstBar: (m) => setFirstBar(m as FirstBarMode),
             }}
             streaming={{
               onAddCandle,

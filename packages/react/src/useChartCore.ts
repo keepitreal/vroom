@@ -578,7 +578,17 @@ export function useChartCore(
     handle: VroomChartHandle;
     candles: VroomChartCoreProps['candles'];
     seriesKey?: string;
+    // Set while the loading line has replaced these candles in the core: the
+    // view they were framed in, kept so the series that lands next can be
+    // re-anchored from it rather than inheriting a window in another
+    // interval's units.
+    beforeLoading?: { window: VisibleRange; envelope: { low: number; high: number } | null };
   } | null>(null);
+  // The controlled visibleRange last pushed to the core, to tell a host moving
+  // the range apart from one leaving it where it was.
+  const appliedRangeRef = useRef<VisibleRange | null>(null);
+  const onViewportChangeRef = useRef(props.onViewportChange);
+  onViewportChangeRef.current = props.onViewportChange;
   const rafRef = useRef<number | null>(null);
   const intervalMorphRafRef = useRef<number | null>(null);
   const streamRafRef = useRef<number | null>(null);
@@ -867,6 +877,9 @@ export function useChartCore(
 
     const lineMissed = lineMissedRef.current && candles.length > 0;
     lineMissedRef.current = false;
+    // Set when a controlled range was re-anchored for a timeframe switch: the
+    // prop is stale until the host takes the new window from onViewportChange.
+    let reanchoredRange: VisibleRange | null = null;
     if (showLoadingLine || lineMissed) {
       // Clear the core's buffer, which the `candles.length > 0` gate below
       // otherwise never does: pushing an empty array is treated as "hold the
@@ -875,11 +888,26 @@ export function useChartCore(
       // classify the incoming series as a timeframe switch rather than a fresh
       // load. Scoped to the loading case so that hold-the-last-frame behavior
       // is untouched for every other empty push.
+      //
+      // The outgoing series stays the reference for classifying what lands
+      // next, along with the view it was framed in: the core keeps that window
+      // through the clear, and a different interval landing in it as-is would
+      // be crushed or blown up by the ratio of the two steps.
       if (!lineUpRef.current) {
         endIntervalMorph();
         settleStream();
+        const prev = prevDataRef.current;
+        prevDataRef.current =
+          prev && prev.handle === h
+            ? {
+                ...prev,
+                beforeLoading: prev.beforeLoading ?? {
+                  window: h.getVisibleRange(),
+                  envelope: h.getVisiblePriceEnvelope(),
+                },
+              }
+            : null;
         h.setCandles(packCandles([]));
-        prevDataRef.current = null;
       }
       h.setLoading(true, !reducedMotion());
       lineUpRef.current = true;
@@ -895,14 +923,21 @@ export function useChartCore(
       const prev = prevDataRef.current;
       const freshHandle = prev == null || prev.handle !== h;
       if (freshHandle || prev.candles !== candles || prev.seriesKey !== seriesKey) {
-        // A fresh core frames itself (its window starts at 0/0); an explicit
-        // visibleRange prop overrides any auto behavior, so treat the change
-        // like a stream and let the range application below win.
-        const transition: DataTransition = freshHandle
+        // A fresh core frames itself (its window starts at 0/0). An explicit
+        // visibleRange prop overrides any auto behavior, so the change is
+        // treated like a stream and the range application below wins — except
+        // for a timeframe switch the host didn't move the range for: its range
+        // is in the old interval's milliseconds, so the switch re-anchors as it
+        // would uncontrolled and reports the result through onViewportChange.
+        const classified: DataTransition = freshHandle
           ? 'initial'
-          : explicit
-            ? 'stream'
-            : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+          : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+        const rangeHeld =
+          appliedRangeRef.current?.startMs === startMs && appliedRangeRef.current?.endMs === endMs;
+        const transition: DataTransition =
+          !explicit || classified === 'initial' || (classified === 'timeframe' && rangeHeld)
+            ? classified
+            : 'stream';
 
         // Capture the outgoing view before setCandles re-infers the candle
         // period from the new data.
@@ -916,7 +951,10 @@ export function useChartCore(
         // Set for an animated live update: whether the last bar reshapes, and
         // the window an appended bar should pull the view to.
         let stream: { morph: boolean; window: VisibleRange | null } | null = null;
-        if (transition === 'stream' && prev != null && !explicit) {
+        // The loading line is what's on screen, not these candles, so there is
+        // nothing to morph or slide from; the hand-off reveals the new series.
+        const beforeLoading = freshHandle ? undefined : prev?.beforeLoading;
+        if (transition === 'stream' && prev != null && !explicit && !beforeLoading) {
           const { stream: mode, streamMs } = animRef.current;
           const stepMs = inferStepMs(candles);
           if (mode === 'transform' && streamMs > 0 && stepMs != null && !reducedMotion()) {
@@ -960,16 +998,16 @@ export function useChartCore(
           settleStream();
         }
         if (transition === 'timeframe' && prev != null) {
-          const oldWindow = h.getVisibleRange();
+          const oldWindow = beforeLoading?.window ?? h.getVisibleRange();
           const oldStepMs = inferStepMs(prev.candles);
           if (oldWindow.endMs > oldWindow.startMs && oldStepMs != null) {
             tfArgs = { oldWindow, oldStepMs, oldLastMs: prev.candles[prev.candles.length - 1].timeMs };
           }
-          prevEnvelope = h.getVisiblePriceEnvelope();
+          prevEnvelope = beforeLoading ? beforeLoading.envelope : h.getVisiblePriceEnvelope();
           // Capture the outgoing candle geometry, but only when it will actually
           // be animated so a disabled animation costs no snapshot. A switch
           // during a morph restarts from the data the core currently holds.
-          willMorph = animRef.current.ms > 0 && !reducedMotion();
+          willMorph = animRef.current.ms > 0 && !reducedMotion() && !beforeLoading;
           if (willMorph) {
             endIntervalMorph();
             h.beginIntervalMorph(animRef.current.interval);
@@ -981,9 +1019,8 @@ export function useChartCore(
         }
 
         // The loading line's data has landed, so it hands over to the series
-        // instead of the chart cutting to it. Always classified 'initial' (the
-        // loading branch above cleared prevDataRef), so this runs after that
-        // branch's endIntervalMorph.
+        // instead of the chart cutting to it. Whatever the classification, the
+        // loading branch above already landed any in-flight morph.
         if (lineUpRef.current) {
           lineUpRef.current = false;
           handOff = animRef.current.ms > 0 && !reducedMotion();
@@ -1019,6 +1056,7 @@ export function useChartCore(
               candles[candles.length - 1].timeMs,
             );
             h.setVisibleRange(w.startMs, w.endMs);
+            if (explicit) reanchoredRange = w;
           }
           // Scale-lock the y-axis: the same price action re-buckets into a
           // smaller/larger high-low span, so a manual price range is rescaled to
@@ -1040,13 +1078,21 @@ export function useChartCore(
         // After setCandles and the framing, explicit range included, so the
         // candles grow from the slots each bar will actually occupy.
         if (handOff) {
-          if (explicit) h.setVisibleRange(startMs, endMs);
+          if (explicit && !reanchoredRange) h.setVisibleRange(startMs, endMs);
           startLoadingHandoff(h);
         }
         prevDataRef.current = { handle: h, candles, seriesKey };
       }
     }
-    if (explicit) h.setVisibleRange(startMs, endMs);
+    if (explicit && !reanchoredRange) {
+      h.setVisibleRange(startMs, endMs);
+      appliedRangeRef.current = { startMs, endMs };
+    } else if (!explicit) {
+      appliedRangeRef.current = null;
+    }
+    if (reanchoredRange) {
+      onViewportChangeRef.current?.(reanchoredRange.startMs, reanchoredRange.endMs);
+    }
     if (theme) applyTheme(h, theme);
     // The tip dot stays, only its animation drops. Also stops the pulse from
     // pinning a rAF loop for a user who asked for less motion.

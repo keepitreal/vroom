@@ -193,12 +193,9 @@ extern "C" void vroom_chart_set_candles(VroomChart* chart, const VroomCandle* da
     // matches the data — regroup on next use.
     chart->footprint_buckets_dirty = true;
 
-    // Infer the candle period from the first interval. Robust enough for
-    // uniform-duration series (the only kind we model today).
-    if (chart->candles.size() >= 2) {
-        const int64_t d = chart->candles[1].time_ms - chart->candles[0].time_ms;
-        if (d > 0) chart->candle_duration_ms = d;
-    }
+    const int64_t d =
+        vroom::infer_candle_duration(chart->candles.data(), chart->candles.size());
+    if (d > 0) chart->candle_duration_ms = d;
     vroom::labels::recompute_axis_width(*chart);
 
     // Default the visible window when the consumer hasn't set one. The y-axis

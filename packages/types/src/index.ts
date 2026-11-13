@@ -1809,8 +1809,11 @@ export type VroomChartCoreProps = {
    * The visible time window (Unix epoch ms) after the user pans or zooms. Fires
    * once the gesture settles — on release, or after a short pause in wheel
    * input — and only when the window actually changed, so it's cheap to feed
-   * straight back into a controlled `visibleRange`. On React Native it is
-   * currently a change ping that reports `(0, 0)`.
+   * straight back into a controlled `visibleRange`. With a controlled range,
+   * it also fires when a timeframe switch re-anchors the window (on the web),
+   * since the range you hold is in the old interval's milliseconds: feed it
+   * back and candles keep their width across the switch. On React Native it
+   * is currently a change ping that reports `(0, 0)`.
    */
   onViewportChange?: (startMs: number, endMs: number) => void;
 };
