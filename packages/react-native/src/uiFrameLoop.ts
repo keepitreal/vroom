@@ -3,7 +3,7 @@ import type { ChartFrame, ChartHandle } from './jsi.d';
 /** States of a chart's UI-thread frame loop, kept in a SharedValue. */
 export const LOOP_IDLE = 0;
 export const LOOP_RUNNING = 1;
-/** Its chart unmounted: the loop draws nothing more, and never restarts. */
+/** Its chart unmounted or was hidden: the loop draws nothing more until the chart shows again. */
 export const LOOP_STOPPED = 2;
 
 /**
