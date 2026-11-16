@@ -3,7 +3,9 @@
 Footprints mark where a trade actually filled — the tracks a trader leaves across
 their own chart. Each one draws as a small circular badge above the candle it
 landed in: a `+` in the bull color for an entry, a `−` in the bear color for an
-exit.
+exit. In line mode the badge sits right on the line, centered on that candle's
+close, and it glides between the two positions as the chart type animates (on the
+same duration and easing as the line itself).
 
 They work on **both web and React Native** (the renderer lives in the C++ core).
 
@@ -37,13 +39,13 @@ don't hand the chart a different array per interval.
 containment rather than equality, a fill at 09:31:47 shows up on the 09:30 bar of
 a 5m series. Nothing is silently dropped for failing to line up.
 
-**At most two badges render per candle.** One stands for that bar's buys and one
-for its sells, however many trades went into each. A bar holding twenty fills
-shows one or two badges and still reports all twenty when you hover it.
+**One badge renders per candle.** However many trades went into a bar, it shows
+a single badge, and still reports all of them when you hover it.
 
-When a candle has both, the two badges stack upward above the high with a gap
-between them, the side whose *latest* trade came first sitting nearer the bar.
-The gap is there so each stays independently hoverable.
+When a candle holds both buys and sells, the badge becomes a combined one: a bull
+dot and a bear dot on one disc. The dot for the side whose *latest* trade came
+first sits upper-left, so the badge reads in the order the trades happened.
+Hovering it reports `side: 'both'`.
 
 ## Rendering your own tooltip
 
@@ -57,7 +59,7 @@ way. Your tooltip is your components, your styling, your data.
 type FootprintEvent = {
   active: boolean;
   reason: "show" | "move" | "hide";
-  side: FootprintSide | null;
+  side: FootprintSide | "both" | null; // "both" = the combined badge
   timeMs: number | null; // bar-open time of the candle
   footprints: Footprint[]; // every fill on that bar, both sides, by time
   badge: { x: number; y: number; radius: number } | null;
@@ -177,7 +179,7 @@ function Chart({ candles, fills }) {
       {hover && (
         <Tooltip
           {...placeTooltip(hover.badge, hover.pane, TOOLTIP, "right")}
-          trades={hover.footprints.filter((f) => f.side === hover.side)}
+          trades={hover.footprints}
         />
       )}
     </div>
@@ -189,7 +191,7 @@ Give the tooltip `pointer-events: none` (`pointerEvents="none"` on React Native)
 Without it, sliding onto the tooltip takes the pointer off the canvas, the chart
 reports a dismissal, the tooltip unmounts, and the pointer is back over the badge
 — a flicker loop. With it, the pointer passes through, which also means a tooltip
-lying over the other badge of a stacked pair doesn't block it.
+lying over a neighbouring bar's badge doesn't block it.
 
 ### Rejoining fills to your own data
 
@@ -199,12 +201,13 @@ them comes back:
 ```tsx
 type MyFill = Footprint & { size: number; venue: string; orderId: string };
 
-const mine = (e.footprints as MyFill[]).filter((f) => f.side === e.side);
-const total = mine.reduce((sum, f) => sum + f.size, 0);
+const mine = e.footprints as MyFill[];
+const bought = mine.filter((f) => f.side === "buy").reduce((sum, f) => sum + f.size, 0);
 ```
 
 `price` is part of `Footprint` but the renderer ignores it — badges sit above the
-bar, not at the fill — so it's carried through purely for your UI.
+bar (or on the close line), not at the fill — so it's carried through purely for
+your UI.
 
 ## Styling
 
@@ -217,15 +220,16 @@ theme, so badges match the candles without being configured twice.
   footprints={fills}
   footprintsStyle={{
     radius: 9, // badge radius in px
-    gap: 4, // between the two stacked badges on one bar
-    margin: 8, // between the candle's high and the first badge
+    margin: 8, // between the candle's high and the badge (candle mode)
     hoverBoost: 1.25, // how much the hovered badge brightens
   }}
 />
 ```
 
 The fills use `bull` and `bear` — the same colors as the candle bodies — and the
-`+`/`−` glyph uses `badgeText`. Restyle them through `theme`.
+`+`/`−` glyph uses `badgeText`. A combined badge's two dots sit on a disc of the
+chart `background`, outlined in `grid`. Restyle them through `theme`. `gap` is deprecated and ignored now that a
+bar never stacks two badges.
 
 ## Platform differences
 

@@ -15,10 +15,9 @@
 
 namespace vroom::footprints {
 
-// Badge radius, the gap between two stacked badges, and the gap between the
-// candle's high and the first badge. Defaults for a zero/negative style field.
+// Badge radius and the gap between the candle's high and the badge. Defaults for
+// a zero/negative style field.
 constexpr float kRadius = 9.f;
-constexpr float kGap = 4.f;
 constexpr float kMargin = 8.f;
 constexpr float kHoverBoost = 1.25f;
 
@@ -33,15 +32,13 @@ struct Bucket {
     int64_t              candle_time_ms = 0;
     std::vector<int32_t> buys;
     std::vector<int32_t> sells;
-    // Time of the last trade on each side, which decides the stack order. Only
-    // meaningful when the matching list is non-empty.
+    // Time of the last trade on each side, which decides the dot order in a
+    // combined badge. Only meaningful when the matching list is non-empty.
     int64_t buy_latest_ms = 0;
     int64_t sell_latest_ms = 0;
 
     bool has_buys() const { return !buys.empty(); }
     bool has_sells() const { return !sells.empty(); }
-    // Every candle that made it into a bucket has at least one badge to draw.
-    int32_t badge_count() const { return (has_buys() ? 1 : 0) + (has_sells() ? 1 : 0); }
 };
 
 // Index of the candle whose [time_ms, time_ms + duration_ms) window contains
@@ -52,30 +49,33 @@ int32_t bucket_index(const ::VroomCandle* candles, size_t count,
 
 // Groups `prints` onto candles. The result is ascending by candle time and holds
 // only candles that got at least one footprint, so it is also the dedupe: however
-// many trades a bar collected, it comes back as one bucket with at most two sides.
+// many trades a bar collected, it comes back as one bucket, drawn as one badge.
 // Footprints with an unknown side, or that land in no candle's window, are dropped.
 std::vector<Bucket> build_buckets(const ::VroomCandle* candles, size_t count,
                                   int64_t duration_ms,
                                   const ::VroomFootprint* prints, size_t print_count);
 
-// The laid-out badge stack for one candle: one or two centers, going up from the
-// candle's high. Slot 0 is the one nearest the bar.
-struct Stack {
-    int32_t count = 0;
-    int32_t sides[2]{};  // VroomFootprintSide per slot
-    float   y[2]{};      // center y per slot
+// The laid-out badge for one candle.
+struct BadgeLayout {
+    // VroomFootprintSide; BOTH when the bucket holds buys and sells, -1 when it
+    // holds neither.
+    int32_t side = -1;
+    // For a BOTH badge, the side whose latest trade came first: its dot sits
+    // upper-left, so the badge reads in the order the trades happened.
+    int32_t first_side = -1;
+    float   y = 0.f;  // center y
 };
 
-// Stacks `bucket`'s badges above `high_y` (the pixel y of the candle's high).
+// Places `bucket`'s badge over its candle. `line_t` is the candle↔line morph
+// (0 = candles, 1 = line): at 0 the badge clears `high_y` by margin + radius, at
+// 1 it is centered on `close_y`, where the close line passes, and in between it
+// glides linearly so it rides the same eased morph as the series. The badge
+// shifts down if it would poke out the top of the pane, keeping a bar near the
+// top of the view visible and hoverable rather than clipped away.
 //
-// The side whose latest trade came *first* takes the lower slot, so reading the
-// stack bottom-to-top replays the order the trades happened in. The whole stack
-// shifts down if it would poke out the top of the pane, keeping badges on a bar
-// near the high of the view visible and hoverable rather than clipped away.
-//
-// Style fields at or below zero fall back to kRadius / kGap / kMargin.
-Stack layout_stack(const Bucket& bucket, float high_y, float pane_top,
-                   float radius, float gap, float margin);
+// Style fields at or below zero fall back to kRadius / kMargin.
+BadgeLayout layout_badge(const Bucket& bucket, float high_y, float close_y,
+                         float line_t, float pane_top, float radius, float margin);
 
 // True when (x, y) is within a badge of `radius` centered at (cx, cy), plus
 // kHitTolerance.
@@ -85,7 +85,6 @@ bool hits_badge(float cx, float cy, float radius, float x, float y);
 // A null `style`, or any field left at zero, takes the default.
 struct Metrics {
     float radius = kRadius;
-    float gap = kGap;
     float margin = kMargin;
     float hover_boost = kHoverBoost;
 };

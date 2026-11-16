@@ -82,17 +82,15 @@ Metrics metrics_from(const ::VroomFootprintStyle* style) {
     Metrics m;
     if (!style) return m;
     if (style->radius_px > 0.f) m.radius = style->radius_px;
-    if (style->gap_px > 0.f) m.gap = style->gap_px;
     if (style->margin_px > 0.f) m.margin = style->margin_px;
     if (style->hover_boost > 0.f) m.hover_boost = style->hover_boost;
     return m;
 }
 
-Stack layout_stack(const Bucket& bucket, float high_y, float pane_top,
-                   float radius, float gap, float margin) {
-    Stack out;
+BadgeLayout layout_badge(const Bucket& bucket, float high_y, float close_y,
+                         float line_t, float pane_top, float radius, float margin) {
+    BadgeLayout out;
     if (radius <= 0.f) radius = kRadius;
-    if (gap <= 0.f) gap = kGap;
     if (margin <= 0.f) margin = kMargin;
 
     const bool buys = bucket.has_buys();
@@ -100,32 +98,22 @@ Stack layout_stack(const Bucket& bucket, float high_y, float pane_top,
     if (!buys && !sells) return out;
 
     if (buys && sells) {
-        // Bottom-to-top replays the order the trades happened in. Ties go to the
-        // buy, so an entry and exit stamped the same ms still lay out predictably.
-        const bool buy_first = bucket.buy_latest_ms <= bucket.sell_latest_ms;
-        out.sides[0] = buy_first ? VROOM_FOOTPRINT_BUY : VROOM_FOOTPRINT_SELL;
-        out.sides[1] = buy_first ? VROOM_FOOTPRINT_SELL : VROOM_FOOTPRINT_BUY;
-        out.count = 2;
+        // Ties go to the buy, so an entry and exit stamped the same ms still lay
+        // out predictably.
+        out.side = VROOM_FOOTPRINT_BOTH;
+        out.first_side = bucket.buy_latest_ms <= bucket.sell_latest_ms
+                             ? VROOM_FOOTPRINT_BUY
+                             : VROOM_FOOTPRINT_SELL;
     } else {
-        out.sides[0] = buys ? VROOM_FOOTPRINT_BUY : VROOM_FOOTPRINT_SELL;
-        out.count = 1;
+        out.side = buys ? VROOM_FOOTPRINT_BUY : VROOM_FOOTPRINT_SELL;
+        out.first_side = out.side;
     }
 
-    // Slot 0 clears the high by `margin`; each further slot clears the one below
-    // it by `gap`, which is what keeps them separately hoverable.
-    const float pitch = 2.f * radius + gap;
-    for (int32_t i = 0; i < out.count; ++i) {
-        out.y[i] = high_y - margin - radius - static_cast<float>(i) * pitch;
-    }
+    const float t = std::clamp(line_t, 0.f, 1.f);
+    const float above_high = high_y - margin - radius;
+    out.y = above_high + (close_y - above_high) * t;
 
-    // A bar near the top of the view would push its stack off-screen; slide the
-    // whole stack down so the topmost badge stays inside the pane. Moving both
-    // together preserves the order the stack encodes.
-    const float top_edge = out.y[out.count - 1] - radius;
-    if (top_edge < pane_top) {
-        const float shift = pane_top - top_edge;
-        for (int32_t i = 0; i < out.count; ++i) out.y[i] += shift;
-    }
+    if (out.y - radius < pane_top) out.y = pane_top + radius;
     return out;
 }
 

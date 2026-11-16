@@ -1354,7 +1354,8 @@ extern "C" void vroom_chart_set_footprint_hover(VroomChart* chart,
                                                 int64_t candle_time_ms,
                                                 int32_t side) {
     if (!chart) return;
-    if (side != VROOM_FOOTPRINT_BUY && side != VROOM_FOOTPRINT_SELL) {
+    if (side != VROOM_FOOTPRINT_BUY && side != VROOM_FOOTPRINT_SELL &&
+        side != VROOM_FOOTPRINT_BOTH) {
         side = -1;
         candle_time_ms = 0;
     }

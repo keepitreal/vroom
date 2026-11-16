@@ -486,9 +486,9 @@ type DemoFootprint = Footprint & { size: number };
 // Everything sits inside the last couple of hours so it's within the default
 // viewport. Positions are chosen to show off all three behaviors at once:
 //   1m: six bars with badges, one of them holding three buys behind one badge,
-//       one of them holding both a buy and a sell as a stacked pair.
-//   1h: three bars, each now a stacked pair, and the first bar's buy badge now
-//       reports two fills that were on separate minutes.
+//       one of them holding both a buy and a sell as a combined badge.
+//   1h: three bars, each now a combined badge, and the first bar's reports two
+//       buy fills that were on separate minutes.
 function makeFootprints(base: Candle[]): DemoFootprint[] {
   if (base.length < 200) return [];
   const newest = base[base.length - 1].timeMs;
@@ -516,8 +516,8 @@ function makeFootprints(base: Candle[]): DemoFootprint[] {
   add(96, 30, 'buy', 0.75);
   add(96, 51, 'buy', 0.25);
   add(70, 24, 'sell', 1.5);
-  // A bar that both bought and sold — two stacked badges, buy lower because its
-  // last fill came first.
+  // A bar that both bought and sold — one combined badge, the buy's dot
+  // upper-left because its last fill came first.
   add(20, 12, 'buy', 2);
   add(20, 48, 'sell', 2);
   return out;
@@ -526,14 +526,14 @@ function makeFootprints(base: Candle[]): DemoFootprint[] {
 // The tooltip the *host* renders for a hovered footprint — vroom draws no overlay
 // of its own, it just says which badge is hovered, which trades are on that bar,
 // where the badge is, and how much room the plot has. Parked beside the badge
-// rather than above it so a bar holding both a buy and a sell keeps both visible.
+// rather than above it so the tooltip never covers the bar it describes.
 const FOOTPRINT_TOOLTIP_W = 200;
 
 function FootprintTooltip({
   hover,
 }: {
   hover: {
-    side: FootprintSide;
+    side: FootprintSide | 'both';
     timeMs: number;
     trades: DemoFootprint[];
     badge: { x: number; y: number; radius: number };
@@ -543,11 +543,8 @@ function FootprintTooltip({
 }) {
   if (!hover) return null;
   const { side, trades, badge, flip } = hover;
-  // Only the hovered badge's own side; the event carries the whole bar so a host
-  // could just as easily show both.
-  const mine = trades.filter((t) => t.side === side);
-  const total = mine.reduce((sum, t) => sum + t.size, 0);
-  const accent = side === 'buy' ? '#26a69a' : '#ef5350';
+  // The hovered badge's own side, or a row per side for a combined badge.
+  const sides: FootprintSide[] = side === 'both' ? ['buy', 'sell'] : [side];
   return (
     <div
       style={{
@@ -573,26 +570,34 @@ function FootprintTooltip({
         boxShadow: '0 6px 20px #0008',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span
-          style={{
-            background: accent,
-            color: '#08121a',
-            borderRadius: 4,
-            padding: '1px 6px',
-            fontWeight: 600,
-          }}
-        >
-          {side === 'buy' ? 'Buy' : 'Sell'}
-        </span>
-        <span style={{ color: '#8b949e' }}>
-          {new Date(mine[mine.length - 1]?.timeMs ?? hover.timeMs).toLocaleString()}
-        </span>
-      </div>
-      <div style={{ fontSize: 13 }}>
-        {total} {mine.length > 1 ? `in ${mine.length} fills` : ''} at{' '}
-        {mine[mine.length - 1]?.price?.toFixed(2) ?? '—'}
-      </div>
+      {sides.map((s, i) => {
+        const mine = trades.filter((t) => t.side === s);
+        const total = mine.reduce((sum, t) => sum + t.size, 0);
+        return (
+          <div key={s} style={{ marginTop: i > 0 ? 8 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span
+                style={{
+                  background: s === 'buy' ? '#26a69a' : '#ef5350',
+                  color: '#08121a',
+                  borderRadius: 4,
+                  padding: '1px 6px',
+                  fontWeight: 600,
+                }}
+              >
+                {s === 'buy' ? 'Buy' : 'Sell'}
+              </span>
+              <span style={{ color: '#8b949e' }}>
+                {new Date(mine[mine.length - 1]?.timeMs ?? hover.timeMs).toLocaleString()}
+              </span>
+            </div>
+            <div style={{ fontSize: 13 }}>
+              {total} {mine.length > 1 ? `in ${mine.length} fills` : ''} at{' '}
+              {mine[mine.length - 1]?.price?.toFixed(2) ?? '—'}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -871,7 +876,7 @@ export function App() {
     [showFootprints, asset],
   );
   const [footprintHover, setFootprintHover] = useState<{
-    side: FootprintSide;
+    side: FootprintSide | 'both';
     timeMs: number;
     trades: DemoFootprint[];
     badge: { x: number; y: number; radius: number };

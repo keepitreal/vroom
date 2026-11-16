@@ -62,6 +62,7 @@ import './jsi.d';
 
 // Mirrors VroomFootprintSide in packages/core/include/vroom/vroom_chart.h.
 const FOOTPRINT_SELL = 1;
+const FOOTPRINT_BOTH = 2;
 
 // Mirrors VroomCrosshairInfo.indicator_kind in packages/core/include/vroom/vroom_chart.h.
 const INDICATOR_KINDS: readonly CrosshairIndicatorKind[] = ['rsi', 'macd', 'atr'];
@@ -1179,7 +1180,7 @@ export function VroomChart(props: VroomChartProps) {
         onFootprint?.({
           active: true,
           reason: wasActive ? 'move' : 'show',
-          side: fp.side === FOOTPRINT_SELL ? 'sell' : 'buy',
+          side: fp.side === FOOTPRINT_BOTH ? 'both' : fp.side === FOOTPRINT_SELL ? 'sell' : 'buy',
           timeMs: fp.candleTimeMs,
           // The core reports indices into the array we last pushed, which is this
           // same prop — so this rejoins each badge to the consumer's own objects.

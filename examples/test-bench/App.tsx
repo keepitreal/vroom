@@ -319,12 +319,12 @@ function mockFootprints(candles: Candle[]): DemoFootprint[] {
 // The tooltip the *host* renders for a tapped footprint — vroom draws no overlay
 // of its own, it just says which badge was tapped, which trades are on that bar,
 // where the badge is, and how much room the plot has. Parked beside the badge
-// rather than above it so a bar holding both a buy and a sell keeps both visible.
+// rather than above it so the tooltip never covers the bar it describes.
 function FootprintTooltip({
   hover,
 }: {
   hover: {
-    side: FootprintSide;
+    side: FootprintSide | 'both';
     trades: DemoFootprint[];
     badge: { x: number; y: number; radius: number };
     pane: PlotRect;
@@ -332,13 +332,12 @@ function FootprintTooltip({
 }) {
   if (!hover) return null;
   const { side, trades, badge, pane } = hover;
-  // Only the tapped badge's own side; the event carries the whole bar so a host
-  // could just as easily show both.
-  const mine = trades.filter((t) => t.side === side);
-  if (mine.length === 0) return null;
-  const total = mine.reduce((sum, t) => sum + t.size, 0);
-  const latest = mine[mine.length - 1];
-  const accent = side === 'buy' ? '#26a69a' : '#ef5350';
+  // The tapped badge's own side, or a row per side for a combined badge.
+  const sides: FootprintSide[] = side === 'both' ? ['buy', 'sell'] : [side];
+  const rows = sides
+    .map((s) => ({ s, mine: trades.filter((t) => t.side === s) }))
+    .filter((r) => r.mine.length > 0);
+  if (rows.length === 0) return null;
   const width = 190;
   return (
     <View
@@ -359,19 +358,32 @@ function FootprintTooltip({
         },
       ]}
     >
-      <View style={styles.fpTooltipHeader}>
-        <Text style={[styles.fpTooltipBadge, { backgroundColor: accent }]}>
-          {side === 'buy' ? 'Buy' : 'Sell'}
-        </Text>
-        <Text style={styles.fpTooltipTime}>
-          {new Date(latest.timeMs).toLocaleTimeString()}
-        </Text>
-      </View>
-      <Text style={styles.fpTooltipBody}>
-        {total}
-        {mine.length > 1 ? ` in ${mine.length} fills` : ''} at{' '}
-        {latest.price?.toFixed(2) ?? '—'}
-      </Text>
+      {rows.map(({ s, mine }) => {
+        const total = mine.reduce((sum, t) => sum + t.size, 0);
+        const latest = mine[mine.length - 1];
+        return (
+          <View key={s}>
+            <View style={styles.fpTooltipHeader}>
+              <Text
+                style={[
+                  styles.fpTooltipBadge,
+                  { backgroundColor: s === 'buy' ? '#26a69a' : '#ef5350' },
+                ]}
+              >
+                {s === 'buy' ? 'Buy' : 'Sell'}
+              </Text>
+              <Text style={styles.fpTooltipTime}>
+                {new Date(latest.timeMs).toLocaleTimeString()}
+              </Text>
+            </View>
+            <Text style={styles.fpTooltipBody}>
+              {total}
+              {mine.length > 1 ? ` in ${mine.length} fills` : ''} at{' '}
+              {latest.price?.toFixed(2) ?? '—'}
+            </Text>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -678,7 +690,7 @@ export default function App() {
   // move when the interval does — only which bar they land on.
   const footprints = useMemo(() => mockFootprints(candles), [candles]);
   const [footprintHover, setFootprintHover] = useState<{
-    side: FootprintSide;
+    side: FootprintSide | 'both';
     trades: DemoFootprint[];
     badge: { x: number; y: number; radius: number };
     pane: PlotRect;
