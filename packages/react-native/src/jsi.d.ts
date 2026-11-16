@@ -527,6 +527,7 @@ export interface ChartHandle {
     x: number,
     y: number,
   ): {
+    /** 0=buy, 1=sell, 2=both (the combined badge on a candle holding both sides). */
     side: number;
     candleTimeMs: number;
     x: number;

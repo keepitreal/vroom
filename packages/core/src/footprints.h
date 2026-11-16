@@ -1,9 +1,10 @@
 // Footprints — circular badges marking where a trader entered and exited, drawn
-// above the candle each trade fell in.
+// above the candle each trade fell in, or centered on the close line in line mode.
 //
 // A buy is a "+" in the bull color, a sell a "-" in the bear color, both glyphs in
-// VROOM_COLOR_BADGE_TEXT. Only one badge per side per candle renders however many
-// fills went into it; the host learns the full set through
+// VROOM_COLOR_BADGE_TEXT. A candle holding both sides draws one combined badge: a
+// bull and a bear dot on a VROOM_COLOR_BACKGROUND disc. Only one badge per candle
+// renders however many fills went into it; the host learns the full set through
 // vroom_chart_footprints_at and draws its own tooltip.
 //
 // Bucketing and badge geometry live in footprints_layout.h so the draw and

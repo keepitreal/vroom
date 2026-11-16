@@ -1108,16 +1108,19 @@ export type FootprintSide = 'buy' | 'sell';
  * A single filled trade, drawn as a circular badge above the candle it fell in —
  * the "footprint" a trader leaves on the chart: `buy` marks an entry (a `+`
  * badge in the bull color), `sell` marks an exit (a `−` badge in the bear color).
+ * In line mode the badge sits centered on the line at that candle's close, and
+ * it glides between the two positions as the chart type animates.
  *
  * `timeMs` is the raw execution time, *not* a bar-open time. The chart buckets
  * each footprint into whichever candle's window contains it, so the same array
  * renders correctly at every interval — switch from 1m to 1h and the badges
  * re-group onto the wider bars on their own.
  *
- * At most two badges render per candle: one for that bar's buys and one for its
- * sells, however many trades went into each. Hovering (or tapping) a badge hands
- * every footprint on that candle back through `onFootprint`, so a bar holding
- * twenty fills still shows one badge and still reports all twenty.
+ * One badge renders per candle, however many trades went into it. A candle
+ * holding both buys and sells draws a combined badge — a bull dot and a bear
+ * dot on one disc, the side that traded first upper-left. Hovering (or tapping)
+ * a badge hands every footprint on that candle back through `onFootprint`, so a
+ * bar holding twenty fills still shows one badge and still reports all twenty.
  */
 export type Footprint = {
   /** Stable unique id, echoed back in `onFootprint`. */
@@ -1138,11 +1141,14 @@ export type FootprintsStyle = {
   /** Badge radius in px. Default 9. */
   radius?: number;
   /**
-   * Vertical gap between the two stacked badges on a candle that has both a buy
-   * and a sell. Default 4 — wide enough that each stays independently hoverable.
+   * @deprecated Unused: a candle with both a buy and a sell now draws one
+   * combined badge, so there is no stack to space out.
    */
   gap?: number;
-  /** Gap between the candle's high and the first badge, in px. Default 8. */
+  /**
+   * Gap between the candle's high and the badge, in px, in candle mode. Default
+   * 8. In line mode the badge sits on the line instead.
+   */
   margin?: number;
   /**
    * How much the hovered badge brightens, as a channel multiplier. 1 disables
@@ -1190,8 +1196,11 @@ export type FootprintEvent = {
    *            took the pane over
    */
   reason: 'show' | 'move' | 'hide';
-  /** Which badge — its buys or its sells. Null when inactive. */
-  side: FootprintSide | null;
+  /**
+   * Which badge: `'buy'` or `'sell'` for a candle holding one side, `'both'` for
+   * the combined badge on a candle holding buys and sells. Null when inactive.
+   */
+  side: FootprintSide | 'both' | null;
   /** Bar-open time (epoch ms) of the candle the badge sits on. Null when inactive. */
   timeMs: number | null;
   /**

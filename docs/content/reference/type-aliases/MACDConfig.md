@@ -25,7 +25,7 @@ type MACDConfig = {
 };
 ```
 
-Source: [types/src/index.ts:1380](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1380)
+Source: [types/src/index.ts:1389](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1389)
 
 MACD indicator config. Rendered in its own pane below the candles: the gap
 between a fast and a slow moving average, a signal line smoothing that gap,
@@ -42,7 +42,7 @@ untouched config renders exactly as it always has.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:1382](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1382)
+Source: [types/src/index.ts:1391](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1391)
 
 Draw the pane. Default false.
 
@@ -54,7 +54,7 @@ Draw the pane. Default false.
 optional fast?: number;
 ```
 
-Source: [types/src/index.ts:1384](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1384)
+Source: [types/src/index.ts:1393](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1393)
 
 Fast moving-average length. Default 12.
 
@@ -66,7 +66,7 @@ Fast moving-average length. Default 12.
 optional histogramDownColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1423](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1423)
+Source: [types/src/index.ts:1432](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1432)
 
 Bars below zero still growing away from it. Defaults to `theme.accentBear`.
 
@@ -78,7 +78,7 @@ Bars below zero still growing away from it. Defaults to `theme.accentBear`.
 optional histogramDownFadingColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1428](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1428)
+Source: [types/src/index.ts:1437](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1437)
 
 Bars below zero rising back toward it. Defaults to `histogramDownColor` at
 half opacity.
@@ -91,7 +91,7 @@ half opacity.
 optional histogramUpColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1416](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1416)
+Source: [types/src/index.ts:1425](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1425)
 
 Bars above zero that are still growing away from it. Defaults to
 `theme.accentBull`. Set all four histogram colors alike for a flat,
@@ -105,7 +105,7 @@ single-color histogram.
 optional histogramUpFadingColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1421](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1421)
+Source: [types/src/index.ts:1430](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1430)
 
 Bars above zero that are falling back toward it, i.e. momentum easing.
 Defaults to `histogramUpColor` at half opacity.
@@ -118,7 +118,7 @@ Defaults to `histogramUpColor` at half opacity.
 optional histogramVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:1410](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1410)
+Source: [types/src/index.ts:1419](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1419)
 
 Draw the histogram bars. Default true.
 
@@ -130,7 +130,7 @@ Draw the histogram bars. Default true.
 optional lineColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1397](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1397)
+Source: [types/src/index.ts:1406](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1406)
 
 MACD line color (hex string or packed ARGB number). Default blue.
 
@@ -142,7 +142,7 @@ MACD line color (hex string or packed ARGB number). Default blue.
 optional lineVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:1401](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1401)
+Source: [types/src/index.ts:1410](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1410)
 
 Draw the MACD line. Default true.
 
@@ -154,7 +154,7 @@ Draw the MACD line. Default true.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:1399](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1399)
+Source: [types/src/index.ts:1408](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1408)
 
 MACD line stroke width in px. Default 1.5.
 
@@ -166,7 +166,7 @@ MACD line stroke width in px. Default 1.5.
 optional maType?: MAKind;
 ```
 
-Source: [types/src/index.ts:1392](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1392)
+Source: [types/src/index.ts:1401](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1401)
 
 Averaging used for the fast and slow legs ([MAKind](MAKind.md)). Default 'ema'.
 
@@ -178,7 +178,7 @@ Averaging used for the fast and slow legs ([MAKind](MAKind.md)). Default 'ema'.
 optional signal?: number;
 ```
 
-Source: [types/src/index.ts:1388](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1388)
+Source: [types/src/index.ts:1397](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1397)
 
 Signal-line length. Default 9.
 
@@ -190,7 +190,7 @@ Signal-line length. Default 9.
 optional signalColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1403](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1403)
+Source: [types/src/index.ts:1412](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1412)
 
 Signal line color. Default orange.
 
@@ -202,7 +202,7 @@ Signal line color. Default orange.
 optional signalMaType?: MAKind;
 ```
 
-Source: [types/src/index.ts:1394](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1394)
+Source: [types/src/index.ts:1403](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1403)
 
 Averaging applied to the MACD series for the signal line. Default 'ema'.
 
@@ -214,7 +214,7 @@ Averaging applied to the MACD series for the signal line. Default 'ema'.
 optional signalVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:1407](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1407)
+Source: [types/src/index.ts:1416](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1416)
 
 Draw the signal line. Default true.
 
@@ -226,7 +226,7 @@ Draw the signal line. Default true.
 optional signalWidth?: number;
 ```
 
-Source: [types/src/index.ts:1405](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1405)
+Source: [types/src/index.ts:1414](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1414)
 
 Signal line stroke width in px. Default 1.5.
 
@@ -238,7 +238,7 @@ Signal line stroke width in px. Default 1.5.
 optional slow?: number;
 ```
 
-Source: [types/src/index.ts:1386](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1386)
+Source: [types/src/index.ts:1395](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1395)
 
 Slow moving-average length (forced > fast). Default 26.
 
@@ -250,7 +250,7 @@ Slow moving-average length (forced > fast). Default 26.
 optional source?: MASource;
 ```
 
-Source: [types/src/index.ts:1390](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1390)
+Source: [types/src/index.ts:1399](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1399)
 
 Price source for the fast/slow legs ([MASource](MASource.md)). Default 'close'.
 
@@ -262,7 +262,7 @@ Price source for the fast/slow legs ([MASource](MASource.md)). Default 'close'.
 optional zeroLineColor?: string | number;
 ```
 
-Source: [types/src/index.ts:1431](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1431)
+Source: [types/src/index.ts:1440](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1440)
 
 Zero-reference line color. Default gray.
 
@@ -274,6 +274,6 @@ Zero-reference line color. Default gray.
 optional zeroLineVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:1433](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1433)
+Source: [types/src/index.ts:1442](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1442)
 
 Draw the zero-reference line. Default true.

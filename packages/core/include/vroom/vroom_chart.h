@@ -427,9 +427,14 @@ typedef struct VroomCrosshairButtonHit {
 typedef enum {
     VROOM_FOOTPRINT_BUY = 0,   // position entry — "+" badge in the bull color
     VROOM_FOOTPRINT_SELL = 1,  // position exit  — "-" badge in the bear color
+    // A candle holding both sides draws one combined badge: a bull and a bear dot
+    // on a VROOM_COLOR_BACKGROUND disc edged in VROOM_COLOR_GRID. Output only — reported by hit tests and
+    // accepted by vroom_chart_set_footprint_hover, never valid on a VroomFootprint.
+    VROOM_FOOTPRINT_BOTH = 2,
 } VroomFootprintSide;
 
-// A single executed trade, drawn as a circular badge above the candle it fell in.
+// A single executed trade, drawn as a circular badge above the candle it fell in
+// (centered on the close in line mode).
 //
 // `time_ms` is the raw execution time, *not* a bar-open time: the core buckets
 // each footprint into whichever candle's window contains it, so one array renders
@@ -447,15 +452,15 @@ typedef struct VroomFootprint {
 // Layout/style shared by every footprint badge.
 typedef struct VroomFootprintStyle {
     float radius_px;   // badge radius; <= 0 falls back to 9
-    float gap_px;      // vertical gap between the two stacked badges; < 0 => 4
-    float margin_px;   // gap between the candle's high and the first badge; < 0 => 8
+    float gap_px;      // unused: a candle draws one badge since sides combine
+    float margin_px;   // gap between the candle's high and the badge; < 0 => 8
     float hover_boost; // brightness multiplier for the hovered badge (1 = flat)
 } VroomFootprintStyle;
 
 // The badge under a pixel, as reported by vroom_chart_hit_test_footprint.
 typedef struct VroomFootprintHit {
     int64_t candle_time_ms;  // bar-open time of the candle the badge sits on
-    int32_t side;            // VroomFootprintSide — which of the candle's two badges
+    int32_t side;            // VroomFootprintSide — BOTH for a combined badge
     float   center_x;        // badge center, in the same px space as the hit test
     float   center_y;
     float   radius;
@@ -1061,11 +1066,13 @@ void vroom_chart_set_price_line_drag(VroomChart* chart, int32_t index,
 // Replaces the full set of footprints and their shared style. Pass count 0 to
 // clear; `style` may be null when count is 0.
 //
-// Footprints are grouped onto candles by timestamp, so at most two badges render
-// per candle: one for that bar's buys and one for its sells, however many trades
-// went into each. When a candle has both, they stack upward with `gap_px` between
-// them, the side whose latest trade came first sitting nearest the bar. Badges sit
-// above the candle's high, clipped to the price pane, and re-group on their own
+// Footprints are grouped onto candles by timestamp, so one badge renders per
+// candle however many trades went into it: a buy or sell badge when the bar holds
+// one side, or a combined VROOM_FOOTPRINT_BOTH badge when it holds both, its dot
+// for the side whose latest trade came first sitting upper-left. Badges sit
+// above the candle's high in candle mode and centered on the close in line mode,
+// gliding between the two on the candle↔line morph. They are clipped to the
+// price pane, and re-group on their own
 // whenever the candles change (a new interval, more history) — the host never
 // re-buckets anything.
 void vroom_chart_set_footprints(VroomChart* chart, const VroomFootprint* prints,
@@ -1091,7 +1098,8 @@ int32_t vroom_chart_footprints_at(VroomChart* chart, int64_t candle_time_ms,
                                   int32_t* out_indices, int32_t max);
 
 // Marks one footprint badge as hovered so it renders highlighted. `side` -1
-// clears the hover; `candle_time_ms` and `side` match vroom_chart_hit_test_footprint.
+// clears the hover; `candle_time_ms` and `side` (BOTH included) match
+// vroom_chart_hit_test_footprint.
 void vroom_chart_set_footprint_hover(VroomChart* chart, int64_t candle_time_ms,
                                      int32_t side);
 

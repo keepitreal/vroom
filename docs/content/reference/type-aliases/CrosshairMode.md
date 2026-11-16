@@ -4,7 +4,7 @@
 type CrosshairMode = "advanced" | "simple" | "none";
 ```
 
-Source: [types/src/index.ts:1309](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1309)
+Source: [types/src/index.ts:1318](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1318)
 
 Which crosshair hover, long-press and press-drag raise.
 'advanced' — default: vertical and horizontal lines, a ring where they
