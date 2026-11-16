@@ -195,3 +195,29 @@ suite('controlled visibleRange after a pan', '?controlled=1', {
 // interval's duration entirely.
 suite('first interval is a gap', '?first=gap');
 suite('first interval is a duplicate timestamp', '?first=dup');
+
+// Dragging left pulls empty future time in past the newest candle (up to 3/4 of
+// the window, rubber-banded past half). A switch carries that gap over in
+// slots, so candle width still holds.
+const FUTURE_PAN_PX = -300;
+
+test('dragging left opens empty future space', async () => {
+  const page = await openDemo('?tf=5m');
+  try {
+    const before = await measure(page);
+    await pan(page, FUTURE_PAN_PX);
+    const afterPan = await measure(page);
+    // ~300px of empty future at a ~12px pitch hides ~25 bars off the left.
+    assert.ok(
+      before.bars - afterPan.bars >= 15,
+      `bars on screen ${before.bars} -> ${afterPan.bars} after a ${FUTURE_PAN_PX}px drag`,
+    );
+    assert.equal(afterPan.pitch, before.pitch);
+  } finally {
+    await page.close();
+  }
+});
+
+suite('switch after panning into the future', '', {
+  prepare: (page) => pan(page, FUTURE_PAN_PX),
+});

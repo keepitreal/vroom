@@ -274,7 +274,7 @@ struct TimeWindow {
 
 // Clamp a same-length time window after a pan or pinch-zoom shift.
 //
-// The future cap (`max_future`, one candle interval) is unchanged: the
+// The future cap (`max_future`, typically 3/4 of the window) is unchanged: the
 // right edge cannot run past last_time + max_future.
 //
 // The past cap depends on whether the window fits in the data:
