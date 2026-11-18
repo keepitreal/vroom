@@ -457,6 +457,17 @@ export interface ChartHandle {
    */
   coordAt(x: number, y: number): { timeMs: number; price: number } | null;
   /**
+   * Replaces every read-only annotation. Colors are packed 0xAARRGGBB (unsigned).
+   * dash: 0=solid,1=dotted,2=dashed; shape: 0=up triangle,1=down triangle,2=X,
+   * 3=square,4=circle; align: 0=starts at,1=centered on,2=ends at the anchor.
+   */
+  setAnnotations(spec: {
+    segments: { aTime: number; aPrice: number; bTime: number; bPrice: number; color: number; width: number; dash: number }[];
+    boxes: { aTime: number; aPrice: number; bTime: number; bPrice: number; fill: number; border: number; borderWidth: number }[];
+    markers: { timeMs: number; price: number; shape: number; color: number; size: number; offset: number }[];
+    labels: { timeMs: number; price: number; text: string; color: number; background: number; align: number; offset: number }[];
+  }): void;
+  /**
    * Replaces the full set of price status lines (plus their shared style).
    * lineStyle: 0=solid,1=dotted,2=dashed; color/bodyBg are packed 0xAARRGGBB;
    * flags is a bitmask (1=draggable, 2=closable, 4=axis label, 8=extend left);

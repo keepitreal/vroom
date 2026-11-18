@@ -1194,6 +1194,40 @@ extern "C" void vroom_chart_set_drawings(VroomChart* chart,
     chart->mark_dirty();
 }
 
+// ---- Annotations (read-only, host-computed shapes) -------------------------
+
+extern "C" void vroom_chart_set_annotations(VroomChart* chart,
+                                            const VroomAnnotationSegment* segments,
+                                            size_t segment_count,
+                                            const VroomAnnotationBox* boxes,
+                                            size_t box_count,
+                                            const VroomAnnotationMarker* markers,
+                                            size_t marker_count,
+                                            const VroomAnnotationLabel* labels,
+                                            size_t label_count) {
+    if (!chart) return;
+    chart->annotation_segments.assign(segments, segments ? segments + segment_count : segments);
+    chart->annotation_boxes.assign(boxes, boxes ? boxes + box_count : boxes);
+    chart->annotation_markers.assign(markers, markers ? markers + marker_count : markers);
+    chart->annotation_labels.clear();
+    if (labels) {
+        chart->annotation_labels.reserve(label_count);
+        for (size_t i = 0; i < label_count; ++i) {
+            const VroomAnnotationLabel& src = labels[i];
+            VroomChart::StoredAnnotationLabel l;
+            l.time_ms = src.time_ms;
+            l.price = src.price;
+            if (src.text) l.text = src.text;
+            l.color = src.color;
+            l.background = src.background;
+            l.align = src.align;
+            l.offset_px = src.offset_px;
+            chart->annotation_labels.push_back(std::move(l));
+        }
+    }
+    chart->mark_dirty();
+}
+
 // ---- Liquidity bands (order-book depth overlay) ---------------------------
 
 extern "C" void vroom_chart_set_liquidity(VroomChart* chart,

@@ -1,4 +1,8 @@
 export { VroomChart } from './VroomChart';
+// Opening Range Breakout: the stats table <VroomChart> shows for `orb`, and the
+// pure engine for running the same strategy off-chart (e.g. a backtest).
+export { OrbStatsPanel, type OrbStatsPanelProps } from './OrbStatsPanel';
+export { runOrb, type RunOrbOptions } from '@vroomchart/strategies';
 export {
   classifyTransition,
   inferStepMs,
@@ -24,6 +28,25 @@ export type {
   BollingerBandsConfig,
   IchimokuConfig,
   FairValueGapsConfig,
+  OrbConfig,
+  OrbBreakUnit,
+  OrbDirection,
+  OrbDirectionMode,
+  OrbEvent,
+  OrbEventType,
+  OrbRangePreset,
+  OrbResult,
+  OrbSession,
+  OrbSignal,
+  OrbSignalStatus,
+  OrbSkipReason,
+  OrbStats,
+  OrbStopMode,
+  OrbTargetMode,
+  OrbTimeOfDay,
+  OrbTrade,
+  OrbWarning,
+  OrbWeekday,
   VolumeConfig,
   ChartType,
   PriceScaleMode,

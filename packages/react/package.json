@@ -54,7 +54,8 @@
     "access": "public"
   },
   "dependencies": {
-    "@vroomchart/core-wasm": "workspace:*"
+    "@vroomchart/core-wasm": "workspace:*",
+    "@vroomchart/strategies": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18",

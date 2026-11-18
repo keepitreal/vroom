@@ -19,7 +19,7 @@ type CrosshairConfig = {
 };
 ```
 
-Source: [types/src/index.ts:1337](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1337)
+Source: [types/src/index.ts:1695](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1695)
 
 Crosshair behavior and look. Every field is optional; colors come from the
 theme (`crosshair` for the lines, `crosshairTarget` for the ring and badge
@@ -34,7 +34,7 @@ the badge fill / text.
 optional badgeColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:1353](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1353)
+Source: [types/src/index.ts:1711](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1711)
 
 Fill of the crosshair's time and price badges, the plus button and the
 simple-mode badge. Defaults to `theme.crosshairTarget`, which also colors
@@ -48,7 +48,7 @@ the ring; this leaves the ring alone. Text follows `badgeTextColor`.
 optional badgeTextColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:1358](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1358)
+Source: [types/src/index.ts:1716](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1716)
 
 Text on the crosshair's time and price badges, the plus button and the
 simple-mode badge. Defaults to `theme.badgeText`.
@@ -61,7 +61,7 @@ simple-mode badge. Defaults to `theme.badgeText`.
 optional button?: CrosshairButtonConfig;
 ```
 
-Source: [types/src/index.ts:1365](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1365)
+Source: [types/src/index.ts:1723](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1723)
 
 The plus button (advanced mode only). Replaces `crosshairButton`.
 
@@ -73,7 +73,7 @@ The plus button (advanced mode only). Replaces `crosshairButton`.
 optional hour12?: boolean;
 ```
 
-Source: [types/src/index.ts:1347](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1347)
+Source: [types/src/index.ts:1705](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1705)
 
 12-hour clock with AM/PM (`11:30 AM`). Default false.
 
@@ -85,7 +85,7 @@ Source: [types/src/index.ts:1347](https://github.com/keepitreal/vroom/blob/main/
 optional lineStyle?: CrosshairLineStyle;
 ```
 
-Source: [types/src/index.ts:1341](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1341)
+Source: [types/src/index.ts:1699](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1699)
 
 Default `'dashed'` in advanced mode, `'solid'` in simple mode.
 
@@ -97,7 +97,7 @@ Default `'dashed'` in advanced mode, `'solid'` in simple mode.
 optional lineWidth?: number;
 ```
 
-Source: [types/src/index.ts:1343](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1343)
+Source: [types/src/index.ts:1701](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1701)
 
 Line stroke in px. Default 1. Dash and dot spacing scale with it.
 
@@ -109,7 +109,7 @@ Line stroke in px. Default 1. Dash and dot spacing scale with it.
 optional mode?: CrosshairMode;
 ```
 
-Source: [types/src/index.ts:1339](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1339)
+Source: [types/src/index.ts:1697](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1697)
 
 Default `'advanced'`. See [CrosshairMode](CrosshairMode.md).
 
@@ -121,7 +121,7 @@ Default `'advanced'`. See [CrosshairMode](CrosshairMode.md).
 optional offset?: number;
 ```
 
-Source: [types/src/index.ts:1363](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1363)
+Source: [types/src/index.ts:1721](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1721)
 
 Pixels the touch crosshair's dot and horizontal line sit above the finger
 (advanced mode). Default 40. Replaces `crosshairOffset`.
@@ -138,7 +138,7 @@ optional simple?: {
 };
 ```
 
-Source: [types/src/index.ts:1367](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1367)
+Source: [types/src/index.ts:1725](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1725)
 
 Simple-mode options.
 
@@ -176,6 +176,6 @@ the line runs from under it down to the bottom of the plot.
 optional timeFormat?: CrosshairTimeFormat;
 ```
 
-Source: [types/src/index.ts:1345](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1345)
+Source: [types/src/index.ts:1703](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1703)
 
 Default `'datetime'` in advanced mode, `'time'` in simple mode.

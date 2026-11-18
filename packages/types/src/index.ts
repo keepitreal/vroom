@@ -932,6 +932,364 @@ export type FairValueGapsConfig = {
   inverseLabel?: string;
 };
 
+// ---- Opening Range Breakout (ORB) assistant --------------------------------
+
+/** A wall-clock time of day, `'HH:MM'` (24h), in the ORB `session.timezone`. */
+export type OrbTimeOfDay = string;
+
+/** How the opening range's end is chosen: a fixed length after `rangeStart`, or `rangeEnd`. */
+export type OrbRangePreset = '5m' | '15m' | '30m' | '60m' | 'custom';
+
+/**
+ * Which breakouts may trade:
+ *   'both'            — longs and shorts
+ *   'withRangeCandle' — treat the whole range window as one candle; longs only
+ *                       if it closed above its midpoint, shorts only if below,
+ *                       nothing if exactly on it
+ *   'longOnly' / 'shortOnly'
+ */
+export type OrbDirectionMode = 'both' | 'withRangeCandle' | 'longOnly' | 'shortOnly';
+
+/** Units for `confirmation.minBreakDistance`: ticks, price points, or % of the range width. */
+export type OrbBreakUnit = 'ticks' | 'points' | 'rangePct';
+
+/**
+ * Where the stop goes:
+ *   'oppositeSide' — long stop at the range low, short stop at the range high
+ *   'midpoint'     — the range midpoint
+ *   'fixedPoints'  — `stopPoints` from the entry
+ */
+export type OrbStopMode = 'oppositeSide' | 'midpoint' | 'fixedPoints';
+
+/**
+ * Where the target goes:
+ *   'rMultiple'     — `targetR` times the entry-to-stop distance
+ *   'holdToFlatten' — no target; exit at the stop or `flattenTime`
+ *   'rangeMultiple' — `rangeMult` range widths beyond the breakout level
+ */
+export type OrbTargetMode = 'rMultiple' | 'holdToFlatten' | 'rangeMultiple';
+
+/** Day of the week in the session timezone, 0 = Sunday … 6 = Saturday. */
+export type OrbWeekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Trade direction. */
+export type OrbDirection = 'long' | 'short';
+
+/**
+ * Why a whole session produced no trades:
+ *   'incompleteRange'          — the data starts after the range window opened,
+ *                                or no bars fell inside it
+ *   'maxRangeWidth'            — the range was wider than `maxRangeWidthPct`
+ *   'skipDate' / 'skipWeekday' — listed in `skipDates` / `skipWeekdays`
+ *   'trendInsufficientHistory' — the trend filter had fewer than `period` prior daily closes
+ */
+export type OrbSkipReason =
+  | 'incompleteRange'
+  | 'maxRangeWidth'
+  | 'skipDate'
+  | 'skipWeekday'
+  | 'trendInsufficientHistory';
+
+/** Settings for the Opening Range Breakout assistant, grouped as in a settings UI. */
+export type OrbConfig = {
+  /** Run the assistant. Default false. */
+  enabled?: boolean;
+  session?: {
+    /** Range length after `rangeStart`; 'custom' uses `rangeEnd`. Default '15m'. */
+    rangePreset?: OrbRangePreset;
+    /** Range window start. Default '09:30'. */
+    rangeStart?: OrbTimeOfDay;
+    /** Range window end, exclusive. Only read when `rangePreset` is 'custom'. Default '09:45'. */
+    rangeEnd?: OrbTimeOfDay;
+    /** IANA timezone the session times are in. Default 'America/New_York'; DST is handled. */
+    timezone?: string;
+    /** No new entries at or after this time. Default '12:00'. */
+    entryCutoff?: OrbTimeOfDay;
+    /** Any open trade is closed at the close of the bar containing this time. Default '15:55'. */
+    flattenTime?: OrbTimeOfDay;
+  };
+  confirmation?: {
+    /**
+     * Timeframe, in minutes, whose candle closes confirm a breakout. Lower chart
+     * timeframes are aggregated up to it. Default 5. A chart timeframe above this
+     * (or above the range window) disables signals with a warning.
+     */
+    signalTimeframe?: number;
+    /** Consecutive signal-candle closes beyond the level required. Default 1. */
+    confirmCloses?: 1 | 2;
+    /** Extra distance a close must clear the level by. Default 0. */
+    minBreakDistance?: number;
+    /** Unit of `minBreakDistance`. Default 'ticks'. */
+    minBreakUnit?: OrbBreakUnit;
+    /** Default 'both'. */
+    directionMode?: OrbDirectionMode;
+    /** Max long signals per day. Default 1. */
+    maxBullishSignals?: number;
+    /** Max short signals per day. Default 1. */
+    maxBearishSignals?: number;
+    /** Max trades per day. Default 1. */
+    maxTradesPerDay?: number;
+    /** No further entries that day after a losing stop-out. Default true. */
+    stopAfterLoss?: boolean;
+  };
+  filters?: {
+    /**
+     * Skip the day if (high − low) / midpoint × 100 exceeds this. Default 0.85;
+     * `false` or 0 disables.
+     */
+    maxRangeWidthPct?: number | false;
+    /** Session dates to skip, `'YYYY-MM-DD'` in the session timezone (FOMC, CPI, NFP…). */
+    skipDates?: string[];
+    /** Longs only above the prior day's daily SMA, shorts only below. */
+    trendFilter?: {
+      /** Default false. */
+      enabled?: boolean;
+      /** SMA length in days. Default 200. */
+      period?: number;
+      /**
+       * Daily closes to compute the SMA from — pass these when the chart's own
+       * intraday history is shorter than `period` days. Without them the chart's
+       * bars are aggregated into daily closes.
+       */
+      dailyCloses?: { timeMs: number; close: number }[];
+    };
+    /** Weekdays to skip. Default none. */
+    skipWeekdays?: OrbWeekday[];
+  };
+  risk?: {
+    /** Default 'oppositeSide'. */
+    stopMode?: OrbStopMode;
+    /** Stop distance for 'fixedPoints', in price points. Default 10. */
+    stopPoints?: number;
+    /** Extra ticks beyond the stop level. Default 0. */
+    stopBufferTicks?: number;
+    /** Default 'rMultiple'. */
+    targetMode?: OrbTargetMode;
+    /** R multiple for 'rMultiple'. Default 2. */
+    targetR?: number;
+    /** Range widths for 'rangeMultiple'. Default 1. */
+    rangeMult?: number;
+    /** Scale out part of the position at an R multiple. Default off. */
+    partial?: {
+      enabled?: boolean;
+      /** R multiple to scale out at. Default 1. */
+      atR?: number;
+      /** Percent of the position to take, 0–100. Default 50. */
+      pct?: number;
+      /** Move the stop to the entry once the partial fills. Default true. */
+      moveStopToBreakeven?: boolean;
+    };
+    /** Account currency risked per trade, for the suggested size. Default 250. */
+    riskPerTrade?: number;
+    /** Currency per point per contract. Default 2 (MNQ). */
+    pointValue?: number;
+    /** Minimum price increment, for tick-denominated inputs. Default 0.25 (MNQ). */
+    tickSize?: number;
+    /**
+     * After a losing stop-out, allow one entry on a confirmed break of the other
+     * side (the "double break"), still subject to `maxTradesPerDay`. Default false.
+     */
+    allowReversal?: boolean;
+  };
+  display?: {
+    /**
+     * Shade the opening-range candles: a borderless box over them from the
+     * range high to the range low. Default true.
+     */
+    showBackgroundFill?: boolean;
+    /** The range box's fill, drawn over the candles. Default near-transparent white, `'#14ffffff'` (8% opacity). */
+    backgroundColor?: VroomColor;
+    /** Draw only the current or most recent session instead of every one loaded. Default false. */
+    onlyShowToday?: boolean;
+    /** Default false. */
+    showMidline?: boolean;
+    midlineColor?: VroomColor;
+    /** A line at the range window's opening price. Default false. */
+    showOpenPrice?: boolean;
+    openPriceColor?: VroomColor;
+    /** Range high line, from the window's end to `flattenTime`. Default green. */
+    highColor?: VroomColor;
+    /** Range low line. Default red. */
+    lowColor?: VroomColor;
+    /** Entry triangles: up below the bar for a long, down above it for a short. Default true. */
+    showSignals?: boolean;
+    longColor?: VroomColor;
+    shortColor?: VroomColor;
+    /** Entry, stop and target lines from the entry bar to the exit. Default true. */
+    showTradeLevels?: boolean;
+    entryColor?: VroomColor;
+    stopColor?: VroomColor;
+    targetColor?: VroomColor;
+    /** Exit markers: X at a target (win color) or stop (loss color); a square for a time exit. */
+    winColor?: VroomColor;
+    lossColor?: VroomColor;
+    /** The stats table over the chart. Default true. */
+    showStatsPanel?: boolean;
+    /** Corner the stats table sits in. Default 'topLeft'. */
+    statsPosition?: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight';
+  };
+};
+
+/** What the assistant reports through `onOrbEvent`. */
+export type OrbEventType =
+  | 'rangeFinalized'
+  | 'breakoutConfirmed'
+  | 'entry'
+  | 'targetHit'
+  | 'stopHit'
+  | 'timeExit'
+  | 'daySkipped';
+
+/**
+ * One alert-worthy moment. `id` is stable across re-runs, so the same event is
+ * never reported twice, and history already on the chart when it loads is not
+ * replayed.
+ */
+export type OrbEvent = {
+  id: string;
+  type: OrbEventType;
+  /** When it happened (epoch ms): a bar open, or a candle close for confirmations. */
+  timeMs: number;
+  /** Session date, `'YYYY-MM-DD'` in the session timezone. */
+  date: string;
+  direction?: OrbDirection;
+  /** The relevant price: range high/low midpoint, confirming close, fill price. */
+  price?: number;
+  /** For 'daySkipped'. */
+  reason?: OrbSkipReason;
+  /** The trade an entry or exit belongs to. */
+  tradeId?: string;
+  /** Realized R, on exits. */
+  r?: number;
+};
+
+/** How a confirmed breakout was handled. */
+export type OrbSignalStatus =
+  | 'entered'
+  | 'awaitingEntry'
+  | 'sizeTooSmall'
+  | 'invalidStop'
+  | 'afterCutoff'
+  | 'blockedByTrend'
+  | 'blockedAfterLoss'
+  | 'maxSignals'
+  | 'maxTrades';
+
+/** A confirmed breakout. */
+export type OrbSignal = {
+  direction: OrbDirection;
+  /** Close time of the confirming signal candle. */
+  timeMs: number;
+  /** The level it broke: range high for a long, range low for a short. */
+  level: number;
+  /** The confirming close. */
+  close: number;
+  status: OrbSignalStatus;
+  /** The trade it opened, when `status` is 'entered'. */
+  tradeId?: string;
+  /** Suggested size, when one was computed. */
+  size?: number;
+};
+
+/** A simulated trade. Prices are fixed at entry; only a breakeven move after a partial changes the stop. */
+export type OrbTrade = {
+  id: string;
+  date: string;
+  direction: OrbDirection;
+  /** Close time of the confirming candle. */
+  signalTimeMs: number;
+  entryTimeMs: number;
+  entryPrice: number;
+  /** The stop at entry, which R is measured against. */
+  stop: number;
+  /** The stop in force at the end (moved to the entry after a breakeven partial). */
+  currentStop: number;
+  /** Null under 'holdToFlatten'. */
+  target: number | null;
+  /** Suggested contracts: floor(riskPerTrade / (|entry − stop| × pointValue)). */
+  size: number;
+  /** Null while open. */
+  exitTimeMs: number | null;
+  exitPrice: number | null;
+  exitReason: 'target' | 'stop' | 'time' | null;
+  /** Realized R (partial blended in); null while open. */
+  r: number | null;
+  partial?: { timeMs: number; price: number; pct: number };
+};
+
+/** One session (trading day) the assistant evaluated. */
+export type OrbSession = {
+  /** `'YYYY-MM-DD'` in the session timezone. */
+  date: string;
+  rangeStartMs: number;
+  rangeEndMs: number;
+  entryCutoffMs: number;
+  flattenMs: number;
+  /**
+   * 'forming' — the range window hasn't closed yet; 'final' — evaluated;
+   * 'skipped' — see `skipReason`.
+   */
+  status: 'forming' | 'final' | 'skipped';
+  skipReason?: OrbSkipReason;
+  /** Range extremes; absent until a bar lands in the window. */
+  high?: number;
+  low?: number;
+  /** Open of the first and close of the last bar in the window. */
+  open?: number;
+  close?: number;
+  /** (high − low) / midpoint × 100. */
+  widthPct?: number;
+  /** When the range became final (the last window bar's close). */
+  finalMs?: number;
+  signals: OrbSignal[];
+  trades: OrbTrade[];
+  /** A breakout on a still-forming signal candle — shown, never traded or alerted. */
+  pending?: { direction: OrbDirection; level: number; price: number; timeMs: number };
+};
+
+/** Aggregates over every session loaded. R values are in multiples of initial risk. */
+export type OrbStats = {
+  trades: number;
+  wins: number;
+  losses: number;
+  /** 0–1; null with no closed trades. */
+  winRate: number | null;
+  avgR: number | null;
+  netR: number;
+  /** Gross winning R / gross losing R; null with no losing trades. */
+  profitFactor: number | null;
+  maxDrawdownR: number;
+  longs: { trades: number; wins: number; netR: number };
+  shorts: { trades: number; wins: number; netR: number };
+  sessions: number;
+  skipped: Partial<Record<OrbSkipReason, number>>;
+};
+
+/**
+ * A setup problem:
+ *   'chartTimeframeTooHigh'      — the chart timeframe exceeds the signal timeframe or range window
+ *   'signalTimeframeNotMultiple' — the signal timeframe isn't a whole number of chart bars
+ *   'invalidTimezone'            — `session.timezone` couldn't be resolved
+ * Signals are disabled while any warning stands.
+ */
+export type OrbWarning = {
+  code: 'chartTimeframeTooHigh' | 'signalTimeframeNotMultiple' | 'invalidTimezone';
+  message: string;
+};
+
+/** Everything the assistant computed. */
+export type OrbResult = {
+  sessions: OrbSession[];
+  /** Every trade, oldest first. */
+  trades: OrbTrade[];
+  /** Every event, in time order. */
+  events: OrbEvent[];
+  stats: OrbStats;
+  warnings: OrbWarning[];
+  /** False when a warning disabled signals. */
+  signalsEnabled: boolean;
+};
+
 /**
  * Volume bar config. One bottom-anchored bar per candle on the price pane,
  * drawn under the candles and sharing their x position and body width.
@@ -1634,6 +1992,19 @@ export type VroomChartCoreProps = {
   ichimoku?: IchimokuConfig;
   /** Fair Value Gap overlay (shaded imbalance boxes on the price pane). */
   fairValueGaps?: FairValueGapsConfig;
+  /**
+   * Opening Range Breakout assistant: marks the opening range, close-confirmed
+   * breakouts, simulated entries and exits, and a stats table. See {@link OrbConfig}.
+   */
+  orb?: OrbConfig;
+  /**
+   * Fired once per new ORB event (range finalized, breakout confirmed, entry,
+   * target/stop/time exit, day skipped); switch on `e.type` to pick the ones
+   * you want. History already on the chart when it loads is not replayed.
+   */
+  onOrbEvent?: (e: OrbEvent) => void;
+  /** Fired with the full ORB result whenever it is recomputed. */
+  onOrbResult?: (r: OrbResult) => void;
   /** Volume bars under the candles. On by default; disable or restyle them here. */
   volume?: VolumeConfig;
   /** Resting-order / order-book liquidity bands drawn behind the candles. */

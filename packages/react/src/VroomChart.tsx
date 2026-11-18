@@ -8,6 +8,7 @@ import type { CSSProperties } from 'react';
 import { resolveCrosshair, useChartCore } from './useChartCore';
 import { useGestures } from './useGestures';
 import { useManagedDrawings } from './useManagedDrawings';
+import { OrbStatsPanel } from './OrbStatsPanel';
 import type { VroomChartProps } from './types';
 
 const FILL: CSSProperties = { position: 'relative', width: '100%', height: '100%' };
@@ -84,7 +85,7 @@ export function VroomChart(props: VroomChartProps) {
     };
   }, [historyRef, stored, undo, redo, clearHistory, restyle, add, update, remove, list]);
 
-  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef } =
+  const { containerRef, canvasRef, handleRef, scheduleRender, afterPresentRef, resyncEditRef, orbResult } =
     useChartCore(
       stored ? { ...props, drawings: effectiveDrawings } : props,
       wasm ? { wasm } : undefined,
@@ -132,6 +133,9 @@ export function VroomChart(props: VroomChartProps) {
   return (
     <div ref={containerRef} className={className} style={rootStyle}>
       <canvas ref={canvasRef} style={CANVAS_STYLE} />
+      {orbResult && props.orb?.display?.showStatsPanel !== false ? (
+        <OrbStatsPanel result={orbResult} position={props.orb?.display?.statsPosition} />
+      ) : null}
     </div>
   );
 }

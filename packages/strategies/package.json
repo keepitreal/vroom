@@ -1,0 +1,54 @@
+{
+  "name": "@vroomchart/strategies",
+  "version": "0.0.0",
+  "description": "Pure, deterministic trading-strategy engines for vroom charts (Opening Range Breakout), usable on their own for backtesting.",
+  "license": "MIT",
+  "author": "Darion Welch",
+  "homepage": "https://github.com/keepitreal/vroom#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/keepitreal/vroom.git",
+    "directory": "packages/strategies"
+  },
+  "keywords": [
+    "trading",
+    "backtesting",
+    "opening-range-breakout",
+    "orb",
+    "technical-analysis",
+    "strategy"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "react-native": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsup",
+    "prepublishOnly": "tsup"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@vroomchart/types": "workspace:*",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.11"
+  }
+}

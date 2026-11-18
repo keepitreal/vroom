@@ -35,7 +35,9 @@ import type {
   VolumeConfig,
   VroomTheme,
   VWAPConfig,
+  OrbResult,
 } from './types';
+import { useOrb, type OrbHookProps } from './useOrb';
 
 // Mirrors vroom::ma::Source order in packages/core/src/ma.h.
 const MA_SOURCES = [
@@ -410,6 +412,8 @@ export type ChartCoreState = {
    * can restore it, since setVolume snaps the scalar (see below).
    */
   volumeCollapseRef: MutableRefObject<VolumeCollapse | null>;
+  /** The latest ORB assistant run, or null while `orb` is off. */
+  orbResult: OrbResult | null;
 };
 
 // Owns a ChartHandle and produces an "initial" picture whenever data, size,
@@ -438,6 +442,7 @@ export function useChartCore(
   // Trails the config params because it's data state, not configuration: it
   // pairs with `candles` above (see showLoadingLine below).
   loading?: boolean,
+  orb?: OrbHookProps,
 ): ChartCoreState {
   const handleRef = useRef<ChartHandle | null>(null);
   // Push setDefaultCandleWidth only once (first load): setCandles re-runs on
@@ -969,5 +974,14 @@ export function useChartCore(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, showLoadingLine, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, theme?.fontData, theme?.badgeFontData, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, startLoadingHandoff, endIntervalMorph, startStreamAnim, settleStream]);
 
-  return { handle: handleRef.current, picture, volumeCollapseRef };
+  // After the data effect, so the core already holds these candles. A running
+  // morph is pushing frames itself; its next frame picks the annotations up.
+  const orbResult = useOrb(handleRef.current, candles, seriesKey, orb, () => {
+    const h = handleRef.current;
+    if (h && intervalMorphRaf.current == null && streamRaf.current == null) {
+      setPicture(h.render());
+    }
+  });
+
+  return { handle: handleRef.current, picture, volumeCollapseRef, orbResult };
 }

@@ -291,6 +291,61 @@ typedef struct VroomDrawing {
     bool                  locked;
 } VroomDrawing;
 
+// Read-only, data-anchored chart annotations a host (e.g. a strategy overlay)
+// pushes wholesale with vroom_chart_set_annotations. Unlike drawings they have no
+// hit testing or handles. Time anchors are epoch ms and map exactly, except a
+// marker's: give it the bar's open time and it is centered on the bar's slot.
+
+// A line from a to b. `dash`: 0 = solid, 1 = dotted, 2 = dashed.
+typedef struct VroomAnnotationSegment {
+    VroomDrawPoint a;
+    VroomDrawPoint b;
+    uint32_t       color;  // 0xAARRGGBB
+    float          width;  // px; <= 0 means 1
+    int32_t        dash;
+} VroomAnnotationSegment;
+
+// A filled rectangle spanning a..b in time and price, over the candles (use a
+// translucent fill to keep them readable).
+typedef struct VroomAnnotationBox {
+    VroomDrawPoint a;
+    VroomDrawPoint b;
+    uint32_t       fill;          // 0xAARRGGBB
+    uint32_t       border;        // 0xAARRGGBB; alpha 0 = no border
+    float          border_width;  // px
+} VroomAnnotationBox;
+
+typedef enum VroomAnnotationShape {
+    VROOM_ANNOTATION_TRIANGLE_UP   = 0,
+    VROOM_ANNOTATION_TRIANGLE_DOWN = 1,
+    VROOM_ANNOTATION_CROSS         = 2,
+    VROOM_ANNOTATION_SQUARE        = 3,
+    VROOM_ANNOTATION_CIRCLE        = 4,
+} VroomAnnotationShape;
+
+// A fixed-pixel-size glyph on a bar. `offset_px` moves it down (positive) or up
+// (negative) from the price, e.g. to sit a triangle clear of the bar's low.
+typedef struct VroomAnnotationMarker {
+    int64_t  time_ms;
+    double   price;
+    int32_t  shape;      // VroomAnnotationShape
+    uint32_t color;      // 0xAARRGGBB
+    float    size_px;    // glyph width; <= 0 means 10
+    float    offset_px;
+} VroomAnnotationMarker;
+
+// A short text tag. `align`: 0 = starts at the anchor, 1 = centered on it,
+// 2 = ends at it. `background` alpha 0 = no pill behind the text.
+typedef struct VroomAnnotationLabel {
+    int64_t     time_ms;
+    double      price;
+    const char* text;        // UTF-8, copied by the setter
+    uint32_t    color;       // 0xAARRGGBB
+    uint32_t    background;  // 0xAARRGGBB
+    int32_t     align;
+    float       offset_px;   // vertical, as for markers
+} VroomAnnotationLabel;
+
 // A resting-liquidity band: a price interval carrying a total order size on one
 // side of the book. Anchored in price space, so it scales with the y-axis.
 typedef struct VroomBand {
@@ -961,6 +1016,20 @@ void vroom_chart_set_axis_collapse(VroomChart* chart, float y_t, float x_t);
 // pane above the candles/overlays and below the axis labels & crosshair.
 void vroom_chart_set_drawings(VroomChart* chart, const VroomDrawing* drawings,
                               size_t count);
+
+// Replaces every annotation (see VroomAnnotationSegment and friends). Pass all
+// counts 0 to clear. Everything draws above the candles and overlay lines
+// (boxes first), below drawings and the crosshair.
+// Everything is copied, so the caller may free its arrays on return.
+void vroom_chart_set_annotations(VroomChart* chart,
+                                 const VroomAnnotationSegment* segments,
+                                 size_t segment_count,
+                                 const VroomAnnotationBox* boxes,
+                                 size_t box_count,
+                                 const VroomAnnotationMarker* markers,
+                                 size_t marker_count,
+                                 const VroomAnnotationLabel* labels,
+                                 size_t label_count);
 
 // Hit-tests pixel (x_px, y_px) against the committed drawings. On a hit, fills
 // *out_index with the drawing index, *out_part with the sub-part that was hit,

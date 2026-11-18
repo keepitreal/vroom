@@ -4,7 +4,7 @@
 type CrosshairTimeFormat = "datetime" | "time" | "date";
 ```
 
-Source: [types/src/index.ts:1329](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1329)
+Source: [types/src/index.ts:1687](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1687)
 
 The crosshair time badge's text, in local time.
 'datetime' — `10/14 11:30`

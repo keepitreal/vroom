@@ -380,6 +380,26 @@ export type DrawingSpec = {
 };
 
 /**
+ * Read-only, data-anchored shapes (e.g. a strategy overlay) in the core's
+ * numeric encoding. Colors are packed 0xAARRGGBB. Everything draws above the
+ * candles and overlay lines, boxes first.
+ */
+export type AnnotationsSpec = {
+  /** `dash`: 0 = solid, 1 = dotted, 2 = dashed. */
+  segments: { aTime: number; aPrice: number; bTime: number; bPrice: number; color: number; width: number; dash: number }[];
+  /** `border` alpha 0 = no border. */
+  boxes: { aTime: number; aPrice: number; bTime: number; bPrice: number; fill: number; border: number; borderWidth: number }[];
+  /**
+   * `shape`: 0 = up triangle, 1 = down triangle, 2 = X, 3 = square, 4 = circle.
+   * Centered on the slot of the bar opening at `timeMs`; `offset` px moves it
+   * down (positive) or up.
+   */
+  markers: { timeMs: number; price: number; shape: number; color: number; size: number; offset: number }[];
+  /** `align`: 0 = starts at the anchor, 1 = centered, 2 = ends there. `background` alpha 0 = none. */
+  labels: { timeMs: number; price: number; text: string; color: number; background: number; align: number; offset: number }[];
+};
+
+/**
  * Offset added to a path vertex index in `hitTestDrawing`'s `part`, so vertex
  * indices can't collide with the small per-kind part numbers (0..6). Mirrors
  * VROOM_DRAW_PART_VERTEX in vroom_chart.h.
@@ -809,6 +829,8 @@ export interface VroomChartHandle {
 
   /** Replace the full set of committed line drawings. Pass [] to clear. */
   setDrawings(drawings: DrawingSpec[]): void;
+  /** Replace every annotation. Pass empty arrays to clear. */
+  setAnnotations(spec: AnnotationsSpec): void;
   /**
    * Replace the resting-liquidity overlay (bands + shared style). Pass a spec
    * with an empty `bands` array to clear the overlay.
