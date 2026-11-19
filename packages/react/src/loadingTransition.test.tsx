@@ -11,6 +11,9 @@ const END = 1_000 * HOUR;
 // read back the view the data effect leaves behind.
 const view = { startMs: 0, endMs: 0 };
 const resetView = vi.fn();
+const setCandles = vi.fn();
+const setLoading = vi.fn();
+const beginLoadingReveal = vi.fn();
 
 function fakeHandle() {
   const impl: Record<string, (...args: never[]) => unknown> = {
@@ -22,6 +25,9 @@ function fakeHandle() {
       view.endMs = e;
     }) as never,
     resetView: resetView as never,
+    setCandles: setCandles as never,
+    setLoading: setLoading as never,
+    beginLoadingReveal: beginLoadingReveal as never,
   };
   return new Proxy(impl, {
     get: (target, key: string) => target[key] ?? (() => null),
@@ -51,6 +57,9 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   resetView.mockClear();
+  setCandles.mockClear();
+  setLoading.mockClear();
+  beginLoadingReveal.mockClear();
 });
 
 function series(stepMs: number, count: number, close = 100): Candle[] {
@@ -67,9 +76,16 @@ function series(stepMs: number, count: number, close = 100): Candle[] {
 const hourly = series(HOUR, 200);
 const fiveMin = series(5 * MIN, 2_400);
 
-async function mountFramed(candles: Candle[], stepMs: number, seriesKey?: string) {
+async function mountFramed(candles: Candle[], stepMs: number, seriesKey?: string, reduceMotion = true) {
   const chart = (c: Candle[], loading = false, key = seriesKey) => (
-    <VroomChart candles={c} loading={loading} seriesKey={key} width={800} height={400} reduceMotion />
+    <VroomChart
+      candles={c}
+      loading={loading}
+      seriesKey={key}
+      width={800}
+      height={400}
+      reduceMotion={reduceMotion}
+    />
   );
   const r = render(chart(candles));
   await act(async () => {});
@@ -110,5 +126,29 @@ describe('a switch through the loading line', () => {
     await step(series(HOUR, 200));
     expect(view).toEqual(before);
     expect(resetView).not.toHaveBeenCalled();
+  });
+});
+
+describe('the same array coming back after loading', () => {
+  const lastPush = () => setCandles.mock.calls[setCandles.mock.calls.length - 1]?.[0] as ArrayBuffer;
+
+  it('pushes the series again and drops the line under reduced motion', async () => {
+    const step = await mountFramed(hourly, HOUR);
+    const before = { ...view };
+    await step([], true);
+    expect(lastPush().byteLength).toBe(0);
+    setLoading.mockClear();
+    await step(hourly);
+    expect(lastPush().byteLength).toBeGreaterThan(0);
+    expect(setLoading).toHaveBeenCalledWith(false, true);
+    expect(view).toEqual(before);
+  });
+
+  it('hands the line off to the series with motion on', async () => {
+    const step = await mountFramed(hourly, HOUR, undefined, false);
+    await step([], true);
+    await step(hourly);
+    expect(lastPush().byteLength).toBeGreaterThan(0);
+    expect(beginLoadingReveal).toHaveBeenCalledTimes(1);
   });
 });
