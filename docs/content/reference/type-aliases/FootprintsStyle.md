@@ -9,7 +9,7 @@ type FootprintsStyle = {
 };
 ```
 
-Source: [types/src/index.ts:1140](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1140)
+Source: [types/src/index.ts:1492](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1492)
 
 Shared layout/style for every footprint badge, passed via `footprintsStyle`.
 
@@ -21,7 +21,7 @@ Shared layout/style for every footprint badge, passed via `footprintsStyle`.
 optional gap?: number;
 ```
 
-Source: [types/src/index.ts:1147](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1147)
+Source: [types/src/index.ts:1499](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1499)
 
 #### Deprecated
 
@@ -36,7 +36,7 @@ combined badge, so there is no stack to space out.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:1157](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1157)
+Source: [types/src/index.ts:1509](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1509)
 
 How much the hovered badge brightens, as a channel multiplier. 1 disables
 the highlight (the halo ring still draws). Default 1.25.
@@ -49,7 +49,7 @@ the highlight (the halo ring still draws). Default 1.25.
 optional margin?: number;
 ```
 
-Source: [types/src/index.ts:1152](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1152)
+Source: [types/src/index.ts:1504](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1504)
 
 Gap between the candle's high and the badge, in px, in candle mode. Default 8. In line mode the badge sits on the line instead.
 
@@ -61,6 +61,6 @@ Gap between the candle's high and the badge, in px, in candle mode. Default 8. I
 optional radius?: number;
 ```
 
-Source: [types/src/index.ts:1142](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1142)
+Source: [types/src/index.ts:1494](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1494)
 
 Badge radius in px. Default 9.

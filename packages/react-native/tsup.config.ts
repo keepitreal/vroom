@@ -17,6 +17,7 @@ export default defineConfig({
     'react-native-skia',
     'react-native-gesture-handler',
     'react-native-reanimated',
+    '@vroomchart/strategies',
   ],
   noExternal: ['@vroomchart/types'],
 });

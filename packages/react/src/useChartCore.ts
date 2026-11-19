@@ -43,11 +43,13 @@ import type {
   CrosshairTimeFormat,
   Drawing,
   IntervalTransition,
+  OrbResult,
   StreamTransition,
   TransitionEasing,
   VisibleRange,
   VroomChartCoreProps,
 } from '@vroomchart/types';
+import { useOrb } from './useOrb';
 import {
   classifyStream,
   classifyTransition,
@@ -526,6 +528,8 @@ export type UseChartCore = {
   resyncEditRef: React.RefObject<((list: Drawing[]) => void) | null>;
   /** Measured CSS size of the container (0 until first layout). */
   size: { width: number; height: number };
+  /** The latest ORB assistant run, or null while `orb` is off. */
+  orbResult: OrbResult | null;
 };
 
 export function useChartCore(
@@ -1411,6 +1415,8 @@ export function useChartCore(
     };
   }, [ready, theme?.showYAxis, theme?.showXAxis, transitionMs, scheduleRender]);
 
+  const orbResult = useOrb(ready ? handleRef.current : null, props, scheduleRender);
+
   return {
     containerRef,
     canvasRef,
@@ -1419,5 +1425,6 @@ export function useChartCore(
     afterPresentRef,
     resyncEditRef,
     size: { width, height },
+    orbResult,
   };
 }

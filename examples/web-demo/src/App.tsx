@@ -19,6 +19,7 @@ import {
   type Footprint,
   type FootprintSide,
   type FootprintEvent,
+  type OrbEvent,
   type TransitionEasing,
   type IntervalTransition,
   type StreamTransition,
@@ -32,6 +33,7 @@ import {
   type PriceLineStyleChoice,
 } from './Sidebar';
 import { SelectionTray } from './SelectionTray';
+import { LIVE_MARKETS, useHyperliquidCandles, type LiveAsset } from './hyperliquid';
 import { SettingsModal, DEFAULT_THEME, type ThemeState, type NumericStyle } from './SettingsModal';
 import {
   IndicatorsModal,
@@ -46,6 +48,7 @@ import {
   DEFAULT_ICHIMOKU_PARAMS,
   DEFAULT_FVG_PARAMS,
   DEFAULT_VOLUME_PARAMS,
+  DEFAULT_ORB_PARAMS,
   deriveIndicatorProps,
   enabledCount,
   type BollingerParams,
@@ -56,6 +59,7 @@ import {
   type ATRParams,
   type MACDParams,
   type MALineParams,
+  type OrbParams,
   type RSIParams,
   type VolumeParams,
   type VWAPParams,
@@ -196,7 +200,10 @@ const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
 const ASSETS = { BTC: 60_000, SOL: 80 } as const;
-type Asset = keyof typeof ASSETS;
+type SyntheticAsset = keyof typeof ASSETS;
+type Asset = SyntheticAsset | LiveAsset;
+const ASSET_NAMES = [...Object.keys(ASSETS), ...Object.keys(LIVE_MARKETS)] as Asset[];
+const isLive = (a: Asset): a is LiveAsset => a in LIVE_MARKETS;
 
 const TIMEFRAMES = [
   { label: '1m', stepMs: MINUTE },
@@ -260,8 +267,8 @@ function initialListingCount(): number {
 // which its data effect would read as a new series every time.
 const EMPTY_CANDLES: Candle[] = [];
 
-const baseCache = new Map<Asset, Candle[]>();
-function baseSeries(asset: Asset): Candle[] {
+const baseCache = new Map<SyntheticAsset, Candle[]>();
+function baseSeries(asset: SyntheticAsset): Candle[] {
   const cached = baseCache.get(asset);
   if (cached) return cached;
   const seed = [...asset].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7);
@@ -529,6 +536,39 @@ function makeFootprints(base: Candle[]): DemoFootprint[] {
 // rather than above it so the tooltip never covers the bar it describes.
 const FOOTPRINT_TOOLTIP_W = 200;
 
+// The ORB assistant's events as they fire, newest first. A real host would
+// pick the types it cares about and route them to a notification or a sound.
+function OrbEventLog({ events }: { events: OrbEvent[] }) {
+  if (!events.length) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: 8,
+        bottom: 36,
+        maxWidth: 320,
+        pointerEvents: 'none',
+        background: '#161b22e6',
+        border: '1px solid #30363d',
+        borderRadius: 8,
+        padding: '6px 10px',
+        color: '#c9d1d9',
+        font: '11px/1.5 ui-monospace, monospace',
+      }}
+    >
+      {events.map((e) => (
+        <div key={e.id}>
+          {new Date(e.timeMs).toISOString().slice(11, 16)} {e.type}
+          {e.direction ? ` ${e.direction}` : ''}
+          {e.reason ? ` (${e.reason})` : ''}
+          {e.price != null ? ` @ ${e.price.toFixed(2)}` : ''}
+          {e.r != null ? ` ${e.r >= 0 ? '+' : ''}${e.r.toFixed(2)}R` : ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FootprintTooltip({
   hover,
 }: {
@@ -742,14 +782,17 @@ export function App() {
   // Demo candles are stateful so the Add/Update tools can stream into them; they
   // reset to the base series whenever the asset/timeframe (or Gaps/Sparse/
   // New listing) changes.
+  // XYZ100 / SP500 are real Hyperliquid data at the chart's timeframe, kept
+  // current by its websocket; BTC / SOL are the synthetic walk.
+  const liveCandles = useHyperliquidCandles(isLive(asset) ? asset : null, tf);
   const demoBase = useMemo(() => {
-    const base = aggregate(baseSeries(asset), tf);
+    const base = isLive(asset) ? (liveCandles ?? EMPTY_CANDLES) : aggregate(baseSeries(asset), tf);
     const series = gaps ? punchGaps(base) : base;
     return raggedStart(
       listingCount > 0 ? newListing(series, listingCount, backfill, tf) : maybeSparse(series, sparse),
       firstBar,
     );
-  }, [asset, tf, gaps, sparse, listingCount, backfill, firstBar]);
+  }, [asset, tf, gaps, sparse, listingCount, backfill, firstBar, liveCandles]);
   const [candles, setCandles] = useState<Candle[]>(demoBase);
   useEffect(() => {
     setCandles(demoBase);
@@ -872,7 +915,7 @@ export function App() {
   // Keyed to the asset, not the timeframe: the same fills are handed to the chart
   // at every interval, which is what lets a switch demonstrate re-bucketing.
   const footprints = useMemo(
-    () => (showFootprints ? makeFootprints(baseSeries(asset)) : []),
+    () => (showFootprints && !isLive(asset) ? makeFootprints(baseSeries(asset)) : []),
     [showFootprints, asset],
   );
   const [footprintHover, setFootprintHover] = useState<{
@@ -981,11 +1024,13 @@ export function App() {
     return higher.stepMs === tf ? tf * 4 : higher.stepMs;
   }, [tf]);
   const secondCandles = useMemo(() => {
-    const series = aggregate(baseSeries(asset), secondTf);
+    const series = isLive(asset)
+      ? aggregate(liveCandles ?? EMPTY_CANDLES, secondTf)
+      : aggregate(baseSeries(asset), secondTf);
     return listingCount > 0
       ? newListing(series, listingCount, backfill, secondTf)
       : maybeSparse(series, sparse);
-  }, [asset, secondTf, sparse, listingCount, backfill]);
+  }, [asset, secondTf, sparse, listingCount, backfill, liveCandles]);
   const dataShape =
     listingCount > 0
       ? `listing-${listingCount}-${backfill ? 'zeros' : 'bare'}`
@@ -1263,6 +1308,12 @@ export function App() {
   const [volumeParams, setVolumeParams] = useState<VolumeParams>(
     DEFAULT_VOLUME_PARAMS,
   );
+  const [orbParams, setOrbParams] = useState<OrbParams>(DEFAULT_ORB_PARAMS);
+  const [orbLog, setOrbLog] = useState<OrbEvent[]>([]);
+  const onOrbEvent = useCallback(
+    (e: OrbEvent) => setOrbLog((log) => [e, ...log].slice(0, 6)),
+    [],
+  );
 
   const patchRsi = useCallback(
     (patch: Partial<RSIParams>) => setRsiParams((p) => ({ ...p, ...patch })),
@@ -1333,6 +1384,7 @@ export function App() {
     ichimokuParams,
     fvgParams,
     volumeParams,
+    orbParams,
   );
   const activeCount = enabledCount(indicators);
 
@@ -1436,7 +1488,7 @@ export function App() {
                 // is for a chart that has no data, and passing both would
                 // (correctly) leave the real series up instead.
                 candles={loading || fetching ? EMPTY_CANDLES : candles}
-                loading={loading || (fetching && fetchMode === 'loading')}
+                loading={loading || (fetching && fetchMode === 'loading') || (isLive(asset) && !liveCandles)}
                 visibleRange={controlledRange ? range : undefined}
                 onViewportChange={controlledRange ? onViewportChange : undefined}
                 seriesKey={seriesKey}
@@ -1458,7 +1510,9 @@ export function App() {
                 {...drawProps}
                 onCrosshairButton={onCrosshairButton}
                 onCrosshair={onPrimaryCrosshair}
+                onOrbEvent={onOrbEvent}
               />
+              {indicators.orb.enabled ? <OrbEventLog events={orbLog} /> : null}
               <SelectionTray selection={selection} controls={historyRef} />
               <FootprintTooltip hover={footprintHover} />
               <OrderMenu menu={orderMenu} onPick={onPickOrder} />
@@ -1481,7 +1535,7 @@ export function App() {
               setStreamTransitionMs,
             }}
             data={{
-              assets: Object.keys(ASSETS),
+              assets: ASSET_NAMES,
               asset,
               setAsset: (a) => setAsset(a as Asset),
               timeframes: TIMEFRAMES,
@@ -1563,6 +1617,8 @@ export function App() {
         onFvgParamsChange={patchFvg}
         volumeParams={volumeParams}
         onVolumeParamsChange={patchVolume}
+        orbParams={orbParams}
+        onOrbParamsChange={setOrbParams}
       />
     </div>
   );

@@ -5,6 +5,7 @@
 
 import type { IntervalTransition } from '@vroomchart/types';
 import type {
+  AnnotationsSpec,
   ATRSpec,
   AxisMetrics,
   BollingerSpec,
@@ -87,6 +88,7 @@ interface WebChartInstance {
   setVolumeCollapse(t: number, easing: number): void;
   setAxisCollapse(yT: number, xT: number): void;
   setDrawings(drawings: DrawingSpec[]): void;
+  setAnnotations(spec: AnnotationsSpec): void;
   setLiquidity(liquidity: LiquiditySpec): void;
   setPriceLines(priceLines: PriceLinesSpec): void;
   hitTestPriceLine(x: number, y: number): { index: number; part: number } | null;
@@ -327,6 +329,18 @@ class WasmHandle implements VroomChartHandle {
     this.wc.setDrawings(
       drawings.map((d) => ({ ...d, color: d.color >>> 0 })),
     );
+  }
+  setAnnotations(spec: AnnotationsSpec): void {
+    this.wc.setAnnotations({
+      segments: spec.segments.map((s) => ({ ...s, color: s.color >>> 0 })),
+      boxes: spec.boxes.map((b) => ({ ...b, fill: b.fill >>> 0, border: b.border >>> 0 })),
+      markers: spec.markers.map((m) => ({ ...m, color: m.color >>> 0 })),
+      labels: spec.labels.map((l) => ({
+        ...l,
+        color: l.color >>> 0,
+        background: l.background >>> 0,
+      })),
+    });
   }
   setLiquidity(liquidity: LiquiditySpec): void {
     this.wc.setLiquidity({

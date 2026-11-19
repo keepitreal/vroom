@@ -462,6 +462,23 @@ struct VroomChart {
     std::vector<StoredPriceLine> price_lines;
     VroomPriceLineStyle          price_line_style{};
 
+    // --- annotations --------------------------------------------------------
+    // Read-only shapes a host pushes wholesale (vroom_chart_set_annotations).
+    // Labels own their text, like StoredPriceLine.
+    struct StoredAnnotationLabel {
+        int64_t     time_ms = 0;
+        double      price = 0.0;
+        std::string text;
+        uint32_t    color = 0xffffffff;
+        uint32_t    background = 0;
+        int32_t     align = 0;
+        float       offset_px = 0.f;
+    };
+    std::vector<VroomAnnotationSegment> annotation_segments;
+    std::vector<VroomAnnotationBox>     annotation_boxes;
+    std::vector<VroomAnnotationMarker>  annotation_markers;
+    std::vector<StoredAnnotationLabel>  annotation_labels;
+
     // Interaction state, driven by the host's gesture layer. The hovered segment
     // renders highlighted; while a line is dragged it renders at
     // dragged_price_line_price with a ghost at its committed price. -1 = none.

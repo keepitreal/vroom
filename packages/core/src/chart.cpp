@@ -30,6 +30,7 @@
 #include "crosshair.h"
 #include "drawings.h"
 #include "footprints.h"
+#include "annotations.h"
 #include "fvg_overlay.h"
 #include "gradient.h"
 #include "ichimoku.h"
@@ -982,6 +983,14 @@ void VroomChart::draw_chart(SkCanvas* canvas) {
             draw_overlay_lines(canvas, lay, bounds, visible, n, range.start,
                                window_ms, candle_right, candle_area_h, reshape,
                                morph_t);
+
+            // 5.68. Annotation boxes (e.g. a strategy's opening range), over
+            //       the candles so a translucent fill highlights the bars it
+            //       spans; then segments, markers and labels.
+            vroom::annotations::draw_boxes(canvas, *this, lay, bounds, window_ms,
+                                           candle_right, candle_area_h);
+            vroom::annotations::draw_marks(canvas, *this, lay, bounds, window_ms,
+                                           candle_right, candle_area_h);
 
             // 5.7. Drawing annotations.
             vroom::drawings::draw(canvas, *this, lay, bounds, candle_right,

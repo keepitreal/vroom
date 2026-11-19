@@ -9,6 +9,7 @@ import type {
   MAKind,
   MASource,
   MovingAverageOverlay,
+  OrbConfig,
   RSIConfig,
   VolumeConfig,
   VWAPConfig,
@@ -27,6 +28,7 @@ export type IndicatorId =
   | 'ichimoku'
   | 'macd'
   | 'ma'
+  | 'orb'
   | 'rsi'
   | 'volume'
   | 'vwap';
@@ -87,6 +89,12 @@ export const INDICATORS: IndicatorMeta[] = [
       'The average price over a rolling window (SMA). Smooths price action to reveal the underlying trend.',
   },
   {
+    id: 'orb',
+    name: 'ORB Assistant',
+    description:
+      'Opening Range Breakout: marks the high and low of the session\u2019s first minutes, then trades a confirmed close beyond them with a stop, target and time exit, and keeps score in R.',
+  },
+  {
     id: 'rsi',
     name: 'RSI',
     description:
@@ -114,6 +122,7 @@ export const DEFAULT_INDICATOR_STATE: IndicatorState = {
   ichimoku: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
+  orb: { enabled: false },
   rsi: { enabled: false },
   // The one indicator that ships on, matching the chart's own default.
   volume: { enabled: true },
@@ -360,6 +369,26 @@ export type VolumeParams = {
 
 // Mirrors the core's own volume defaults, so the panel opens showing what the
 // chart is already drawing.
+// The ORB assistant's settings, grouped as OrbConfig groups them. Empty groups
+// take the engine's defaults (the 09:30–09:45 New York range, 5m signals, 2R).
+export type OrbParams = Omit<OrbConfig, 'enabled'>;
+// The highest net R from a parameter sweep over Hyperliquid XYZ100 + SP500 15m
+// history (Sep 26 – Nov 17 2026): +25.5R over 132 trades. Fit to one short
+// window, so treat it as a starting point rather than a proven edge.
+export const DEFAULT_ORB_PARAMS: OrbParams = {
+  session: { rangePreset: '15m', entryCutoff: '12:00' },
+  confirmation: {
+    signalTimeframe: 15,
+    confirmCloses: 1,
+    directionMode: 'both',
+    maxBullishSignals: 2,
+    maxBearishSignals: 2,
+    maxTradesPerDay: 2,
+  },
+  filters: { maxRangeWidthPct: false },
+  risk: { stopMode: 'midpoint', targetMode: 'rMultiple', targetR: 3, allowReversal: true },
+};
+
 export const DEFAULT_VOLUME_PARAMS: VolumeParams = {
   opacity: 0.5,
   height: 0.2,
@@ -441,6 +470,7 @@ export type IndicatorChartProps = {
   ichimoku: IchimokuConfig;
   fairValueGaps: FairValueGapsConfig;
   volume: VolumeConfig;
+  orb: OrbConfig;
 };
 
 export function deriveIndicatorProps(
@@ -455,6 +485,7 @@ export function deriveIndicatorProps(
   ichimokuParams: IchimokuParams,
   fvgParams: FVGParams,
   volumeParams: VolumeParams,
+  orbParams: OrbParams,
 ): IndicatorChartProps {
   const movingAverages: MovingAverageOverlay[] = [
     ...(state.ma.enabled
@@ -598,6 +629,7 @@ export function deriveIndicatorProps(
       height: volumeParams.height,
       radius: volumeParams.radius,
     },
+    orb: { enabled: state.orb.enabled, ...orbParams },
   };
 }
 
@@ -668,6 +700,8 @@ export function IndicatorsModal({
   onFvgParamsChange,
   volumeParams,
   onVolumeParamsChange,
+  orbParams,
+  onOrbParamsChange,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -691,6 +725,8 @@ export function IndicatorsModal({
   onFvgParamsChange: (patch: Partial<FVGParams>) => void;
   volumeParams: VolumeParams;
   onVolumeParamsChange: (patch: Partial<VolumeParams>) => void;
+  orbParams: OrbParams;
+  onOrbParamsChange: (next: OrbParams) => void;
 }) {
   const [detailId, setDetailId] = useState<IndicatorId | null>(null);
 
@@ -755,6 +791,8 @@ export function IndicatorsModal({
             onVolumeParamsChange={
               detail.id === 'volume' ? onVolumeParamsChange : undefined
             }
+            orbParams={detail.id === 'orb' ? orbParams : undefined}
+            onOrbParamsChange={detail.id === 'orb' ? onOrbParamsChange : undefined}
           />
         ) : (
           <ListScreen state={state} onClose={onClose} onSelect={setDetailId} />
@@ -1138,6 +1176,8 @@ function DetailScreen({
   onFvgParamsChange,
   volumeParams,
   onVolumeParamsChange,
+  orbParams,
+  onOrbParamsChange,
 }: {
   meta: IndicatorMeta;
   enabled: boolean;
@@ -1160,6 +1200,8 @@ function DetailScreen({
   onFvgParamsChange?: (patch: Partial<FVGParams>) => void;
   volumeParams?: VolumeParams;
   onVolumeParamsChange?: (patch: Partial<VolumeParams>) => void;
+  orbParams?: OrbParams;
+  onOrbParamsChange?: (next: OrbParams) => void;
 }) {
   const rsi = rsiParams && onRsiParamsChange ? rsiParams : null;
   const macd = macdParams && onMacdParamsChange ? macdParams : null;
@@ -1907,6 +1949,8 @@ function DetailScreen({
                 />
               )}
             </>
+          ) : orbParams && onOrbParamsChange ? (
+            <OrbSettings params={orbParams} onChange={onOrbParamsChange} />
           ) : vol ? (
             <>
               <div style={paramRow}>
@@ -1956,6 +2000,301 @@ function DetailScreen({
           )}
         </div>
       </div>
+    </>
+  );
+}
+
+function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div style={paramRow}>
+      <span style={paramLabel}>{label}</span>
+      <Toggle value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+function SegmentRow<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { label: string; value: T }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div style={paramRow}>
+      <span style={paramLabel}>{label}</span>
+      <Segmented options={options} value={value} onChange={onChange} />
+    </div>
+  );
+}
+
+// Settings for the ORB assistant, in the spec's groups. Values shown for unset
+// fields are the engine's defaults.
+// The range box's fill as a hue + opacity pair, packed into the chart's
+// `#aarrggbb`. Matches the engine's default `#14ffffff` (white, 8%).
+const ORB_FILL_HUES = [
+  { label: 'White', value: 'ffffff' },
+  { label: 'Blue', value: '2962ff' },
+  { label: 'Amber', value: 'ffc107' },
+];
+const ORB_FILL_ALPHAS = [0.04, 0.08, 0.15, 0.25];
+const orbFill = (hue: string, alpha: number) =>
+  `#${Math.round(alpha * 255).toString(16).padStart(2, '0')}${hue}`;
+function parseOrbFill(color: unknown): { hue: string; alpha: number } {
+  const m = typeof color === 'string' ? /^#([0-9a-f]{2})([0-9a-f]{6})$/i.exec(color) : null;
+  if (!m) return { hue: 'ffffff', alpha: 0.08 };
+  const a = parseInt(m[1], 16) / 255;
+  // Snap to the nearest preset so the segmented control shows a selection.
+  const alpha = ORB_FILL_ALPHAS.reduce((best, v) => (Math.abs(v - a) < Math.abs(best - a) ? v : best));
+  return { hue: m[2].toLowerCase(), alpha };
+}
+
+function OrbSettings({ params, onChange }: { params: OrbParams; onChange: (next: OrbParams) => void }) {
+  const s = params.session ?? {};
+  const c = params.confirmation ?? {};
+  const f = params.filters ?? {};
+  const r = params.risk ?? {};
+  const d = params.display ?? {};
+  const fill = parseOrbFill(d.backgroundColor);
+  const set = <K extends keyof OrbParams>(key: K, patch: NonNullable<OrbParams[K]>) =>
+    onChange({ ...params, [key]: { ...(params[key] ?? {}), ...patch } });
+
+  return (
+    <>
+      <SectionLabel>SESSION</SectionLabel>
+      <SegmentRow
+        label="Range"
+        options={(['5m', '15m', '30m', '60m'] as const).map((v) => ({ label: v, value: v }))}
+        value={s.rangePreset === 'custom' ? '15m' : (s.rangePreset ?? '15m')}
+        onChange={(v) => set('session', { rangePreset: v })}
+      />
+      <SegmentRow
+        label="Start"
+        options={['08:00', '09:30', '10:00'].map((v) => ({ label: v, value: v }))}
+        value={s.rangeStart ?? '09:30'}
+        onChange={(v) => set('session', { rangeStart: v })}
+      />
+      <SegmentRow
+        label="Timezone"
+        options={[
+          { label: 'New York', value: 'America/New_York' },
+          { label: 'London', value: 'Europe/London' },
+          { label: 'UTC', value: 'UTC' },
+        ]}
+        value={s.timezone ?? 'America/New_York'}
+        onChange={(v) => set('session', { timezone: v })}
+      />
+      <SegmentRow
+        label="Entry cutoff"
+        options={['11:00', '12:00', '14:00'].map((v) => ({ label: v, value: v }))}
+        value={s.entryCutoff ?? '12:00'}
+        onChange={(v) => set('session', { entryCutoff: v })}
+      />
+      <SegmentRow
+        label="Flatten"
+        options={['12:00', '15:00', '15:55'].map((v) => ({ label: v, value: v }))}
+        value={s.flattenTime ?? '15:55'}
+        onChange={(v) => set('session', { flattenTime: v })}
+      />
+
+      <SectionLabel>CONFIRMATION</SectionLabel>
+      <SegmentRow
+        label="Signal candles"
+        options={[1, 5, 15].map((v) => ({ label: `${v}m`, value: v }))}
+        value={c.signalTimeframe ?? 5}
+        onChange={(v) => set('confirmation', { signalTimeframe: v })}
+      />
+      <SegmentRow
+        label="Closes"
+        options={[1, 2].map((v) => ({ label: String(v), value: v as 1 | 2 }))}
+        value={c.confirmCloses ?? 1}
+        onChange={(v) => set('confirmation', { confirmCloses: v })}
+      />
+      <Stepper
+        label="Min break"
+        value={c.minBreakDistance ?? 0}
+        min={0}
+        max={100}
+        onChange={(v) => set('confirmation', { minBreakDistance: v })}
+      />
+      <SegmentRow
+        label="Break unit"
+        options={[
+          { label: 'Ticks', value: 'ticks' as const },
+          { label: 'Points', value: 'points' as const },
+          { label: '% range', value: 'rangePct' as const },
+        ]}
+        value={c.minBreakUnit ?? 'ticks'}
+        onChange={(v) => set('confirmation', { minBreakUnit: v })}
+      />
+      <SegmentRow
+        label="Direction"
+        options={[
+          { label: 'Both', value: 'both' as const },
+          { label: 'Range candle', value: 'withRangeCandle' as const },
+          { label: 'Long', value: 'longOnly' as const },
+          { label: 'Short', value: 'shortOnly' as const },
+        ]}
+        value={c.directionMode ?? 'both'}
+        onChange={(v) => set('confirmation', { directionMode: v })}
+      />
+      <Stepper
+        label="Long signals / day"
+        value={c.maxBullishSignals ?? 1}
+        min={0}
+        max={5}
+        onChange={(v) => set('confirmation', { maxBullishSignals: v })}
+      />
+      <Stepper
+        label="Short signals / day"
+        value={c.maxBearishSignals ?? 1}
+        min={0}
+        max={5}
+        onChange={(v) => set('confirmation', { maxBearishSignals: v })}
+      />
+      <Stepper
+        label="Trades / day"
+        value={c.maxTradesPerDay ?? 1}
+        min={1}
+        max={5}
+        onChange={(v) => set('confirmation', { maxTradesPerDay: v })}
+      />
+      <ToggleRow
+        label="Stop after loss"
+        value={c.stopAfterLoss ?? true}
+        onChange={(v) => set('confirmation', { stopAfterLoss: v })}
+      />
+      <SectionLabel>FILTERS</SectionLabel>
+      <SegmentRow
+        label="Max range width"
+        options={[
+          { label: 'Off', value: 0 },
+          { label: '0.5%', value: 0.5 },
+          { label: '0.85%', value: 0.85 },
+          { label: '1.5%', value: 1.5 },
+        ]}
+        value={f.maxRangeWidthPct === false ? 0 : (f.maxRangeWidthPct ?? 0.85)}
+        onChange={(v) => set('filters', { maxRangeWidthPct: v === 0 ? false : v })}
+      />
+      <SegmentRow
+        label="Skip weekdays"
+        options={[
+          { label: 'None', value: '' },
+          { label: 'Mon', value: '1' },
+          { label: 'Fri', value: '5' },
+          { label: 'Mon+Fri', value: '1,5' },
+        ]}
+        value={(f.skipWeekdays ?? []).join(',')}
+        onChange={(v) =>
+          set('filters', {
+            skipWeekdays: v ? (v.split(',').map(Number) as NonNullable<typeof f.skipWeekdays>) : [],
+          })
+        }
+      />
+      <ToggleRow
+        label="Trend filter (daily SMA)"
+        value={f.trendFilter?.enabled ?? false}
+        onChange={(v) => set('filters', { trendFilter: { ...f.trendFilter, enabled: v } })}
+      />
+      {f.trendFilter?.enabled ? (
+        <Stepper
+          label="SMA days"
+          value={f.trendFilter.period ?? 200}
+          min={2}
+          max={400}
+          step={10}
+          onChange={(v) => set('filters', { trendFilter: { ...f.trendFilter, period: v } })}
+        />
+      ) : null}
+
+      <SectionLabel>RISK &amp; EXITS</SectionLabel>
+      <SegmentRow
+        label="Stop"
+        options={[
+          { label: 'Opposite', value: 'oppositeSide' as const },
+          { label: 'Midpoint', value: 'midpoint' as const },
+          { label: 'Fixed', value: 'fixedPoints' as const },
+        ]}
+        value={r.stopMode ?? 'oppositeSide'}
+        onChange={(v) => set('risk', { stopMode: v })}
+      />
+      {r.stopMode === 'fixedPoints' ? (
+        <Stepper label="Stop points" value={r.stopPoints ?? 10} min={1} max={1000} onChange={(v) => set('risk', { stopPoints: v })} />
+      ) : null}
+      <Stepper
+        label="Stop buffer (ticks)"
+        value={r.stopBufferTicks ?? 0}
+        min={0}
+        max={40}
+        onChange={(v) => set('risk', { stopBufferTicks: v })}
+      />
+      <SegmentRow
+        label="Target"
+        options={[
+          { label: 'R multiple', value: 'rMultiple' as const },
+          { label: 'Hold', value: 'holdToFlatten' as const },
+          { label: 'Range ×', value: 'rangeMultiple' as const },
+        ]}
+        value={r.targetMode ?? 'rMultiple'}
+        onChange={(v) => set('risk', { targetMode: v })}
+      />
+      {(r.targetMode ?? 'rMultiple') === 'rMultiple' ? (
+        <Stepper label="Target R" value={r.targetR ?? 2} min={0.5} max={10} step={0.5} onChange={(v) => set('risk', { targetR: v })} />
+      ) : null}
+      {r.targetMode === 'rangeMultiple' ? (
+        <Stepper label="Range widths" value={r.rangeMult ?? 1} min={0.5} max={5} step={0.5} onChange={(v) => set('risk', { rangeMult: v })} />
+      ) : null}
+      <ToggleRow
+        label="Partial at 1R (50%, stop to breakeven)"
+        value={r.partial?.enabled ?? false}
+        onChange={(v) => set('risk', { partial: { ...r.partial, enabled: v } })}
+      />
+      <SegmentRow
+        label="Tick size"
+        options={[0.01, 0.25, 1].map((v) => ({ label: String(v), value: v }))}
+        value={r.tickSize ?? 0.25}
+        onChange={(v) => set('risk', { tickSize: v })}
+      />
+      <ToggleRow
+        label="Allow reversal"
+        value={r.allowReversal ?? false}
+        onChange={(v) => set('risk', { allowReversal: v })}
+      />
+      <SectionLabel>DISPLAY</SectionLabel>
+      <ToggleRow label="Range fill" value={d.showBackgroundFill ?? true} onChange={(v) => set('display', { showBackgroundFill: v })} />
+      <SegmentRow
+        label="Fill color"
+        options={ORB_FILL_HUES}
+        value={fill.hue}
+        onChange={(hue) => set('display', { backgroundColor: orbFill(hue, fill.alpha) })}
+      />
+      <SegmentRow
+        label="Fill opacity"
+        options={ORB_FILL_ALPHAS.map((a) => ({ label: `${Math.round(a * 100)}%`, value: a }))}
+        value={fill.alpha}
+        onChange={(alpha) => set('display', { backgroundColor: orbFill(fill.hue, alpha) })}
+      />
+      <ToggleRow label="Only today" value={d.onlyShowToday ?? false} onChange={(v) => set('display', { onlyShowToday: v })} />
+      <ToggleRow label="Midline" value={d.showMidline ?? false} onChange={(v) => set('display', { showMidline: v })} />
+      <ToggleRow label="Open price" value={d.showOpenPrice ?? false} onChange={(v) => set('display', { showOpenPrice: v })} />
+      <ToggleRow label="Signals" value={d.showSignals ?? true} onChange={(v) => set('display', { showSignals: v })} />
+      <ToggleRow label="Trade levels" value={d.showTradeLevels ?? true} onChange={(v) => set('display', { showTradeLevels: v })} />
+      <ToggleRow label="Stats panel" value={d.showStatsPanel ?? true} onChange={(v) => set('display', { showStatsPanel: v })} />
+      <SegmentRow
+        label="Stats corner"
+        options={[
+          { label: 'TL', value: 'topLeft' as const },
+          { label: 'TR', value: 'topRight' as const },
+          { label: 'BL', value: 'bottomLeft' as const },
+          { label: 'BR', value: 'bottomRight' as const },
+        ]}
+        value={d.statsPosition ?? 'topLeft'}
+        onChange={(v) => set('display', { statsPosition: v })}
+      />
     </>
   );
 }

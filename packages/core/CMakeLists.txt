@@ -73,6 +73,8 @@ if(VROOM_BUILD_TESTS)
         tests/test_crosshair_button.cpp
         tests/test_crosshair_style.cpp
         tests/test_badge_text.cpp
+        tests/test_annotations_layout.cpp
+        src/annotations_layout.cpp
         src/viewport.cpp
         src/price_line_layout.cpp
         src/footprints_layout.cpp

@@ -32,6 +32,7 @@ export type IndicatorId =
   | 'ichimoku'
   | 'macd'
   | 'ma'
+  | 'orb'
   | 'rsi'
   | 'vwap';
 
@@ -93,6 +94,12 @@ export const INDICATORS: IndicatorMeta[] = [
       'The average price over a rolling window (SMA). Smooths price action to reveal the underlying trend.',
   },
   {
+    id: 'orb',
+    name: 'ORB Assistant',
+    description:
+      'Opening Range Breakout: marks the high and low of the session’s first minutes, then trades a confirmed close beyond them with a stop, target and time exit, and keeps score in R.',
+  },
+  {
     id: 'rsi',
     name: 'RSI',
     description:
@@ -114,6 +121,7 @@ export const DEFAULT_INDICATOR_STATE: IndicatorState = {
   ichimoku: { enabled: false },
   macd: { enabled: false },
   ma: { enabled: false },
+  orb: { enabled: false },
   rsi: { enabled: false },
   vwap: { enabled: false },
 };

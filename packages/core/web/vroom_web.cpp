@@ -434,6 +434,63 @@ class WebChart {
     }
     vroom_chart_set_drawings(chart_, out.data(), n);
   }
+
+  // `spec` is {segments: [{aTime, aPrice, bTime, bPrice, color, width, dash}],
+  // boxes: [{aTime, aPrice, bTime, bPrice, fill, border, borderWidth}],
+  // markers: [{timeMs, price, shape, color, size, offset}],
+  // labels: [{timeMs, price, text, color, background, align, offset}]}.
+  void setAnnotations(const em::val& spec) {
+    em::val segs = spec["segments"];
+    std::vector<VroomAnnotationSegment> segments(segs["length"].as<size_t>());
+    for (size_t i = 0; i < segments.size(); ++i) {
+      em::val s = segs[i];
+      segments[i].a = {static_cast<int64_t>(s["aTime"].as<double>()), s["aPrice"].as<double>()};
+      segments[i].b = {static_cast<int64_t>(s["bTime"].as<double>()), s["bPrice"].as<double>()};
+      segments[i].color = s["color"].as<uint32_t>();
+      segments[i].width = s["width"].as<float>();
+      segments[i].dash = s["dash"].as<int32_t>();
+    }
+    em::val bx = spec["boxes"];
+    std::vector<VroomAnnotationBox> boxes(bx["length"].as<size_t>());
+    for (size_t i = 0; i < boxes.size(); ++i) {
+      em::val b = bx[i];
+      boxes[i].a = {static_cast<int64_t>(b["aTime"].as<double>()), b["aPrice"].as<double>()};
+      boxes[i].b = {static_cast<int64_t>(b["bTime"].as<double>()), b["bPrice"].as<double>()};
+      boxes[i].fill = b["fill"].as<uint32_t>();
+      boxes[i].border = b["border"].as<uint32_t>();
+      boxes[i].border_width = b["borderWidth"].as<float>();
+    }
+    em::val mk = spec["markers"];
+    std::vector<VroomAnnotationMarker> markers(mk["length"].as<size_t>());
+    for (size_t i = 0; i < markers.size(); ++i) {
+      em::val m = mk[i];
+      markers[i].time_ms = static_cast<int64_t>(m["timeMs"].as<double>());
+      markers[i].price = m["price"].as<double>();
+      markers[i].shape = m["shape"].as<int32_t>();
+      markers[i].color = m["color"].as<uint32_t>();
+      markers[i].size_px = m["size"].as<float>();
+      markers[i].offset_px = m["offset"].as<float>();
+    }
+    em::val lb = spec["labels"];
+    const size_t nl = lb["length"].as<size_t>();
+    std::vector<VroomAnnotationLabel> labels(nl);
+    // Text storage, kept alive until set_annotations has copied it.
+    std::vector<std::string> texts(nl);
+    for (size_t i = 0; i < nl; ++i) {
+      em::val l = lb[i];
+      texts[i] = l["text"].as<std::string>();
+      labels[i].time_ms = static_cast<int64_t>(l["timeMs"].as<double>());
+      labels[i].price = l["price"].as<double>();
+      labels[i].text = texts[i].c_str();
+      labels[i].color = l["color"].as<uint32_t>();
+      labels[i].background = l["background"].as<uint32_t>();
+      labels[i].align = l["align"].as<int32_t>();
+      labels[i].offset_px = l["offset"].as<float>();
+    }
+    vroom_chart_set_annotations(chart_, segments.data(), segments.size(), boxes.data(),
+                                boxes.size(), markers.data(), markers.size(),
+                                labels.data(), nl);
+  }
   // `cfg` is a JS object { bands: [{minPrice, maxPrice, side, volume}, ...],
   // buyColor, sellColor, maxVolume, minOpacity, maxOpacity, widthPx, widthFrac }.
   void setLiquidity(const em::val& cfg) {
@@ -907,6 +964,7 @@ EMSCRIPTEN_BINDINGS(vroom_web) {
       .function("setVolumeCollapse", &WebChart::setVolumeCollapse)
       .function("setAxisCollapse", &WebChart::setAxisCollapse)
       .function("setDrawings", &WebChart::setDrawings)
+      .function("setAnnotations", &WebChart::setAnnotations)
       .function("setLiquidity", &WebChart::setLiquidity)
       .function("setPriceLines", &WebChart::setPriceLines)
       .function("hitTestPriceLine", &WebChart::hitTestPriceLine)

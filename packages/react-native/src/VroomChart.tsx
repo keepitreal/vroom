@@ -42,6 +42,7 @@ import {
 import { runOnJS, runOnUI, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
+import { OrbStatsPanel } from './OrbStatsPanel';
 import { ease, easingIndex } from './easing';
 import { FLOAT_REDUCE_MOTION, parseColor } from './theme';
 import { drawUiFrames, LOOP_IDLE, LOOP_STOPPED } from './uiFrameLoop';
@@ -192,6 +193,9 @@ export function VroomChart(props: VroomChartProps) {
     onFootprint,
     crosshairButton: legacyCrosshairButton,
     onCrosshairButton,
+    orb,
+    onOrbEvent,
+    onOrbResult,
   } = props;
   const {
     mode: crosshairMode,
@@ -361,7 +365,7 @@ export function VroomChart(props: VroomChartProps) {
     [applyFrame],
   );
 
-  const { handle, picture, volumeCollapseRef } = useChartCore(
+  const { handle, picture, volumeCollapseRef, orbResult } = useChartCore(
     candles,
     { width, height, pxRatio: PixelRatio.get() },
     visibleRange,
@@ -390,6 +394,7 @@ export function VroomChart(props: VroomChartProps) {
       onFrame,
     },
     loading,
+    { config: orb, onOrbEvent, onOrbResult },
   );
 
   const uiFrames = useMemo(() => {
@@ -1242,6 +1247,9 @@ export function VroomChart(props: VroomChartProps) {
               </>
             ) : null}
           </Canvas>
+          {orbResult && orb?.display?.showStatsPanel !== false ? (
+            <OrbStatsPanel result={orbResult} position={orb?.display?.statsPosition} />
+          ) : null}
         </View>
       </GestureDetector>
     </GestureHandlerRootView>

@@ -7,6 +7,10 @@ export {
   type DataTransition,
 } from './dataTransitions';
 export type { WasmConfig } from '@vroomchart/core-wasm';
+// Opening Range Breakout: the stats table <VroomChart> shows for `orb`, and the
+// pure engine for running the same strategy off-chart (e.g. a backtest).
+export { OrbStatsPanel, type OrbStatsPanelProps } from './OrbStatsPanel';
+export { runOrb, type RunOrbOptions } from '@vroomchart/strategies';
 // Envelope (de)serializers for the managed `drawingStore` — exposed for
 // consumers who pre-seed a store, import/export drawings, or migrate payloads.
 export { serializeDrawings, deserializeDrawings, DRAWINGS_VERSION } from './drawingStorage';
@@ -40,6 +44,25 @@ export type {
   BollingerBandsConfig,
   IchimokuConfig,
   FairValueGapsConfig,
+  OrbConfig,
+  OrbBreakUnit,
+  OrbDirection,
+  OrbDirectionMode,
+  OrbEvent,
+  OrbEventType,
+  OrbRangePreset,
+  OrbResult,
+  OrbSession,
+  OrbSignal,
+  OrbSignalStatus,
+  OrbSkipReason,
+  OrbStats,
+  OrbStopMode,
+  OrbTargetMode,
+  OrbTimeOfDay,
+  OrbTrade,
+  OrbWarning,
+  OrbWeekday,
   VolumeConfig,
   LiquidityBand,
   LiquidityConfig,

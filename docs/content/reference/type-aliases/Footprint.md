@@ -9,7 +9,7 @@ type Footprint = {
 };
 ```
 
-Source: [types/src/index.ts:1125](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1125)
+Source: [types/src/index.ts:1477](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1477)
 
 A single filled trade, drawn as a circular badge above the candle it fell in —
 the "footprint" a trader leaves on the chart: `buy` marks an entry (a `+`
@@ -36,7 +36,7 @@ bar holding twenty fills still shows one badge and still reports all twenty.
 id: string;
 ```
 
-Source: [types/src/index.ts:1127](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1127)
+Source: [types/src/index.ts:1479](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1479)
 
 Stable unique id, echoed back in `onFootprint`.
 
@@ -48,7 +48,7 @@ Stable unique id, echoed back in `onFootprint`.
 optional price?: number;
 ```
 
-Source: [types/src/index.ts:1136](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1136)
+Source: [types/src/index.ts:1488](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1488)
 
 Execution price. Ignored by the renderer (badges sit above the bar, not at
 the fill), and carried through to `onFootprint` for your own UI.
@@ -61,7 +61,7 @@ the fill), and carried through to `onFootprint` for your own UI.
 side: FootprintSide;
 ```
 
-Source: [types/src/index.ts:1131](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1131)
+Source: [types/src/index.ts:1483](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1483)
 
 Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 
@@ -73,6 +73,6 @@ Entry (`'buy'`) or exit (`'sell'`) — picks the badge color and glyph.
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:1129](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1129)
+Source: [types/src/index.ts:1481](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1481)
 
 Execution time as Unix epoch milliseconds, unsnapped.

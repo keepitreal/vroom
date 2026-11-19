@@ -46,6 +46,7 @@ export type {
   VWAPSpec,
   VolumeSpec,
   DrawingSpec,
+  AnnotationsSpec,
   BandSpec,
   LiquiditySpec,
   PriceLineSpec,

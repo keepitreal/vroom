@@ -28,6 +28,14 @@ const csp = (dev: boolean) =>
     "worker-src 'self' blob:",
   ].join('; ');
 
+// Hyperliquid market data (the XYZ100 / SP500 assets), proxied so the demo
+// stays same-origin and the CSP above needs no third-party connect-src.
+const strip = (p: string) => p.replace(/^\/hyperliquid/, '');
+const hyperliquid = {
+  '/hyperliquid/ws': { target: 'wss://api.hyperliquid.xyz', ws: true, changeOrigin: true, rewrite: strip },
+  '/hyperliquid': { target: 'https://api.hyperliquid.xyz', changeOrigin: true, rewrite: strip },
+};
+
 const src = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
 export default defineConfig({
@@ -43,6 +51,6 @@ export default defineConfig({
       '@vroomchart/types': src('../../packages/types/src/index.ts'),
     },
   },
-  server: { headers: { ...coopCoep, 'Content-Security-Policy': csp(true) } },
-  preview: { headers: { ...coopCoep, 'Content-Security-Policy': csp(false) } },
+  server: { headers: { ...coopCoep, 'Content-Security-Policy': csp(true) }, proxy: hyperliquid },
+  preview: { headers: { ...coopCoep, 'Content-Security-Policy': csp(false) }, proxy: hyperliquid },
 });

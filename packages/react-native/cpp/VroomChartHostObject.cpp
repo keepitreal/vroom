@@ -1,6 +1,7 @@
 #include "VroomChartHostObject.h"
 
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -95,6 +96,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "setAxisCollapse"));
   out.push_back(jsi::PropNameID::forAscii(rt, "coordAt"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLines"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "setAnnotations"));
   out.push_back(jsi::PropNameID::forAscii(rt, "hitTestPriceLine"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLineHover"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setPriceLineDrag"));
@@ -1557,6 +1559,95 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
           style.corner_radius_px = static_cast<float>(
               cfg.getProperty(rt2, "cornerRadiusPx").asNumber());
           vroom_chart_set_price_lines(chart_, lines.data(), lines.size(), &style);
+          return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "setAnnotations") {
+    // setAnnotations({ segments: [{ aTime, aPrice, bTime, bPrice, color, width,
+    // dash }], boxes: [{ aTime, aPrice, bTime, bPrice, fill, border, borderWidth }],
+    // markers: [{ timeMs, price, shape, color, size, offset }], labels: [{ timeMs,
+    // price, text, color, background, align, offset }] }) — replaces every
+    // annotation. No render; the next render() picks it up.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "setAnnotations"),
+        1,
+        [this](jsi::Runtime& rt2,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* args,
+               size_t count) -> jsi::Value {
+          if (count < 1 || !args[0].isObject()) return jsi::Value::undefined();
+          auto spec = args[0].asObject(rt2);
+          auto num = [&rt2](const jsi::Object& o, const char* key) {
+            return o.getProperty(rt2, key).asNumber();
+          };
+          auto list = [&rt2, &spec](const char* key) {
+            auto v = spec.getProperty(rt2, key);
+            if (!v.isObject() || !v.asObject(rt2).isArray(rt2)) {
+              return std::optional<jsi::Array>();
+            }
+            return std::optional<jsi::Array>(v.asObject(rt2).asArray(rt2));
+          };
+
+          std::vector<VroomAnnotationSegment> segments;
+          if (auto arr = list("segments")) {
+            segments.resize(arr->size(rt2));
+            for (size_t i = 0; i < segments.size(); ++i) {
+              auto s = arr->getValueAtIndex(rt2, i).asObject(rt2);
+              segments[i].a = {static_cast<int64_t>(num(s, "aTime")), num(s, "aPrice")};
+              segments[i].b = {static_cast<int64_t>(num(s, "bTime")), num(s, "bPrice")};
+              segments[i].color = static_cast<uint32_t>(num(s, "color"));
+              segments[i].width = static_cast<float>(num(s, "width"));
+              segments[i].dash = static_cast<int32_t>(num(s, "dash"));
+            }
+          }
+          std::vector<VroomAnnotationBox> boxes;
+          if (auto arr = list("boxes")) {
+            boxes.resize(arr->size(rt2));
+            for (size_t i = 0; i < boxes.size(); ++i) {
+              auto b = arr->getValueAtIndex(rt2, i).asObject(rt2);
+              boxes[i].a = {static_cast<int64_t>(num(b, "aTime")), num(b, "aPrice")};
+              boxes[i].b = {static_cast<int64_t>(num(b, "bTime")), num(b, "bPrice")};
+              boxes[i].fill = static_cast<uint32_t>(num(b, "fill"));
+              boxes[i].border = static_cast<uint32_t>(num(b, "border"));
+              boxes[i].border_width = static_cast<float>(num(b, "borderWidth"));
+            }
+          }
+          std::vector<VroomAnnotationMarker> markers;
+          if (auto arr = list("markers")) {
+            markers.resize(arr->size(rt2));
+            for (size_t i = 0; i < markers.size(); ++i) {
+              auto m = arr->getValueAtIndex(rt2, i).asObject(rt2);
+              markers[i].time_ms = static_cast<int64_t>(num(m, "timeMs"));
+              markers[i].price = num(m, "price");
+              markers[i].shape = static_cast<int32_t>(num(m, "shape"));
+              markers[i].color = static_cast<uint32_t>(num(m, "color"));
+              markers[i].size_px = static_cast<float>(num(m, "size"));
+              markers[i].offset_px = static_cast<float>(num(m, "offset"));
+            }
+          }
+          std::vector<VroomAnnotationLabel> labels;
+          // Text storage, kept alive until set_annotations has copied it.
+          std::vector<std::string> texts;
+          if (auto arr = list("labels")) {
+            labels.resize(arr->size(rt2));
+            texts.resize(labels.size());
+            for (size_t i = 0; i < labels.size(); ++i) {
+              auto l = arr->getValueAtIndex(rt2, i).asObject(rt2);
+              texts[i] = l.getProperty(rt2, "text").asString(rt2).utf8(rt2);
+              labels[i].time_ms = static_cast<int64_t>(num(l, "timeMs"));
+              labels[i].price = num(l, "price");
+              labels[i].text = texts[i].c_str();
+              labels[i].color = static_cast<uint32_t>(num(l, "color"));
+              labels[i].background = static_cast<uint32_t>(num(l, "background"));
+              labels[i].align = static_cast<int32_t>(num(l, "align"));
+              labels[i].offset_px = static_cast<float>(num(l, "offset"));
+            }
+          }
+          vroom_chart_set_annotations(chart_, segments.data(), segments.size(),
+                                      boxes.data(), boxes.size(), markers.data(),
+                                      markers.size(), labels.data(), labels.size());
           return jsi::Value::undefined();
         });
   }

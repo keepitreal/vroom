@@ -961,6 +961,7 @@ export default function App() {
               color: vwapParams.color,
               width: vwapParams.width,
             }}
+            orb={{ enabled: indicators.orb.enabled }}
             bollingerBands={{
               enabled: indicators.bb.enabled,
               period: bbParams.period,

@@ -27,6 +27,7 @@ const sidebars: SidebarsConfig = {
         'guides/drawing-tools',
         'guides/price-lines',
         'guides/footprints',
+        'guides/orb-assistant',
         {
           type: 'category',
           label: 'AI agents',
