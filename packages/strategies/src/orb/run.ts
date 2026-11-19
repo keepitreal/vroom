@@ -14,7 +14,7 @@ import { calendarSkip, dailyCloses, exceedsMaxWidth, priorSma } from './filters'
 import { buildRange } from './range';
 import { aggregate, timeframeWarnings } from './signals';
 import { orbStats } from './stats';
-import { simulateTrade, suggestedSize, tradeLevels } from './trade';
+import { simulateTrade, tradeLevels } from './trade';
 import { Zone } from './time';
 
 export type RunOrbOptions = {
@@ -243,7 +243,7 @@ function runSession(session: OrbSession, ctx: SessionContext): void {
     else shortCount = 0;
     if (!allowed(dir)) continue;
 
-    const record = (status: OrbSignalStatus, extra: { tradeId?: string; size?: number } = {}) => {
+    const record = (status: OrbSignalStatus, extra: { tradeId?: string } = {}) => {
       session.signals.push({
         direction: dir,
         timeMs: sc.endMs,
@@ -301,12 +301,6 @@ function runSession(session: OrbSession, ctx: SessionContext): void {
       confirm();
       continue;
     }
-    const size = suggestedSize(lv.risk, r);
-    if (size < 1) {
-      record('sizeTooSmall', { size });
-      confirm();
-      continue;
-    }
 
     const trade: OrbTrade = {
       id: `${date}:${dir}:${entryBar.timeMs}`,
@@ -318,13 +312,12 @@ function runSession(session: OrbSession, ctx: SessionContext): void {
       stop: lv.stop,
       currentStop: lv.stop,
       target: lv.target,
-      size,
       exitTimeMs: null,
       exitPrice: null,
       exitReason: null,
       r: null,
     };
-    record('entered', { tradeId: trade.id, size });
+    record('entered', { tradeId: trade.id });
     confirm();
     tradeCount++;
     if (reversal) reversalUsed = true;

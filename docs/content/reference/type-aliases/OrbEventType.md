@@ -11,6 +11,6 @@ type OrbEventType =
   | "daySkipped";
 ```
 
-Source: [types/src/index.ts:1134](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1134)
+Source: [types/src/index.ts:1133](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1133)
 
 What the assistant reports through `onOrbEvent`.

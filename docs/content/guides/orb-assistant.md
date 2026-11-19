@@ -23,9 +23,11 @@ import { VroomChart, type OrbEvent } from "@vroomchart/react";
 
 With no other settings it trades the New York open: a 15-minute range from 09:30,
 confirmed on 5-minute closes, one trade a day, no new entries after 12:00, and
-everything flat at 15:55. Sizing defaults to MNQ: $250 of risk, a point value of
-2 and a tick size of 0.25. On other instruments, set `risk.pointValue` and
-`risk.tickSize`, or every trade will be skipped as "size too small".
+everything flat at 15:55.
+
+It makes no assumption about what you trade: futures, options, spot or anything
+else with candles. Trades carry prices, and every result is in R. Position
+sizing is left to your app: risk per unit is `|entryPrice − stop|` on each trade.
 
 ## What it draws
 
@@ -33,8 +35,8 @@ everything flat at 15:55. Sizing defaults to MNQ: $250 of risk, a point value of
   the window's end to the flatten time. An optional midline and an optional line
   at the window's opening price.
 - **Signals.** An up triangle under the bar for a long, a down triangle over it
-  for a short, labeled with the suggested size (`Long 3 ct`). A breakout that
-  couldn't be traded gets a reason instead, e.g. `size too small, skip`.
+  for a short, labeled with the trade's risk in price (`Short · risk 7.25`, the
+  distance from the entry to the stop).
 - **Trade levels.** Entry, stop and target lines from the entry bar to the exit.
 - **Exits.** An X at a target (win color) or a stop (loss color), a square at a
   time exit, and the realized R beside it.
@@ -66,6 +68,7 @@ Everything is deterministic and never looks ahead:
 
 A chart timeframe above the signal timeframe or the range window disables signals
 and shows a warning in the stats table, rather than guessing.
+
 
 ## Events and results
 

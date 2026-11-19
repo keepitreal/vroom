@@ -50,6 +50,11 @@ const SKIP_TEXT: Record<NonNullable<OrbSession['skipReason']>, string> = {
 };
 
 /** Index of the bar opening at `timeMs`, by binary search, or -1. */
+/** A price distance at any scale: 4 significant digits, trailing zeros dropped (7, 0.3512, 1250). */
+function formatPrice(v: number): string {
+  return String(Number(v.toPrecision(4)));
+}
+
 function barAt(candles: readonly Candle[], timeMs: number): number {
   let lo = 0;
   let hi = candles.length - 1;
@@ -138,7 +143,7 @@ export function orbToAnnotations(
 
 function signalMarks(s: OrbSession, candles: readonly Candle[], d: Colors, out: OrbAnnotations) {
   for (const sig of s.signals) {
-    if (sig.status !== 'entered' && sig.status !== 'sizeTooSmall' && sig.status !== 'awaitingEntry') continue;
+    if (sig.status !== 'entered' && sig.status !== 'awaitingEntry') continue;
     const long = sig.direction === 'long';
     const trade = sig.tradeId ? s.trades.find((t) => t.id === sig.tradeId) : undefined;
     // The bar the trade entered (or would enter) on.
@@ -154,12 +159,11 @@ function signalMarks(s: OrbSession, candles: readonly Candle[], d: Colors, out: 
       size: MARKER,
       offset: long ? MARKER_GAP : -MARKER_GAP,
     });
+    const side = long ? 'Long' : 'Short';
     const text =
-      sig.status === 'sizeTooSmall'
-        ? 'size too small, skip'
-        : sig.status === 'awaitingEntry'
-          ? `${long ? 'Long' : 'Short'}: entry next bar`
-          : `${long ? 'Long' : 'Short'} ${sig.size} ct`;
+      sig.status === 'awaitingEntry' || !trade
+        ? `${side}: entry next bar`
+        : `${side} · risk ${formatPrice(Math.abs(trade.entryPrice - trade.stop))}`;
     out.labels.push({
       timeMs: timeMs,
       price,

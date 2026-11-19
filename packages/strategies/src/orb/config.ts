@@ -36,8 +36,6 @@ export type ResolvedOrb = {
   targetR: number;
   rangeMult: number;
   partial: { enabled: boolean; atR: number; fraction: number; breakeven: boolean };
-  riskPerTrade: number;
-  pointValue: number;
   tickSize: number;
   allowReversal: boolean;
 };
@@ -104,7 +102,6 @@ export function resolveOrb(cfg: OrbConfig | undefined): ResolvedOrb {
       period: Math.max(1, Math.floor(positive(f.trendFilter?.period, 200))),
       dailyCloses: f.trendFilter?.dailyCloses,
     },
-
     stopMode: r.stopMode ?? 'oppositeSide',
     stopPoints: positive(r.stopPoints, 10),
     stopBufferTicks: nonNegative(r.stopBufferTicks, 0),
@@ -117,8 +114,6 @@ export function resolveOrb(cfg: OrbConfig | undefined): ResolvedOrb {
       fraction: Math.min(1, positive(r.partial?.pct, 50) / 100),
       breakeven: r.partial?.moveStopToBreakeven ?? true,
     },
-    riskPerTrade: positive(r.riskPerTrade, 250),
-    pointValue: positive(r.pointValue, 2),
     tickSize: positive(r.tickSize, 0.25),
     allowReversal: r.allowReversal ?? false,
   };

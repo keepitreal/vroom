@@ -7,7 +7,7 @@ type RunOrbOptions = {
 };
 ```
 
-Source: strategies/dist/index.d.ts:359
+Source: strategies/dist/index.d.ts:354
 
 ## Properties
 
@@ -17,7 +17,7 @@ Source: strategies/dist/index.d.ts:359
 optional nowMs?: number;
 ```
 
-Source: strategies/dist/index.d.ts:365
+Source: strategies/dist/index.d.ts:360
 
 Wall-clock time (epoch ms) deciding whether the newest bar has closed.
 Defaults to +Infinity: every bar is closed, as in a backtest. Pass
@@ -31,6 +31,6 @@ Defaults to +Infinity: every bar is closed, as in a backtest. Pass
 optional stepMs?: number;
 ```
 
-Source: strategies/dist/index.d.ts:367
+Source: strategies/dist/index.d.ts:362
 
 Bar length in ms. Inferred from the bar spacing when omitted.

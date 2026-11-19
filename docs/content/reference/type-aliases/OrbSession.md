@@ -26,7 +26,7 @@ type OrbSession = {
 };
 ```
 
-Source: [types/src/index.ts:1221](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1221)
+Source: [types/src/index.ts:1215](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1215)
 
 One session (trading day) the assistant evaluated.
 
@@ -38,7 +38,7 @@ One session (trading day) the assistant evaluated.
 optional close?: number;
 ```
 
-Source: [types/src/index.ts:1239](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1239)
+Source: [types/src/index.ts:1233](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1233)
 
 ---
 
@@ -48,7 +48,7 @@ Source: [types/src/index.ts:1239](https://github.com/keepitreal/vroom/blob/main/
 date: string;
 ```
 
-Source: [types/src/index.ts:1223](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1223)
+Source: [types/src/index.ts:1217](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1217)
 
 `'YYYY-MM-DD'` in the session timezone.
 
@@ -60,7 +60,7 @@ Source: [types/src/index.ts:1223](https://github.com/keepitreal/vroom/blob/main/
 entryCutoffMs: number;
 ```
 
-Source: [types/src/index.ts:1226](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1226)
+Source: [types/src/index.ts:1220](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1220)
 
 ---
 
@@ -70,7 +70,7 @@ Source: [types/src/index.ts:1226](https://github.com/keepitreal/vroom/blob/main/
 optional finalMs?: number;
 ```
 
-Source: [types/src/index.ts:1243](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1243)
+Source: [types/src/index.ts:1237](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1237)
 
 When the range became final (the last window bar's close).
 
@@ -82,7 +82,7 @@ When the range became final (the last window bar's close).
 flattenMs: number;
 ```
 
-Source: [types/src/index.ts:1227](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1227)
+Source: [types/src/index.ts:1221](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1221)
 
 ---
 
@@ -92,7 +92,7 @@ Source: [types/src/index.ts:1227](https://github.com/keepitreal/vroom/blob/main/
 optional high?: number;
 ```
 
-Source: [types/src/index.ts:1235](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1235)
+Source: [types/src/index.ts:1229](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1229)
 
 Range extremes; absent until a bar lands in the window.
 
@@ -104,7 +104,7 @@ Range extremes; absent until a bar lands in the window.
 optional low?: number;
 ```
 
-Source: [types/src/index.ts:1236](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1236)
+Source: [types/src/index.ts:1230](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1230)
 
 ---
 
@@ -114,7 +114,7 @@ Source: [types/src/index.ts:1236](https://github.com/keepitreal/vroom/blob/main/
 optional open?: number;
 ```
 
-Source: [types/src/index.ts:1238](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1238)
+Source: [types/src/index.ts:1232](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1232)
 
 Open of the first and close of the last bar in the window.
 
@@ -131,7 +131,7 @@ optional pending?: {
 };
 ```
 
-Source: [types/src/index.ts:1247](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1247)
+Source: [types/src/index.ts:1241](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1241)
 
 A breakout on a still-forming signal candle — shown, never traded or alerted.
 
@@ -167,7 +167,7 @@ timeMs: number;
 rangeEndMs: number;
 ```
 
-Source: [types/src/index.ts:1225](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1225)
+Source: [types/src/index.ts:1219](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1219)
 
 ---
 
@@ -177,7 +177,7 @@ Source: [types/src/index.ts:1225](https://github.com/keepitreal/vroom/blob/main/
 rangeStartMs: number;
 ```
 
-Source: [types/src/index.ts:1224](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1224)
+Source: [types/src/index.ts:1218](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1218)
 
 ---
 
@@ -187,7 +187,7 @@ Source: [types/src/index.ts:1224](https://github.com/keepitreal/vroom/blob/main/
 signals: OrbSignal[];
 ```
 
-Source: [types/src/index.ts:1244](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1244)
+Source: [types/src/index.ts:1238](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1238)
 
 ---
 
@@ -197,7 +197,7 @@ Source: [types/src/index.ts:1244](https://github.com/keepitreal/vroom/blob/main/
 optional skipReason?: OrbSkipReason;
 ```
 
-Source: [types/src/index.ts:1233](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1233)
+Source: [types/src/index.ts:1227](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1227)
 
 ---
 
@@ -207,7 +207,7 @@ Source: [types/src/index.ts:1233](https://github.com/keepitreal/vroom/blob/main/
 status: "forming" | "final" | "skipped";
 ```
 
-Source: [types/src/index.ts:1232](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1232)
+Source: [types/src/index.ts:1226](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1226)
 
 'forming' — the range window hasn't closed yet; 'final' — evaluated;
 'skipped' — see `skipReason`.
@@ -220,7 +220,7 @@ Source: [types/src/index.ts:1232](https://github.com/keepitreal/vroom/blob/main/
 trades: OrbTrade[];
 ```
 
-Source: [types/src/index.ts:1245](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1245)
+Source: [types/src/index.ts:1239](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1239)
 
 ---
 
@@ -230,6 +230,6 @@ Source: [types/src/index.ts:1245](https://github.com/keepitreal/vroom/blob/main/
 optional widthPct?: number;
 ```
 
-Source: [types/src/index.ts:1241](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1241)
+Source: [types/src/index.ts:1235](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1235)
 
 (high − low) / midpoint × 100.

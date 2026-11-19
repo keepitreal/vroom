@@ -18,13 +18,12 @@ type OrbTrade = {
   };
   r: number | null;
   signalTimeMs: number;
-  size: number;
   stop: number;
   target: number | null;
 };
 ```
 
-Source: [types/src/index.ts:1195](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1195)
+Source: [types/src/index.ts:1191](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1191)
 
 A simulated trade. Prices are fixed at entry; only a breakeven move after a partial changes the stop.
 
@@ -36,7 +35,7 @@ A simulated trade. Prices are fixed at entry; only a breakeven move after a part
 currentStop: number;
 ```
 
-Source: [types/src/index.ts:1206](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1206)
+Source: [types/src/index.ts:1202](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1202)
 
 The stop in force at the end (moved to the entry after a breakeven partial).
 
@@ -48,7 +47,7 @@ The stop in force at the end (moved to the entry after a breakeven partial).
 date: string;
 ```
 
-Source: [types/src/index.ts:1197](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1197)
+Source: [types/src/index.ts:1193](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1193)
 
 ---
 
@@ -58,7 +57,7 @@ Source: [types/src/index.ts:1197](https://github.com/keepitreal/vroom/blob/main/
 direction: OrbDirection;
 ```
 
-Source: [types/src/index.ts:1198](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1198)
+Source: [types/src/index.ts:1194](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1194)
 
 ---
 
@@ -68,7 +67,7 @@ Source: [types/src/index.ts:1198](https://github.com/keepitreal/vroom/blob/main/
 entryPrice: number;
 ```
 
-Source: [types/src/index.ts:1202](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1202)
+Source: [types/src/index.ts:1198](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1198)
 
 ---
 
@@ -78,7 +77,7 @@ Source: [types/src/index.ts:1202](https://github.com/keepitreal/vroom/blob/main/
 entryTimeMs: number;
 ```
 
-Source: [types/src/index.ts:1201](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1201)
+Source: [types/src/index.ts:1197](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1197)
 
 ---
 
@@ -88,7 +87,7 @@ Source: [types/src/index.ts:1201](https://github.com/keepitreal/vroom/blob/main/
 exitPrice: number | null;
 ```
 
-Source: [types/src/index.ts:1213](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1213)
+Source: [types/src/index.ts:1207](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1207)
 
 ---
 
@@ -98,7 +97,7 @@ Source: [types/src/index.ts:1213](https://github.com/keepitreal/vroom/blob/main/
 exitReason: "target" | "stop" | "time" | null;
 ```
 
-Source: [types/src/index.ts:1214](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1214)
+Source: [types/src/index.ts:1208](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1208)
 
 ---
 
@@ -108,7 +107,7 @@ Source: [types/src/index.ts:1214](https://github.com/keepitreal/vroom/blob/main/
 exitTimeMs: number | null;
 ```
 
-Source: [types/src/index.ts:1212](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1212)
+Source: [types/src/index.ts:1206](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1206)
 
 Null while open.
 
@@ -120,7 +119,7 @@ Null while open.
 id: string;
 ```
 
-Source: [types/src/index.ts:1196](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1196)
+Source: [types/src/index.ts:1192](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1192)
 
 ---
 
@@ -134,7 +133,7 @@ optional partial?: {
 };
 ```
 
-Source: [types/src/index.ts:1217](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1217)
+Source: [types/src/index.ts:1211](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1211)
 
 #### pct
 
@@ -162,7 +161,7 @@ timeMs: number;
 r: number | null;
 ```
 
-Source: [types/src/index.ts:1216](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1216)
+Source: [types/src/index.ts:1210](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1210)
 
 Realized R (partial blended in); null while open.
 
@@ -174,21 +173,9 @@ Realized R (partial blended in); null while open.
 signalTimeMs: number;
 ```
 
-Source: [types/src/index.ts:1200](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1200)
+Source: [types/src/index.ts:1196](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1196)
 
 Close time of the confirming candle.
-
----
-
-### size
-
-```ts
-size: number;
-```
-
-Source: [types/src/index.ts:1210](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1210)
-
-Suggested contracts: floor(riskPerTrade / (|entry − stop| × pointValue)).
 
 ---
 
@@ -198,7 +185,7 @@ Suggested contracts: floor(riskPerTrade / (|entry − stop| × pointValue)).
 stop: number;
 ```
 
-Source: [types/src/index.ts:1204](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1204)
+Source: [types/src/index.ts:1200](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1200)
 
 The stop at entry, which R is measured against.
 
@@ -210,6 +197,6 @@ The stop at entry, which R is measured against.
 target: number | null;
 ```
 
-Source: [types/src/index.ts:1208](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1208)
+Source: [types/src/index.ts:1204](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1204)
 
 Null under 'holdToFlatten'.

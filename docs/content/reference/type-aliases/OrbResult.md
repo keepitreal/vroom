@@ -11,7 +11,7 @@ type OrbResult = {
 };
 ```
 
-Source: [types/src/index.ts:1281](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1281)
+Source: [types/src/index.ts:1275](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1275)
 
 Everything the assistant computed.
 
@@ -23,7 +23,7 @@ Everything the assistant computed.
 events: OrbEvent[];
 ```
 
-Source: [types/src/index.ts:1286](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1286)
+Source: [types/src/index.ts:1280](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1280)
 
 Every event, in time order.
 
@@ -35,7 +35,7 @@ Every event, in time order.
 sessions: OrbSession[];
 ```
 
-Source: [types/src/index.ts:1282](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1282)
+Source: [types/src/index.ts:1276](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1276)
 
 ---
 
@@ -45,7 +45,7 @@ Source: [types/src/index.ts:1282](https://github.com/keepitreal/vroom/blob/main/
 signalsEnabled: boolean;
 ```
 
-Source: [types/src/index.ts:1290](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1290)
+Source: [types/src/index.ts:1284](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1284)
 
 False when a warning disabled signals.
 
@@ -57,7 +57,7 @@ False when a warning disabled signals.
 stats: OrbStats;
 ```
 
-Source: [types/src/index.ts:1287](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1287)
+Source: [types/src/index.ts:1281](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1281)
 
 ---
 
@@ -67,7 +67,7 @@ Source: [types/src/index.ts:1287](https://github.com/keepitreal/vroom/blob/main/
 trades: OrbTrade[];
 ```
 
-Source: [types/src/index.ts:1284](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1284)
+Source: [types/src/index.ts:1278](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1278)
 
 Every trade, oldest first.
 
@@ -79,4 +79,4 @@ Every trade, oldest first.
 warnings: OrbWarning[];
 ```
 
-Source: [types/src/index.ts:1288](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1288)
+Source: [types/src/index.ts:1282](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1282)

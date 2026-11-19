@@ -8,7 +8,7 @@ type OrbStatsPanelProps = {
 };
 ```
 
-Source: react-native/src/OrbStatsPanel.tsx:6
+Source: [react-native/src/OrbStatsPanel.tsx:6](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/OrbStatsPanel.tsx#L6)
 
 ## Properties
 
@@ -18,7 +18,7 @@ Source: react-native/src/OrbStatsPanel.tsx:6
 optional position?: "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
 ```
 
-Source: react-native/src/OrbStatsPanel.tsx:9
+Source: [react-native/src/OrbStatsPanel.tsx:9](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/OrbStatsPanel.tsx#L9)
 
 Corner of the parent to sit in. Default 'topLeft'.
 
@@ -30,7 +30,7 @@ Corner of the parent to sit in. Default 'topLeft'.
 result: OrbResult;
 ```
 
-Source: react-native/src/OrbStatsPanel.tsx:7
+Source: [react-native/src/OrbStatsPanel.tsx:7](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/OrbStatsPanel.tsx#L7)
 
 ---
 
@@ -40,6 +40,6 @@ Source: react-native/src/OrbStatsPanel.tsx:7
 optional style?: StyleProp<ViewStyle>;
 ```
 
-Source: react-native/src/OrbStatsPanel.tsx:11
+Source: [react-native/src/OrbStatsPanel.tsx:11](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/OrbStatsPanel.tsx#L11)
 
 Merged over the panel's own style.

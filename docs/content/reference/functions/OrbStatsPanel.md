@@ -4,7 +4,7 @@
 function OrbStatsPanel(__namedParameters): Element;
 ```
 
-Source: react-native/src/OrbStatsPanel.tsx:27
+Source: [react-native/src/OrbStatsPanel.tsx:27](https://github.com/keepitreal/vroom/blob/main/packages/react-native/src/OrbStatsPanel.tsx#L27)
 
 The Opening Range Breakout stats table: trades, win rate, R statistics,
 longs vs shorts and days skipped per filter, plus any warning that turned

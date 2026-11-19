@@ -56,10 +56,11 @@ describe('orbToAnnotations', () => {
     expect(a.segments.filter((s) => s.a.timeMs === at(D, '09:50') && s.b.timeMs === at(D, '09:55'))).toHaveLength(3);
   });
 
-  it('labels a size-too-small signal and a skipped day', () => {
+  it('labels an entry with its risk in price, and a skipped day', () => {
     const bars = day(D, { ...BREAK });
-    const small = orbToAnnotations(runOrb(bars, { risk: { riskPerTrade: 100 } }), bars, undefined, STEP);
-    expect(small.labels.map((l) => l.text)).toContain('size too small, skip');
+    // Entry at the 09:50 open (20072), stop at the range low (19980).
+    const entry = orbToAnnotations(runOrb(bars, undefined, { stepMs: STEP }), bars, undefined, STEP);
+    expect(entry.labels.map((l) => l.text)).toContain('Long · risk 92');
 
     const wide = day(D, { '09:40': [20040, 20055, 19500, 20010] });
     const skipped = orbToAnnotations(runOrb(wide), wide, undefined, STEP);

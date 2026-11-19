@@ -25,7 +25,7 @@ type OrbStats = {
 };
 ```
 
-Source: [types/src/index.ts:1251](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1251)
+Source: [types/src/index.ts:1245](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1245)
 
 Aggregates over every session loaded. R values are in multiples of initial risk.
 
@@ -37,7 +37,7 @@ Aggregates over every session loaded. R values are in multiples of initial risk.
 avgR: number | null;
 ```
 
-Source: [types/src/index.ts:1257](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1257)
+Source: [types/src/index.ts:1251](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1251)
 
 ---
 
@@ -51,7 +51,7 @@ longs: {
 }
 ```
 
-Source: [types/src/index.ts:1262](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1262)
+Source: [types/src/index.ts:1256](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1256)
 
 #### netR
 
@@ -79,7 +79,7 @@ wins: number;
 losses: number;
 ```
 
-Source: [types/src/index.ts:1254](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1254)
+Source: [types/src/index.ts:1248](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1248)
 
 ---
 
@@ -89,7 +89,7 @@ Source: [types/src/index.ts:1254](https://github.com/keepitreal/vroom/blob/main/
 maxDrawdownR: number;
 ```
 
-Source: [types/src/index.ts:1261](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1261)
+Source: [types/src/index.ts:1255](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1255)
 
 ---
 
@@ -99,7 +99,7 @@ Source: [types/src/index.ts:1261](https://github.com/keepitreal/vroom/blob/main/
 netR: number;
 ```
 
-Source: [types/src/index.ts:1258](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1258)
+Source: [types/src/index.ts:1252](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1252)
 
 ---
 
@@ -109,7 +109,7 @@ Source: [types/src/index.ts:1258](https://github.com/keepitreal/vroom/blob/main/
 profitFactor: number | null;
 ```
 
-Source: [types/src/index.ts:1260](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1260)
+Source: [types/src/index.ts:1254](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1254)
 
 Gross winning R / gross losing R; null with no losing trades.
 
@@ -121,7 +121,7 @@ Gross winning R / gross losing R; null with no losing trades.
 sessions: number;
 ```
 
-Source: [types/src/index.ts:1264](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1264)
+Source: [types/src/index.ts:1258](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1258)
 
 ---
 
@@ -135,7 +135,7 @@ shorts: {
 }
 ```
 
-Source: [types/src/index.ts:1263](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1263)
+Source: [types/src/index.ts:1257](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1257)
 
 #### netR
 
@@ -163,7 +163,7 @@ wins: number;
 skipped: Partial<Record<OrbSkipReason, number>>;
 ```
 
-Source: [types/src/index.ts:1265](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1265)
+Source: [types/src/index.ts:1259](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1259)
 
 ---
 
@@ -173,7 +173,7 @@ Source: [types/src/index.ts:1265](https://github.com/keepitreal/vroom/blob/main/
 trades: number;
 ```
 
-Source: [types/src/index.ts:1252](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1252)
+Source: [types/src/index.ts:1246](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1246)
 
 ---
 
@@ -183,7 +183,7 @@ Source: [types/src/index.ts:1252](https://github.com/keepitreal/vroom/blob/main/
 winRate: number | null;
 ```
 
-Source: [types/src/index.ts:1256](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1256)
+Source: [types/src/index.ts:1250](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1250)
 
 0–1; null with no closed trades.
 
@@ -195,4 +195,4 @@ Source: [types/src/index.ts:1256](https://github.com/keepitreal/vroom/blob/main/
 wins: number;
 ```
 
-Source: [types/src/index.ts:1253](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1253)
+Source: [types/src/index.ts:1247](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1247)

@@ -372,7 +372,22 @@ export type VolumeParams = {
 // The ORB assistant's settings, grouped as OrbConfig groups them. Empty groups
 // take the engine's defaults (the 09:30–09:45 New York range, 5m signals, 2R).
 export type OrbParams = Omit<OrbConfig, 'enabled'>;
-export const DEFAULT_ORB_PARAMS: OrbParams = {};
+// The highest net R from a parameter sweep over Hyperliquid XYZ100 + SP500 15m
+// history (Sep 26 – Nov 17 2026): +25.5R over 132 trades. Fit to one short
+// window, so treat it as a starting point rather than a proven edge.
+export const DEFAULT_ORB_PARAMS: OrbParams = {
+  session: { rangePreset: '15m', entryCutoff: '12:00' },
+  confirmation: {
+    signalTimeframe: 15,
+    confirmCloses: 1,
+    directionMode: 'both',
+    maxBullishSignals: 2,
+    maxBearishSignals: 2,
+    maxTradesPerDay: 2,
+  },
+  filters: { maxRangeWidthPct: false },
+  risk: { stopMode: 'midpoint', targetMode: 'rMultiple', targetR: 3, allowReversal: true },
+};
 
 export const DEFAULT_VOLUME_PARAMS: VolumeParams = {
   opacity: 0.5,
@@ -2153,7 +2168,6 @@ function OrbSettings({ params, onChange }: { params: OrbParams; onChange: (next:
         value={c.stopAfterLoss ?? true}
         onChange={(v) => set('confirmation', { stopAfterLoss: v })}
       />
-
       <SectionLabel>FILTERS</SectionLabel>
       <SegmentRow
         label="Max range width"
@@ -2239,20 +2253,6 @@ function OrbSettings({ params, onChange }: { params: OrbParams; onChange: (next:
         value={r.partial?.enabled ?? false}
         onChange={(v) => set('risk', { partial: { ...r.partial, enabled: v } })}
       />
-      <Stepper
-        label="Risk per trade"
-        value={r.riskPerTrade ?? 250}
-        min={50}
-        max={5000}
-        step={50}
-        onChange={(v) => set('risk', { riskPerTrade: v })}
-      />
-      <SegmentRow
-        label="Point value"
-        options={[0.01, 1, 2, 20].map((v) => ({ label: String(v), value: v }))}
-        value={r.pointValue ?? 2}
-        onChange={(v) => set('risk', { pointValue: v })}
-      />
       <SegmentRow
         label="Tick size"
         options={[0.01, 0.25, 1].map((v) => ({ label: String(v), value: v }))}
@@ -2264,7 +2264,6 @@ function OrbSettings({ params, onChange }: { params: OrbParams; onChange: (next:
         value={r.allowReversal ?? false}
         onChange={(v) => set('risk', { allowReversal: v })}
       />
-
       <SectionLabel>DISPLAY</SectionLabel>
       <ToggleRow label="Range fill" value={d.showBackgroundFill ?? true} onChange={(v) => set('display', { showBackgroundFill: v })} />
       <SegmentRow

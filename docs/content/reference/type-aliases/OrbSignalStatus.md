@@ -4,7 +4,6 @@
 type OrbSignalStatus =
   | "entered"
   | "awaitingEntry"
-  | "sizeTooSmall"
   | "invalidStop"
   | "afterCutoff"
   | "blockedByTrend"
@@ -13,6 +12,6 @@ type OrbSignalStatus =
   | "maxTrades";
 ```
 
-Source: [types/src/index.ts:1167](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1167)
+Source: [types/src/index.ts:1166](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1166)
 
 How a confirmed breakout was handled.

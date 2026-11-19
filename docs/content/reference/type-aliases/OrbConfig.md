@@ -57,9 +57,7 @@ type OrbConfig = {
       moveStopToBreakeven?: boolean;
       pct?: number;
     };
-    pointValue?: number;
     rangeMult?: number;
-    riskPerTrade?: number;
     stopBufferTicks?: number;
     stopMode?: OrbStopMode;
     stopPoints?: number;
@@ -205,7 +203,7 @@ optional display?: {
 };
 ```
 
-Source: [types/src/index.ts:1094](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1094)
+Source: [types/src/index.ts:1093](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1093)
 
 #### backgroundColor?
 
@@ -468,9 +466,7 @@ optional risk?: {
      moveStopToBreakeven?: boolean;
      pct?: number;
   };
-  pointValue?: number;
   rangeMult?: number;
-  riskPerTrade?: number;
   stopBufferTicks?: number;
   stopMode?: OrbStopMode;
   stopPoints?: number;
@@ -534,14 +530,6 @@ optional pct?: number;
 
 Percent of the position to take, 0–100. Default 50.
 
-#### pointValue?
-
-```ts
-optional pointValue?: number;
-```
-
-Currency per point per contract. Default 2 (MNQ).
-
 #### rangeMult?
 
 ```ts
@@ -549,14 +537,6 @@ optional rangeMult?: number;
 ```
 
 Range widths for 'rangeMultiple'. Default 1.
-
-#### riskPerTrade?
-
-```ts
-optional riskPerTrade?: number;
-```
-
-Account currency risked per trade, for the suggested size. Default 250.
 
 #### stopBufferTicks?
 
@@ -604,7 +584,8 @@ R multiple for 'rMultiple'. Default 2.
 optional tickSize?: number;
 ```
 
-Minimum price increment, for tick-denominated inputs. Default 0.25 (MNQ).
+Minimum price increment. Only read by tick-denominated inputs
+(`minBreakUnit: 'ticks'`, `stopBufferTicks`). Default 0.25.
 
 ---
 

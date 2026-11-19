@@ -8,7 +8,7 @@ type OrbWarning = {
 };
 ```
 
-Source: [types/src/index.ts:1275](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1275)
+Source: [types/src/index.ts:1269](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1269)
 
 A setup problem:
 'chartTimeframeTooHigh' — the chart timeframe exceeds the signal timeframe or range window
@@ -27,7 +27,7 @@ code:
   | "invalidTimezone";
 ```
 
-Source: [types/src/index.ts:1276](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1276)
+Source: [types/src/index.ts:1270](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1270)
 
 ---
 
@@ -37,4 +37,4 @@ Source: [types/src/index.ts:1276](https://github.com/keepitreal/vroom/blob/main/
 message: string;
 ```
 
-Source: [types/src/index.ts:1277](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1277)
+Source: [types/src/index.ts:1271](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1271)

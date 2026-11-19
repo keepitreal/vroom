@@ -27,12 +27,6 @@ export function tradeLevels(
   return { stop, target, risk };
 }
 
-/** Whole contracts that keep the loss at the stop within `riskPerTrade`. */
-export function suggestedSize(risk: number, r: ResolvedOrb): number {
-  // The epsilon absorbs float error, e.g. 250 / (12.5 × 2) = 9.999….
-  return Math.floor(r.riskPerTrade / (risk * r.pointValue) + 1e-9);
-}
-
 export type SimContext = {
   candles: readonly Candle[];
   /** One past the session's last bar. */

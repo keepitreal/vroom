@@ -14,7 +14,7 @@ type OrbEvent = {
 };
 ```
 
-Source: [types/src/index.ts:1148](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1148)
+Source: [types/src/index.ts:1147](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1147)
 
 One alert-worthy moment. `id` is stable across re-runs, so the same event is
 never reported twice, and history already on the chart when it loads is not
@@ -28,7 +28,7 @@ replayed.
 date: string;
 ```
 
-Source: [types/src/index.ts:1154](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1154)
+Source: [types/src/index.ts:1153](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1153)
 
 Session date, `'YYYY-MM-DD'` in the session timezone.
 
@@ -40,7 +40,7 @@ Session date, `'YYYY-MM-DD'` in the session timezone.
 optional direction?: OrbDirection;
 ```
 
-Source: [types/src/index.ts:1155](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1155)
+Source: [types/src/index.ts:1154](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1154)
 
 ---
 
@@ -50,7 +50,7 @@ Source: [types/src/index.ts:1155](https://github.com/keepitreal/vroom/blob/main/
 id: string;
 ```
 
-Source: [types/src/index.ts:1149](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1149)
+Source: [types/src/index.ts:1148](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1148)
 
 ---
 
@@ -60,7 +60,7 @@ Source: [types/src/index.ts:1149](https://github.com/keepitreal/vroom/blob/main/
 optional price?: number;
 ```
 
-Source: [types/src/index.ts:1157](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1157)
+Source: [types/src/index.ts:1156](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1156)
 
 The relevant price: range high/low midpoint, confirming close, fill price.
 
@@ -72,7 +72,7 @@ The relevant price: range high/low midpoint, confirming close, fill price.
 optional r?: number;
 ```
 
-Source: [types/src/index.ts:1163](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1163)
+Source: [types/src/index.ts:1162](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1162)
 
 Realized R, on exits.
 
@@ -84,7 +84,7 @@ Realized R, on exits.
 optional reason?: OrbSkipReason;
 ```
 
-Source: [types/src/index.ts:1159](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1159)
+Source: [types/src/index.ts:1158](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1158)
 
 For 'daySkipped'.
 
@@ -96,7 +96,7 @@ For 'daySkipped'.
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:1152](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1152)
+Source: [types/src/index.ts:1151](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1151)
 
 When it happened (epoch ms): a bar open, or a candle close for confirmations.
 
@@ -108,7 +108,7 @@ When it happened (epoch ms): a bar open, or a candle close for confirmations.
 optional tradeId?: string;
 ```
 
-Source: [types/src/index.ts:1161](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1161)
+Source: [types/src/index.ts:1160](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1160)
 
 The trade an entry or exit belongs to.
 
@@ -120,4 +120,4 @@ The trade an entry or exit belongs to.
 type: OrbEventType;
 ```
 
-Source: [types/src/index.ts:1150](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1150)
+Source: [types/src/index.ts:1149](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1149)

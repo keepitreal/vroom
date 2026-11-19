@@ -1079,11 +1079,10 @@ export type OrbConfig = {
       /** Move the stop to the entry once the partial fills. Default true. */
       moveStopToBreakeven?: boolean;
     };
-    /** Account currency risked per trade, for the suggested size. Default 250. */
-    riskPerTrade?: number;
-    /** Currency per point per contract. Default 2 (MNQ). */
-    pointValue?: number;
-    /** Minimum price increment, for tick-denominated inputs. Default 0.25 (MNQ). */
+    /**
+     * Minimum price increment. Only read by tick-denominated inputs
+     * (`minBreakUnit: 'ticks'`, `stopBufferTicks`). Default 0.25.
+     */
     tickSize?: number;
     /**
      * After a losing stop-out, allow one entry on a confirmed break of the other
@@ -1167,7 +1166,6 @@ export type OrbEvent = {
 export type OrbSignalStatus =
   | 'entered'
   | 'awaitingEntry'
-  | 'sizeTooSmall'
   | 'invalidStop'
   | 'afterCutoff'
   | 'blockedByTrend'
@@ -1187,8 +1185,6 @@ export type OrbSignal = {
   status: OrbSignalStatus;
   /** The trade it opened, when `status` is 'entered'. */
   tradeId?: string;
-  /** Suggested size, when one was computed. */
-  size?: number;
 };
 
 /** A simulated trade. Prices are fixed at entry; only a breakeven move after a partial changes the stop. */
@@ -1206,8 +1202,6 @@ export type OrbTrade = {
   currentStop: number;
   /** Null under 'holdToFlatten'. */
   target: number | null;
-  /** Suggested contracts: floor(riskPerTrade / (|entry − stop| × pointValue)). */
-  size: number;
   /** Null while open. */
   exitTimeMs: number | null;
   exitPrice: number | null;

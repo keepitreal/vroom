@@ -214,14 +214,10 @@ describe('levels', () => {
     expect(tradeLevels('short', 19970, 20060, 19980, base({ targetMode: 'rangeMultiple', rangeMult: 1.5 })).target).toBe(19860);
   });
 
-  it('skips a signal whose size rounds below one contract', () => {
-    const s = session(day(D, LONG_BREAK), { risk: { riskPerTrade: 100 } });
-    expect(s.signals[0]).toMatchObject({ status: 'sizeTooSmall', size: 0 });
-    expect(s.trades).toEqual([]);
-  });
-
-  it('sizes as floor(riskPerTrade / (risk × pointValue))', () => {
-    expect(session(day(D, LONG_BREAK), { risk: { riskPerTrade: 1000 } }).trades[0].size).toBe(5);
+  it('makes no sizing assumptions: a trade carries prices and R only', () => {
+    const t = session(day(D, LONG_BREAK)).trades[0];
+    expect(t).not.toHaveProperty('size');
+    expect(t.entryPrice - t.stop).toBeGreaterThan(0);
   });
 });
 
@@ -233,7 +229,6 @@ describe('filters and limits', () => {
     expect(res.stats.skipped).toEqual({ maxRangeWidth: 1 });
     const off = runOrb(day(D, { ...LONG_BREAK, '09:40': [20040, 20055, 19500, 20010] }), {
       filters: { maxRangeWidthPct: false },
-      risk: { riskPerTrade: 2000 }, // the 572-point stop needs it for one contract
     });
     expect(off.trades).toHaveLength(1);
   });

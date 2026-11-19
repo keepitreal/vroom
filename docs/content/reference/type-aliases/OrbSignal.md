@@ -5,14 +5,13 @@ type OrbSignal = {
   close: number;
   direction: OrbDirection;
   level: number;
-  size?: number;
   status: OrbSignalStatus;
   timeMs: number;
   tradeId?: string;
 };
 ```
 
-Source: [types/src/index.ts:1179](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1179)
+Source: [types/src/index.ts:1177](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1177)
 
 A confirmed breakout.
 
@@ -24,7 +23,7 @@ A confirmed breakout.
 close: number;
 ```
 
-Source: [types/src/index.ts:1186](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1186)
+Source: [types/src/index.ts:1184](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1184)
 
 The confirming close.
 
@@ -36,7 +35,7 @@ The confirming close.
 direction: OrbDirection;
 ```
 
-Source: [types/src/index.ts:1180](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1180)
+Source: [types/src/index.ts:1178](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1178)
 
 ---
 
@@ -46,21 +45,9 @@ Source: [types/src/index.ts:1180](https://github.com/keepitreal/vroom/blob/main/
 level: number;
 ```
 
-Source: [types/src/index.ts:1184](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1184)
+Source: [types/src/index.ts:1182](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1182)
 
 The level it broke: range high for a long, range low for a short.
-
----
-
-### size?
-
-```ts
-optional size?: number;
-```
-
-Source: [types/src/index.ts:1191](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1191)
-
-Suggested size, when one was computed.
 
 ---
 
@@ -70,7 +57,7 @@ Suggested size, when one was computed.
 status: OrbSignalStatus;
 ```
 
-Source: [types/src/index.ts:1187](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1187)
+Source: [types/src/index.ts:1185](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1185)
 
 ---
 
@@ -80,7 +67,7 @@ Source: [types/src/index.ts:1187](https://github.com/keepitreal/vroom/blob/main/
 timeMs: number;
 ```
 
-Source: [types/src/index.ts:1182](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1182)
+Source: [types/src/index.ts:1180](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1180)
 
 Close time of the confirming signal candle.
 
@@ -92,6 +79,6 @@ Close time of the confirming signal candle.
 optional tradeId?: string;
 ```
 
-Source: [types/src/index.ts:1189](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1189)
+Source: [types/src/index.ts:1187](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1187)
 
 The trade it opened, when `status` is 'entered'.

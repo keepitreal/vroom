@@ -4,7 +4,7 @@
 function runOrb(candles, config?, opts?): OrbResult;
 ```
 
-Source: strategies/dist/index.d.ts:377
+Source: strategies/dist/index.d.ts:372
 
 Runs the Opening Range Breakout assistant over `candles` (oldest first).
 Pure and deterministic: the same bars, config and `nowMs` always give the
