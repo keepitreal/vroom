@@ -1,5 +1,15 @@
 # react-native-vroom-chart
 
+## 0.28.0
+
+### Minor Changes
+
+- ba47d37: Footprints sit on the line in line mode, centered on the candle's close (candle mode keeps the gap above the wick), and glide between the two positions on the chart-type animation's duration and easing. A candle with both buys and sells now draws one combined badge: a bull dot and a bear dot on one disc, the side that traded first upper-left. Hovering or tapping it reports `side: 'both'` in `onFootprint`. `FootprintsStyle.gap` is deprecated and ignored.
+
+### Patch Changes
+
+- a5337b0: Hand the loading line off to the candles when the same `candles` array comes back after loading. Previously the push was skipped and the line kept waving.
+
 ## 0.27.2
 
 ### Patch Changes
