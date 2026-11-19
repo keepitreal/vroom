@@ -922,7 +922,9 @@ export function useChartCore(
     if (candles.length > 0) {
       const prev = prevDataRef.current;
       const freshHandle = prev == null || prev.handle !== h;
-      if (freshHandle || prev.candles !== candles || prev.seriesKey !== seriesKey) {
+      // The line's buffer clear left the core empty, so a series that comes back
+      // as the same reference still has to be pushed.
+      if (freshHandle || lineUpRef.current || prev.candles !== candles || prev.seriesKey !== seriesKey) {
         // A fresh core frames itself (its window starts at 0/0). An explicit
         // visibleRange prop overrides any auto behavior, so the change is
         // treated like a stream and the range application below wins — except
