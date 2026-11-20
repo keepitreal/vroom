@@ -778,6 +778,7 @@ export function App() {
       : 'linear',
   );
   const [autoscaleY, setAutoscaleY] = useState(false);
+  const [manualPriceScale, setManualPriceScale] = useState(false);
   const [crosshairMode, setCrosshairMode] = useState<CrosshairMode>('advanced');
   // Undefined = the mode's default line style.
   const [crosshairLineStyle, setCrosshairLineStyle] = useState<CrosshairLineStyle | undefined>();
@@ -1389,6 +1390,7 @@ export function App() {
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
                   autoscaleY={autoscaleY}
+                  manualPriceScale={manualPriceScale}
                   crosshair={{ mode: crosshairMode, lineStyle: crosshairLineStyle }}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
@@ -1413,6 +1415,7 @@ export function App() {
                   chartType={chartType}
                   priceScaleMode={priceScaleMode}
                   autoscaleY={autoscaleY}
+                  manualPriceScale={manualPriceScale}
                   crosshair={{ mode: crosshairMode, lineStyle: crosshairLineStyle }}
                   transitionMs={transitionMs}
                   transitionEasing={easing}
@@ -1444,6 +1447,7 @@ export function App() {
                 chartType={chartType}
                 priceScaleMode={priceScaleMode}
                 autoscaleY={autoscaleY}
+                manualPriceScale={manualPriceScale}
                 crosshair={{ mode: crosshairMode, lineStyle: crosshairLineStyle, button: crosshairButtonConfig }}
                 transitionMs={transitionMs}
                 transitionEasing={easing}
@@ -1467,7 +1471,7 @@ export function App() {
         </div>
         {sidebarOpen && (
           <Sidebar
-            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, crosshairMode, setCrosshairMode, crosshairLineStyle, setCrosshairLineStyle, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
+            layout={{ twoPane, setTwoPane, candleWidth, setCandleWidth, chartType, setChartType, priceScaleMode, setPriceScaleMode, autoscaleY, setAutoscaleY, manualPriceScale, setManualPriceScale, crosshairMode, setCrosshairMode, crosshairLineStyle, setCrosshairLineStyle, axisFontSize, setAxisFontSize, badgeFontSize, setBadgeFontSize }}
             animation={{
               transitionMs,
               setTransitionMs,

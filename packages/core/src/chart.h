@@ -31,6 +31,7 @@
 #include "line_morph.h"
 #include "price_format.h"
 #include "price_indicator.h"
+#include "price_scale.h"
 #include "theme.h"
 #include "viewport.h"
 
@@ -213,10 +214,13 @@ struct VroomChart {
 
     // --- autoscaleY ---------------------------------------------------------
     // Opt-in variant of auto mode: the y-range *eases* toward the visible
-    // candles' fit instead of snapping to it, and no gesture moves it — the
-    // vertical part of a drag, a pinch's y and a price-axis drag are all
-    // ignored, so nothing can take the scale manual. Runs only while
-    // autoscale_y_engaged().
+    // candles' fit instead of snapping to it. While it is engaged the vertical
+    // part of a plot drag and a pinch's y are ignored, so a pan or pinch never
+    // takes the scale manual. A price-axis drag is the one way in: it freezes
+    // the bounds on screen (price_bounds_manual) and from then on the chart
+    // behaves as in manual mode, until reset_price_scale hands the range back.
+    // Whether the host forwards that drag is the wrappers' choice (their
+    // `manualPriceScale` prop). Runs only while autoscale_y_engaged().
     bool autoscale_y = false;
     // Cleared for reduced motion, which lands every retarget immediately.
     bool autoscale_y_animate = true;
@@ -226,9 +230,14 @@ struct VroomChart {
     // series, so it doesn't.
     bool axes_user_adjusted = false;
     // The range actually on screen while engaged, advanced by begin_frame.
-    // Invalid until the first engaged frame, which seeds it without easing.
+    // Invalid until the first engaged frame, which seeds it without easing —
+    // except after reset_price_scale hands a taken-over scale back, which
+    // seeds it with the manual bounds so the range eases home from there.
     vroom::PriceBounds autoscale_display{0.0, 1.0};
     bool autoscale_display_valid = false;
+    // Set while that hand-back ease hasn't yet grown to contain the candles'
+    // low..high; see price_scale::ease.
+    bool autoscale_handback = false;
 
     // --- crosshair -----------------------------------------------------------
     bool   crosshair_active = false;
@@ -576,9 +585,14 @@ struct VroomChart {
     // with draw_chart.
     vroom::PriceBounds screen_price_bounds() const;
 
+    // The flags that decide who owns the y-range; see price_scale.h.
+    vroom::price_scale::Flags price_scale_flags() const {
+        return {autoscale_y, axes_user_adjusted, price_bounds_manual};
+    }
+
     // Whether the eased auto-fit is in charge of the y-range right now.
     bool autoscale_y_engaged() const {
-        return autoscale_y && !axes_user_adjusted && !price_bounds_manual;
+        return vroom::price_scale::autoscale_engaged(price_scale_flags());
     }
 
     // The instant auto-fit over fit_range() (what autoscale eases toward), and

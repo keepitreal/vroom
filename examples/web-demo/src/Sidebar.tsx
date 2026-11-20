@@ -214,6 +214,8 @@ export type SidebarProps = {
     setPriceScaleMode: (v: PriceScaleMode) => void;
     autoscaleY: boolean;
     setAutoscaleY: (v: boolean) => void;
+    manualPriceScale: boolean;
+    setManualPriceScale: (v: boolean) => void;
     crosshairMode: CrosshairMode;
     setCrosshairMode: (v: CrosshairMode) => void;
     crosshairLineStyle: CrosshairLineStyle | undefined;
@@ -372,6 +374,12 @@ export function Sidebar({
           checked={layout.autoscaleY}
           onChange={layout.setAutoscaleY}
           title="Ease the price axis to fit the visible candles while panning, until you zoom or scale an axis."
+        />
+        <ToggleRow
+          label="Manual price scale"
+          checked={layout.manualPriceScale}
+          onChange={layout.setManualPriceScale}
+          title="With Autoscale Y on, drag the price axis to take the scale over; double-click it to hand it back."
         />
         <Row label="Crosshair">
           <select

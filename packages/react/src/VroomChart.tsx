@@ -120,6 +120,9 @@ export function VroomChart(props: VroomChartProps) {
     crosshairButton: crosshair.button,
     onCrosshairButton: props.onCrosshairButton,
     seriesKey,
+    autoscaleY: props.autoscaleY,
+    // A hidden axis leaves nothing to drag, or to double-click to hand it back.
+    manualPriceScale: props.manualPriceScale === true && (props.theme?.showYAxis ?? true),
   });
 
   const rootStyle: CSSProperties = {

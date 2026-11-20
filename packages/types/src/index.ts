@@ -1554,8 +1554,9 @@ export type VroomChartCoreProps = {
    * animating each refit quickly so the scale glides rather than jumps. The
    * highest high and lowest low in view always stay inside the plot.
    *
-   * Nothing turns it off while it's set. A one-finger (or mouse) drag pans time
-   * only — its vertical component is ignored, so a slightly diagonal swipe
+   * Nothing turns it off while it's set, unless `manualPriceScale` lets a drag
+   * on the price axis take the scale over. A one-finger (or mouse) drag pans
+   * time only — its vertical component is ignored, so a slightly diagonal swipe
    * doesn't take the scale over. A pinch or wheel/trackpad zoom scales time
    * only, whichever direction it runs. A drag on the price axis never rescales
    * price (on React Native it pans like the plot), and a drag on the time axis
@@ -1566,6 +1567,22 @@ export type VroomChartCoreProps = {
    * motion.
    */
   autoscaleY?: boolean;
+  /**
+   * With `autoscaleY` on, lets a drag on the price axis take the price scale
+   * over; a double tap (double click on web) on the price axis hands it back
+   * to autoscale. No effect when the price axis is hidden.
+   *
+   * The drag starts from the range on screen. Until the scale is handed back
+   * the chart behaves as it does without `autoscaleY`: the vertical part of a
+   * drag moves price and a pinch scales it. Nothing but a drag on the price
+   * axis takes the scale over, so panning and pinching the plot still leave
+   * autoscale in charge. Handing back eases to the fit, or snaps under reduced
+   * motion. Hiding the price axis (`theme.showYAxis: false`) hands a
+   * taken-over scale back, since there is no axis left to double tap.
+   *
+   * Default false: with `autoscaleY` on, no gesture moves the price range.
+   */
+  manualPriceScale?: boolean;
   /**
    * Duration (ms) of the animated transitions: the candle↔line switch when
    * `chartType` changes, and the interval switch when the `candles` array is
