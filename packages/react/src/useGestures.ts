@@ -109,6 +109,13 @@ export type GestureOptions = {
   onCrosshairButton?: (e: CrosshairButtonEvent) => void;
   /** Identity of the series; a change closes an open plus button. */
   seriesKey?: string;
+  /** The `autoscaleY` prop: autoscale owns the price range. */
+  autoscaleY?: boolean;
+  /**
+   * Under `autoscaleY`, a drag on the price axis may take the price scale
+   * over: the `manualPriceScale` prop, while the price axis is showing.
+   */
+  manualPriceScale?: boolean;
 };
 
 const MIN_SPAN = 24; // px — minimum two-finger span for an axis to scale
@@ -936,7 +943,7 @@ export function useGestures(
       cb(startMs, endMs);
     };
 
-    const rel = (e: PointerEvent | WheelEvent) => {
+    const rel = (e: MouseEvent) => {
       const r = el.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
@@ -1169,6 +1176,12 @@ export function useGestures(
     hideCrosshairImplRef.current = hideCrosshair;
 
     // True while a drawing tool should own input (suppress pan/zoom/crosshair).
+    // Under autoscaleY the price range is autoscale's, and no gesture moves it
+    // unless `manualPriceScale` lets a drag on the price axis take it over. The
+    // core drops a zoom's y until then, so a pinch never takes it over itself.
+    const priceLocked = () =>
+      optsRef.current.autoscaleY === true && optsRef.current.manualPriceScale !== true;
+
     const drawActive = () =>
       optsRef.current.mode === 'draw' &&
       (optsRef.current.tool === 'line' ||
@@ -1714,7 +1727,7 @@ export function useGestures(
           pinch.ratioY = r;
         }
         if (frameX !== 1 || frameY !== 1) {
-          h.zoom(frameX, frameY, focalX, focalY);
+          h.zoom(frameX, priceLocked() ? 1 : frameY, focalX, focalY);
           scheduleRender();
         }
         return;
@@ -1747,8 +1760,9 @@ export function useGestures(
       // here moves the viewport out from under an open tooltip.
       setFootprintHover(null);
 
-      if (panMode === 'price-axis') h.scalePriceAxis(dy);
-      else if (panMode === 'time-axis') h.scaleTimeAxis(dx);
+      if (panMode === 'price-axis') {
+        if (!priceLocked()) h.scalePriceAxis(dy);
+      } else if (panMode === 'time-axis') h.scaleTimeAxis(dx);
       else if (panMode === 'separator') h.resizeIndicatorPane(dy);
       else if (panMode === 'indicator-axis') h.scaleIndicatorAxis(downY, dy);
       else if (panMode === 'indicator') h.pan(dx, 0);
@@ -1919,10 +1933,24 @@ export function useGestures(
     // Double-click finishes the path at the vertex just placed. Both of the
     // clicks already went through handleDrawClick, so the duplicate vertex the
     // second one added is dropped inside commitPath.
+    //
+    // With no path open, a double-click on the price axis returns the price
+    // scale to auto: back to autoscale when `manualPriceScale` let a drag take
+    // it over, else from a manual scale to the instant auto-fit.
     const onDoubleClick = (e: MouseEvent) => {
-      if (!pathRef.current) return;
+      if (pathRef.current) {
+        e.preventDefault();
+        commitPath();
+        return;
+      }
+      const h = handleRef.current;
+      if (!h || drawActive() || priceLocked()) return;
+      const { x, y } = rel(e);
+      // The plus button can overhang the strip; those clicks were for it.
+      if (regionAt(x, y) !== 'price-axis' || h.hitTestCrosshairButton(x, y)) return;
       e.preventDefault();
-      commitPath();
+      h.resetPriceScale();
+      scheduleRender();
     };
 
     // Right-click also finishes the path, the one-handed way out when the
@@ -1948,7 +1976,7 @@ export function useGestures(
       if (e.ctrlKey || e.metaKey) {
         // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.
         const f = Math.exp(-e.deltaY * WHEEL_K);
-        h.zoom(f, f, x, y);
+        h.zoom(f, priceLocked() ? 1 : f, x, y);
       } else if (e.shiftKey) {
         // Shift+wheel → horizontal pan (mouse-wheel-only users).
         h.pan(-(e.deltaX || e.deltaY), 0);

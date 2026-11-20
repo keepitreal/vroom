@@ -18,6 +18,7 @@
 #include "labels.h"
 #include "price_line_layout.h"
 #include "price_lines.h"
+#include "price_scale.h"
 #include "viewport.h"
 
 class SkCanvas;
@@ -175,11 +176,14 @@ void ensure_manual_price_bounds(VroomChart* chart) {
     vroom::labels::recompute_axis_width(*chart);
 }
 
-// The user zoomed or scaled an axis. autoscaleY never hands y over: while it's
-// on, no gesture touches the price range (see zoom and scale_price_axis), so
-// there is nothing to freeze and nothing to record.
+// The user zoomed or scaled an axis. Not recorded while autoscaleY is on: a
+// price-axis drag takes the scale over there by going manual (see
+// scale_price_axis), and this flag would keep reset_price_scale from handing
+// it back to autoscale until the next reset_view.
 void mark_user_adjusted(VroomChart* chart) {
-    if (chart->autoscale_y) return;
+    if (!vroom::price_scale::records_user_adjustment(chart->price_scale_flags())) {
+        return;
+    }
     chart->axes_user_adjusted = true;
 }
 
@@ -371,9 +375,32 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     chart->mark_dirty();
 }
 
+extern "C" bool vroom_chart_is_price_scale_manual(VroomChart* chart) {
+    return chart ? chart->price_bounds_manual : false;
+}
+
 extern "C" void vroom_chart_reset_price_scale(VroomChart* chart) {
-    if (!chart || !chart->price_bounds_manual) return;
+    if (!chart) return;
+    using vroom::price_scale::Handback;
+    const Handback handback = vroom::price_scale::handback(
+        chart->price_scale_flags(), chart->autoscale_y_animate);
+    if (handback == Handback::kNone) return;
     chart->price_bounds_manual = false;
+    // Handing a taken-over scale back to autoscale: ease home from the bounds
+    // on screen instead of jumping to the fit. begin_frame drops the eased
+    // range while the scale is manual, so it is re-seeded here. Reduced motion,
+    // or nothing in view to ease toward, lands on the fit straight away.
+    if (handback != Handback::kFit) {
+        vroom::PriceBounds target{}, envelope{};
+        if (handback == Handback::kEase &&
+            chart->autoscale_target(&target, &envelope)) {
+            chart->autoscale_display = chart->price_bounds;
+            chart->autoscale_display_valid = true;
+            chart->autoscale_handback = true;
+        } else {
+            chart->snap_autoscale();
+        }
+    }
     vroom::labels::recompute_axis_width(*chart);
     chart->mark_dirty();
 }
@@ -660,9 +687,10 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
     //
     // Skipped while autoscale owns the y-range: a finger never drags perfectly
     // level, and taking the scale manual on that jitter would end autoscale on
-    // nearly every pan.
+    // nearly every pan. Once a price-axis drag has taken the scale over, this
+    // moves price as it does in manual mode.
     if (dy_px != 0.f && !chart->candles.empty() &&
-        !chart->autoscale_y_engaged()) {
+        vroom::price_scale::translate_moves_price(chart->price_scale_flags())) {
         ensure_manual_price_bounds(chart);
         const float candle_area_h = vroom::price_pane_bottom(chart->layout());
         const double draw_h = static_cast<double>(candle_area_h) * 0.9;
@@ -685,8 +713,9 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
 }
 
 extern "C" void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px) {
-    // autoscaleY owns the price range.
-    if (!chart || dy_px == 0.f || chart->autoscale_y) return;
+    if (!chart || dy_px == 0.f) return;
+    // Under autoscaleY this is the one gesture that takes the price range
+    // over; hosts that want autoscale to keep it don't forward the drag.
     mark_user_adjusted(chart);
     ensure_manual_price_bounds(chart);
 
@@ -872,10 +901,13 @@ extern "C" void vroom_chart_zoom(VroomChart* chart, float scale_x, float scale_y
     bool price_changed = false;
     bool window_changed = false;
 
-    // autoscaleY owns the price range, so a zoom only ever scales time.
+    // autoscaleY owns the price range, so a zoom only scales time there —
+    // unless a price-axis drag already took the scale over. A zoom never takes
+    // it over itself.
     const bool zooms_x = scale_x > 0.f && scale_x != 1.f;
     const bool zooms_y =
-        !chart->autoscale_y && scale_y > 0.f && scale_y != 1.f;
+        vroom::price_scale::zoom_scales_price(chart->price_scale_flags()) &&
+        scale_y > 0.f && scale_y != 1.f;
     if ((zooms_x || zooms_y) && !chart->candles.empty()) {
         mark_user_adjusted(chart);
     }

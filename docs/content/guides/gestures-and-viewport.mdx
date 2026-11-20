@@ -13,6 +13,7 @@ All navigation is handled inside the chart — you don't wire up any gesture cod
 | Drag (one finger) | Scroll through time; vertical drag moves the price window |
 | Pinch | Zoom around the focus point |
 | Drag the price axis (right) | Rescale price only |
+| Double tap the price axis | Return the price scale to auto-fit |
 | Drag the time axis (bottom) | Rescale time only |
 | Long-press | Show the snapping [crosshair](crosshair-and-events.mdx) |
 
@@ -26,11 +27,34 @@ All navigation is handled inside the chart — you don't wire up any gesture cod
 | Horizontal scroll / shift+wheel | Pan through time |
 | Ctrl/⌘+wheel or trackpad pinch | Zoom both axes around the cursor |
 | Drag the price axis (right) | Rescale price only |
+| Double-click the price axis | Return the price scale to auto-fit |
 | Drag the time axis (bottom) | Rescale time only |
 | Hover (mouse) | Show the snapping [crosshair](crosshair-and-events.mdx) under the cursor |
 
 </TabItem>
 </Tabs>
+
+## Keeping the price axis fitted
+
+By default the price axis fits the candles on screen until the first gesture
+that moves it. Pass [`autoscaleY`](../reference/index.md) to keep it fitted as
+the user pans, easing each refit. Autoscale then owns the price range: the
+vertical part of a drag, a pinch and a drag on the price axis all leave it alone.
+
+Add [`manualPriceScale`](../reference/index.md) to let traders take the scale
+over without giving autoscale up:
+
+```tsx
+<VroomChart candles={candles} autoscaleY manualPriceScale />
+```
+
+A drag on the price axis takes the scale over, starting from the range on
+screen. From then on a vertical drag moves price and a pinch scales it, as they
+do without `autoscaleY`. A double tap (double-click on web) on the price axis
+hands the scale back to autoscale, which eases to the fit. Panning or pinching
+the plot never takes the scale over on its own. With the price axis hidden
+(`theme.showYAxis: false`) there is nothing to drag, so autoscale keeps the
+range.
 
 ## Controlling the visible window
 

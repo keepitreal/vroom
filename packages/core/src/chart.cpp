@@ -382,6 +382,7 @@ void VroomChart::snap_autoscale() {
     vroom::PriceBounds target{}, envelope{};
     autoscale_display_valid = autoscale_target(&target, &envelope);
     if (autoscale_display_valid) autoscale_display = target;
+    autoscale_handback = false;
 }
 
 bool VroomChart::autoscale_animating() const {
@@ -1199,6 +1200,7 @@ void VroomChart::begin_frame() {
     if (!autoscale_y_engaged() || loading) {
         // Re-engaging seeds from the fit rather than easing out of a stale range.
         autoscale_display_valid = false;
+        autoscale_handback = false;
     } else {
         vroom::PriceBounds target{}, envelope{};
         if (autoscale_target(&target, &envelope)) {
@@ -1209,10 +1211,11 @@ void VroomChart::begin_frame() {
             if (!autoscale_display_valid || interval_morphing ||
                 autoscale_display.log != target.log) {
                 autoscale_display = target;
+                autoscale_handback = false;
             } else {
-                autoscale_display = vroom::ease_price_bounds(
+                autoscale_display = vroom::price_scale::ease(
                     autoscale_display, target, envelope, dt,
-                    autoscale_y_animate);
+                    autoscale_y_animate, &autoscale_handback);
             }
             autoscale_display_valid = true;
         }

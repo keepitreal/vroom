@@ -646,14 +646,26 @@ void vroom_chart_reset_view(VroomChart* chart);
 // Re-enable continuous y auto-fit only; the time window is untouched. Use
 // after repositioning the window for a same-asset data swap (e.g. a timeframe
 // switch) so the price scale re-fits the newly visible candles.
+//
+// Under autoscale_y this is also what hands a taken-over scale back (see
+// vroom_chart_scale_price_axis): autoscale re-engages and eases to the fit
+// from the bounds on screen, or lands on it at once when `animate` is 0.
 void vroom_chart_reset_price_scale(VroomChart* chart);
+
+// Whether the user owns the price range: a gesture froze it, and it stays put
+// until vroom_chart_reset_view or vroom_chart_reset_price_scale. Under
+// autoscale_y that means a price-axis drag has taken the scale over. Hosts use
+// it to pick a pinch that scales price over one that only scales time.
+bool vroom_chart_is_price_scale_manual(VroomChart* chart);
 
 // Opt-in animated y auto-fit. While on, the price range eases (quickly) toward
 // the visible candles as the view pans, always keeping their low..high on
-// screen, and no gesture takes it over: a translate's vertical part, a zoom's
-// y factor and a price-axis drag are ignored, so a pinch in any direction
-// scales time only. `animate` 0 snaps instead of easing (reduced motion). Off
-// by default, which keeps the instant auto-fit.
+// screen. A translate's vertical part and a zoom's y factor are ignored while
+// it is in charge, so a pan never takes it over and a pinch in any direction
+// scales time only. A price-axis drag (vroom_chart_scale_price_axis) is the
+// one gesture that does take it over; hosts that want autoscale to keep the
+// range simply don't forward that drag. `animate` 0 snaps instead of easing
+// (reduced motion). Off by default, which keeps the instant auto-fit.
 void vroom_chart_set_autoscale_y(VroomChart* chart, int32_t enabled,
                                  int32_t animate);
 
@@ -771,6 +783,11 @@ void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px);
 // Sign conventions:
 //   scale_price_axis: dy > 0 (drag down) widens the price range → candles shrink
 //   scale_time_axis:  dx > 0 (drag right) widens the time range → candles thin
+//
+// scale_price_axis always takes the price scale manual, starting from the
+// bounds on screen. Under autoscale_y that is a takeover: translate and zoom
+// then move price as in manual mode until vroom_chart_reset_price_scale hands
+// the range back to autoscale.
 void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px);
 void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px);
 

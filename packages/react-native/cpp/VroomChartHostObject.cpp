@@ -60,6 +60,7 @@ std::vector<jsi::PropNameID> ChartHostObject::getPropertyNames(
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisibleRange"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetView"));
   out.push_back(jsi::PropNameID::forAscii(rt, "resetPriceScale"));
+  out.push_back(jsi::PropNameID::forAscii(rt, "isPriceScaleManual"));
   out.push_back(jsi::PropNameID::forAscii(rt, "setAutoscaleY"));
   out.push_back(jsi::PropNameID::forAscii(rt, "getVisiblePriceEnvelope"));
   out.push_back(jsi::PropNameID::forAscii(rt, "preservePriceEnvelope"));
@@ -608,6 +609,20 @@ jsi::Value ChartHostObject::get(jsi::Runtime& rt,
                size_t /*count*/) -> jsi::Value {
           vroom_chart_reset_price_scale(chart_);
           return jsi::Value::undefined();
+        });
+  }
+
+  if (name == "isPriceScaleManual") {
+    // isPriceScaleManual() — whether a gesture has frozen the price range.
+    return lockedFunction(
+        rt,
+        jsi::PropNameID::forAscii(rt, "isPriceScaleManual"),
+        0,
+        [this](jsi::Runtime& /*rt2*/,
+               const jsi::Value& /*thisVal*/,
+               const jsi::Value* /*args*/,
+               size_t /*count*/) -> jsi::Value {
+          return jsi::Value(vroom_chart_is_price_scale_manual(chart_));
         });
   }
 

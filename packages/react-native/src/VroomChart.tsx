@@ -162,6 +162,7 @@ export function VroomChart(props: VroomChartProps) {
     chartType,
     priceScaleMode,
     autoscaleY,
+    manualPriceScale,
     transitionMs,
     transitionEasing,
     intervalTransition,
@@ -830,6 +831,26 @@ export function VroomChart(props: VroomChartProps) {
     maybeStartAnim,
   ]);
 
+  // Under autoscaleY the price range is autoscale's, and no gesture moves it
+  // unless `manualPriceScale` lets a drag on the price axis take it over. A
+  // hidden axis leaves nothing to drag, or to double tap to hand it back.
+  const priceTakeover = autoscaleY === true && manualPriceScale === true && showYAxis;
+  const priceLocked = autoscaleY === true && !priceTakeover;
+
+  // When the takeover goes away under autoscaleY (the price axis was hidden, or
+  // the prop turned off), hand a taken-over scale back: the double tap that
+  // would do it has nowhere left to land.
+  const hadPriceTakeover = useRef(false);
+  useEffect(() => {
+    const had = hadPriceTakeover.current;
+    hadPriceTakeover.current = priceTakeover;
+    if (!handle || !had || !priceLocked) return;
+    handle.resetPriceScale();
+    const p = handle.render();
+    if (p) applyFrame(p);
+    maybeStartAnim();
+  }, [handle, priceTakeover, priceLocked, applyFrame, maybeStartAnim]);
+
   // Classifies a touch point into the candle area vs. an axis strip. Axis
   // strips always own their gesture (scale price/time) and take priority over
   // the crosshair: an axis touch never opens, moves, or dismisses it.
@@ -876,6 +897,11 @@ export function VroomChart(props: VroomChartProps) {
     'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'price-line'
   >('chart');
 
+  // Whether the double tap below began on the price-axis strip. A drag or a
+  // second finger clears it: the tap recognizer tolerates both, and neither a
+  // tap followed by a quick drag nor a quick pinch there is a double tap.
+  const axisTapBegan = useRef(false);
+
   // Closes an open footprint tooltip. Any viewport change slides the candles out
   // from under it and the crosshair replaces it outright, so the host is told to
   // take it down rather than left holding a position the badge has moved away
@@ -913,8 +939,11 @@ export function VroomChart(props: VroomChartProps) {
       // Always classify — an axis drag controls the axis even while the
       // crosshair is up. Only a chart-area drag interacts with the crosshair.
       panMode.current = hitAxis(e.x, e.y);
-      // autoscaleY owns the price range, so its strip pans like the plot.
-      if (autoscaleY && panMode.current === 'price-axis') panMode.current = 'chart';
+      // A drag is not a tap, wherever it started.
+      axisTapBegan.current = false;
+      // autoscaleY owns the price range, so its strip pans like the plot —
+      // unless `manualPriceScale` lets a drag there take the scale over.
+      if (priceLocked && panMode.current === 'price-axis') panMode.current = 'chart';
       // A draggable price line takes the drag over from the chart. Seeding the
       // preview at the committed price puts the label in drag styling before the
       // first move, so the grab registers immediately.
@@ -1054,12 +1083,15 @@ export function VroomChart(props: VroomChartProps) {
     ratioY: 1,
     enableX: false,
     enableY: false,
+    timeOnly: false,
   });
   const pinch = usePinchGesture({
     enabled: !showLoadingLine,
     runOnJS: true,
     onTouchesDown: (e) => {
       if (e.numberOfTouches < 2) return;
+      // A second finger makes it a pinch, not a tap.
+      axisTapBegan.current = false;
       dismissFootprint();
       closePlusRef.current();
       const [a, b] = e.allTouches;
@@ -1073,6 +1105,12 @@ export function VroomChart(props: VroomChartProps) {
         ratioY: 1,
         enableX: spanX >= MIN_SPAN && spanX >= spanY * AXIS_RATIO,
         enableY: spanY >= MIN_SPAN && spanY >= spanX * AXIS_RATIO,
+        // autoscaleY owns the price range, so a pinch only scales time — until
+        // a price-axis drag takes the scale over (`manualPriceScale`), when it
+        // scales each axis by its own span again. Decided once per pinch: the
+        // two modes measure the fingers differently.
+        timeOnly:
+          autoscaleY === true && !(priceTakeover && handle?.isPriceScaleManual() === true),
       };
     },
     onTouchesMove: (e) => {
@@ -1088,9 +1126,9 @@ export function VroomChart(props: VroomChartProps) {
       // axis) can't blow the ratio up.
       let frameX = 1;
       let frameY = 1;
-      if (autoscaleY) {
-        // autoscaleY owns the price range, so a pinch in any direction scales
-        // time, by how far the fingers' distance has changed.
+      if (start.timeOnly) {
+        // A pinch in any direction scales time, by how far the fingers'
+        // distance has changed.
         const ratioX = Math.max(Math.hypot(a.x - b.x, a.y - b.y), MIN_SPAN) / start.dist;
         frameX = ratioX / start.ratioX;
         start.ratioX = ratioX;
@@ -1214,7 +1252,35 @@ export function VroomChart(props: VroomChartProps) {
     },
   });
 
-  const gesture = useSimultaneousGestures(pan, pinch, longPress, tap);
+  // A double tap on the price-axis strip returns the price scale to auto: back
+  // to autoscale when `manualPriceScale` let a drag take it over, else from a
+  // manual scale to the instant auto-fit. Off while autoscaleY holds the range
+  // on its own, when there is nothing to hand back.
+  //
+  // It recognizes alongside the other gestures and `tap` does not wait for it
+  // to fail, so a single tap still fires on its own touch-up. Both taps have to
+  // land on the strip; a double tap anywhere else is dropped here.
+  const doubleTap = useTapGesture({
+    enabled: !showLoadingLine && !priceLocked,
+    runOnJS: true,
+    numberOfTaps: 2,
+    onBegin: (e) => {
+      axisTapBegan.current = hitAxis(e.x, e.y) === 'price-axis';
+    },
+    onActivate: (e) => {
+      const began = axisTapBegan.current;
+      axisTapBegan.current = false;
+      if (!handle || !began || hitAxis(e.x, e.y) !== 'price-axis') return;
+      // The plus button can overhang the strip; those taps were for it.
+      if (crosshairActive.current && handle.hitTestCrosshairButton(e.x, e.y)) return;
+      handle.resetPriceScale();
+      const p = handle.render();
+      if (p) applyFrame(p);
+      maybeStartAnim();
+    },
+  });
+
+  const gesture = useSimultaneousGestures(pan, pinch, longPress, tap, doubleTap);
 
   return (
     <GestureHandlerRootView

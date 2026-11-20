@@ -58,13 +58,21 @@ export interface ChartHandle {
    * Re-enable continuous y auto-fit only; the time window is untouched. Use
    * after repositioning the window for a same-asset data swap (e.g. a
    * timeframe switch) so the price scale re-fits the newly visible candles.
+   * Under `autoscaleY` it hands a scale taken over by scalePriceAxis back to
+   * autoscale, easing to the fit from the range on screen.
    */
   resetPriceScale(): void;
   /**
-   * Opt-in animated y auto-fit (the `autoscaleY` prop). While on, and until the
-   * user zooms or scales either axis, the price range eases toward the visible
-   * candles as the view pans; resetView re-arms it. `animate` false snaps
-   * instead (reduced motion).
+   * Whether the user owns the price range: a gesture froze it, and it stays
+   * put until resetView or resetPriceScale. Under `autoscaleY` that means a
+   * price-axis drag has taken the scale over.
+   */
+  isPriceScaleManual(): boolean;
+  /**
+   * Opt-in animated y auto-fit (the `autoscaleY` prop). While on, the price
+   * range eases toward the visible candles as the view pans, until
+   * scalePriceAxis takes it over; resetPriceScale hands it back. `animate`
+   * false snaps instead (reduced motion).
    */
   setAutoscaleY(enabled: boolean, animate: boolean): void;
   /**
@@ -173,7 +181,8 @@ export interface ChartHandle {
   zoom(scaleX: number, scaleY: number, fx: number, fy: number): ChartFrame | null;
   /**
    * Drag-on-y-axis price scaling. `dy > 0` widens the price range
-   * (candles shrink). Pivots around the price-range center.
+   * (candles shrink). Pivots around the price-range center. Under `autoscaleY`
+   * this takes the price scale over from autoscale.
    */
   scalePriceAxis(dy: number): ChartFrame | null;
   /**

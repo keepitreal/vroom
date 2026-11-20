@@ -543,6 +543,7 @@ export function useChartCore(
     chartType,
     priceScaleMode,
     autoscaleY,
+    manualPriceScale,
     transitionMs,
     transitionEasing,
     intervalTransition,
@@ -1245,6 +1246,23 @@ export function useChartCore(
     h.setAutoscaleY(autoscaleY === true, !reducedMotion());
     scheduleRender();
   }, [ready, autoscaleY, reduceMotion, reducedMotion, scheduleRender]);
+
+  // Under `autoscaleY`, `manualPriceScale` lets a drag on the price axis take
+  // the price scale over. When that goes away while autoscale stays on (the
+  // price axis was hidden, or the prop turned off), hand a taken-over scale
+  // back: the double-click that would do it has nowhere left to land.
+  const priceTakeover =
+    autoscaleY === true && manualPriceScale === true && (theme?.showYAxis ?? true);
+  const hadPriceTakeoverRef = useRef(false);
+  useEffect(() => {
+    const had = hadPriceTakeoverRef.current;
+    hadPriceTakeoverRef.current = priceTakeover;
+    if (!ready || !had || priceTakeover || autoscaleY !== true) return;
+    const h = handleRef.current;
+    if (!h) return;
+    h.resetPriceScale();
+    scheduleRender();
+  }, [ready, priceTakeover, autoscaleY, scheduleRender]);
 
   useEffect(() => {
     if (!ready) return;

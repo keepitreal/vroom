@@ -591,6 +591,13 @@ export default function App() {
     setAutoscaleY((on) => !on);
     Haptics.selectionAsync().catch(() => {});
   }, []);
+  // With AUTO on: drag the price axis to take the scale over, double tap it to
+  // hand it back.
+  const [manualPriceScale, setManualPriceScale] = useState(false);
+  const toggleManualPriceScale = useCallback(() => {
+    setManualPriceScale((on) => !on);
+    Haptics.selectionAsync().catch(() => {});
+  }, []);
 
   // Line-chart corner smoothing, stepped rather than continuous so the render at
   // each value is easy to compare against the last.
@@ -937,6 +944,7 @@ export default function App() {
             chartType={chartType}
             priceScaleMode={priceScaleMode}
             autoscaleY={autoscaleY}
+            manualPriceScale={manualPriceScale}
             crosshair={{
               mode: spark ? 'simple' : 'advanced',
               lineStyle: crosshairLineStyle,
@@ -1216,6 +1224,21 @@ export default function App() {
                   ]}
                 >
                   AUTO
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.fnBtn, manualPriceScale && styles.fnBtnActive]}
+                onPress={toggleManualPriceScale}
+              >
+                <Text
+                  style={[
+                    styles.fnSymbol,
+                    styles.fnNumber,
+                    manualPriceScale && styles.fnSymbolActive,
+                  ]}
+                >
+                  MAN
                 </Text>
               </Pressable>
 
