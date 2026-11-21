@@ -26,6 +26,7 @@ import {
   DRAW_PART_VERTEX,
   PATH_MAX_POINTS,
   FOOTPRINT_SELL,
+  FOOTPRINT_BOTH,
 } from '@vroomchart/core-wasm';
 import type {
   CrosshairButtonHit,
@@ -1030,7 +1031,7 @@ export function useGestures(
         // Sliding straight from one badge to another never leaves the chart, so
         // the host sees a move rather than a hide/show pair.
         reason: wasActive ? 'move' : 'show',
-        side: hit.side === FOOTPRINT_SELL ? 'sell' : 'buy',
+        side: hit.side === FOOTPRINT_BOTH ? 'both' : hit.side === FOOTPRINT_SELL ? 'sell' : 'buy',
         timeMs: hit.candleTimeMs,
         footprints: hit.indices.map((i) => all[i]).filter((f): f is Footprint => f != null),
         badge: { x: hit.x, y: hit.y, radius: hit.radius },

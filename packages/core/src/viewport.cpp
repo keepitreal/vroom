@@ -187,6 +187,16 @@ float snap_x_to_candle(const Layout& layout,
                            visible_start_ms, window_ms);
 }
 
+int64_t infer_candle_duration(const ::VroomCandle* candles, size_t count) {
+    if (!candles || count < 2) return 0;
+    const size_t k = std::min<size_t>(count - 1, 8);
+    int64_t diffs[8];
+    for (size_t i = 0; i < k; ++i) diffs[i] = candles[i + 1].time_ms - candles[i].time_ms;
+    std::sort(diffs, diffs + k);
+    const int64_t median = diffs[k / 2];
+    return median > 0 ? median : 0;
+}
+
 IndexRange visible_indices(const ::VroomCandle* candles,
                            size_t count,
                            int64_t start_ms,

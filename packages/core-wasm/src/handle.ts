@@ -464,6 +464,11 @@ export type PriceLinesSpec = {
 /** `FootprintSpec.side` values. */
 export const FOOTPRINT_BUY = 0;
 export const FOOTPRINT_SELL = 1;
+/**
+ * `FootprintHit.side` for the combined badge on a candle holding both sides.
+ * Output only: never valid on a `FootprintSpec`.
+ */
+export const FOOTPRINT_BOTH = 2;
 
 /** A single executed trade in the core's numeric encoding. */
 export type FootprintSpec = {
@@ -478,9 +483,9 @@ export type FootprintsSpec = {
   prints: FootprintSpec[];
   /** Badge radius in px. 0 = the core's default. */
   radiusPx: number;
-  /** Vertical gap between two stacked badges. 0 = default. */
+  /** Unused by the core since a candle draws one badge; kept for the ABI. */
   gapPx: number;
-  /** Gap between the candle's high and the first badge. 0 = default. */
+  /** Gap between the candle's high and the badge. 0 = default. */
   marginPx: number;
   /** Brightness multiplier for the hovered badge; 1 = no highlight. */
   hoverBoost: number;
@@ -488,7 +493,7 @@ export type FootprintsSpec = {
 
 /** The footprint badge under a pixel, as reported by `hitTestFootprint`. */
 export type FootprintHit = {
-  /** FOOTPRINT_BUY or FOOTPRINT_SELL. */
+  /** FOOTPRINT_BUY, FOOTPRINT_SELL, or FOOTPRINT_BOTH for a combined badge. */
   side: number;
   /** Bar-open time of the candle the badge sits on. */
   candleTimeMs: number;

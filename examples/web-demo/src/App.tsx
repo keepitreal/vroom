@@ -24,6 +24,7 @@ import {
   type StreamTransition,
   type UndoRedoControls,
   type UndoRedoState,
+  type VisibleRange,
 } from '@vroomchart/react';
 import {
   Sidebar,
@@ -348,6 +349,32 @@ function punchGaps(c: Candle[]): Candle[] {
   return out;
 }
 
+// Irregular first interval: `gap` drops the second bar (first interval = 2
+// steps), `dup` repeats the first bar's timestamp (first interval = 0), the
+// way a stitched history page can start. The core infers the candle period
+// from that first interval alone.
+const FIRST_BAR_MODES = ['normal', 'gap', 'dup'] as const;
+type FirstBarMode = (typeof FIRST_BAR_MODES)[number];
+
+function raggedStart(c: Candle[], mode: FirstBarMode): Candle[] {
+  if (mode === 'normal' || c.length < 3) return c;
+  if (mode === 'gap') return [c[0], ...c.slice(2)];
+  return [c[0], { ...c[0] }, ...c.slice(1)];
+}
+
+// Simulated fetch on asset/timeframe change: `empty` withholds candles for
+// FETCH_MS, `loading` also raises the loading prop, the way a real data layer
+// would while the new interval's history is in flight.
+const FETCH_MODES = ['off', 'empty', 'loading'] as const;
+type FetchMode = (typeof FETCH_MODES)[number];
+const FETCH_MS = 600;
+
+function queryEnum<T extends string>(key: string, values: readonly T[], fallback: T): T {
+  if (typeof window === 'undefined') return fallback;
+  const v = new URLSearchParams(window.location.search).get(key);
+  return values.includes(v as T) ? (v as T) : fallback;
+}
+
 // A simulated L2 order book around the latest close: buy bands stepping below
 // spot, sell bands above, each a thin price interval. Resting size tapers with
 // distance from spot (denser near the mid) plus a couple of prominent "walls"
@@ -459,9 +486,9 @@ type DemoFootprint = Footprint & { size: number };
 // Everything sits inside the last couple of hours so it's within the default
 // viewport. Positions are chosen to show off all three behaviors at once:
 //   1m: six bars with badges, one of them holding three buys behind one badge,
-//       one of them holding both a buy and a sell as a stacked pair.
-//   1h: three bars, each now a stacked pair, and the first bar's buy badge now
-//       reports two fills that were on separate minutes.
+//       one of them holding both a buy and a sell as a combined badge.
+//   1h: three bars, each now a combined badge, and the first bar's reports two
+//       buy fills that were on separate minutes.
 function makeFootprints(base: Candle[]): DemoFootprint[] {
   if (base.length < 200) return [];
   const newest = base[base.length - 1].timeMs;
@@ -489,8 +516,8 @@ function makeFootprints(base: Candle[]): DemoFootprint[] {
   add(96, 30, 'buy', 0.75);
   add(96, 51, 'buy', 0.25);
   add(70, 24, 'sell', 1.5);
-  // A bar that both bought and sold — two stacked badges, buy lower because its
-  // last fill came first.
+  // A bar that both bought and sold — one combined badge, the buy's dot
+  // upper-left because its last fill came first.
   add(20, 12, 'buy', 2);
   add(20, 48, 'sell', 2);
   return out;
@@ -499,14 +526,14 @@ function makeFootprints(base: Candle[]): DemoFootprint[] {
 // The tooltip the *host* renders for a hovered footprint — vroom draws no overlay
 // of its own, it just says which badge is hovered, which trades are on that bar,
 // where the badge is, and how much room the plot has. Parked beside the badge
-// rather than above it so a bar holding both a buy and a sell keeps both visible.
+// rather than above it so the tooltip never covers the bar it describes.
 const FOOTPRINT_TOOLTIP_W = 200;
 
 function FootprintTooltip({
   hover,
 }: {
   hover: {
-    side: FootprintSide;
+    side: FootprintSide | 'both';
     timeMs: number;
     trades: DemoFootprint[];
     badge: { x: number; y: number; radius: number };
@@ -516,11 +543,8 @@ function FootprintTooltip({
 }) {
   if (!hover) return null;
   const { side, trades, badge, flip } = hover;
-  // Only the hovered badge's own side; the event carries the whole bar so a host
-  // could just as easily show both.
-  const mine = trades.filter((t) => t.side === side);
-  const total = mine.reduce((sum, t) => sum + t.size, 0);
-  const accent = side === 'buy' ? '#26a69a' : '#ef5350';
+  // The hovered badge's own side, or a row per side for a combined badge.
+  const sides: FootprintSide[] = side === 'both' ? ['buy', 'sell'] : [side];
   return (
     <div
       style={{
@@ -546,26 +570,34 @@ function FootprintTooltip({
         boxShadow: '0 6px 20px #0008',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span
-          style={{
-            background: accent,
-            color: '#08121a',
-            borderRadius: 4,
-            padding: '1px 6px',
-            fontWeight: 600,
-          }}
-        >
-          {side === 'buy' ? 'Buy' : 'Sell'}
-        </span>
-        <span style={{ color: '#8b949e' }}>
-          {new Date(mine[mine.length - 1]?.timeMs ?? hover.timeMs).toLocaleString()}
-        </span>
-      </div>
-      <div style={{ fontSize: 13 }}>
-        {total} {mine.length > 1 ? `in ${mine.length} fills` : ''} at{' '}
-        {mine[mine.length - 1]?.price?.toFixed(2) ?? '—'}
-      </div>
+      {sides.map((s, i) => {
+        const mine = trades.filter((t) => t.side === s);
+        const total = mine.reduce((sum, t) => sum + t.size, 0);
+        return (
+          <div key={s} style={{ marginTop: i > 0 ? 8 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span
+                style={{
+                  background: s === 'buy' ? '#26a69a' : '#ef5350',
+                  color: '#08121a',
+                  borderRadius: 4,
+                  padding: '1px 6px',
+                  fontWeight: 600,
+                }}
+              >
+                {s === 'buy' ? 'Buy' : 'Sell'}
+              </span>
+              <span style={{ color: '#8b949e' }}>
+                {new Date(mine[mine.length - 1]?.timeMs ?? hover.timeMs).toLocaleString()}
+              </span>
+            </div>
+            <div style={{ fontSize: 13 }}>
+              {total} {mine.length > 1 ? `in ${mine.length} fills` : ''} at{' '}
+              {mine[mine.length - 1]?.price?.toFixed(2) ?? '—'}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -644,7 +676,10 @@ export function App() {
   // No wasm/asset config needed — @vroomchart/react uses the Skia-WASM core
   // bundled in @vroomchart/core-wasm.
   const [asset, setAsset] = useState<Asset>('BTC');
-  const [tf, setTf] = useState<number>(MINUTE);
+  const [tf, setTf] = useState<number>(() => {
+    const label = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tf') : null;
+    return TIMEFRAMES.find((t) => t.label === label)?.stepMs ?? MINUTE;
+  });
   const [useSeriesKey, setUseSeriesKey] = useState(true);
   const [gaps, setGaps] = useState(false);
   // Short-series repro (last 9 bars). `?sparse=1` turns it on at load so the
@@ -681,6 +716,26 @@ export function App() {
     },
     [],
   );
+  // Timeframe-zoom repros. `?fetch=loading`, `?controlled=1` and `?first=dup`
+  // deep-link them for e2e/timeframe-zoom.test.mjs.
+  const [fetchMode, setFetchMode] = useState<FetchMode>(() => queryEnum('fetch', FETCH_MODES, 'off'));
+  const [fetching, setFetching] = useState(false);
+  useEffect(() => {
+    if (fetchMode === 'off') return;
+    setFetching(true);
+    const id = setTimeout(() => setFetching(false), FETCH_MS);
+    return () => clearTimeout(id);
+  }, [fetchMode, asset, tf]);
+  const [firstBar, setFirstBar] = useState<FirstBarMode>(() => queryEnum('first', FIRST_BAR_MODES, 'normal'));
+  const [controlledRange, setControlledRange] = useState(
+    () => typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('controlled'),
+  );
+  const [range, setRange] = useState<VisibleRange | undefined>();
+  useEffect(() => setRange(undefined), [controlledRange, asset]);
+  const onViewportChange = useCallback(
+    (startMs: number, endMs: number) => setRange({ startMs, endMs }),
+    [],
+  );
   const [showLiquidity, setShowLiquidity] = useState(false);
   const [showPriceLines, setShowPriceLines] = useState(false);
   const [showFootprints, setShowFootprints] = useState(false);
@@ -690,10 +745,11 @@ export function App() {
   const demoBase = useMemo(() => {
     const base = aggregate(baseSeries(asset), tf);
     const series = gaps ? punchGaps(base) : base;
-    return listingCount > 0
-      ? newListing(series, listingCount, backfill, tf)
-      : maybeSparse(series, sparse);
-  }, [asset, tf, gaps, sparse, listingCount, backfill]);
+    return raggedStart(
+      listingCount > 0 ? newListing(series, listingCount, backfill, tf) : maybeSparse(series, sparse),
+      firstBar,
+    );
+  }, [asset, tf, gaps, sparse, listingCount, backfill, firstBar]);
   const [candles, setCandles] = useState<Candle[]>(demoBase);
   useEffect(() => {
     setCandles(demoBase);
@@ -820,7 +876,7 @@ export function App() {
     [showFootprints, asset],
   );
   const [footprintHover, setFootprintHover] = useState<{
-    side: FootprintSide;
+    side: FootprintSide | 'both';
     timeMs: number;
     trades: DemoFootprint[];
     badge: { x: number; y: number; radius: number };
@@ -1379,8 +1435,10 @@ export function App() {
                 // Withheld while loading, as a real fetch would: the line
                 // is for a chart that has no data, and passing both would
                 // (correctly) leave the real series up instead.
-                candles={loading ? EMPTY_CANDLES : candles}
-                loading={loading}
+                candles={loading || fetching ? EMPTY_CANDLES : candles}
+                loading={loading || (fetching && fetchMode === 'loading')}
+                visibleRange={controlledRange ? range : undefined}
+                onViewportChange={controlledRange ? onViewportChange : undefined}
                 seriesKey={seriesKey}
                 theme={chartTheme}
                 chartType={chartType}
@@ -1443,6 +1501,14 @@ export function App() {
               loading,
               setLoading,
               onSimulateLoad,
+              fetchModes: FETCH_MODES,
+              fetchMode,
+              setFetchMode: (m) => setFetchMode(m as FetchMode),
+              controlledRange,
+              setControlledRange,
+              firstBarModes: FIRST_BAR_MODES,
+              firstBar,
+              setFirstBar: (m) => setFirstBar(m as FirstBarMode),
             }}
             streaming={{
               onAddCandle,

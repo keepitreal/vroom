@@ -1,5 +1,27 @@
 # @vroomchart/core-wasm
 
+## 0.26.0
+
+### Minor Changes
+
+- ba47d37: Footprints sit on the line in line mode, centered on the candle's close (candle mode keeps the gap above the wick), and glide between the two positions on the chart-type animation's duration and easing. A candle with both buys and sells now draws one combined badge: a bull dot and a bear dot on one disc, the side that traded first upper-left. Hovering or tapping it reports `side: 'both'` in `onFootprint`. `FootprintsStyle.gap` is deprecated and ignored.
+
+## 0.25.2
+
+### Patch Changes
+
+- 7c85279: Pans and pinches can pull empty future time in past the newest candle again: up to 3/4 of the window, rubber-banded past half (or further when Ichimoku's leading spans need it). The default framing and the line chart's tip clearance are unchanged.
+
+## 0.25.1
+
+### Patch Changes
+
+- 555b90d: Keep candle width across timeframe switches in three cases that crushed or blew up the candles:
+
+  - A switch that goes through the `loading` line now re-anchors from the view the chart had before loading (a different asset still resets), instead of landing the new interval in a window measured in the old interval's milliseconds.
+  - The core infers the candle period from the median of the leading intervals, so a series starting with a gap or a repeated timestamp no longer draws candles at the wrong width (or keeps the previous interval's width).
+  - Web: with a controlled `visibleRange` the host doesn't move during the switch, the window is re-anchored and reported through `onViewportChange`.
+
 ## 0.25.0
 
 ### Minor Changes

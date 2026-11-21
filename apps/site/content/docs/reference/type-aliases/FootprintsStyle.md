@@ -12,22 +12,24 @@ type FootprintsStyle = {
 };
 ```
 
-Source: [types/src/index.ts:1137](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1137)
+Source: [types/src/index.ts:1140](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1140)
 
 Shared layout/style for every footprint badge, passed via `footprintsStyle`.
 
 ## Properties
 
-### gap?
+### ~~gap?~~
 
 ```ts
 optional gap?: number;
 ```
 
-Source: [types/src/index.ts:1144](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1144)
+Source: [types/src/index.ts:1147](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1147)
 
-Vertical gap between the two stacked badges on a candle that has both a buy
-and a sell. Default 4 — wide enough that each stays independently hoverable.
+#### Deprecated
+
+Unused: a candle with both a buy and a sell now draws one
+combined badge, so there is no stack to space out.
 
 ***
 
@@ -37,7 +39,7 @@ and a sell. Default 4 — wide enough that each stays independently hoverable.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:1151](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1151)
+Source: [types/src/index.ts:1157](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1157)
 
 How much the hovered badge brightens, as a channel multiplier. 1 disables
 the highlight (the halo ring still draws). Default 1.25.
@@ -50,9 +52,10 @@ the highlight (the halo ring still draws). Default 1.25.
 optional margin?: number;
 ```
 
-Source: [types/src/index.ts:1146](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1146)
+Source: [types/src/index.ts:1152](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1152)
 
-Gap between the candle's high and the first badge, in px. Default 8.
+Gap between the candle's high and the badge, in px, in candle mode. Default
+8. In line mode the badge sits on the line instead.
 
 ***
 
@@ -62,6 +65,6 @@ Gap between the candle's high and the first badge, in px. Default 8.
 optional radius?: number;
 ```
 
-Source: [types/src/index.ts:1139](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1139)
+Source: [types/src/index.ts:1142](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1142)
 
 Badge radius in px. Default 9.

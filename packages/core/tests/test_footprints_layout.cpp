@@ -4,12 +4,12 @@
 
 #include "footprints_layout.h"
 
+using vroom::footprints::BadgeLayout;
 using vroom::footprints::Bucket;
-using vroom::footprints::Stack;
 using vroom::footprints::bucket_index;
 using vroom::footprints::build_buckets;
 using vroom::footprints::hits_badge;
-using vroom::footprints::layout_stack;
+using vroom::footprints::layout_badge;
 using vroom::footprints::metrics_from;
 
 namespace {
@@ -105,20 +105,20 @@ TEST_CASE("build_buckets groups by candle and side") {
                                      prints.size());
         REQUIRE(b.size() == 1);
         CHECK(b[0].candle_time_ms == 0);
-        CHECK(b[0].badge_count() == 2);
+        CHECK(b[0].has_buys());
+        CHECK(b[0].has_sells());
         CHECK(b[0].buys.size() == 3);
         CHECK(b[0].sells.size() == 1);
-        // Latest per side drives the stack order.
+        // Latest per side drives the combined badge's dot order.
         CHECK(b[0].buy_latest_ms == 4'000);
         CHECK(b[0].sell_latest_ms == 3'000);
     }
 
-    SUBCASE("one side only yields one badge") {
+    SUBCASE("one side only yields a one-sided bucket") {
         const std::vector<VroomFootprint> prints{fp(1'000, VROOM_FOOTPRINT_SELL)};
         const auto b = build_buckets(c.data(), c.size(), kMinute, prints.data(),
                                      prints.size());
         REQUIRE(b.size() == 1);
-        CHECK(b[0].badge_count() == 1);
         CHECK_FALSE(b[0].has_buys());
         CHECK(b[0].has_sells());
     }
@@ -159,6 +159,7 @@ TEST_CASE("build_buckets groups by candle and side") {
             fp(-1, VROOM_FOOTPRINT_BUY),          // before the first bar
             fp(99 * kMinute, VROOM_FOOTPRINT_BUY),  // past the last
             fp(1'000, 7),                          // not a side we know
+            fp(2'000, VROOM_FOOTPRINT_BOTH),       // output only, never an input
         };
         const auto b = build_buckets(c.data(), c.size(), kMinute, prints.data(),
                                      prints.size());
@@ -187,10 +188,10 @@ TEST_CASE("build_buckets re-groups when the interval widens") {
         const auto b = build_buckets(c.data(), c.size(), kMinute, prints.data(),
                                      prints.size());
         REQUIRE(b.size() == 4);
-        for (const auto& one : b) CHECK(one.badge_count() == 1);
+        for (const auto& one : b) CHECK(one.has_buys() != one.has_sells());
     }
 
-    SUBCASE("at 1h they collapse onto one bar as two badges") {
+    SUBCASE("at 1h they collapse onto one bar holding both sides") {
         std::vector<VroomCandle> c(2);
         c[0].time_ms = 0;
         c[1].time_ms = kHour;
@@ -198,7 +199,6 @@ TEST_CASE("build_buckets re-groups when the interval widens") {
                                      prints.size());
         REQUIRE(b.size() == 1);
         CHECK(b[0].candle_time_ms == 0);
-        CHECK(b[0].badge_count() == 2);
         CHECK(b[0].buys.size() == 2);
         CHECK(b[0].sells.size() == 2);
         CHECK(b[0].buy_latest_ms == 17 * kMinute);
@@ -206,80 +206,95 @@ TEST_CASE("build_buckets re-groups when the interval widens") {
     }
 }
 
-TEST_CASE("layout_stack") {
-    // A bar whose high sits at y=200, in a pane starting at y=0.
+TEST_CASE("layout_badge") {
+    // A bar whose high sits at y=200 and close at y=260, in a pane starting at y=0.
     constexpr float kHighY = 200.f;
+    constexpr float kCloseY = 260.f;
     constexpr float kPaneTop = 0.f;
     constexpr float kR = 9.f;
-    constexpr float kG = 4.f;
     constexpr float kM = 8.f;
+    const Bucket buy_only = bucket_with(true, false, 100, 0);
 
-    SUBCASE("a single badge clears the high by margin + radius") {
-        const Stack s = layout_stack(bucket_with(true, false, 100, 0), kHighY,
-                                     kPaneTop, kR, kG, kM);
-        REQUIRE(s.count == 1);
-        CHECK(s.sides[0] == VROOM_FOOTPRINT_BUY);
-        CHECK(s.y[0] == doctest::Approx(200.f - 8.f - 9.f));
+    SUBCASE("in candle mode a badge clears the high by margin + radius") {
+        const BadgeLayout b =
+            layout_badge(buy_only, kHighY, kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.side == VROOM_FOOTPRINT_BUY);
+        CHECK(b.y == doctest::Approx(200.f - 8.f - 9.f));
+    }
+
+    SUBCASE("in line mode a badge is centered on the close") {
+        const BadgeLayout b =
+            layout_badge(buy_only, kHighY, kCloseY, 1.f, kPaneTop, kR, kM);
+        CHECK(b.y == doctest::Approx(kCloseY));
+    }
+
+    SUBCASE("mid-morph the badge sits proportionally between the two") {
+        const BadgeLayout b =
+            layout_badge(buy_only, kHighY, kCloseY, 0.5f, kPaneTop, kR, kM);
+        CHECK(b.y == doctest::Approx((183.f + kCloseY) * 0.5f));
+    }
+
+    SUBCASE("an out-of-range morph clamps to the endpoints") {
+        CHECK(layout_badge(buy_only, kHighY, kCloseY, -1.f, kPaneTop, kR, kM).y ==
+              doctest::Approx(183.f));
+        CHECK(layout_badge(buy_only, kHighY, kCloseY, 2.f, kPaneTop, kR, kM).y ==
+              doctest::Approx(kCloseY));
     }
 
     SUBCASE("an empty bucket lays out nothing") {
-        const Stack s = layout_stack(Bucket{}, kHighY, kPaneTop, kR, kG, kM);
-        CHECK(s.count == 0);
+        const BadgeLayout b =
+            layout_badge(Bucket{}, kHighY, kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.side == -1);
     }
 
-    SUBCASE("both sides stack upward, earlier latest-trade nearest the bar") {
-        // The buy's last fill precedes the sell's, so the buy sits lower.
-        const Stack s = layout_stack(bucket_with(true, true, 100, 900), kHighY,
-                                     kPaneTop, kR, kG, kM);
-        REQUIRE(s.count == 2);
-        CHECK(s.sides[0] == VROOM_FOOTPRINT_BUY);
-        CHECK(s.sides[1] == VROOM_FOOTPRINT_SELL);
-        CHECK(s.y[0] == doctest::Approx(183.f));
-        // One pitch (2r + gap = 22) higher, i.e. a smaller y.
-        CHECK(s.y[1] == doctest::Approx(161.f));
-        // The gap is what keeps them separately hoverable.
-        CHECK(s.y[0] - s.y[1] - 2.f * kR == doctest::Approx(kG));
+    SUBCASE("a sell-only bucket is a sell badge") {
+        const BadgeLayout b = layout_badge(bucket_with(false, true, 0, 100), kHighY,
+                                           kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.side == VROOM_FOOTPRINT_SELL);
+        CHECK(b.first_side == VROOM_FOOTPRINT_SELL);
     }
 
-    SUBCASE("order flips when the sell's latest fill came first") {
-        const Stack s = layout_stack(bucket_with(true, true, 900, 100), kHighY,
-                                     kPaneTop, kR, kG, kM);
-        REQUIRE(s.count == 2);
-        CHECK(s.sides[0] == VROOM_FOOTPRINT_SELL);
-        CHECK(s.sides[1] == VROOM_FOOTPRINT_BUY);
+    SUBCASE("both sides combine into one badge, earlier latest-trade first") {
+        // The buy's last fill precedes the sell's.
+        const BadgeLayout b = layout_badge(bucket_with(true, true, 100, 900), kHighY,
+                                           kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.side == VROOM_FOOTPRINT_BOTH);
+        CHECK(b.first_side == VROOM_FOOTPRINT_BUY);
+        // Same place a single-side badge would sit.
+        CHECK(b.y == doctest::Approx(183.f));
     }
 
-    SUBCASE("equal latest fills put the buy nearest the bar") {
-        const Stack s = layout_stack(bucket_with(true, true, 500, 500), kHighY,
-                                     kPaneTop, kR, kG, kM);
-        REQUIRE(s.count == 2);
-        CHECK(s.sides[0] == VROOM_FOOTPRINT_BUY);
+    SUBCASE("the first side flips when the sell's latest fill came first") {
+        const BadgeLayout b = layout_badge(bucket_with(true, true, 900, 100), kHighY,
+                                           kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.side == VROOM_FOOTPRINT_BOTH);
+        CHECK(b.first_side == VROOM_FOOTPRINT_SELL);
     }
 
-    SUBCASE("a stack that would overflow the pane top slides down") {
-        // High near the top of the pane: the untouched stack would sit above it.
-        const Stack s = layout_stack(bucket_with(true, true, 100, 900), 20.f,
-                                     kPaneTop, kR, kG, kM);
-        REQUIRE(s.count == 2);
-        // Topmost badge is flush inside the pane...
-        CHECK(s.y[1] - kR == doctest::Approx(kPaneTop));
-        // ...and the pair keeps its spacing and its order.
-        CHECK(s.y[0] - s.y[1] == doctest::Approx(2.f * kR + kG));
-        CHECK(s.sides[0] == VROOM_FOOTPRINT_BUY);
+    SUBCASE("equal latest fills put the buy first") {
+        const BadgeLayout b = layout_badge(bucket_with(true, true, 500, 500), kHighY,
+                                           kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.first_side == VROOM_FOOTPRINT_BUY);
     }
 
-    SUBCASE("a stack with room to spare is left alone") {
-        const Stack s = layout_stack(bucket_with(true, true, 100, 900), kHighY,
-                                     kPaneTop, kR, kG, kM);
-        CHECK(s.y[1] - kR > kPaneTop);
+    SUBCASE("a badge that would overflow the pane top slides down") {
+        // High near the top of the pane: the untouched badge would sit above it.
+        const BadgeLayout b =
+            layout_badge(buy_only, 20.f, 40.f, 0.f, kPaneTop, kR, kM);
+        CHECK(b.y - kR == doctest::Approx(kPaneTop));
+    }
+
+    SUBCASE("a badge with room to spare is left alone") {
+        const BadgeLayout b =
+            layout_badge(buy_only, kHighY, kCloseY, 0.f, kPaneTop, kR, kM);
+        CHECK(b.y - kR > kPaneTop);
     }
 
     SUBCASE("non-positive style values fall back to the defaults") {
-        const Stack s = layout_stack(bucket_with(true, false, 100, 0), kHighY,
-                                     kPaneTop, 0.f, -1.f, 0.f);
-        REQUIRE(s.count == 1);
-        CHECK(s.y[0] == doctest::Approx(kHighY - vroom::footprints::kMargin -
-                                        vroom::footprints::kRadius));
+        const BadgeLayout b =
+            layout_badge(buy_only, kHighY, kCloseY, 0.f, kPaneTop, 0.f, -1.f);
+        CHECK(b.y == doctest::Approx(kHighY - vroom::footprints::kMargin -
+                                     vroom::footprints::kRadius));
     }
 }
 
@@ -308,7 +323,6 @@ TEST_CASE("metrics_from") {
     SUBCASE("a null style is all defaults") {
         const auto m = metrics_from(nullptr);
         CHECK(m.radius == doctest::Approx(vroom::footprints::kRadius));
-        CHECK(m.gap == doctest::Approx(vroom::footprints::kGap));
         CHECK(m.margin == doctest::Approx(vroom::footprints::kMargin));
         CHECK(m.hover_boost == doctest::Approx(vroom::footprints::kHoverBoost));
     }
@@ -316,13 +330,11 @@ TEST_CASE("metrics_from") {
     SUBCASE("set fields win, unset fields default") {
         VroomFootprintStyle s{};
         s.radius_px = 12.f;
-        s.gap_px = 0.f;  // unset
-        s.margin_px = 3.f;
+        s.margin_px = 0.f;  // unset
         s.hover_boost = 1.f;
         const auto m = metrics_from(&s);
         CHECK(m.radius == doctest::Approx(12.f));
-        CHECK(m.gap == doctest::Approx(vroom::footprints::kGap));
-        CHECK(m.margin == doctest::Approx(3.f));
+        CHECK(m.margin == doctest::Approx(vroom::footprints::kMargin));
         CHECK(m.hover_boost == doctest::Approx(1.f));
     }
 }
