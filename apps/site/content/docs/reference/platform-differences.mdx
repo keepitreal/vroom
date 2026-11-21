@@ -1,0 +1,81 @@
+---
+title: "Platform differences"
+description: "How VroomChartProps differs between the React Native and web packages."
+---
+
+The data, indicator, theme, and event types — [`Candle`](/docs/reference/type-aliases/Candle),
+[`CrosshairEvent`](/docs/reference/type-aliases/CrosshairEvent),
+[`VroomTheme`](/docs/reference/type-aliases/VroomTheme),
+[`RSIConfig`](/docs/reference/type-aliases/RSIConfig),
+[`MACDConfig`](/docs/reference/type-aliases/MACDConfig),
+[`MovingAverageOverlay`](/docs/reference/type-aliases/MovingAverageOverlay),
+[`VWAPConfig`](/docs/reference/type-aliases/VWAPConfig),
+[`VisibleRange`](/docs/reference/type-aliases/VisibleRange), and the `onCrosshair` /
+`onViewportChange` callbacks — are **identical across both packages**. They're
+defined once and shared, so everything in the [API reference](/docs/reference/) applies
+to both platforms.
+
+The only prop that differs is **`style`**, plus a few web-only props. The
+generated [`VroomChartProps`](/docs/reference/type-aliases/VroomChartProps) reference
+reflects the React Native package; the deltas are:
+
+<Tabs groupId="platform" items={['React Native', 'Web']} persist>
+<Tab value="React Native">
+
+```ts
+type VroomChartProps = VroomChartCoreProps & {
+  /** Style for the chart's root view. Defaults to filling the parent. */
+  style?: StyleProp<ViewStyle>;
+};
+```
+
+`style` is a React Native [`ViewStyle`](https://reactnative.dev/docs/view-style-props).
+There are no other native-only props.
+
+</Tab>
+<Tab value="Web">
+
+```ts
+type VroomChartProps = VroomChartCoreProps & {
+  /** Class applied to the chart's root element. */
+  className?: string;
+  /** Inline style for the chart's root element. Defaults to filling its parent. */
+  style?: CSSProperties;
+  /**
+   * Load the Skia-WASM core from your own module/font URLs instead of the
+   * build bundled in `@vroomchart/core-wasm`.
+   */
+  wasm?: WasmConfig;
+};
+```
+
+On the web, `style` is a DOM [`CSSProperties`](https://developer.mozilla.org/en-US/docs/Web/CSS),
+and two extra props are available:
+
+- **`className`** — a class on the chart's root element.
+- **`wasm`** — override where the Skia-WASM core/font assets load from. Omit to
+  use the build bundled in `@vroomchart/core-wasm`.
+
+</Tab>
+</Tabs>
+
+Everything else — `candles`, `visibleRange`, `defaultCandleWidth`, `theme`, `rsi`,
+`macd`, `movingAverages`, `vwap`, `crosshairOffset`, `crosshairOverride`,
+`width`/`height`, and both event callbacks — is shared (`VroomChartCoreProps`) and
+behaves identically on both platforms.
+
+Price status lines (`priceLines`, `priceLinesStyle`, `onPriceLineDrag`,
+`onPriceLineDragEnd`, `onPriceLineClose`) also work on both platforms, with one
+difference: the hover highlight and the `ns-resize` cursor are web-only, since
+touch has no hover state. On React Native the lines and their buttons always
+render at full strength. See [Price lines](../guides/price-lines.md).
+
+## Web-only overlays
+
+Two props are declared on `VroomChartCoreProps` (so they type-check everywhere) but
+currently render on **web only** — React Native parity is planned:
+
+- **`liquidity`** — resting-order / L2 liquidity bands overlaid on the price pane.
+- **`drawings`** / **`drawingStyle`** — trendline drawings and their default stroke.
+
+On React Native these props are accepted but have no visual effect yet.

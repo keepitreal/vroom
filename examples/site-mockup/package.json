@@ -1,0 +1,24 @@
+{
+  "name": "site-mockup",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@vroomchart/react": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4",
+    "@types/react-dom": "~19.2.4",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "~5.9.2",
+    "vite": "^8.3.4"
+  }
+}
