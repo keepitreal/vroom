@@ -2,7 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "examples/*"
-  - "docs"
 
 # Fail the install when a dependency wants to run a build/install script that
 # isn't approved in package.json (pnpm.onlyBuiltDependencies) or explicitly

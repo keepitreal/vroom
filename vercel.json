@@ -1,7 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter vroom-docs build",
-  "outputDirectory": "docs/build"
+  "installCommand": "true",
+  "buildCommand": "mkdir -p .redirect-only",
+  "outputDirectory": ".redirect-only",
+  "redirects": [
+    { "source": "/llms.txt", "destination": "https://www.vroomvroom.dev/llms.txt", "permanent": true },
+    { "source": "/llms-full.txt", "destination": "https://www.vroomvroom.dev/llms-full.txt", "permanent": true },
+    { "source": "/sitemap.xml", "destination": "https://www.vroomvroom.dev/sitemap.xml", "permanent": true },
+    { "source": "/img/:path*", "destination": "https://www.vroomvroom.dev/img/:path*", "permanent": true },
+    { "source": "/:path*", "destination": "https://www.vroomvroom.dev/docs/:path*", "permanent": true }
+  ]
 }

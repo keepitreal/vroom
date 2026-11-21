@@ -1,13 +1,8 @@
 /**
- * Canonical origin for metadata, sitemap, and OG URLs. Set NEXT_PUBLIC_SITE_URL
- * once the custom domain is live; Vercel previews fall back to their own host.
+ * Canonical origin for metadata, sitemap, and OG URLs. Previews and local dev
+ * still point canonicals at production; robots.ts keeps previews unindexed.
  */
-export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-    : 'http://localhost:3000')
-).replace(/\/$/, '');
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.vroomvroom.dev').replace(/\/$/, '');
 
 export const SITE_NAME = 'vroom';
 export const SITE_TITLE = 'vroom: candlestick charts that keep up';
