@@ -76,7 +76,7 @@ If your change affects public types or props:
 pnpm docs:build
 ```
 
-This regenerates `docs/content/reference/` from source types. Commit the result — CI verifies it's fresh.
+This regenerates `apps/site/content/docs/reference/` from source types. Commit the result — CI verifies it's fresh.
 
 ### 5. Add a changeset
 

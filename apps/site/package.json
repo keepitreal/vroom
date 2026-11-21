@@ -1,0 +1,35 @@
+{
+  "name": "site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "reference": "node scripts/gen-reference.mjs",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@vroomchart/react": "workspace:*",
+    "fumadocs-core": "^16.19.0",
+    "fumadocs-mdx": "^15.6.0",
+    "fumadocs-ui": "^16.19.0",
+    "next": "^16.4.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/mdx": "^2.0.13",
+    "@types/node": "^22.0.0",
+    "@types/react": "~19.2.4",
+    "@types/react-dom": "~19.2.4",
+    "postcss": "^8.5.18",
+    "tailwindcss": "^4.1.0",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.14.0",
+    "typescript": "~5.9.2"
+  }
+}

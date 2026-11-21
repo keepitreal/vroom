@@ -1,0 +1,17 @@
+{
+  "title": "Guides",
+  "defaultOpen": true,
+  "pages": [
+    "why-vroom",
+    "architecture",
+    "theming",
+    "loading",
+    "indicators",
+    "crosshair-and-events",
+    "gestures-and-viewport",
+    "drawing-tools",
+    "price-lines",
+    "footprints",
+    "ai-agents"
+  ]
+}
