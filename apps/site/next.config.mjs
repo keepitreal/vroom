@@ -5,6 +5,14 @@ const withMDX = createMDX();
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  // The Docusaurus docs used to live at the domain root.
+  async redirects() {
+    return ['getting-started', 'guides', 'reference'].map((section) => ({
+      source: `/${section}/:path*`,
+      destination: `/docs/${section}/:path*`,
+      permanent: true,
+    }));
+  },
   async rewrites() {
     return [
       { source: '/docs/:path*.md', destination: '/llms.mdx/docs/:path*.md' },
