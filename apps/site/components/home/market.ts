@@ -16,11 +16,12 @@ function mergeTick(candles: Candle[], tick: Candle): Candle[] {
   return candles;
 }
 
-/** Fresh history from our API, keeping any live bars newer than what it returned. */
+/** Fresh history from our API. Throws when the API could only serve the bundled snapshot. */
 async function backfill(): Promise<Candle[]> {
   const res = await fetch('/api/candles');
   if (!res.ok) throw new Error(`/api/candles ${res.status}`);
-  const { candles } = (await res.json()) as { candles: CandleRow[] };
+  const { candles, live } = (await res.json()) as { candles: CandleRow[]; live: boolean };
+  if (!live) throw new Error('/api/candles served the stale snapshot');
   return candles.map(fromRow);
 }
 

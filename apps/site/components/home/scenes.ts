@@ -92,7 +92,7 @@ export const BRAND_STEPS = ['Your colors', 'Your light mode', 'Your line chart']
 export const AGENT_STEPS = [
   'set_indicators({ rsi: { period: 14 } })',
   'add_price_level({ price: support, label: "Support" })',
-  'add_drawing({ type: "box", from: 40, to: 12 })',
+  'add_drawing({ type: "box", points: [from, to] })',
   'set_viewport({ lastBars: 50 })',
 ] as const;
 

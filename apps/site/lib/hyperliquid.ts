@@ -35,6 +35,7 @@ export const fromRow = ([timeMs, open, high, low, close, volume]: CandleRow): Ca
 export async function fetchBtcCandles(count = MAX_CANDLES, init?: RequestInit): Promise<Candle[]> {
   const endTime = Date.now();
   const res = await fetch(HL_INFO_URL, {
+    signal: AbortSignal.timeout(5000),
     ...init,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -187,6 +187,18 @@ export function ChartPlayer({ ref, candles, origin, reduceMotion, chartProps, co
     if (layout !== 'full') return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close();
+      if (e.key !== 'Tab' || !el.current) return;
+      const focusable = el.current.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const inside = el.current.contains(document.activeElement);
+      if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault();
+        last?.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault();
+        first?.focus();
+      }
     };
     addEventListener('keydown', onKey);
     return () => removeEventListener('keydown', onKey);
