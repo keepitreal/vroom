@@ -280,6 +280,7 @@ export function ChartPlayer({ ref, candles, origin, reduceMotion, chartProps, co
           candles={candles}
           seriesKey="BTC-PERP-player"
           reduceMotion={reduceMotion || undefined}
+          streamTransition="transform"
           autoscaleY
           {...chartProps}
           visibleRange={range ?? undefined}

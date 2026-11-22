@@ -3,7 +3,7 @@ title: "Introduction"
 description: "Lightning-fast, Skia-powered candlestick charts for React Native and the web."
 ---
 
-**vroom** is an open source candlestick charting library that runs on iOS via React Native (Android is in progress) and on the web via WASM beneath a React wrapper. The mobile and web implementations share a single C++ rendering core
+**vroom** is an open source candlestick charting library that runs on iOS and Android via React Native and on the web via WASM beneath a React wrapper. The mobile and web implementations share a single C++ rendering core
 built on [Skia](https://skia.org), so charts stay smooth under pans, pinches, and
 live updates.
 
@@ -13,7 +13,7 @@ live updates.
 
 vroom ships eight indicators (RSI, MACD, ATR, SMA / EMA, VWAP, Bollinger Bands, Ichimoku Cloud and Fair Value Gaps) alongside volume bars. See the [indicators guide](guides/indicators.md).
 
-NOTE: native Android support is in progress. Building the chart core in C++/Skia means it can and will be truly cross-platform.
+Building the chart core in C++/Skia means it is truly cross-platform: standalone Swift and Kotlin packages are planned next.
 
 ## Features
 

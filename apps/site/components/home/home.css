@@ -311,6 +311,7 @@ html.is-locked body {
     max-width: 540px;
     margin: 22px 0 0;
     color: var(--ink-2);
+    text-wrap: pretty;
   }
 
   .lede code {
@@ -347,6 +348,15 @@ html.is-locked body {
   .btn--solid {
     background: var(--ink);
     color: var(--bg);
+  }
+
+  .btn__icon {
+    position: relative;
+    top: -2px;
+    left: 2px;
+    margin-left: 0.4em;
+    font-size: 1.5em;
+    line-height: 0;
   }
 
   .btn--solid:hover {
@@ -507,6 +517,7 @@ html.is-locked body {
   .hero__body .lede {
     margin-left: auto;
     margin-right: auto;
+    text-wrap: balance;
   }
 
   .hero__body .ctas {

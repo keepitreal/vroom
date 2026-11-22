@@ -67,6 +67,7 @@ export function ChartLayer({ candles, frame, pinching, reduceMotion, chartProps 
         seriesKey="BTC-PERP"
         reduceMotion={reduceMotion || undefined}
         transitionMs={450}
+        streamTransition="transform"
         autoscaleY
         {...chartProps}
         visibleRange={range}

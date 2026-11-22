@@ -1593,7 +1593,8 @@ export type VroomChartCoreProps = {
    * `'transform'` eases the last bar (and every indicator reading from it) from
    * its old shape into its new one. When a new bar arrives *and* the view is
    * still pinned to the newest bar, the window advances with it so the series
-   * translates left. A view panned back into history is never moved.
+   * translates left. A view panned back into history, or one controlled
+   * through `visibleRange`, is never moved.
    */
   streamTransition?: StreamTransition;
   /**

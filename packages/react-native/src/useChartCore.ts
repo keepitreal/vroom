@@ -756,11 +756,10 @@ export function useChartCore(
         // A fresh core frames itself (its window starts at 0/0); an explicit
         // visibleRange prop overrides any auto behavior, so treat the change
         // like a stream and let the range application below win.
-        const transitionKind: DataTransition = freshHandle
+        const classified: DataTransition = freshHandle
           ? 'initial'
-          : explicit
-            ? 'stream'
-            : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+          : classifyTransition(prev.candles, candles, seriesKey !== prev.seriesKey);
+        const transitionKind: DataTransition = freshHandle ? 'initial' : explicit ? 'stream' : classified;
 
         // Capture the outgoing view before setCandles re-infers the candle
         // period from the new data.
@@ -779,7 +778,9 @@ export function useChartCore(
         // The loading line is what's on screen, not these candles, so there is
         // nothing to morph or slide from; the hand-off reveals the new series.
         const beforeLoading = freshHandle ? undefined : prev?.beforeLoading;
-        if (transitionKind === 'stream' && prev != null && !explicit && !beforeLoading) {
+        // Only a genuine live update animates: with an explicit range every
+        // change is treated as a stream, including a swap to unrelated data.
+        if (transitionKind === 'stream' && classified === 'stream' && prev != null && !beforeLoading) {
           const { stream: mode, streamMs, reduceMotion } = animRef.current;
           const stepMs = inferStepMs(candles);
           if (
@@ -795,7 +796,8 @@ export function useChartCore(
               // Pull the window along by exactly what the data advanced, so the
               // series translates a whole slot and the newest bar holds its
               // place on screen. Only for a view still following the newest bar
-              // — someone reading history keeps their window.
+              // — someone reading history keeps their window, and an explicit
+              // visibleRange is the host's to move.
               //
               // No capture here: slots pair from the right edge, so the new bar
               // would take the previous one's geometry and drag every candle
@@ -803,7 +805,7 @@ export function useChartCore(
               // own timestamps instead.
               const w = h.getVisibleRange();
               const prevStepMs = inferStepMs(prev.candles) ?? stepMs;
-              if (isPinnedToLatest(w, prevLastMs, prevStepMs)) {
+              if (!explicit && isPinnedToLatest(w, prevLastMs, prevStepMs)) {
                 const by = lastMs - prevLastMs;
                 stream = {
                   morph: false,
