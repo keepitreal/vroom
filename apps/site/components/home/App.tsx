@@ -262,7 +262,7 @@ export function App({ initialCandles }: { initialCandles: Candle[] }) {
               <span className="display">Charts that keep up.</span>
             </h1>
             <p className="lede">
-              Candlestick charts drawn by one C++ core, at 60+ FPS, on React Native and the web.
+              Pro-grade trading charts without the license fee. 60 FPS, MIT{'\u2011'}licensed, and built for AI agents.
             </p>
             <div className="ctas">
               <Link className="btn btn--solid" href="/docs">
