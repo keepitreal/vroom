@@ -16,18 +16,33 @@ function mergeTick(candles: Candle[], tick: Candle): Candle[] {
   return candles;
 }
 
-/** Fresh history from our API. Throws when the API could only serve the bundled snapshot. */
-async function backfill(): Promise<Candle[]> {
-  const res = await fetch('/api/candles');
-  if (!res.ok) throw new Error(`/api/candles ${res.status}`);
-  const { candles, live } = (await res.json()) as { candles: CandleRow[]; live: boolean };
-  if (!live) throw new Error('/api/candles served the stale snapshot');
+/** Splice fetched bars in by timestamp: they win where they overlap, newer live bars are kept. */
+function mergeHistory(prev: Candle[], fetched: Candle[]): Candle[] {
+  if (fetched.length === 0) return prev;
+  const first = fetched[0].timeMs;
+  const last = fetched[fetched.length - 1].timeMs;
+  return [
+    ...prev.filter((c) => c.timeMs < first),
+    ...fetched,
+    ...prev.filter((c) => c.timeMs > last),
+  ].slice(-MAX_CANDLES);
+}
+
+/** Every bar from `sinceMs` on, straight from Hyperliquid via our uncached gap-fill endpoint. */
+async function fetchSince(sinceMs: number): Promise<Candle[]> {
+  const res = await fetch(`/api/candles?since=${sinceMs}`);
+  if (!res.ok) throw new Error(`/api/candles?since ${res.status}`);
+  const { candles } = (await res.json()) as { candles: CandleRow[] };
   return candles.map(fromRow);
 }
 
+/** A socket this quiet after sleep or a background tab is presumed dead. */
+const SILENT_MS = 20_000;
+
 /**
  * BTC 1m candles: the server-rendered history first, then kept current over
- * Hyperliquid's websocket. A reconnect backfills whatever the gap missed.
+ * Hyperliquid's websocket. Missed minutes (a reconnect, a tick that skips
+ * ahead, a tab coming back from sleep) are filled from the last bar we hold.
  */
 export function useBtcCandles(initial: Candle[]): { candles: Candle[]; status: FeedStatus } {
   const [candles, setCandles] = useState<Candle[]>(initial);
@@ -39,37 +54,48 @@ export function useBtcCandles(initial: Candle[]): { candles: Candle[]; status: F
     let retry: ReturnType<typeof setTimeout> | undefined;
     let attempt = 0;
     let dropped = false;
+    let filling = false;
+    let lastBarMs = initial[initial.length - 1]?.timeMs ?? 0;
+    let lastMsgAt = Date.now();
 
-    const refresh = () =>
-      backfill()
-        .then((history) => {
-          if (disposed) return;
-          setCandles((prev) => {
-            const lastHist = history[history.length - 1]?.timeMs ?? 0;
-            return [...history, ...prev.filter((c) => c.timeMs > lastHist)].slice(-MAX_CANDLES);
-          });
+    const fill = (sinceMs = lastBarMs) => {
+      if (filling || !sinceMs) return;
+      filling = true;
+      fetchSince(sinceMs)
+        .then((fetched) => {
+          if (disposed || fetched.length === 0) return;
+          lastBarMs = Math.max(lastBarMs, fetched[fetched.length - 1].timeMs);
+          setCandles((prev) => mergeHistory(prev, fetched));
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => {
+          filling = false;
+        });
+    };
 
-    const stale = Date.now() - (initial[initial.length - 1]?.timeMs ?? 0) > 5 * STEP_MS;
-    if (stale) void refresh();
+    if (Date.now() - lastBarMs > 2 * STEP_MS) fill();
 
     const connect = () => {
       ws = new WebSocket(HL_WS_URL);
       ws.onopen = () => {
         attempt = 0;
-        if (dropped) void refresh();
+        lastMsgAt = Date.now();
+        if (dropped) fill();
         dropped = false;
         ws?.send(
           JSON.stringify({ method: 'subscribe', subscription: { type: 'candle', coin: 'BTC', interval: '1m' } }),
         );
       };
       ws.onmessage = (ev) => {
+        lastMsgAt = Date.now();
         const msg = JSON.parse(ev.data as string) as { channel?: string; data?: RawCandle };
         if (msg.channel !== 'candle' || !msg.data) return;
         const tick = fromRaw(msg.data);
+        const gapFrom = lastBarMs && tick.timeMs > lastBarMs + STEP_MS ? lastBarMs : 0;
+        lastBarMs = Math.max(lastBarMs, tick.timeMs);
         setStatus('live');
         setCandles((prev) => mergeTick(prev, tick));
+        if (gapFrom) fill(gapFrom);
       };
       ws.onclose = () => {
         if (disposed) return;
@@ -80,9 +106,28 @@ export function useBtcCandles(initial: Candle[]): { candles: Candle[]; status: F
     };
     connect();
 
+    const resync = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (ws?.readyState === WebSocket.OPEN && Date.now() - lastMsgAt > SILENT_MS) {
+        // A dead socket can take ages to report its close, so drop it and dial again now.
+        const dead = ws;
+        dead.onclose = dead.onmessage = null;
+        dead.close();
+        dropped = true;
+        clearTimeout(retry);
+        connect();
+      } else if (Date.now() - lastBarMs > 2 * STEP_MS) {
+        fill();
+      }
+    };
+    document.addEventListener('visibilitychange', resync);
+    addEventListener('online', resync);
+
     return () => {
       disposed = true;
       clearTimeout(retry);
+      document.removeEventListener('visibilitychange', resync);
+      removeEventListener('online', resync);
       ws?.close();
     };
     // The server snapshot only seeds the first render.
