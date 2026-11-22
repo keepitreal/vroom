@@ -465,7 +465,7 @@ export function App({ initialCandles }: { initialCandles: Candle[] }) {
         <section ref={reg("brand")} className="sec sec--tall">
           <div className="col sticky">
             <Counter n={7} label="Theming" />
-            <h2 className="display">No toolbars. No opinions.</h2>
+            <h2 className="display">Make it your own</h2>
             <p className="lede">
               vroom ships the chart, not the chrome around it. Colors, candle
               shapes, and every control around the chart are yours.
@@ -545,17 +545,16 @@ export function App({ initialCandles }: { initialCandles: Candle[] }) {
         <section ref={reg("finale")} className="sec sec--finale">
           <div className="finale__head">
             <Counter n={10} label="Your turn" />
-            <h2 className="display">Take the wheel.</h2>
+            <h2 className="display">Test drive?</h2>
             <p className="lede">
-              The live BTC chart, all yours. Open it full screen to pan, pinch,
-              and draw while the page stays put.
+              Try out vroom against live BTC Hyperliquid market data.
             </p>
             <div className="ctas">
               <button
                 className="btn btn--solid"
                 onClick={() => player.current?.open()}
               >
-                Open the chart ⤢
+                Open the chart <span className="btn__icon" aria-hidden>⤢</span>
               </button>
               <Link
                 className="btn btn--ghost"

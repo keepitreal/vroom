@@ -350,6 +350,15 @@ html.is-locked body {
     color: var(--bg);
   }
 
+  .btn__icon {
+    position: relative;
+    top: -2px;
+    left: 2px;
+    margin-left: 0.4em;
+    font-size: 1.5em;
+    line-height: 0;
+  }
+
   .btn--solid:hover {
     background: #fff;
   }
