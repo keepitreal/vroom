@@ -16,7 +16,5 @@ export const docsRoute = '/docs';
 export const NAV = [
   { label: 'Docs', href: '/docs' },
   { label: 'Quickstart', href: '/docs/getting-started/quickstart' },
-  { label: 'API', href: '/docs/reference' },
-  { label: 'Agents', href: '/docs/guides/ai-agents/overview' },
   { label: 'GitHub', href: GITHUB_URL },
 ] as const;
