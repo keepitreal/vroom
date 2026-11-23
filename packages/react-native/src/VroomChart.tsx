@@ -42,6 +42,7 @@ import {
 import { runOnJS, runOnUI, useReducedMotion, useSharedValue } from 'react-native-reanimated';
 
 import { useChartCore } from './useChartCore';
+import { barsBehindLatest, inferStepMs, latestWindow, scrollStartWindow } from './dataTransitions';
 import { ease, easingIndex } from './easing';
 import { FLOAT_REDUCE_MOTION, parseColor } from './theme';
 import { drawUiFrames, LOOP_IDLE, LOOP_STOPPED } from './uiFrameLoop';
@@ -56,6 +57,8 @@ import type {
   CrosshairMode,
   CrosshairTimeFormat,
   Footprint,
+  ScrollToLatestOptions,
+  VisibleRange,
   VroomChartProps,
 } from './types';
 import './jsi.d';
@@ -192,6 +195,7 @@ export function VroomChart(props: VroomChartProps) {
     onFootprint,
     crosshairButton: legacyCrosshairButton,
     onCrosshairButton,
+    chartRef,
   } = props;
   const {
     mode: crosshairMode,
@@ -335,6 +339,30 @@ export function VroomChart(props: VroomChartProps) {
   // Every frame goes through here. With UI-thread frames the one rendered on
   // JS is dropped and the UI thread draws the core as it is now instead, so
   // the SharedValues only ever have one writer and never step back a frame.
+  // What scrollToLatest and the away check measure against, read at frame time.
+  const latestRef = useRef({ candles, ichimoku, awayBars: props.awayFromLatestBars });
+  latestRef.current = { candles, ichimoku, awayBars: props.awayFromLatestBars };
+  const onAwayRef = useRef(props.onAwayFromLatestChange);
+  onAwayRef.current = props.onAwayFromLatestChange;
+  const awayRef = useRef(false);
+  // The core handle for callbacks declared before useChartCore hands it over.
+  const coreHandle = useRef<ChartHandle | null>(null);
+
+  // Runs on every frame, since any of them can have moved the window, and
+  // reports a flip.
+  const checkAway = useCallback(() => {
+    const h = coreHandle.current;
+    if (!h) return;
+    const { candles: c, awayBars } = latestRef.current;
+    const stepMs = inferStepMs(c);
+    const away =
+      stepMs != null &&
+      barsBehindLatest(h.getVisibleRange(), c[c.length - 1].timeMs, stepMs) >= (awayBars ?? 1);
+    if (away === awayRef.current) return;
+    awayRef.current = away;
+    onAwayRef.current?.(away);
+  }, []);
+
   const applyFrame = useCallback(
     (frame: ChartFrame | null) => {
       if (requestUiFrames.current) requestUiFrames.current();
@@ -342,8 +370,9 @@ export function VroomChart(props: VroomChartProps) {
       else if (isSkImage(frame)) imageSV.value = frame;
       else pictureSV.value = frame;
       reanchorPlus();
+      checkAway();
     },
-    [imageSV, pictureSV, reanchorPlus],
+    [imageSV, pictureSV, reanchorPlus, checkAway],
   );
 
   // An OS reduced-motion preference, or the `reduceMotion` prop, snaps every
@@ -361,7 +390,7 @@ export function VroomChart(props: VroomChartProps) {
     [applyFrame],
   );
 
-  const { handle, picture, volumeCollapseRef } = useChartCore(
+  const { handle, picture, volumeCollapseRef, settleStream } = useChartCore(
     candles,
     { width, height, pxRatio: PixelRatio.get() },
     visibleRange,
@@ -391,6 +420,7 @@ export function VroomChart(props: VroomChartProps) {
     },
     loading,
   );
+  coreHandle.current = handle;
 
   const uiFrames = useMemo(() => {
     if (!handle || !UI_THREAD_FRAMES) return null;
@@ -540,6 +570,86 @@ export function VroomChart(props: VroomChartProps) {
       }
     };
   }, []);
+
+  // Glide back to the newest candle. Like the stream slide, it gets out of the
+  // way as soon as anything else moves the window — a pan, a pinch, momentum —
+  // and it re-aims every frame so a bar landing mid-glide doesn't leave it a
+  // slot short.
+  const scrollRaf = useRef<number | null>(null);
+  const cancelScroll = useCallback(() => {
+    if (scrollRaf.current != null) {
+      cancelAnimationFrame(scrollRaf.current);
+      scrollRaf.current = null;
+    }
+  }, []);
+  useEffect(() => cancelScroll, [cancelScroll]);
+  const scrollToLatest = useCallback(
+    (options?: ScrollToLatestOptions) => {
+      if (!handle) return;
+      const targetFor = (): VisibleRange | null => {
+        const { candles: c, ichimoku: ich } = latestRef.current;
+        const stepMs = inferStepMs(c);
+        if (stepMs == null) return null;
+        const displacement = ich?.enabled ? ich.displacement ?? 26 : 0;
+        const futureMs = Math.max(0, displacement) * stepMs;
+        return latestWindow(handle.getVisibleRange(), c[c.length - 1].timeMs, stepMs, futureMs);
+      };
+      const target = targetFor();
+      if (!target) return;
+      cancelScroll();
+      cancelDecay();
+      settleStream();
+      const paint = () => {
+        const next = handle.render();
+        applyFrame(next);
+        maybeStartAnim();
+      };
+      const durationMs = Math.max(0, options?.durationMs ?? 500);
+      if (options?.animated === false || durationMs === 0 || reduceMotion) {
+        handle.setVisibleRange(target.startMs, target.endMs);
+        paint();
+        onViewportChange?.(0, 0);
+        return;
+      }
+      const easing = options?.easing ?? 'ease-out';
+      const from = scrollStartWindow(handle.getVisibleRange(), target);
+      let applied: VisibleRange | null = null;
+      const start = performance.now();
+      const step = () => {
+        if (applied) {
+          const w = handle.getVisibleRange();
+          if (w.startMs !== applied.startMs || w.endMs !== applied.endMs) {
+            scrollRaf.current = null;
+            return;
+          }
+        }
+        const to = targetFor() ?? target;
+        const p = Math.min(1, (performance.now() - start) / durationMs);
+        const e = p < 1 ? ease(easing, p) : 1;
+        applied = {
+          startMs: Math.round(from.startMs + (to.startMs - from.startMs) * e),
+          endMs: Math.round(from.endMs + (to.endMs - from.endMs) * e),
+        };
+        handle.setVisibleRange(applied.startMs, applied.endMs);
+        paint();
+        if (p < 1) {
+          scrollRaf.current = requestAnimationFrame(step);
+        } else {
+          scrollRaf.current = null;
+          onViewportChange?.(0, 0);
+        }
+      };
+      scrollRaf.current = requestAnimationFrame(step);
+    },
+    [handle, cancelScroll, cancelDecay, settleStream, applyFrame, maybeStartAnim, reduceMotion, onViewportChange],
+  );
+  useEffect(() => {
+    if (!chartRef || !handle) return;
+    chartRef.current = { scrollToLatest };
+    return () => {
+      chartRef.current = null;
+    };
+  }, [chartRef, handle, scrollToLatest]);
 
   // Sync the initial picture from useChartCore into the SV whenever it
   // refreshes (data load, size change, externally-controlled range change).

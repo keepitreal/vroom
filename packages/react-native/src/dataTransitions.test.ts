@@ -4,10 +4,13 @@
 import { describe, expect, it } from 'vitest';
 import type { Candle } from '@vroomchart/types';
 import {
+  barsBehindLatest,
   classifyStream,
   classifyTransition,
   inferStepMs,
   isPinnedToLatest,
+  latestWindow,
+  scrollStartWindow,
   timeframeWindow,
 } from './dataTransitions';
 
@@ -269,5 +272,52 @@ describe('isPinnedToLatest', () => {
     expect(
       isPinnedToLatest({ startMs: 0, endMs: lastMs + 20 * MINUTE }, lastMs, MINUTE),
     ).toBe(true);
+  });
+});
+
+describe('barsBehindLatest', () => {
+  const lastMs = 50 * MINUTE;
+
+  it('is 0 where the default framing leaves the right edge', () => {
+    expect(barsBehindLatest({ startMs: 0, endMs: lastMs + MINUTE }, lastMs, MINUTE)).toBe(0);
+  });
+
+  it('counts whole and partial bars back into history', () => {
+    expect(barsBehindLatest({ startMs: 0, endMs: lastMs - 9 * MINUTE }, lastMs, MINUTE)).toBe(10);
+    expect(barsBehindLatest({ startMs: 0, endMs: lastMs + MINUTE / 2 }, lastMs, MINUTE)).toBe(0.5);
+  });
+
+  it('goes negative in the empty space past the newest bar', () => {
+    expect(barsBehindLatest({ startMs: 0, endMs: lastMs + 3 * MINUTE }, lastMs, MINUTE)).toBe(-2);
+  });
+});
+
+describe('latestWindow', () => {
+  const lastMs = 50 * MINUTE;
+
+  it('keeps the window length and lands on the newest slot end', () => {
+    const w = latestWindow({ startMs: 0, endMs: 20 * MINUTE }, lastMs, MINUTE, 0);
+    expect(w).toEqual({ startMs: 31 * MINUTE, endMs: 51 * MINUTE });
+  });
+
+  it('reserves future space past the newest bar', () => {
+    const w = latestWindow({ startMs: 0, endMs: 20 * MINUTE }, lastMs, MINUTE, 26 * MINUTE);
+    expect(w).toEqual({ startMs: 57 * MINUTE, endMs: 77 * MINUTE });
+  });
+});
+
+describe('scrollStartWindow', () => {
+  const target = { startMs: 80 * MINUTE, endMs: 100 * MINUTE };
+
+  it('starts from where the view is when it is close', () => {
+    const w = { startMs: 30 * MINUTE, endMs: 50 * MINUTE };
+    expect(scrollStartWindow(w, target)).toBe(w);
+  });
+
+  it('starts three window lengths back when it is farther than that', () => {
+    expect(scrollStartWindow({ startMs: 0, endMs: 20 * MINUTE }, target)).toEqual({
+      startMs: 20 * MINUTE,
+      endMs: 40 * MINUTE,
+    });
   });
 });

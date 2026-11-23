@@ -25,6 +25,7 @@ import {
   type UndoRedoControls,
   type UndoRedoState,
   type VisibleRange,
+  type ChartControls,
 } from '@vroomchart/react';
 import {
   Sidebar,
@@ -1073,6 +1074,11 @@ export function App() {
   const undoDrawing = useCallback(() => historyRef.current?.undo(), []);
   const redoDrawing = useCallback(() => historyRef.current?.redo(), []);
 
+  // "Back to latest": the chart reports when the user is reading history, and
+  // the button (the host's own UI) asks it to scroll back.
+  const chartControlsRef = useRef<ChartControls | null>(null);
+  const [awayFromLatest, setAwayFromLatest] = useState(false);
+
   // The selected drawing and its live screen rect, driving the floating tray.
   const [selection, setSelection] = useState<DrawingSelection | null>(null);
 
@@ -1458,7 +1464,34 @@ export function App() {
                 {...drawProps}
                 onCrosshairButton={onCrosshairButton}
                 onCrosshair={onPrimaryCrosshair}
+                chartRef={chartControlsRef}
+                onAwayFromLatestChange={setAwayFromLatest}
               />
+              {awayFromLatest && (
+                <button
+                  type="button"
+                  aria-label="Scroll to latest"
+                  title="Scroll to latest"
+                  onClick={() => chartControlsRef.current?.scrollToLatest()}
+                  style={{
+                    position: 'absolute',
+                    right: 72,
+                    bottom: 36,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(30,34,45,0.9)',
+                    color: '#d1d4dc',
+                    cursor: 'pointer',
+                    fontSize: 14,
+                    lineHeight: '26px',
+                    padding: 0,
+                  }}
+                >
+                  »
+                </button>
+              )}
               <SelectionTray selection={selection} controls={historyRef} />
               <FootprintTooltip hover={footprintHover} />
               <OrderMenu menu={orderMenu} onPick={onPickOrder} />

@@ -410,6 +410,8 @@ export type ChartCoreState = {
    * can restore it, since setVolume snaps the scalar (see below).
    */
   volumeCollapseRef: MutableRefObject<VolumeCollapse | null>;
+  /** Lands any in-flight live-update slide, so another driver can take the window. */
+  settleStream: () => void;
 };
 
 // Owns a ChartHandle and produces an "initial" picture whenever data, size,
@@ -973,5 +975,5 @@ export function useChartCore(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles, showLoadingLine, seriesKey, size.width, size.height, size.pxRatio, explicit, startMs, endMs, defaultCandleWidth, themeKey, theme?.fontData, theme?.badgeFontData, rsiKey, macdKey, atrKey, maKey, vwapKey, bollingerKey, ichimokuKey, fvgKey, volumeKey, priceLinesKey, footprintsKey, startIntervalMorph, startLoadingHandoff, endIntervalMorph, startStreamAnim, settleStream]);
 
-  return { handle: handleRef.current, picture, volumeCollapseRef };
+  return { handle: handleRef.current, picture, volumeCollapseRef, settleStream };
 }

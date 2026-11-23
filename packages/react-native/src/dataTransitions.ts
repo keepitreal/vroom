@@ -174,6 +174,45 @@ export function isPinnedToLatest(
 }
 
 /**
+ * How many bars the right edge of `window` sits behind the newest bar's slot
+ * end. 0 where the default framing leaves it; negative once scrolled into the
+ * empty space past the newest bar.
+ */
+export function barsBehindLatest(
+  window: VisibleRange,
+  lastMs: number,
+  stepMs: number,
+): number {
+  return (lastMs + stepMs - window.endMs) / stepMs;
+}
+
+/**
+ * The window `scrollToLatest` lands on: the same length as `window`, with the
+ * right edge on the newest bar's slot end plus `futureMs` of reserved empty
+ * time (Ichimoku's leading spans), as the default framing places it.
+ */
+export function latestWindow(
+  window: VisibleRange,
+  lastMs: number,
+  stepMs: number,
+  futureMs: number,
+): VisibleRange {
+  const endMs = lastMs + stepMs + futureMs;
+  return { startMs: endMs - (window.endMs - window.startMs), endMs };
+}
+
+// Farther back than this many window lengths, the glide starts this far out
+// instead: at a fixed duration a longer run is just a blur of history.
+const MAX_SCROLL_WINDOWS = 3;
+
+/** Where a glide from `window` to `target` starts, capped as above. */
+export function scrollStartWindow(window: VisibleRange, target: VisibleRange): VisibleRange {
+  const maxMs = (target.endMs - target.startMs) * MAX_SCROLL_WINDOWS;
+  if (target.endMs - window.endMs <= maxMs) return window;
+  return { startMs: target.startMs - maxMs, endMs: target.endMs - maxMs };
+}
+
+/**
  * The visible window to apply after a timeframe switch so each candle keeps
  * the exact pixel width it had before: the visible slot count is preserved and
  * the right edge re-anchors on the newest candle (any future-gap overshoot is
