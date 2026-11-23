@@ -1,5 +1,16 @@
 # react-native-vroom-chart
 
+## 0.29.0
+
+### Minor Changes
+
+- 3f7046b: Under `autoscaleY`, a drag on the price axis now scales how much room the fit leaves around the candles, and the fit goes on following them at that size as the view pans. Before, the drag did nothing on web and panned the chart on React Native. A double tap (double-click on web) on the price axis puts the price scale back to its default, with or without `autoscaleY`.
+- 22b5527: Add a headless "back to latest" control. `onAwayFromLatestChange` reports when the user has scrolled far enough into history to show your own button (`awayFromLatestBars` sets how far, default 1 bar), and `chartRef.current.scrollToLatest()` glides the view back to the newest candle, keeping the zoom and returning the price axis to auto-fit so the candles recenter vertically. Pass `{ animated: false }` to jump, or `durationMs` / `easing` to shape the glide.
+
+### Patch Changes
+
+- c50b34e: `streamTransition: 'transform'` now eases live ticks on charts with a controlled `visibleRange`. Previously any explicit range turned the animation off and every tick snapped. The window still never slides on its own when the host controls it, and a swap to a different series is never morphed.
+
 ## 0.28.0
 
 ### Minor Changes
