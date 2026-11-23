@@ -116,6 +116,9 @@ const AXIS_RATIO = 0.5; // an axis scales only if its span ≥ this × the other
 const LONG_PRESS_MS = 350;
 const MOVE_THRESH = 6; // px before a press becomes a drag
 const WHEEL_K = 0.0015; // wheel delta → zoom factor exponent
+// Drag px per unit of axis scale. Must match kAxisDragSensitivity in
+// packages/core/src/chart_facade.cpp.
+const AXIS_DRAG_SENSITIVITY = 300;
 const WHEEL_SETTLE_MS = 150; // quiet period after wheel input before onViewportChange
 const SEP_HIT = 4; // px band around the indicator separator for hit-testing
 
@@ -1959,7 +1962,20 @@ export function useGestures(
       closePlusNow();
       if (wheelSettleTimer == null) markViewport();
       const { x, y } = rel(e);
-      if (e.ctrlKey || e.metaKey) {
+      const region = regionAt(x, y);
+      const delta = e.deltaY || e.deltaX;
+      if (region === 'price-axis' || region === 'indicator-axis') {
+        // Over a y-axis the wheel scales that axis alone, whatever the
+        // modifiers: the same step as a notch of plot zoom, as a drag distance.
+        const dragPx = (Math.exp(delta * WHEEL_K) - 1) * AXIS_DRAG_SENSITIVITY;
+        if (region === 'price-axis') h.scalePriceAxis(dragPx);
+        else h.scaleIndicatorAxis(y, dragPx);
+      } else if (region === 'time-axis') {
+        // Over the time axis it only ever moves time — a pinch included.
+        if (e.shiftKey) h.pan(-delta, 0);
+        else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) h.pan(-e.deltaX, 0);
+        else h.zoom(Math.exp(-delta * WHEEL_K), 1, x, y);
+      } else if (e.ctrlKey || e.metaKey) {
         // Trackpad pinch (sent as ctrl+wheel) / ctrl+wheel → zoom both axes.
         const f = Math.exp(-e.deltaY * WHEEL_K);
         h.zoom(f, f, x, y);
