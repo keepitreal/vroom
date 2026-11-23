@@ -645,15 +645,20 @@ void vroom_chart_reset_view(VroomChart* chart);
 
 // Re-enable continuous y auto-fit only; the time window is untouched. Use
 // after repositioning the window for a same-asset data swap (e.g. a timeframe
-// switch) so the price scale re-fits the newly visible candles.
+// switch) so the price scale re-fits the newly visible candles. Under
+// autoscaleY it puts the fit back to its default size after a price-axis drag,
+// easing there.
 void vroom_chart_reset_price_scale(VroomChart* chart);
 
 // Opt-in animated y auto-fit. While on, the price range eases (quickly) toward
 // the visible candles as the view pans, always keeping their low..high on
-// screen, and no gesture takes it over: a translate's vertical part, a zoom's
-// y factor and a price-axis drag are ignored, so a pinch in any direction
-// scales time only. `animate` 0 snaps instead of easing (reduced motion). Off
-// by default, which keeps the instant auto-fit.
+// screen, and no gesture takes it over: a translate's vertical part and a
+// zoom's y factor are ignored, so a pinch in any direction scales time only. A
+// price-axis drag (scale_price_axis) scales how much room the fit leaves
+// around the candles and the fit goes on following them at that size, until
+// reset_price_scale, reset_view, a hidden y-axis strip or a change of this
+// setting puts it back. `animate` 0 snaps instead of easing (reduced motion).
+// Off by default, which keeps the instant auto-fit.
 void vroom_chart_set_autoscale_y(VroomChart* chart, int32_t enabled,
                                  int32_t animate);
 
@@ -771,6 +776,9 @@ void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_px);
 // Sign conventions:
 //   scale_price_axis: dy > 0 (drag down) widens the price range → candles shrink
 //   scale_time_axis:  dx > 0 (drag right) widens the time range → candles thin
+//
+// Under autoscaleY, scale_price_axis scales the auto-fit instead of freezing
+// the range (see vroom_chart_set_autoscale_y).
 void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px);
 void vroom_chart_scale_time_axis(VroomChart* chart, float dx_px);
 

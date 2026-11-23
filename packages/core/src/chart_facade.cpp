@@ -176,8 +176,9 @@ void ensure_manual_price_bounds(VroomChart* chart) {
 }
 
 // The user zoomed or scaled an axis. autoscaleY never hands y over: while it's
-// on, no gesture touches the price range (see zoom and scale_price_axis), so
-// there is nothing to freeze and nothing to record.
+// on, a zoom leaves the price range alone and a price-axis drag only scales the
+// fit (see zoom and scale_price_axis), so there is nothing to freeze and
+// nothing to record.
 void mark_user_adjusted(VroomChart* chart) {
     if (chart->autoscale_y) return;
     chart->axes_user_adjusted = true;
@@ -352,9 +353,10 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
     chart->visible_start_ms = 0;
     chart->visible_end_ms = 0;
     chart->price_bounds_manual = false;
-    // A new series re-arms autoscale. The range is re-seeded below, after the
-    // reframe, rather than easing over from the previous series.
+    // A new series re-arms autoscale at its default fit. The range is re-seeded
+    // below, after the reframe, rather than easing over from the previous series.
     chart->axes_user_adjusted = false;
+    chart->autoscale_zoom = 1.0;
     // An asset switch reframes wholesale, so a slot-paired morph is meaningless
     // here — drop any capture rather than leaving it to reshape the wrong data.
     chart->morph_from.clear();
@@ -372,8 +374,12 @@ extern "C" void vroom_chart_reset_view(VroomChart* chart) {
 }
 
 extern "C" void vroom_chart_reset_price_scale(VroomChart* chart) {
-    if (!chart || !chart->price_bounds_manual) return;
+    if (!chart) return;
+    if (!chart->price_bounds_manual && chart->autoscale_zoom == 1.0) return;
     chart->price_bounds_manual = false;
+    // Under autoscaleY the range eases back to the default fit from where the
+    // drag left it: only the target moves here.
+    chart->autoscale_zoom = 1.0;
     vroom::labels::recompute_axis_width(*chart);
     chart->mark_dirty();
 }
@@ -385,6 +391,7 @@ extern "C" void vroom_chart_set_autoscale_y(VroomChart* chart, int32_t enabled,
     const bool on = enabled != 0;
     if (chart->autoscale_y == on) return;
     chart->autoscale_y = on;
+    chart->autoscale_zoom = 1.0;
     // Seeded from the instant fit already on screen, so turning it on doesn't
     // move anything; turning it off falls back to that same fit.
     chart->snap_autoscale();
@@ -685,16 +692,36 @@ extern "C" void vroom_chart_translate(VroomChart* chart, float dx_px, float dy_p
 }
 
 extern "C" void vroom_chart_scale_price_axis(VroomChart* chart, float dy_px) {
-    // autoscaleY owns the price range.
-    if (!chart || dy_px == 0.f || chart->autoscale_y) return;
-    mark_user_adjusted(chart);
-    ensure_manual_price_bounds(chart);
-
-    if (!(chart->price_bounds.max > chart->price_bounds.min)) return;
+    if (!chart || dy_px == 0.f) return;
 
     // Drag down (dy > 0) → scale > 1 → wider price range → candles shrink.
     double scale = 1.0 + static_cast<double>(dy_px) / kAxisDragSensitivity;
     if (scale < 0.05) scale = 0.05;  // never collapse or flip
+
+    // autoscaleY keeps the price range: the drag scales how much room its fit
+    // leaves around the candles, and the fit goes on following them.
+    if (chart->autoscale_y_engaged()) {
+        // A strip on its way out or in has nothing steady to drag.
+        if (chart->y_axis_collapse_t > 0.f) return;
+        const double before = chart->autoscale_zoom;
+        chart->autoscale_zoom = vroom::step_autoscale_zoom(before, scale);
+        if (chart->autoscale_zoom == before) return;  // at a limit
+        // The range on screen takes the same step now, so it tracks the finger
+        // rather than easing after it. An ease already in flight carries on
+        // toward the scaled target.
+        if (chart->autoscale_display_valid) {
+            chart->autoscale_display = vroom::rescale_scaled(
+                chart->autoscale_display, chart->autoscale_zoom / before, 0.5);
+        }
+        vroom::labels::recompute_axis_width(*chart);
+        chart->mark_dirty();
+        return;
+    }
+
+    mark_user_adjusted(chart);
+    ensure_manual_price_bounds(chart);
+
+    if (!(chart->price_bounds.max > chart->price_bounds.min)) return;
 
     chart->price_bounds = vroom::rescale_scaled(chart->price_bounds, scale, 0.5);
     vroom::labels::recompute_axis_width(*chart);
@@ -1815,6 +1842,9 @@ extern "C" void vroom_chart_set_axis_collapse(VroomChart* chart, float y_t,
     if (!chart) return;
     chart->y_axis_collapse_t = std::clamp(y_t, 0.f, 1.f);
     chart->x_axis_collapse_t = std::clamp(x_t, 0.f, 1.f);
+    // Without the strip there is nothing to drag the fit back with, so it goes
+    // back to its default as the strip leaves.
+    if (chart->y_axis_collapse_t > 0.f) chart->autoscale_zoom = 1.0;
     // Changes the layout, so every cached pane geometry has to be re-derived.
     chart->mark_dirty();
 }

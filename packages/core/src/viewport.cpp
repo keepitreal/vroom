@@ -334,6 +334,16 @@ PriceBounds auto_price_bounds(const ::VroomCandle* candles, size_t count,
     return {from_scale(log, mid - half), from_scale(log, mid + half), log};
 }
 
+double step_autoscale_zoom(double zoom, double step) {
+    if (!(step > 0.0) || !std::isfinite(step)) return zoom;
+    return std::clamp(zoom * step, kAutoscaleZoomMin, kAutoscaleZoomMax);
+}
+
+PriceBounds zoom_auto_fit(const PriceBounds& fit, double zoom) {
+    if (zoom == 1.0 || !(fit.max > fit.min)) return fit;
+    return rescale_scaled(fit, zoom, 0.5);
+}
+
 PriceBounds ease_price_bounds(const PriceBounds& display,
                               const PriceBounds& target,
                               const PriceBounds& envelope,

@@ -356,14 +356,19 @@ vroom::IndexRange VroomChart::fit_range() const {
 
 vroom::PriceBounds VroomChart::screen_price_bounds() const {
     if (price_bounds_manual) return price_bounds;
-    if (autoscale_y_engaged() && autoscale_display_valid &&
+    const bool engaged = autoscale_y_engaged();
+    if (engaged && autoscale_display_valid &&
         autoscale_display.log == price_bounds.log) {
         return autoscale_display;
     }
     const auto fit = fit_range();
-    return vroom::auto_price_bounds(candles.data() + fit.start,
-                                    fit.end - fit.start, price_bounds.log,
-                                    theme.floats[VROOM_FLOAT_MIN_PRICE_RANGE_RATIO]);
+    const auto bounds = vroom::auto_price_bounds(
+        candles.data() + fit.start, fit.end - fit.start, price_bounds.log,
+        theme.floats[VROOM_FLOAT_MIN_PRICE_RANGE_RATIO]);
+    // Before the first engaged frame has seeded the eased range.
+    return engaged && fit.end > fit.start
+        ? vroom::zoom_auto_fit(bounds, autoscale_zoom)
+        : bounds;
 }
 
 bool VroomChart::autoscale_target(vroom::PriceBounds* target,
@@ -372,8 +377,10 @@ bool VroomChart::autoscale_target(vroom::PriceBounds* target,
     if (fit.end <= fit.start) return false;
     const ::VroomCandle* first = candles.data() + fit.start;
     const std::size_t n = fit.end - fit.start;
-    *target = vroom::auto_price_bounds(first, n, price_bounds.log,
-                                       theme.floats[VROOM_FLOAT_MIN_PRICE_RANGE_RATIO]);
+    *target = vroom::zoom_auto_fit(
+        vroom::auto_price_bounds(first, n, price_bounds.log,
+                                 theme.floats[VROOM_FLOAT_MIN_PRICE_RANGE_RATIO]),
+        autoscale_zoom);
     *envelope = vroom::price_bounds(first, n);
     return true;
 }
