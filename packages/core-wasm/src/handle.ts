@@ -620,13 +620,15 @@ export interface VroomChartHandle {
    * Re-enable continuous y auto-fit only; the time window is untouched. Use
    * after repositioning the window for a same-asset data swap (e.g. a
    * timeframe switch) so the price scale re-fits the newly visible candles.
+   * Under `autoscaleY` it puts the fit back to its default size after a
+   * price-axis drag.
    */
   resetPriceScale(): void;
   /**
-   * Opt-in animated y auto-fit (the `autoscaleY` prop). While on, and until the
-   * user zooms or scales either axis, the price range eases toward the visible
-   * candles as the view pans; resetView re-arms it. `animate` false snaps
-   * instead (reduced motion).
+   * Opt-in animated y auto-fit (the `autoscaleY` prop). While on, the price
+   * range eases toward the visible candles as the view pans, and
+   * `scalePriceAxis` scales how much room that fit leaves around them rather
+   * than freezing the range. `animate` false snaps instead (reduced motion).
    */
   setAutoscaleY(enabled: boolean, animate: boolean): void;
   /**
@@ -726,7 +728,10 @@ export interface VroomChartHandle {
   translate(dx: number, dy: number): void;
   /** Directional zoom by per-axis factors around focus (fx, fy) in px. */
   zoom(scaleX: number, scaleY: number, fx: number, fy: number): void;
-  /** Drag-on-y-axis price scaling; dy>0 widens the price range. */
+  /**
+   * Drag-on-y-axis price scaling; dy>0 widens the price range. Under
+   * `autoscaleY` it scales the auto-fit, which goes on following the candles.
+   */
   scalePriceAxis(dy: number): void;
   /** Drag-on-x-axis time scaling; dx>0 widens the time window. */
   scaleTimeAxis(dx: number): void;

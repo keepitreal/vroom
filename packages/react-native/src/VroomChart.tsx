@@ -876,6 +876,11 @@ export function VroomChart(props: VroomChartProps) {
     'chart' | 'price-axis' | 'time-axis' | 'indicator' | 'price-line'
   >('chart');
 
+  // Whether the double tap below began on the price-axis strip. A drag or a
+  // second finger clears it: the tap recognizer tolerates both, and neither a
+  // tap followed by a quick drag nor a quick pinch there is a double tap.
+  const axisTapBegan = useRef(false);
+
   // Closes an open footprint tooltip. Any viewport change slides the candles out
   // from under it and the crosshair replaces it outright, so the host is told to
   // take it down rather than left holding a position the badge has moved away
@@ -913,8 +918,8 @@ export function VroomChart(props: VroomChartProps) {
       // Always classify — an axis drag controls the axis even while the
       // crosshair is up. Only a chart-area drag interacts with the crosshair.
       panMode.current = hitAxis(e.x, e.y);
-      // autoscaleY owns the price range, so its strip pans like the plot.
-      if (autoscaleY && panMode.current === 'price-axis') panMode.current = 'chart';
+      // A drag is not a tap, wherever it started.
+      axisTapBegan.current = false;
       // A draggable price line takes the drag over from the chart. Seeding the
       // preview at the committed price puts the label in drag styling before the
       // first move, so the grab registers immediately.
@@ -1060,6 +1065,8 @@ export function VroomChart(props: VroomChartProps) {
     runOnJS: true,
     onTouchesDown: (e) => {
       if (e.numberOfTouches < 2) return;
+      // A second finger makes it a pinch, not a tap.
+      axisTapBegan.current = false;
       dismissFootprint();
       closePlusRef.current();
       const [a, b] = e.allTouches;
@@ -1214,7 +1221,34 @@ export function VroomChart(props: VroomChartProps) {
     },
   });
 
-  const gesture = useSimultaneousGestures(pan, pinch, longPress, tap);
+  // A double tap on the price-axis strip puts the price scale back to its
+  // default: the fit `autoscaleY` starts from, or from a manual scale to the
+  // auto-fit. A shortcut only — dragging the strip the other way gets there too.
+  //
+  // It recognizes alongside the other gestures and `tap` does not wait for it
+  // to fail, so a single tap still fires on its own touch-up. Both taps have to
+  // land on the strip; a double tap anywhere else is dropped here.
+  const doubleTap = useTapGesture({
+    enabled: !showLoadingLine,
+    runOnJS: true,
+    numberOfTaps: 2,
+    onBegin: (e) => {
+      axisTapBegan.current = hitAxis(e.x, e.y) === 'price-axis';
+    },
+    onActivate: (e) => {
+      const began = axisTapBegan.current;
+      axisTapBegan.current = false;
+      if (!handle || !began || hitAxis(e.x, e.y) !== 'price-axis') return;
+      // The plus button can overhang the strip; those taps were for it.
+      if (crosshairActive.current && handle.hitTestCrosshairButton(e.x, e.y)) return;
+      handle.resetPriceScale();
+      const p = handle.render();
+      if (p) applyFrame(p);
+      maybeStartAnim();
+    },
+  });
+
+  const gesture = useSimultaneousGestures(pan, pinch, longPress, tap, doubleTap);
 
   return (
     <GestureHandlerRootView

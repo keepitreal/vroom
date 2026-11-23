@@ -213,11 +213,16 @@ struct VroomChart {
 
     // --- autoscaleY ---------------------------------------------------------
     // Opt-in variant of auto mode: the y-range *eases* toward the visible
-    // candles' fit instead of snapping to it, and no gesture moves it — the
-    // vertical part of a drag, a pinch's y and a price-axis drag are all
-    // ignored, so nothing can take the scale manual. Runs only while
-    // autoscale_y_engaged().
+    // candles' fit instead of snapping to it, and no gesture takes it manual —
+    // the vertical part of a drag and a pinch's y are ignored. A price-axis
+    // drag scales `autoscale_zoom` instead, so the fit goes on following the
+    // candles at the new size. Runs only while autoscale_y_engaged().
     bool autoscale_y = false;
+    // How much room the fit leaves around the candles (see zoom_auto_fit): 1 is
+    // the default fit. Back to 1 on reset_price_scale and reset_view, when
+    // autoscale_y turns on or off, and while the y-axis strip is collapsing or
+    // hidden, which leaves nothing to drag it back with.
+    double autoscale_zoom = 1.0;
     // Cleared for reduced motion, which lands every retarget immediately.
     bool autoscale_y_animate = true;
     // Set when the user zooms or scales either axis while autoscale_y is off,

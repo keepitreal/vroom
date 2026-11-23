@@ -1557,9 +1557,16 @@ export type VroomChartCoreProps = {
    * Nothing turns it off while it's set. A one-finger (or mouse) drag pans time
    * only — its vertical component is ignored, so a slightly diagonal swipe
    * doesn't take the scale over. A pinch or wheel/trackpad zoom scales time
-   * only, whichever direction it runs. A drag on the price axis never rescales
-   * price (on React Native it pans like the plot), and a drag on the time axis
-   * rescales time without touching price.
+   * only, whichever direction it runs, and a drag on the time axis rescales
+   * time without touching price.
+   *
+   * A drag on the price axis scales how much room the fit leaves around the
+   * candles: down for more, up for less, never so little that they leave the
+   * plot. The fit goes on following the candles at that size as the view pans,
+   * so nothing is frozen and nothing has to be undone. A double tap (double
+   * click on web) on the price axis puts the default size back, as does a new
+   * `seriesKey`, hiding the price axis (`theme.showYAxis: false`) or toggling
+   * this prop.
    *
    * Default false, which keeps the instant auto-fit that lasts until the first
    * vertical drag. Snaps instead of animating when the OS requests reduced

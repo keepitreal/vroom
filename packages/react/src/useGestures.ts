@@ -936,7 +936,7 @@ export function useGestures(
       cb(startMs, endMs);
     };
 
-    const rel = (e: PointerEvent | WheelEvent) => {
+    const rel = (e: MouseEvent) => {
       const r = el.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
@@ -1919,10 +1919,24 @@ export function useGestures(
     // Double-click finishes the path at the vertex just placed. Both of the
     // clicks already went through handleDrawClick, so the duplicate vertex the
     // second one added is dropped inside commitPath.
+    //
+    // With no path open, a double-click on the price axis puts the price scale
+    // back to its default: the fit `autoscaleY` starts from, or from a manual
+    // scale to the auto-fit.
     const onDoubleClick = (e: MouseEvent) => {
-      if (!pathRef.current) return;
+      if (pathRef.current) {
+        e.preventDefault();
+        commitPath();
+        return;
+      }
+      const h = handleRef.current;
+      if (!h || drawActive()) return;
+      const { x, y } = rel(e);
+      // The plus button can overhang the strip; those clicks were for it.
+      if (regionAt(x, y) !== 'price-axis' || h.hitTestCrosshairButton(x, y)) return;
       e.preventDefault();
-      commitPath();
+      h.resetPriceScale();
+      scheduleRender();
     };
 
     // Right-click also finishes the path, the one-handed way out when the

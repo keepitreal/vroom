@@ -702,6 +702,82 @@ TEST_CASE("auto_price_bounds with a minimum range ratio") {
     CHECK(b.max == doctest::Approx(1.015));
 }
 
+TEST_CASE("step_autoscale_zoom") {
+    SUBCASE("multiplies the zoom by the drag step") {
+        CHECK(vroom::step_autoscale_zoom(1.0, 1.25) == doctest::Approx(1.25));
+        CHECK(vroom::step_autoscale_zoom(2.0, 0.5) == doctest::Approx(1.0));
+    }
+
+    SUBCASE("a drag down and the same drag back up land where they started") {
+        double z = 1.0;
+        for (int i = 0; i < 20; ++i) z = vroom::step_autoscale_zoom(z, 1.1);
+        for (int i = 0; i < 20; ++i) z = vroom::step_autoscale_zoom(z, 1.0 / 1.1);
+        CHECK(z == doctest::Approx(1.0));
+    }
+
+    SUBCASE("stops at the limits") {
+        CHECK(vroom::step_autoscale_zoom(1.0, 1e-3) == vroom::kAutoscaleZoomMin);
+        CHECK(vroom::step_autoscale_zoom(1.0, 1e6) == vroom::kAutoscaleZoomMax);
+        CHECK(vroom::step_autoscale_zoom(vroom::kAutoscaleZoomMin, 0.9) ==
+              vroom::kAutoscaleZoomMin);
+    }
+
+    SUBCASE("ignores a step that isn't a positive number") {
+        CHECK(vroom::step_autoscale_zoom(1.5, 0.0) == 1.5);
+        CHECK(vroom::step_autoscale_zoom(1.5, -2.0) == 1.5);
+        CHECK(vroom::step_autoscale_zoom(1.5, std::nan("")) == 1.5);
+    }
+}
+
+TEST_CASE("zoom_auto_fit") {
+    const VroomCandle candles[] = {
+        {0, 100.0, 110.0, 90.0, 105.0, 1.0},
+        {1, 105.0, 120.0, 100.0, 110.0, 1.0},
+    };
+
+    SUBCASE("1 is the fit itself") {
+        const PriceBounds fit = vroom::auto_price_bounds(candles, 2, false);
+        const PriceBounds b = vroom::zoom_auto_fit(fit, 1.0);
+        CHECK(b.min == fit.min);
+        CHECK(b.max == fit.max);
+    }
+
+    SUBCASE("scales the range about its middle") {
+        const PriceBounds fit{90.0, 120.0};
+        const PriceBounds wide = vroom::zoom_auto_fit(fit, 2.0);
+        CHECK(wide.min == doctest::Approx(75.0));
+        CHECK(wide.max == doctest::Approx(135.0));
+        const PriceBounds tight = vroom::zoom_auto_fit(fit, 0.5);
+        CHECK(tight.min == doctest::Approx(97.5));
+        CHECK(tight.max == doctest::Approx(112.5));
+    }
+
+    SUBCASE("the tightest zoom still holds the candles' low..high") {
+        const PriceBounds env = vroom::price_bounds(candles, 2);
+        for (const bool log : {false, true}) {
+            const PriceBounds b = vroom::zoom_auto_fit(
+                vroom::auto_price_bounds(candles, 2, log), vroom::kAutoscaleZoomMin);
+            CHECK(b.min < env.min);
+            CHECK(b.max > env.max);
+        }
+    }
+
+    SUBCASE("a log fit scales in log space and stays positive") {
+        const PriceBounds fit{1.0, 100.0, true};
+        const PriceBounds b = vroom::zoom_auto_fit(fit, 2.0);
+        CHECK(b.log);
+        CHECK(b.min == doctest::Approx(0.1));
+        CHECK(b.max == doctest::Approx(1000.0));
+    }
+
+    SUBCASE("leaves an empty range alone") {
+        const PriceBounds none{1.0, 1.0};
+        const PriceBounds b = vroom::zoom_auto_fit(none, 3.0);
+        CHECK(b.min == 1.0);
+        CHECK(b.max == 1.0);
+    }
+}
+
 TEST_CASE("ease_price_bounds") {
     const PriceBounds none{1.0, 0.0};  // no envelope to contain
 

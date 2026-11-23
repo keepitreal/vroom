@@ -13,6 +13,7 @@ All navigation is handled inside the chart — you don't wire up any gesture cod
 | Drag (one finger) | Scroll through time; vertical drag moves the price window |
 | Pinch | Zoom around the focus point |
 | Drag the price axis (right) | Rescale price only |
+| Double tap the price axis | Put the price scale back to its default |
 | Drag the time axis (bottom) | Rescale time only |
 | Long-press | Show the snapping [crosshair](crosshair-and-events.mdx) |
 
@@ -26,11 +27,28 @@ All navigation is handled inside the chart — you don't wire up any gesture cod
 | Horizontal scroll / shift+wheel | Pan through time |
 | Ctrl/⌘+wheel or trackpad pinch | Zoom both axes around the cursor |
 | Drag the price axis (right) | Rescale price only |
+| Double-click the price axis | Put the price scale back to its default |
 | Drag the time axis (bottom) | Rescale time only |
 | Hover (mouse) | Show the snapping [crosshair](crosshair-and-events.mdx) under the cursor |
 
 </Tab>
 </Tabs>
+
+## Price scale
+
+The price scale fits the candles in view. The first gesture that moves price (a
+vertical drag, a pinch, a drag on the price axis) freezes it where it is, and a
+double tap or double-click on the price axis fits it again.
+
+With [`autoscaleY`](../reference/index.md) the fit is never frozen. It follows
+the candles as the view pans, easing rather than jumping, and a drag or a pinch
+on the plot moves time only. A drag on the price axis changes how much room the
+fit leaves around the candles (down for more, up for less) and the fit goes on
+following them at that size.
+
+```tsx
+<VroomChart candles={candles} autoscaleY />
+```
 
 ## Controlling the visible window
 

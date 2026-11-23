@@ -399,6 +399,26 @@ inline constexpr double kAutoscaleContractTau = 0.07;  // seconds
 // half a pixel on a phone) lands on it exactly, which is what ends the ease.
 inline constexpr double kAutoscaleSnapFrac = 1e-3;
 
+// --- Price-axis drag under autoscaleY ---------------------------------------
+// A drag on the price axis doesn't end the auto-fit: it scales how much room the
+// fit leaves around the candles, and the fit goes on following them. `zoom` is
+// that scale on the fit's range, 1 being the fit as auto_price_bounds gives it.
+//
+// The floor keeps the fit just outside the candles' low..high (auto_price_bounds
+// widens them by kAutoYZoom, so 1 / kAutoYZoom would sit exactly on them), which
+// is what lets autoscale go on promising they stay on screen. The ceiling
+// leaves the candles a few pixels tall: room to bring a far-off price line
+// into view, without the series flattening into a line.
+inline constexpr double kAutoscaleZoomMin = 0.7;
+inline constexpr double kAutoscaleZoomMax = 100.0;
+
+// `zoom` after a drag step that scales the range by `step`, held to the limits.
+double step_autoscale_zoom(double zoom, double step);
+
+// The auto-fit `fit` at `zoom`, scaled about its middle so the candles stay
+// centered. Returns `fit` itself at 1.
+PriceBounds zoom_auto_fit(const PriceBounds& fit, double zoom);
+
 // One frame of the ease from `display` toward `target`, `dt_s` seconds on. The
 // result always contains `envelope` (the visible low..high), so a wick never
 // clips while the range is still catching up. Returns `target` outright when
