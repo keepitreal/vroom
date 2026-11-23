@@ -28,6 +28,8 @@ export type {
   TransitionEasing,
   IntervalTransition,
   StreamTransition,
+  ScrollToLatestOptions,
+  ChartControls,
   PriceLine,
   PriceLinesStyle,
   Footprint,

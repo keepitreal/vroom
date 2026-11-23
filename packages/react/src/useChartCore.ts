@@ -43,16 +43,20 @@ import type {
   CrosshairTimeFormat,
   Drawing,
   IntervalTransition,
+  ScrollToLatestOptions,
   StreamTransition,
   TransitionEasing,
   VisibleRange,
   VroomChartCoreProps,
 } from '@vroomchart/types';
 import {
+  barsBehindLatest,
   classifyStream,
   classifyTransition,
   inferStepMs,
   isPinnedToLatest,
+  latestWindow,
+  scrollStartWindow,
   timeframeWindow,
   type DataTransition,
 } from './dataTransitions';
@@ -655,6 +659,36 @@ export function useChartCore(
   const afterPresentRef = useRef<(() => void) | null>(null);
   const resyncEditRef = useRef<((list: Drawing[]) => void) | null>(null);
 
+  // What scrollToLatest and the away check measure against, read at frame time.
+  const latestRef = useRef({ candles, ichimoku, awayBars: props.awayFromLatestBars });
+  latestRef.current = { candles, ichimoku, awayBars: props.awayFromLatestBars };
+  const onAwayRef = useRef(props.onAwayFromLatestChange);
+  onAwayRef.current = props.onAwayFromLatestChange;
+  const awayRef = useRef(false);
+  const scrollRafRef = useRef<number | null>(null);
+
+  // The window scrollToLatest lands on, or null with too little data to place it.
+  const latestTarget = useCallback((h: VroomChartHandle): VisibleRange | null => {
+    const { candles: c, ichimoku: ich } = latestRef.current;
+    const stepMs = inferStepMs(c);
+    if (stepMs == null) return null;
+    const displacement = ich?.enabled ? ich.displacement ?? 26 : 0;
+    const futureMs = Math.max(0, displacement) * stepMs;
+    return latestWindow(h.getVisibleRange(), c[c.length - 1].timeMs, stepMs, futureMs);
+  }, []);
+
+  // Runs after every paint that can have moved the window, and reports a flip.
+  const checkAway = useCallback((h: VroomChartHandle) => {
+    const { candles: c, awayBars } = latestRef.current;
+    const stepMs = inferStepMs(c);
+    const away =
+      stepMs != null &&
+      barsBehindLatest(h.getVisibleRange(), c[c.length - 1].timeMs, stepMs) >= (awayBars ?? 1);
+    if (away === awayRef.current) return;
+    awayRef.current = away;
+    onAwayRef.current?.(away);
+  }, []);
+
   const scheduleRender = useCallback(() => {
     if (rafRef.current != null) return;
     rafRef.current = requestAnimationFrame(() => {
@@ -663,9 +697,10 @@ export function useChartCore(
       if (!h) return;
       h.present();
       afterPresentRef.current?.();
+      checkAway(h);
       if (h.isAnimating()) scheduleRender();
     });
-  }, []);
+  }, [checkAway]);
 
   // Stop an in-flight interval morph and land the core on the new candles.
   const endIntervalMorph = useCallback(() => {
@@ -765,6 +800,7 @@ export function useChartCore(
           h.setVisibleRange(applied.startMs, applied.endMs);
         }
         h.present();
+        checkAway(h);
         if (p < 1) {
           streamRafRef.current = requestAnimationFrame(step);
         } else {
@@ -775,8 +811,85 @@ export function useChartCore(
       };
       streamRafRef.current = requestAnimationFrame(step);
     },
-    [],
+    [checkAway],
   );
+
+  const cancelScroll = useCallback(() => {
+    if (scrollRafRef.current != null) {
+      cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
+    }
+  }, []);
+
+  // Glides the window to the newest candle. Like the stream slide, it gets out
+  // of the way as soon as anything else moves the window, and it re-aims every
+  // frame so a bar landing mid-glide doesn't leave it a slot short.
+  const scrollToLatest = useCallback(
+    (options?: ScrollToLatestOptions) => {
+      const h = handleRef.current;
+      if (!h) return;
+      const target = latestTarget(h);
+      if (!target) return;
+      cancelScroll();
+      settleStream();
+      h.resetPriceScale();
+      const durationMs = Math.max(0, options?.durationMs ?? 500);
+      const land = () => {
+        const w = h.getVisibleRange();
+        onViewportChangeRef.current?.(w.startMs, w.endMs);
+      };
+      if (options?.animated === false || durationMs === 0 || reducedMotion()) {
+        h.setVisibleRange(target.startMs, target.endMs);
+        scheduleRender();
+        land();
+        return;
+      }
+      const easing = options?.easing ?? 'ease-out';
+      const from = scrollStartWindow(h.getVisibleRange(), target);
+      let applied: VisibleRange | null = null;
+      const start = performance.now();
+      const step = (now: number) => {
+        if (applied) {
+          const w = h.getVisibleRange();
+          if (w.startMs !== applied.startMs || w.endMs !== applied.endMs) {
+            scrollRafRef.current = null;
+            return;
+          }
+        }
+        const to = latestTarget(h) ?? target;
+        const p = Math.min(1, (now - start) / durationMs);
+        const e = p < 1 ? ease(easing, p) : 1;
+        applied = {
+          startMs: Math.round(from.startMs + (to.startMs - from.startMs) * e),
+          endMs: Math.round(from.endMs + (to.endMs - from.endMs) * e),
+        };
+        h.setVisibleRange(applied.startMs, applied.endMs);
+        h.present();
+        afterPresentRef.current?.();
+        checkAway(h);
+        if (p < 1) {
+          scrollRafRef.current = requestAnimationFrame(step);
+        } else {
+          scrollRafRef.current = null;
+          // Hands anything the core is still easing (the autoscaleY refit,
+          // label fades) back to the render loop.
+          scheduleRender();
+          land();
+        }
+      };
+      scrollRafRef.current = requestAnimationFrame(step);
+    },
+    [latestTarget, cancelScroll, settleStream, reducedMotion, scheduleRender, checkAway],
+  );
+
+  const chartRef = props.chartRef;
+  useEffect(() => {
+    if (!chartRef || !ready) return;
+    chartRef.current = { scrollToLatest };
+    return () => {
+      chartRef.current = null;
+    };
+  }, [chartRef, ready, scrollToLatest]);
 
   // Create the handle once the canvas exists; destroy on unmount.
   useEffect(() => {
@@ -796,6 +909,8 @@ export function useChartCore(
       intervalMorphRafRef.current = null;
       if (streamRafRef.current != null) cancelAnimationFrame(streamRafRef.current);
       streamRafRef.current = null;
+      if (scrollRafRef.current != null) cancelAnimationFrame(scrollRafRef.current);
+      scrollRafRef.current = null;
       handleRef.current?.destroy();
       handleRef.current = null;
       setReady(false);

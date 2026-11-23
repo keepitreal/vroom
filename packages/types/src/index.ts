@@ -319,6 +319,37 @@ export type PriceScaleMode = 'linear' | 'log';
  */
 export type TransitionEasing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
 
+/** How {@link ChartControls.scrollToLatest} gets there. */
+export type ScrollToLatestOptions = {
+  /**
+   * Glide to the newest candle rather than jumping. Default `true`. Always
+   * jumps when the OS requests reduced motion or `reduceMotion` is set.
+   */
+  animated?: boolean;
+  /** Length of the glide in ms. Default 500. `0` jumps. */
+  durationMs?: number;
+  /** Curve of the glide. Default `'ease-out'`. */
+  easing?: TransitionEasing;
+};
+
+/**
+ * Programmatic controls for a mounted chart, received through the `chartRef`
+ * prop.
+ */
+export type ChartControls = {
+  /**
+   * Scroll back so the newest candle sits at the right edge, keeping the
+   * current zoom. The price axis returns to auto-fit, so a range the user
+   * dragged is dropped and the candles refit vertically as the view travels
+   * (easing under `autoscaleY`). A pan, pinch or wheel during the glide takes
+   * over from it. Fires `onViewportChange` once the view lands.
+   *
+   * Pair with `onAwayFromLatestChange` to show your own "back to latest"
+   * button only while the user is reading history.
+   */
+  scrollToLatest(options?: ScrollToLatestOptions): void;
+};
+
 /**
  * How a same-asset interval switch animates. `'transform'` (default) lerps
  * each visible column into its counterpart. `'fade'` fades the old scene out
@@ -1833,4 +1864,25 @@ export type VroomChartCoreProps = {
    * is currently a change ping that reports `(0, 0)`.
    */
   onViewportChange?: (startMs: number, endMs: number) => void;
+  /**
+   * Receives the chart's programmatic controls (e.g.
+   * `useRef<ChartControls | null>(null)` passed here, then
+   * `chartRef.current?.scrollToLatest()` from a button). Set once the chart is
+   * ready and back to `null` on unmount.
+   */
+  chartRef?: { current: ChartControls | null };
+  /**
+   * Fired when the user scrolls far enough back into history that a "back to
+   * latest" button makes sense (`true`), and again when the view returns
+   * (`false`). Only fires on a change, and the chart starts out at `false`.
+   * Updates during the gesture, not just when it settles. The chart draws no
+   * button itself — render your own and call `chartRef.current?.scrollToLatest()`.
+   */
+  onAwayFromLatestChange?: (away: boolean) => void;
+  /**
+   * How many bars the right edge of the view has to sit behind the newest bar
+   * before `onAwayFromLatestChange` reports `true`. Default 1: the newest bar is
+   * fully off screen.
+   */
+  awayFromLatestBars?: number;
 };

@@ -62,6 +62,8 @@ export type {
   TransitionEasing,
   IntervalTransition,
   StreamTransition,
+  ScrollToLatestOptions,
+  ChartControls,
   DrawTool,
   DrawPoint,
   Drawing,
