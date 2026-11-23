@@ -599,6 +599,7 @@ export function VroomChart(props: VroomChartProps) {
       cancelScroll();
       cancelDecay();
       settleStream();
+      handle.resetPriceScale();
       const paint = () => {
         const next = handle.render();
         applyFrame(next);

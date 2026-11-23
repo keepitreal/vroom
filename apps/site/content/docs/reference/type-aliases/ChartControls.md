@@ -22,12 +22,13 @@ prop.
 scrollToLatest(options?): void;
 ```
 
-Source: [types/src/index.ts:349](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L349)
+Source: [types/src/index.ts:350](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L350)
 
 Scroll back so the newest candle sits at the right edge, keeping the
-current zoom and leaving the price axis to its usual fit. A pan, pinch or
-wheel during the glide takes over from it. Fires `onViewportChange` once
-the view lands.
+current zoom. The price axis returns to auto-fit, so a range the user
+dragged is dropped and the candles refit vertically as the view travels
+(easing under `autoscaleY`). A pan, pinch or wheel during the glide takes
+over from it. Fires `onViewportChange` once the view lands.
 
 Pair with `onAwayFromLatestChange` to show your own "back to latest"
 button only while the user is reading history.

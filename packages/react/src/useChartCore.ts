@@ -832,6 +832,7 @@ export function useChartCore(
       if (!target) return;
       cancelScroll();
       settleStream();
+      h.resetPriceScale();
       const durationMs = Math.max(0, options?.durationMs ?? 500);
       const land = () => {
         const w = h.getVisibleRange();

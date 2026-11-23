@@ -11,7 +11,7 @@ type CrosshairButtonConfig = {
 };
 ```
 
-Source: [types/src/index.ts:1273](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1273)
+Source: [types/src/index.ts:1274](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1274)
 
 The crosshair plus button: a "+" drawn inside the crosshair's price badge,
 turning the whole badge into a button — the order-entry affordance.
@@ -32,7 +32,7 @@ fires `onCrosshairButton`, which is where your own UI (e.g. "Buy limit" /
 optional cornerRadius?: number;
 ```
 
-Source: [types/src/index.ts:1281](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1281)
+Source: [types/src/index.ts:1282](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1282)
 
 Badge corner radius in px, clamped to 0..height/2. Default 6 (the plain
 badge's radius). Any value at or above half the height draws a fully
@@ -46,7 +46,7 @@ rounded pill.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:1275](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1275)
+Source: [types/src/index.ts:1276](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1276)
 
 Show the plus inside the crosshair price badge. Default false.
 
@@ -58,7 +58,7 @@ Show the plus inside the crosshair price badge. Default false.
 optional hoverBoost?: number;
 ```
 
-Source: [types/src/index.ts:1287](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1287)
+Source: [types/src/index.ts:1288](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1288)
 
 How much the hovered (or open) badge brightens, as a channel multiplier.
 1 disables the highlight. Default 1.25. Hover is web only — touch platforms

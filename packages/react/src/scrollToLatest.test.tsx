@@ -10,9 +10,11 @@ const HISTORY = { startMs: 10 * MIN, endMs: 30 * MIN };
 const LATEST = { startMs: 80 * MIN, endMs: 100 * MIN };
 
 const view = { ...HISTORY };
+const resetPriceScale = vi.fn();
 
 function fakeHandle() {
   const impl: Record<string, (...args: never[]) => unknown> = {
+    resetPriceScale,
     getAxisMetrics: () => ({ yAxisWidth: 60, xAxisHeight: 24, indicatorHeight: 0 }),
     getVisibleRange: () => ({ ...view }),
     setVisibleRange: ((s: number, e: number) => {
@@ -48,6 +50,7 @@ beforeAll(() => {
 beforeEach(() => {
   vi.useFakeTimers();
   Object.assign(view, HISTORY);
+  resetPriceScale.mockClear();
 });
 
 afterEach(() => {
@@ -113,6 +116,13 @@ describe('scrollToLatest', () => {
     expect(view).toEqual(LATEST);
     expect(onViewportChange).toHaveBeenCalledTimes(1);
     expect(onViewportChange).toHaveBeenCalledWith(LATEST.startMs, LATEST.endMs);
+  });
+
+  it('returns the price axis to auto-fit', async () => {
+    const { chartRef } = await mount();
+    const before = resetPriceScale.mock.calls.length;
+    act(() => chartRef.current!.scrollToLatest());
+    expect(resetPriceScale).toHaveBeenCalledTimes(before + 1);
   });
 
   it('jumps when not animated', async () => {

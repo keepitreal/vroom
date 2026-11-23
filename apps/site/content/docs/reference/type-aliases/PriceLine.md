@@ -20,7 +20,7 @@ type PriceLine = {
 };
 ```
 
-Source: [types/src/index.ts:1056](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1056)
+Source: [types/src/index.ts:1057](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1057)
 
 A consumer-supplied horizontal status line at a fixed price — the primitive
 behind resting limit orders, take-profits, stop-losses and liquidation levels.
@@ -43,7 +43,7 @@ simply by leaving your `priceLines` state unchanged.
 optional axisLabel?: boolean;
 ```
 
-Source: [types/src/index.ts:1097](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1097)
+Source: [types/src/index.ts:1098](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1098)
 
 Show the price badge in the y-axis strip. Default true.
 
@@ -55,7 +55,7 @@ Show the price badge in the y-axis strip. Default true.
 optional badgeTextColor?: VroomColor;
 ```
 
-Source: [types/src/index.ts:1078](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1078)
+Source: [types/src/index.ts:1079](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1079)
 
 Text on this line's filled pieces: the y-axis price badge and the
 `quantity` pill. Defaults to `theme.badgeText`. Set it when `color` is
@@ -69,7 +69,7 @@ light enough that the shared badge text doesn't read against it.
 optional closable?: boolean;
 ```
 
-Source: [types/src/index.ts:1093](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1093)
+Source: [types/src/index.ts:1094](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1094)
 
 Show the close button on this line. Defaults to true, but the button only
 ever renders if you also pass `onPriceLineClose` — set this to false to opt a
@@ -83,7 +83,7 @@ single line out (e.g. a liquidation level the user can't dismiss).
 optional color?: VroomColor;
 ```
 
-Source: [types/src/index.ts:1072](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1072)
+Source: [types/src/index.ts:1073](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1073)
 
 Line, border, body text and close-icon color, and the fill of the
 `quantity` pill and the y-axis price badge. Defaults to a soft red.
@@ -96,7 +96,7 @@ Line, border, body text and close-icon color, and the fill of the
 optional draggable?: boolean;
 ```
 
-Source: [types/src/index.ts:1087](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1087)
+Source: [types/src/index.ts:1088](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1088)
 
 Let the user drag this line vertically to a new price. Default false.
 Pair with `onPriceLineDragEnd` to commit the move.
@@ -109,7 +109,7 @@ Pair with `onPriceLineDragEnd` to commit the move.
 optional extendLeft?: boolean;
 ```
 
-Source: [types/src/index.ts:1095](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1095)
+Source: [types/src/index.ts:1096](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1096)
 
 Extend the line to the pane's left edge. Default true.
 
@@ -121,7 +121,7 @@ Extend the line to the pane's left edge. Default true.
 id: string;
 ```
 
-Source: [types/src/index.ts:1058](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1058)
+Source: [types/src/index.ts:1059](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1059)
 
 Stable unique id, echoed back by every callback.
 
@@ -133,7 +133,7 @@ Stable unique id, echoed back by every callback.
 optional lineStyle?: "solid" | "dotted" | "dashed";
 ```
 
-Source: [types/src/index.ts:1082](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1082)
+Source: [types/src/index.ts:1083](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1083)
 
 Line style. Default `'dotted'`, matching the current-price indicator.
 
@@ -145,7 +145,7 @@ Line style. Default `'dotted'`, matching the current-price indicator.
 price: number;
 ```
 
-Source: [types/src/index.ts:1060](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1060)
+Source: [types/src/index.ts:1061](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1061)
 
 Where the line sits on the price scale.
 
@@ -157,7 +157,7 @@ Where the line sits on the price scale.
 optional quantity?: string;
 ```
 
-Source: [types/src/index.ts:1067](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1067)
+Source: [types/src/index.ts:1068](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1068)
 
 Trailing segment, drawn as a pill filled with `color` so size reads at a
 glance (e.g. `'x 5.206'`). Its text is `badgeTextColor`. Omit to hide it.
@@ -170,7 +170,7 @@ glance (e.g. `'x 5.206'`). Its text is `badgeTextColor`. Omit to hide it.
 optional text?: string;
 ```
 
-Source: [types/src/index.ts:1062](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1062)
+Source: [types/src/index.ts:1063](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1063)
 
 Body label — render whatever you like (e.g. `'Limit Buy @ 13.79'`).
 
@@ -182,6 +182,6 @@ Body label — render whatever you like (e.g. `'Limit Buy @ 13.79'`).
 optional width?: number;
 ```
 
-Source: [types/src/index.ts:1080](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1080)
+Source: [types/src/index.ts:1081](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L1081)
 
 Stroke width in px. Default 1.

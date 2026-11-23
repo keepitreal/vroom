@@ -32,7 +32,7 @@ type IchimokuConfig = {
 };
 ```
 
-Source: [types/src/index.ts:802](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L802)
+Source: [types/src/index.ts:803](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L803)
 
 Ichimoku Kinko Hyo overlay config. Five lines on the price pane plus the
 cloud (kumo) shaded between the two leading spans. No pane is reserved.
@@ -60,7 +60,7 @@ scaled to the candles alone.
 optional bearishCloudColor?: string | number;
 ```
 
-Source: [types/src/index.ts:854](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L854)
+Source: [types/src/index.ts:855](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L855)
 
 Cloud fill where Senkou A is below Senkou B. Default red.
 
@@ -72,7 +72,7 @@ Cloud fill where Senkou A is below Senkou B. Default red.
 optional bullishCloudColor?: string | number;
 ```
 
-Source: [types/src/index.ts:852](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L852)
+Source: [types/src/index.ts:853](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L853)
 
 Cloud fill where Senkou A is above Senkou B. Default green.
 
@@ -84,7 +84,7 @@ Cloud fill where Senkou A is above Senkou B. Default green.
 optional chikouColor?: string | number;
 ```
 
-Source: [types/src/index.ts:843](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L843)
+Source: [types/src/index.ts:844](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L844)
 
 Chikou span color. Default teal.
 
@@ -96,7 +96,7 @@ Chikou span color. Default teal.
 optional chikouVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:847](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L847)
+Source: [types/src/index.ts:848](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L848)
 
 Draw the Chikou span. Default true.
 
@@ -108,7 +108,7 @@ Draw the Chikou span. Default true.
 optional chikouWidth?: number;
 ```
 
-Source: [types/src/index.ts:845](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L845)
+Source: [types/src/index.ts:846](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L846)
 
 Chikou span stroke width in px. Default 1.
 
@@ -120,7 +120,7 @@ Chikou span stroke width in px. Default 1.
 optional cloudOpacity?: number;
 ```
 
-Source: [types/src/index.ts:856](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L856)
+Source: [types/src/index.ts:857](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L857)
 
 Cloud opacity 0..1, applied to whichever cloud color is in play. Default 0.15.
 
@@ -132,7 +132,7 @@ Cloud opacity 0..1, applied to whichever cloud color is in play. Default 0.15.
 optional cloudVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:850](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L850)
+Source: [types/src/index.ts:851](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L851)
 
 Draw the cloud between the two leading spans. Default true.
 
@@ -144,7 +144,7 @@ Draw the cloud between the two leading spans. Default true.
 optional displacement?: number;
 ```
 
-Source: [types/src/index.ts:816](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L816)
+Source: [types/src/index.ts:817](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L817)
 
 Bars the cloud leads by and Chikou lags by. Default 26, clamped to >= 0.
 Changing it only moves what's already drawn — the lines themselves don't
@@ -158,7 +158,7 @@ recompute.
 optional enabled?: boolean;
 ```
 
-Source: [types/src/index.ts:804](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L804)
+Source: [types/src/index.ts:805](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L805)
 
 Draw the indicator. Default false.
 
@@ -170,7 +170,7 @@ Draw the indicator. Default false.
 optional kijunColor?: string | number;
 ```
 
-Source: [types/src/index.ts:825](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L825)
+Source: [types/src/index.ts:826](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L826)
 
 Kijun-sen color. Default red.
 
@@ -182,7 +182,7 @@ Kijun-sen color. Default red.
 optional kijunPeriod?: number;
 ```
 
-Source: [types/src/index.ts:808](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L808)
+Source: [types/src/index.ts:809](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L809)
 
 Kijun-sen (base) lookback. Default 26, clamped to >= 1.
 
@@ -194,7 +194,7 @@ Kijun-sen (base) lookback. Default 26, clamped to >= 1.
 optional kijunVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:829](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L829)
+Source: [types/src/index.ts:830](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L830)
 
 Draw the Kijun-sen. Default true.
 
@@ -206,7 +206,7 @@ Draw the Kijun-sen. Default true.
 optional kijunWidth?: number;
 ```
 
-Source: [types/src/index.ts:827](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L827)
+Source: [types/src/index.ts:828](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L828)
 
 Kijun-sen stroke width in px. Default 1.
 
@@ -218,7 +218,7 @@ Kijun-sen stroke width in px. Default 1.
 optional senkouAColor?: string | number;
 ```
 
-Source: [types/src/index.ts:831](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L831)
+Source: [types/src/index.ts:832](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L832)
 
 Senkou Span A color. Default green.
 
@@ -230,7 +230,7 @@ Senkou Span A color. Default green.
 optional senkouAVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:835](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L835)
+Source: [types/src/index.ts:836](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L836)
 
 Draw the Senkou Span A edge. Default true.
 
@@ -242,7 +242,7 @@ Draw the Senkou Span A edge. Default true.
 optional senkouAWidth?: number;
 ```
 
-Source: [types/src/index.ts:833](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L833)
+Source: [types/src/index.ts:834](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L834)
 
 Senkou Span A stroke width in px. Default 1.
 
@@ -254,7 +254,7 @@ Senkou Span A stroke width in px. Default 1.
 optional senkouBColor?: string | number;
 ```
 
-Source: [types/src/index.ts:837](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L837)
+Source: [types/src/index.ts:838](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L838)
 
 Senkou Span B color. Default orange.
 
@@ -266,7 +266,7 @@ Senkou Span B color. Default orange.
 optional senkouBPeriod?: number;
 ```
 
-Source: [types/src/index.ts:810](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L810)
+Source: [types/src/index.ts:811](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L811)
 
 Senkou Span B lookback. Default 52, clamped to >= 1.
 
@@ -278,7 +278,7 @@ Senkou Span B lookback. Default 52, clamped to >= 1.
 optional senkouBVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:841](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L841)
+Source: [types/src/index.ts:842](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L842)
 
 Draw the Senkou Span B edge. Default true.
 
@@ -290,7 +290,7 @@ Draw the Senkou Span B edge. Default true.
 optional senkouBWidth?: number;
 ```
 
-Source: [types/src/index.ts:839](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L839)
+Source: [types/src/index.ts:840](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L840)
 
 Senkou Span B stroke width in px. Default 1.
 
@@ -302,7 +302,7 @@ Senkou Span B stroke width in px. Default 1.
 optional tenkanColor?: string | number;
 ```
 
-Source: [types/src/index.ts:819](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L819)
+Source: [types/src/index.ts:820](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L820)
 
 Tenkan-sen color (hex string or packed ARGB number). Default blue.
 
@@ -314,7 +314,7 @@ Tenkan-sen color (hex string or packed ARGB number). Default blue.
 optional tenkanPeriod?: number;
 ```
 
-Source: [types/src/index.ts:806](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L806)
+Source: [types/src/index.ts:807](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L807)
 
 Tenkan-sen (conversion) lookback. Default 9, clamped to >= 1.
 
@@ -326,7 +326,7 @@ Tenkan-sen (conversion) lookback. Default 9, clamped to >= 1.
 optional tenkanVisible?: boolean;
 ```
 
-Source: [types/src/index.ts:823](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L823)
+Source: [types/src/index.ts:824](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L824)
 
 Draw the Tenkan-sen. Default true.
 
@@ -338,6 +338,6 @@ Draw the Tenkan-sen. Default true.
 optional tenkanWidth?: number;
 ```
 
-Source: [types/src/index.ts:821](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L821)
+Source: [types/src/index.ts:822](https://github.com/keepitreal/vroom/blob/main/packages/types/src/index.ts#L822)
 
 Tenkan-sen stroke width in px. Default 1.
